@@ -1,7 +1,6 @@
 streamlit
 pandas
 plotly
-geolysis
 docxtpl
 geopandas
 folium
