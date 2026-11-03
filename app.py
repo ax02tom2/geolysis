@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -84,11 +84,21 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                     with st.container(border=True):
                         st.image(image, caption=f"{uploaded.name}｜{info.width_px} × {info.height_px} px", use_container_width=True)
                         st.caption(f"格式：{info.format}｜檔案大小：{info.file_size_bytes / 1024:.1f} KB")
-                        if st.checkbox("分析水平列界候選", key=f"core_row_detect_{idx}"):
-                            row_result = detect_tray_rows(image)
-                            st.image(draw_row_candidates(image, row_result), caption="紅線為水平列界候選，請人工確認；不是岩芯段界。", use_container_width=True)
-                            st.caption(f"偵測到 {len(row_result['row_bands'])} 個候選列區段；候選邊界 y={row_result['row_bounds']} px。")
-                            st.warning(row_result.get("warning", "列界候選僅供定位，不可直接作為 RQD 計算依據。"))
+                        if st.checkbox("分析岩芯箱列界候選（雙方法）", key=f"core_row_detect_{idx}"):
+                            gradient_result = detect_tray_rows(image)
+                            blue_result = detect_blue_tray_rows(image)
+                            st.image(
+                                draw_combined_row_candidates(image, [gradient_result, blue_result]),
+                                caption="紅線＝灰階水平梯度候選；藍線＝藍色箱體 Hough 候選。兩者都不是岩芯段界。",
+                                use_container_width=True,
+                            )
+                            st.markdown("**偵測方法比較**")
+                            st.write({
+                                "灰階梯度候選 y (px)": [x["y_px"] for x in gradient_result.get("candidates", [])],
+                                "藍箱 Hough 候選 y (px)": [x["y_px"] for x in blue_result.get("candidates", [])],
+                            })
+                            st.caption("藍箱方法：" + blue_result.get("method", "unknown") + "；線群數：" + str(blue_result.get("detected_line_groups", 0)))
+                            st.warning("兩種方法只用於定位岩芯箱列界。不能把箱格隔板當成岩芯天然節理，也不能直接據此計算 RQD。\n" + blue_result.get("warning", ""))
                 except Exception as exc:
                     st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 

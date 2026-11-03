@@ -38,3 +38,36 @@ def test_row_candidate_detection_on_controlled_fixture():
     assert len(result["row_bands"]) == 5
     assert len(result["candidates"]) == 4
     assert result["method"] == "horizontal_gradient_candidate_v1"
+
+
+def make_blue_tray(rows=5, width=900, row_height=150):
+    from PIL import Image, ImageDraw
+    image = Image.new("RGB", (width, rows * row_height), (205, 198, 180))
+    draw = ImageDraw.Draw(image)
+    # 藍色箱體外框與橫向隔板；內部岩芯以灰褐色表示。
+    draw.rectangle((12, 12, width - 12, rows * row_height - 12), outline=(25, 95, 190), width=18)
+    for i in range(1, rows):
+        y = i * row_height
+        draw.line((15, y, width - 15, y), fill=(25, 95, 190), width=14)
+    for i in range(rows):
+        y0 = i * row_height + 30
+        draw.rounded_rectangle((35, y0, width - 35, y0 + 85), radius=38, fill=(112, 105, 92), outline=(65, 60, 55), width=4)
+    return image
+
+
+def test_blue_tray_hough_candidate_detection():
+    from core_photo_analysis import detect_blue_tray_rows
+    result = detect_blue_tray_rows(make_blue_tray(rows=5), max_rows=12)
+    assert result["method"] == "blue_tray_hough_v1"
+    assert len(result["candidates"]) >= 3
+    ys = [x["y_px"] for x in result["candidates"]]
+    assert ys == sorted(ys)
+
+
+def test_blue_tray_detector_gracefully_handles_non_blue_image():
+    from core_photo_analysis import detect_blue_tray_rows
+    image = Image.new("RGB", (800, 500), (180, 160, 130))
+    result = detect_blue_tray_rows(image)
+    assert result["method"] == "blue_hough_v1"
+    assert result["candidates"] == []
+    assert "未找到" in result["warning"]

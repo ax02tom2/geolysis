@@ -5,3 +5,4 @@ geolysis
 Pillow
 
 numpy
+opencv-python-headless

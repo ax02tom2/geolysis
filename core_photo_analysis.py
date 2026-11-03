@@ -156,3 +156,124 @@ def draw_row_candidates(image: Image.Image, detection: dict) -> Image.Image:
         draw.line((0, y, out.width, y), fill=(255, 40, 40), width=max(2, out.width // 1200))
         draw.text((8, min(y + 3, out.height - 18)), f"candidate {i}: y={y}px", fill=(255, 40, 40), stroke_width=1, stroke_fill=(255, 255, 255))
     return out
+
+
+def detect_blue_tray_rows(image: Image.Image, max_rows: int = 12) -> dict:
+    """參考使用者 Core-photo-depth-matching-alignment 的箱體幾何思路。
+
+    以藍色箱體遮罩 + HoughLinesP 找長水平隔板，再依 y 位置與斜率分組。
+    這是「箱體列界候選」而非岩芯斷裂偵測；對非藍色箱、遮蔽、反光或嚴重透視
+    仍可能失效。保留原圖座標，不做透視校正或自動 RQD。
+    """
+    import cv2
+    import numpy as np
+
+    if max_rows < 2 or max_rows > 30:
+        raise ValueError("max_rows 必須介於 2 至 30。")
+    rgb = np.asarray(image.convert("RGB"))
+    h, w = rgb.shape[:2]
+    if min(h, w) < 80:
+        return {"candidates": [], "row_bounds": [0, h], "method": "image_too_small", "warning": "影像尺寸太小。"}
+
+    # 降採樣以控制處理時間，並使用比原校正工具更寬的藍色範圍。
+    scale = min(1.0, 1400.0 / max(h, w))
+    sw, sh = max(1, int(w * scale)), max(1, int(h * scale))
+    small = cv2.resize(rgb, (sw, sh), interpolation=cv2.INTER_AREA) if scale < 1 else rgb
+    hsv = cv2.cvtColor(small, cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv, (78, 45, 35), (132, 255, 255))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    edges = cv2.Canny(mask, 40, 120)
+    lines = cv2.HoughLinesP(
+        edges, 1, np.pi / 180,
+        threshold=max(18, int(0.045 * sw)),
+        minLineLength=max(35, int(0.16 * sw)),
+        maxLineGap=max(8, int(0.035 * sw)),
+    )
+    if lines is None:
+        return {"candidates": [], "row_bounds": [0, h], "method": "blue_hough_v1", "warning": "未找到足夠長的藍色水平箱體線段；可能不是藍色箱體或箱體被遮蔽。"}
+
+    raw = []
+    for line in np.asarray(lines).reshape(-1, 4):
+        x1, y1, x2, y2 = map(float, line)
+        dx, dy = x2 - x1, y2 - y1
+        length = float(np.hypot(dx, dy))
+        angle = abs(float(np.degrees(np.arctan2(dy, dx))))
+        angle = min(angle, abs(180.0 - angle))
+        if length < 0.16 * sw or angle > 22.0:
+            continue
+        slope = dy / (dx + 1e-8)
+        y_center = (y1 + y2) / 2 + slope * (sw / 2 - (x1 + x2) / 2)
+        raw.append((y_center, slope, length))
+
+    if not raw:
+        return {"candidates": [], "row_bounds": [0, h], "method": "blue_hough_v1", "warning": "有藍色像素，但沒有足夠長且近水平的箱體線段。"}
+
+    raw.sort(key=lambda x: x[0])
+    groups = []
+    for y, slope, length in raw:
+        match = None
+        for group in groups:
+            angle_delta = abs(np.degrees(np.arctan(slope)) - np.degrees(np.arctan(group["slope"])))
+            if abs(y - group["y"]) <= max(6.0, 0.018 * sh) and angle_delta <= 8:
+                match = group
+                break
+        if match is None:
+            groups.append({"y": y, "slope": slope, "length": length, "n": 1})
+        else:
+            match["y"] = (match["y"] * match["n"] + y) / (match["n"] + 1)
+            match["slope"] = (match["slope"] * match["n"] + slope) / (match["n"] + 1)
+            match["length"] += length
+            match["n"] += 1
+
+    groups.sort(key=lambda g: g["y"])
+    # 合併同一隔板因兩側邊緣而產生的重複群組。
+    merged = []
+    for g in groups:
+        if merged and abs(g["y"] - merged[-1]["y"]) <= max(8.0, 0.022 * sh):
+            old = merged[-1]
+            old["y"] = (old["y"] * old["n"] + g["y"] * g["n"]) / (old["n"] + g["n"])
+            old["length"] += g["length"]
+            old["n"] += g["n"]
+        else:
+            merged.append(dict(g))
+
+    # 排除最外緣框線，保留內部隔板候選；用線長作為排序依據但不宣稱機率信心。
+    margin = max(5, int(0.045 * sh))
+    inner = [g for g in merged if margin < g["y"] < sh - margin]
+    inner.sort(key=lambda g: g["length"], reverse=True)
+    selected = inner[: max_rows - 1]
+    selected.sort(key=lambda g: g["y"])
+    ys = [int(round(g["y"] / scale)) for g in selected]
+    candidates = [
+        {"y_px": y, "line_length_px": round(g["length"] / scale, 1), "segments": int(g["n"])}
+        for y, g in zip(ys, selected)
+    ]
+    bounds = [0] + ys + [h]
+    return {
+        "row_bounds": bounds,
+        "candidates": candidates,
+        "method": "blue_tray_hough_v1",
+        "warning": "藍色箱體橫線候選只用於定位箱格列界，不代表岩芯段界；請人工確認。非藍色箱體或透視嚴重時可能漏檢。",
+        "detected_line_groups": len(merged),
+    }
+
+
+def draw_combined_row_candidates(image: Image.Image, detections: list[dict]) -> Image.Image:
+    """同圖顯示不同演算法候選：紅色=灰階梯度、藍色=藍箱 Hough。"""
+    from PIL import ImageDraw
+
+    out = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out)
+    colors = {"horizontal_gradient_candidate_v1": (240, 45, 45), "blue_tray_hough_v1": (30, 110, 255)}
+    y_seen = set()
+    for detection in detections:
+        method = detection.get("method", "")
+        color = colors.get(method, (255, 180, 0))
+        for item in detection.get("candidates", []):
+            y = int(item["y_px"])
+            if (method, y) in y_seen:
+                continue
+            y_seen.add((method, y))
+            draw.line((0, y, out.width, y), fill=color, width=max(2, out.width // 1400))
+            draw.text((8, min(y + 3, out.height - 18)), f"{method.split('_')[0]} y={y}", fill=color, stroke_width=1, stroke_fill=(255, 255, 255))
+    return out
