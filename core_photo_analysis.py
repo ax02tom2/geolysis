@@ -445,3 +445,135 @@ def draw_fixed_tray_row_layout(image: Image.Image, layout: dict) -> Image.Image:
 def crop_fixed_tray_rows(image: Image.Image, layout: dict) -> list[Image.Image]:
     """依 layout 逐列裁切；不縮放、不改寫原校正影像。"""
     return [image.crop(tuple(row["box_px"])) for row in layout.get("rows", [])]
+
+
+
+def detect_core_discontinuity_candidates(
+    row_image: Image.Image,
+    mm_per_px: float,
+    min_separation_mm: float = 25.0,
+    sensitivity: float = 2.5,
+) -> dict:
+    """Find candidate transverse discontinuities along one core-tray row.
+
+    The detector combines column-wise grayscale gradient and dark-pixel occupancy
+    within the central 20-80% of the row. It reports image candidates only; it
+    cannot distinguish natural joints from drilling/handling breaks.
+    """
+    import numpy as np
+
+    if mm_per_px <= 0:
+        raise ValueError("mm_per_px 必須大於 0。")
+    if min_separation_mm <= 0:
+        raise ValueError("最小候選間距必須大於 0 mm。")
+    if not 1.0 <= sensitivity <= 8.0:
+        raise ValueError("sensitivity 必須介於 1 至 8。")
+    rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+    if w < 80 or h < 20:
+        return {"success": False, "candidates": [], "warning": "列影像尺寸不足，無法分析。"}
+
+    gray = (0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]).astype(np.float32)
+    y0, y1 = int(h * 0.20), max(int(h * 0.80), int(h * 0.20) + 1)
+    band = gray[y0:y1, :]
+    # Robustly aggregate vertical edge energy and the proportion of very dark pixels.
+    grad = np.abs(np.diff(band, axis=1)).mean(axis=0)
+    dark = (band[:, :-1] < np.percentile(band, 18)).mean(axis=0)
+    # Smooth over a small fraction of image width to reduce isolated texture noise.
+    win = max(3, int(round(w * 0.004)) | 1)
+    kernel = np.ones(win, dtype=np.float32) / win
+    grad_s = np.convolve(grad, kernel, mode="same")
+    dark_s = np.convolve(dark, kernel, mode="same")
+    grad_med = float(np.median(grad_s))
+    grad_mad = float(np.median(np.abs(grad_s - grad_med))) + 1e-6
+    dark_med = float(np.median(dark_s))
+    dark_mad = float(np.median(np.abs(dark_s - dark_med))) + 1e-6
+    score = (grad_s - grad_med) / max(1.4826 * grad_mad, 1.0) + 0.65 * (dark_s - dark_med) / max(1.4826 * dark_mad, 0.02)
+    threshold = max(float(np.percentile(score, 92)), sensitivity)
+    margin = max(4, int(w * 0.015))
+    min_px = max(3, int(round(min_separation_mm / mm_per_px)))
+    peaks = []
+    for x in range(margin, w - margin):
+        if score[x] >= threshold and score[x] >= score[x - 1] and score[x] >= score[x + 1]:
+            peaks.append((float(score[x]), x))
+    selected = []
+    for strength, x in sorted(peaks, reverse=True):
+        if all(abs(x - old_x) >= min_px for _, old_x in selected):
+            selected.append((strength, x))
+    selected.sort(key=lambda item: item[1])
+    candidates = [{
+        "x_px": int(x),
+        "distance_mm": round(float(x * mm_per_px), 1),
+        "signal_score": round(float(strength), 2),
+        "candidate_type": "possible_transverse_discontinuity",
+        "interpretation": "需人工確認；不可直接判定為天然節理",
+    } for strength, x in selected]
+    return {
+        "success": True,
+        "image_width_px": w,
+        "row_length_mm": round(w * mm_per_px, 1),
+        "mm_per_px": float(mm_per_px),
+        "candidates": candidates,
+        "threshold": round(threshold, 3),
+        "method": "column_gradient_darkness_candidate_v1",
+        "warning": "這些是影像不連續候選，可能來自天然節理、機械斷裂、岩性紋理、陰影、托盤背景或反光；必須人工結合岩心外觀與鑽探紀錄判別；不可直接判定為天然節理，也不得直接用於正式 RQD。",
+    }
+
+
+def draw_core_discontinuity_candidates(row_image: Image.Image, detection: dict) -> Image.Image:
+    """Overlay possible transverse discontinuities on one row image."""
+    from PIL import ImageDraw
+    out = row_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out)
+    for i, item in enumerate(detection.get("candidates", []), start=1):
+        x = int(item["x_px"])
+        draw.line((x, 0, x, out.height - 1), fill=(255, 40, 40), width=max(2, out.width // 500))
+        draw.text((min(x + 3, out.width - 90), 4), f"C{i} {item['distance_mm']:.0f}mm", fill=(255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0))
+    return out
+
+
+def segment_lengths_from_confirmed_cuts(
+    row_width_px: int,
+    mm_per_px: float,
+    confirmed_cut_positions_px: Iterable[float],
+) -> list[float]:
+    """Convert user-confirmed x cut positions into image-span lengths (mm).
+
+    Returned lengths span the entire row image. The user must exclude tray margins
+    and non-core gaps before using these values as measured core-piece lengths.
+    """
+    if row_width_px <= 0 or mm_per_px <= 0:
+        raise ValueError("影像寬度與比例尺必須大於 0。")
+    cuts = sorted(float(x) for x in confirmed_cut_positions_px)
+    if any(x <= 0 or x >= row_width_px for x in cuts):
+        raise ValueError("斷點位置必須位於影像內部（大於 0 且小於影像寬度）。")
+    if any(b - a < 1 for a, b in zip(cuts, cuts[1:])):
+        raise ValueError("斷點位置不可重複。")
+    bounds = [0.0] + cuts + [float(row_width_px)]
+    return [round((b - a) * mm_per_px, 1) for a, b in zip(bounds, bounds[1:])]
+
+
+
+def calibrate_row_measurement_span(
+    row_image: Image.Image,
+    x_start_px: int,
+    x_end_px: int,
+    known_length_mm: float = 1000.0,
+) -> tuple[Image.Image, dict]:
+    """Crop the user-confirmed 1 m measurement span from one tray row."""
+    width, height = row_image.size
+    x0, x1 = int(x_start_px), int(x_end_px)
+    if known_length_mm <= 0:
+        raise ValueError("已知列長必須大於 0 mm。")
+    if x0 < 0 or x1 > width or x1 - x0 < 40:
+        raise ValueError("量測起訖像素必須在列影像範圍內，且至少相距 40 px。")
+    cropped = row_image.crop((x0, 0, x1, height))
+    mm_per_px = float(known_length_mm) / float(x1 - x0)
+    return cropped, {
+        "x_start_px": x0,
+        "x_end_px": x1,
+        "span_px": x1 - x0,
+        "known_length_mm": float(known_length_mm),
+        "mm_per_px": mm_per_px,
+        "warning": "比例尺僅在使用者將起點與終點對準該列實際 1 m 端點時成立；請排除托盤邊框與端部空隙。",
+    }

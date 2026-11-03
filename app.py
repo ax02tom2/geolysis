@@ -4,12 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
 st.title("🧱 geolysis 大地工程分析系統")
-st.markdown("""
+st.markdown(r"""
 本系統結合 **Hoek-Brown (2002) 岩體裂隙參數推估** 與開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 核心工程模組：
 - **模組一：Hoek-Brown 岩體裂隙推估 ($c', \phi'$)** — 依據地質強度指標 (GSI，內建現場結構×節理交叉查表)、岩性常數 ($m_i$)、單壓強度與邊坡深度，自動轉換等效莫耳－庫倫參數
 - **模組二：土壤分類系統** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
@@ -116,6 +116,40 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                                         for row_i, row_crop in enumerate(row_crops):
                                             with crop_cols[row_i]:
                                                 st.image(row_crop, caption=f"第 {row_i + 1} 列｜1 m", use_container_width=True)
+                                        st.markdown("#### V6｜逐列岩芯不連續位置候選")
+                                        st.caption("系統只標示影像可能不連續的位置；不是天然節理分類，也不會自動認定為 RQD 合格段。")
+                                        for row_i, row_crop in enumerate(row_crops):
+                                            with st.expander(f"第 {row_i + 1} 列｜疑似斷點候選", expanded=(row_i == 0)):
+                                                st.caption("先將下方範圍調整至該列實際 1 m 的左右端點；不要把藍色箱框或空白端部算進 1 m。")
+                                                x_start, x_end = st.slider(
+                                                    "本列 1 m 有效量測範圍 (px)", min_value=0, max_value=row_crop.width,
+                                                    value=(0, row_crop.width), step=1,
+                                                    key=f"core_row_span_{idx}_{row_i}",
+                                                )
+                                                try:
+                                                    measured_row, row_cal = calibrate_row_measurement_span(row_crop, x_start, x_end, 1000.0)
+                                                    mm_px = row_cal["mm_per_px"]
+                                                    st.caption(f"有效範圍 {x_start}–{x_end} px｜比例尺 {mm_px:.4f} mm/px")
+                                                    candidate_result = detect_core_discontinuity_candidates(measured_row, mm_px)
+                                                    st.image(draw_core_discontinuity_candidates(measured_row, candidate_result), use_container_width=True)
+                                                    st.caption(candidate_result["warning"])
+                                                    candidate_x = [str(item["x_px"]) for item in candidate_result["candidates"]]
+                                                    st.write({"候選數": len(candidate_x), "候選位置 (mm)": [item["distance_mm"] for item in candidate_result["candidates"]]})
+                                                    confirmed_raw = st.text_input(
+                                                        "人工確認後的斷點 x 座標 (px，以本列有效範圍左端為 0；逗號分隔；留白代表不採用)",
+                                                        value=", ".join(candidate_x),
+                                                        key=f"core_confirmed_cuts_{idx}_{row_i}",
+                                                    )
+                                                    try:
+                                                        confirmed = [float(v.strip()) for v in confirmed_raw.replace("，", ",").split(",") if v.strip()] if confirmed_raw.strip() else []
+                                                        spans = segment_lengths_from_confirmed_cuts(measured_row.width, mm_px, confirmed)
+                                                        st.write({"依確認位置切分的影像區段長度 (mm，含列端邊界)": spans})
+                                                        st.warning("以上是影像區段長度，不等於實際回收岩芯段長；端部空隙、岩芯缺失及托盤空白仍須排除，且需判斷天然／機械斷裂後才能計算 RQD。")
+                                                    except ValueError as cut_exc:
+                                                        st.error(f"斷點座標格式或範圍錯誤：{cut_exc}")
+                                                    st.caption(row_cal["warning"])
+                                                except ValueError as span_exc:
+                                                    st.error(f"本列量測範圍設定錯誤：{span_exc}")
                                     except Exception as rect_exc:
                                         st.error(f"透視校正失敗：{rect_exc}；請改用原圖。")
                             else:

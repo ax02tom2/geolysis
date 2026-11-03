@@ -135,3 +135,66 @@ def test_fixed_row_layout_rejects_invalid_geometry():
         calculate_fixed_tray_row_layout(Image.new("RGB", (500, 500)), row_count=0)
     with pytest.raises(ValueError):
         calculate_fixed_tray_row_layout(Image.new("RGB", (500, 500)), row_length_mm=0)
+
+
+def make_synthetic_core_row(width=1000, height=160, gap_positions=(250, 500, 750)):
+    """Four visually distinct core pieces separated by full-height narrow gaps."""
+    import numpy as np
+    from PIL import Image
+    arr = np.full((height, width, 3), (145, 125, 105), dtype=np.uint8)
+    # Add deterministic rock-like texture, avoiding random test instability.
+    for x in range(width):
+        shade = int(12 * ((x // 7) % 2))
+        arr[25:height - 25, x, :] = np.clip(arr[25:height - 25, x, :].astype(int) + shade, 0, 255)
+    for x in gap_positions:
+        arr[15:height - 15, max(0, x - 4):min(width, x + 5), :] = (25, 25, 25)
+    return Image.fromarray(arr)
+
+
+def test_core_discontinuity_candidates_detect_synthetic_gaps():
+    from core_photo_analysis import detect_core_discontinuity_candidates
+    image = make_synthetic_core_row()
+    result = detect_core_discontinuity_candidates(image, mm_per_px=1.0, min_separation_mm=50)
+    xs = [item["x_px"] for item in result["candidates"]]
+    assert result["success"] is True
+    assert len(xs) >= 2
+    assert any(abs(x - 250) <= 8 for x in xs)
+    assert any(abs(x - 500) <= 8 for x in xs)
+    assert "不可直接判定為天然節理" in result["warning"]
+
+
+def test_core_discontinuity_detector_rejects_invalid_scale():
+    import pytest
+    from core_photo_analysis import detect_core_discontinuity_candidates
+    with pytest.raises(ValueError):
+        detect_core_discontinuity_candidates(make_synthetic_core_row(), mm_per_px=0)
+
+
+def test_confirmed_cut_positions_convert_to_image_spans():
+    import pytest
+    from core_photo_analysis import segment_lengths_from_confirmed_cuts
+    assert segment_lengths_from_confirmed_cuts(1000, 1.0, [250, 500, 750]) == [250.0, 250.0, 250.0, 250.0]
+    with pytest.raises(ValueError):
+        segment_lengths_from_confirmed_cuts(1000, 1.0, [0, 500])
+    with pytest.raises(ValueError):
+        segment_lengths_from_confirmed_cuts(1000, 1.0, [500, 500])
+
+
+def test_row_measurement_span_calibration_excludes_tray_margins():
+    import pytest
+    from core_photo_analysis import calibrate_row_measurement_span
+    image = Image.new("RGB", (1200, 160), (140, 130, 120))
+    cropped, info = calibrate_row_measurement_span(image, 100, 1100, 1000)
+    assert cropped.size == (1000, 160)
+    assert info["span_px"] == 1000
+    assert info["mm_per_px"] == 1.0
+    with pytest.raises(ValueError):
+        calibrate_row_measurement_span(image, 0, 30, 1000)
+
+
+def test_core_discontinuity_detector_returns_no_candidates_for_uniform_row():
+    from core_photo_analysis import detect_core_discontinuity_candidates
+    image = Image.new("RGB", (1000, 160), (150, 130, 110))
+    result = detect_core_discontinuity_candidates(image, mm_per_px=1.0)
+    assert result["success"] is True
+    assert result["candidates"] == []
