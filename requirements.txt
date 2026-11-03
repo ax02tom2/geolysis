@@ -1,5 +1,9 @@
 streamlit
 pandas
+plotly
 geolysis
-pygeoda
 docxtpl
+geopandas
+folium
+streamlit-folium
+pygeoda
