@@ -67,18 +67,6 @@ with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO)", expanded
         cc = (d30 ** 2) / (d10 * d60) if (d10 * d60) > 0 else 0.0
         st.caption(f"均勻係數 $C_u = {cu:.2f}$ ｜ 曲率係數 $C_c = {cc:.2f}$")
 
-    native_uscs_res, native_aashto_res = None, None
-    try:
-        from geolysis import soil_classifier as sc
-        if hasattr(sc, "create_uscs_classifier"):
-            clf = sc.create_uscs_classifier(liquid_limit=ll, plastic_limit=pl, fines=fines, sand=sand, d_10=d10, d_30=d30, d_60=d60, organic=organic)
-            native_uscs_res = clf.classify()
-        if hasattr(sc, "create_aashto_classifier"):
-            aclf = sc.create_aashto_classifier(liquid_limit=ll, plastic_limit=pl, fines=fines)
-            native_aashto_res = aclf.classify()
-    except Exception:
-        pass
-
     a_line = 0.73 * (ll - 20.0)
     if fines >= 50.0:
         if organic:
