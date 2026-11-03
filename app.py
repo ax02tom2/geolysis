@@ -136,13 +136,13 @@ with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO)", expanded
         else:
             aashto_sym = "A-7-5" if pi <= (ll - 30.0) else "A-7-6"
 
+    aashto_desc = "優良至良好（粒料土壤）" if fines <= 35.0 else "普通至不良（粉土－黏土材料）"
+
     res_col1, res_col2 = st.columns(2)
     with res_col1:
-        st.success(f"#### USCS 分類結果：`{native_uscs_res or uscs_sym}`")
-        st.write(f"**工程描述**：{uscs_desc} ｜ **A-Line 檢核值**：$PI_{{A}} = {max(0.0, a_line):.2f}$")
+        st.success(f"#### USCS 分類結果：`{uscs_sym}` — {uscs_desc}\n\n**A-Line 檢核值**：$PI_{{A}} = {max(0.0, a_line):.2f}$")
     with res_col2:
-        st.info(f"#### AASHTO 分類結果：`{native_aashto_res or f'{aashto_sym} ({gi_val})'}`")
-        st.write(f"**群指數 (Group Index, GI)**：`{gi_val}` (原始計算值: `{max(0.0, gi):.2f}`)")
+        st.info(f"#### AASHTO 分類結果：`{aashto_sym} ({gi_val})` — {aashto_desc}\n\n**群指數 (GI)**：`{gi_val}`（原始計算值：`{max(0.0, gi):.2f}`）")
 
 
 # ==============================================================================
