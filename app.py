@@ -8,9 +8,9 @@ import importlib
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
-st.title("🧱 geolysis 大地工程分析系統 (100% 原創完整獨立版)")
+st.title("🧱 geolysis 大地工程分析系統")
 st.markdown("""
-本系統完整呈現開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 之四大核心工程模組（單一獨立網頁、全參數無刪減版）：
+本系統完整呈現開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 之四大核心工程模組：
 * **模組一：土壤分類系統 (`soil_classifier`)** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
 * **模組二：SPT 標準貫入試驗全修正 (`spt`)** — 器材四項修正 ($E_m, C_B, C_S, C_R$)、7 大學者覆土壓力修正 ($C_N$) 與全鑽孔剖面批次繪圖
 * **模組三：容許承載力與沉陷控制 (`bearing_capacity.abc`)** — Bowles & Meyerhof 控制沉陷量之淺基礎與筏基設計
