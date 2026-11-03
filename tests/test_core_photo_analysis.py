@@ -104,3 +104,34 @@ def test_blue_tray_quad_detector_falls_back_for_non_blue_image():
     result = detect_blue_tray_quadrilateral(image)
     assert result["success"] is False
     assert "未找到" in result["warning"]
+
+
+def test_fixed_four_row_layout_uses_one_meter_per_row():
+    from core_photo_analysis import (
+        calculate_fixed_tray_row_layout,
+        crop_fixed_tray_rows,
+        draw_fixed_tray_row_layout,
+    )
+    image = Image.new("RGB", (1200, 480), (150, 140, 125))
+    layout = calculate_fixed_tray_row_layout(image)
+    assert layout["row_count"] == 4
+    assert layout["row_length_mm"] == 1000.0
+    assert len(layout["rows"]) == 4
+    assert abs(layout["mm_per_px"] - (1000.0 / 1200.0)) < 1e-12
+    assert [r["box_px"][1:4:2] for r in layout["rows"]] == [[0, 120], [120, 240], [240, 360], [360, 480]]
+    crops = crop_fixed_tray_rows(image, layout)
+    assert len(crops) == 4
+    assert all(crop.size == (1200, 120) for crop in crops)
+    overlay = draw_fixed_tray_row_layout(image, layout)
+    assert overlay.size == image.size
+
+
+def test_fixed_row_layout_rejects_invalid_geometry():
+    import pytest
+    from core_photo_analysis import calculate_fixed_tray_row_layout
+    with pytest.raises(ValueError):
+        calculate_fixed_tray_row_layout(Image.new("RGB", (50, 100)))
+    with pytest.raises(ValueError):
+        calculate_fixed_tray_row_layout(Image.new("RGB", (500, 500)), row_count=0)
+    with pytest.raises(ValueError):
+        calculate_fixed_tray_row_layout(Image.new("RGB", (500, 500)), row_length_mm=0)

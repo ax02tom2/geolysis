@@ -380,3 +380,68 @@ def draw_tray_quadrilateral(image: Image.Image, detection: dict) -> Image.Image:
             draw.ellipse((x-r, y-r, x+r, y+r), fill=(255, 230, 0), outline=(0, 0, 0), width=2)
             draw.text((x+r, y+r), str(i), fill=(0, 0, 0), stroke_width=2, stroke_fill=(255, 255, 255))
     return out
+
+
+def calculate_fixed_tray_row_layout(
+    rectified_image: Image.Image,
+    row_count: int = 4,
+    row_length_mm: float = 1000.0,
+) -> dict:
+    """依固定岩芯箱規格建立逐列量測區。
+
+    假設透視校正後：每列沿影像寬度方向排列，四列沿影像高度方向堆疊。
+    row_length_mm 是每一列的已知實際長度；預設 4 列、每列 1000 mm。
+    這只建立幾何比例尺，不會辨識岩芯邊界或天然／機械斷裂。
+    """
+    if row_count < 1 or row_count > 12:
+        raise ValueError("列數必須介於 1 至 12。")
+    if row_length_mm <= 0:
+        raise ValueError("每列實際長度必須大於 0 mm。")
+    width, height = rectified_image.size
+    if width < 80 or height < row_count * 20:
+        raise ValueError("校正後影像尺寸不足，無法可靠分列。")
+
+    mm_per_px = float(row_length_mm) / float(width)
+    rows = []
+    for index in range(row_count):
+        y0 = int(round(index * height / row_count))
+        y1 = int(round((index + 1) * height / row_count))
+        rows.append({
+            "row": index + 1,
+            "box_px": [0, y0, width, y1],
+            "width_px": width,
+            "height_px": y1 - y0,
+            "known_length_mm": float(row_length_mm),
+            "mm_per_px": mm_per_px,
+        })
+    return {
+        "row_count": row_count,
+        "row_length_mm": float(row_length_mm),
+        "rectified_width_px": width,
+        "rectified_height_px": height,
+        "mm_per_px": mm_per_px,
+        "rows": rows,
+        "assumption": "透視校正後每列沿影像寬度方向；四列沿影像高度方向。列界採等分初始候選，仍須人工確認。",
+        "warning": "1 m/列可提供沿列方向的名義比例尺；若外框角點不準、箱體彎曲、鏡頭畸變或列長並非實際 1 m，比例尺會有誤差。此功能不辨識岩芯段界。",
+    }
+
+
+def draw_fixed_tray_row_layout(image: Image.Image, layout: dict) -> Image.Image:
+    """在校正影像標示四列及每列 1 m 的量測基準。"""
+    from PIL import ImageDraw
+
+    out = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out)
+    line_width = max(2, out.width // 700)
+    for row in layout.get("rows", []):
+        x0, y0, x1, y1 = row["box_px"]
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=(255, 190, 0), width=line_width)
+        label = f"ROW {row['row']} | 1000 mm | {row['mm_per_px']:.3f} mm/px"
+        draw.rectangle((x0 + 4, y0 + 4, min(x1 - 1, x0 + 330), min(y1 - 1, y0 + 30)), fill=(20, 20, 20))
+        draw.text((x0 + 9, y0 + 8), label, fill=(255, 255, 255))
+    return out
+
+
+def crop_fixed_tray_rows(image: Image.Image, layout: dict) -> list[Image.Image]:
+    """依 layout 逐列裁切；不縮放、不改寫原校正影像。"""
+    return [image.crop(tuple(row["box_px"])) for row in layout.get("rows", [])]

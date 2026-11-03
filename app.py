@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -95,6 +95,27 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                                         rectified, rect_info = rectify_tray_perspective(image, quad_result)
                                         st.image(rectified, caption=f"透視校正預覽｜{rect_info['output_width_px']} × {rect_info['output_height_px']} px（原圖未變更）", use_container_width=True)
                                         st.caption(rect_info["warning"])
+                                        st.markdown("**固定岩芯箱規格：4 列 × 每列 1,000 mm**")
+                                        row_layout = calculate_fixed_tray_row_layout(
+                                            rectified, row_count=4, row_length_mm=1000.0
+                                        )
+                                        st.image(
+                                            draw_fixed_tray_row_layout(rectified, row_layout),
+                                            caption="黃色框＝四列等分候選；每列沿影像寬度方向以 1,000 mm 建立名義比例尺。請先確認列界與方向符合實際箱體。",
+                                            use_container_width=True,
+                                        )
+                                        st.metric("每列名義比例尺", f"{row_layout['mm_per_px']:.4f} mm/px")
+                                        st.dataframe(
+                                            [{"列別": r["row"], "實際列長 (mm)": r["known_length_mm"], "像素寬度 (px)": r["width_px"], "列高 (px)": r["height_px"], "比例尺 (mm/px)": round(r["mm_per_px"], 5)} for r in row_layout["rows"]],
+                                            hide_index=True,
+                                            use_container_width=True,
+                                        )
+                                        st.warning(row_layout["warning"])
+                                        row_crops = [rectified.crop(tuple(r["box_px"])) for r in row_layout["rows"]]
+                                        crop_cols = st.columns(4)
+                                        for row_i, row_crop in enumerate(row_crops):
+                                            with crop_cols[row_i]:
+                                                st.image(row_crop, caption=f"第 {row_i + 1} 列｜1 m", use_container_width=True)
                                     except Exception as rect_exc:
                                         st.error(f"透視校正失敗：{rect_exc}；請改用原圖。")
                             else:
