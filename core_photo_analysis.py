@@ -288,6 +288,69 @@ def _order_quad_points(points):
     return np.array([pts[np.argmin(s)], pts[np.argmin(d)], pts[np.argmax(s)], pts[np.argmax(d)]], dtype=np.float32)
 
 
+
+def rotate_image(image: Image.Image, clockwise_degrees: int = 0) -> Image.Image:
+    """以 90 度為單位旋轉影像；回傳新影像，不修改原圖。"""
+    angle = int(clockwise_degrees) % 360
+    if angle not in (0, 90, 180, 270):
+        raise ValueError("旋轉角度只接受 0、90、180 或 270 度。")
+    image = image.convert("RGB")
+    if angle == 0:
+        return image.copy()
+    # PIL transpose uses counter-clockwise names; ROTATE_270 is clockwise 90°.
+    transpose = {90: Image.Transpose.ROTATE_270, 180: Image.Transpose.ROTATE_180, 270: Image.Transpose.ROTATE_90}[angle]
+    return image.transpose(transpose)
+
+
+def validate_tray_quadrilateral(corners, image_width: int, image_height: int) -> list[list[float]]:
+    """驗證四角點順序、範圍、面積與凸性，回傳 TL/TR/BR/BL 座標。"""
+    import numpy as np
+    if image_width < 1 or image_height < 1:
+        raise ValueError("影像尺寸無效。")
+    pts = np.asarray(corners, dtype=np.float32)
+    if pts.shape != (4, 2) or not np.isfinite(pts).all():
+        raise ValueError("必須提供四個有效的 (x, y) 角點。")
+    if (pts[:, 0] < 0).any() or (pts[:, 0] > image_width - 1).any() or (pts[:, 1] < 0).any() or (pts[:, 1] > image_height - 1).any():
+        raise ValueError("角點超出照片範圍，請重新調整。")
+    ordered = _order_quad_points(pts)
+    contour = ordered.reshape((-1, 1, 2)).astype(np.float32)
+    area = abs(float(cv2_contour_area(contour)))
+    if area < image_width * image_height * 0.01:
+        raise ValueError("四角形成的有效區域過小（小於照片面積 1%）。")
+    # Reject crossed/concave geometry and near-zero edges.
+    edges = np.roll(ordered, -1, axis=0) - ordered
+    if min(float(np.linalg.norm(e)) for e in edges) < 20:
+        raise ValueError("四角距離過近，請重新調整。")
+    cross = []
+    for i in range(4):
+        a = ordered[(i + 1) % 4] - ordered[i]
+        b = ordered[(i + 2) % 4] - ordered[(i + 1) % 4]
+        cross.append(float(a[0] * b[1] - a[1] * b[0]))
+    if not (all(v > 0 for v in cross) or all(v < 0 for v in cross)):
+        raise ValueError("四角點形成交叉或凹陷多邊形，無法校正。")
+    return [[round(float(x), 2), round(float(y), 2)] for x, y in ordered]
+
+def cv2_contour_area(contour):
+    import cv2
+    return cv2.contourArea(contour)
+
+
+def crop_tray_insets(image: Image.Image, left_pct: float = 2.0, right_pct: float = 2.0,
+                     top_pct: float = 2.0, bottom_pct: float = 2.0) -> tuple[Image.Image, dict]:
+    """依百分比裁除透視校正後的外框邊緣；每張照片可獨立設定。"""
+    values = [float(left_pct), float(right_pct), float(top_pct), float(bottom_pct)]
+    if any(v < 0 or v > 20 for v in values):
+        raise ValueError("裁切留邊百分比必須介於 0 至 20%。")
+    w, h = image.size
+    x0, x1 = int(round(w * values[0] / 100)), int(round(w * (1-values[1]/100)))
+    y0, y1 = int(round(h * values[2] / 100)), int(round(h * (1-values[3]/100)))
+    if x1 - x0 < 80 or y1 - y0 < 80:
+        raise ValueError("裁切後範圍過小；請減少裁切比例。")
+    cropped = image.crop((x0, y0, x1, y1))
+    return cropped, {"box_px": [x0, y0, x1, y1], "width_px": cropped.width, "height_px": cropped.height,
+                     "insets_percent": {"left": values[0], "right": values[1], "top": values[2], "bottom": values[3]},
+                     "warning": "裁切只排除箱框邊緣；請確認四列完整且沒有切掉岩芯端部。"}
+
 def detect_blue_tray_quadrilateral(image: Image.Image) -> dict:
     """偵測藍色岩芯箱外框四邊形；回傳原圖座標與幾何品質，不自動假定一定成功。"""
     import cv2
@@ -353,7 +416,7 @@ def rectify_tray_perspective(image: Image.Image, detection: dict, max_dimension:
     import numpy as np
     if not detection.get("success") or len(detection.get("corners", [])) != 4:
         raise ValueError("沒有可用的四角候選，無法進行透視校正。")
-    pts = np.asarray(detection["corners"], dtype=np.float32)
+    pts = np.asarray(validate_tray_quadrilateral(detection["corners"], image.width, image.height), dtype=np.float32)
     tl, tr, br, bl = pts
     width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
     height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
@@ -577,3 +640,218 @@ def calibrate_row_measurement_span(
         "mm_per_px": mm_per_px,
         "warning": "比例尺僅在使用者將起點與終點對準該列實際 1 m 端點時成立；請排除托盤邊框與端部空隙。",
     }
+
+
+def segment_core_occupancy(
+    row_image: Image.Image,
+    mm_per_px: float,
+    blue_hue_range: tuple[int, int] = (78, 132),
+    min_core_occupancy: float = 0.18,
+    min_gap_mm: float = 12.0,
+) -> dict:
+    """Estimate longitudinal core-present intervals in a blue tray row.
+
+    This is a conservative colour/occupancy heuristic, not semantic rock
+    segmentation. It is enabled only when a measurable blue-tray background is
+    present. Intervals are image occupancy spans, not recovered core lengths.
+    """
+    import cv2
+    import numpy as np
+
+    if mm_per_px <= 0 or min_gap_mm <= 0:
+        raise ValueError("比例尺與最小缺口長度必須大於 0。")
+    if not 0.05 <= min_core_occupancy <= 0.8:
+        raise ValueError("min_core_occupancy 必須介於 0.05 至 0.8。")
+    rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+    if w < 80 or h < 24:
+        return {"success": False, "intervals": [], "gaps": [], "warning": "列影像尺寸不足。"}
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    lo, hi = blue_hue_range
+    blue = cv2.inRange(hsv, (int(lo), 35, 25), (int(hi), 255, 255)) > 0
+    y0, y1 = int(h * 0.22), max(int(h * 0.78), int(h * 0.22) + 1)
+    band_blue = blue[y0:y1]
+    blue_ratio = float(band_blue.mean())
+    if blue_ratio < 0.025:
+        return {"success": False, "intervals": [], "gaps": [], "blue_background_ratio": round(blue_ratio, 4),
+                "warning": "未辨識到足夠藍色托盤背景；為避免把岩石顏色誤當背景，已停用自動分割。"}
+    # A column is occupied when enough of its central height is non-blue.
+    occupancy = 1.0 - band_blue.mean(axis=0)
+    win = max(3, int(round(w * 0.006)) | 1)
+    kernel = np.ones(win, dtype=np.float32) / win
+    smooth = np.convolve(occupancy.astype(np.float32), kernel, mode="same")
+    present = smooth >= min_core_occupancy
+    # Bridge only tiny interruptions; do not bridge gaps longer than min_gap_mm.
+    max_gap_px = max(1, int(round(min_gap_mm / mm_per_px)))
+    # Fill bounded false runs no longer than max_gap_px.
+    i = 0
+    while i < w:
+        if present[i]:
+            i += 1
+            continue
+        j = i
+        while j < w and not present[j]:
+            j += 1
+        if i > 0 and j < w and (j - i) <= max_gap_px:
+            present[i:j] = True
+        i = j
+    runs = []
+    i = 0
+    while i < w:
+        if not present[i]:
+            i += 1
+            continue
+        j = i + 1
+        while j < w and present[j]:
+            j += 1
+        if (j - i) * mm_per_px >= min_gap_mm:
+            runs.append((i, j))
+        i = j
+    intervals = [{"x_start_px": a, "x_end_px": b, "length_mm": round((b-a)*mm_per_px, 1)} for a,b in runs]
+    gaps = []
+    cursor = 0
+    for a,b in runs:
+        if a > cursor and (a-cursor)*mm_per_px >= min_gap_mm:
+            gaps.append({"x_start_px": cursor, "x_end_px": a, "length_mm": round((a-cursor)*mm_per_px, 1)})
+        cursor = max(cursor, b)
+    if cursor < w and (w-cursor)*mm_per_px >= min_gap_mm:
+        gaps.append({"x_start_px": cursor, "x_end_px": w, "length_mm": round((w-cursor)*mm_per_px, 1)})
+    return {"success": True, "image_width_px": w, "mm_per_px": float(mm_per_px),
+            "blue_background_ratio": round(blue_ratio, 4), "intervals": intervals, "gaps": gaps,
+            "method": "blue_tray_nonblue_column_occupancy_v1",
+            "warning": "分割結果只表示中央影像高度的非藍色占據區間；可能把托盤污漬、標籤、陰影或非藍色背景當成岩芯。區間長度不是實際回收岩芯長度，不可直接用於 RQD。請逐段人工確認。"}
+
+
+def draw_core_occupancy_segments(row_image: Image.Image, result: dict) -> Image.Image:
+    """Overlay estimated core occupancy intervals and uncertain gaps."""
+    from PIL import ImageDraw
+    out = row_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out, "RGBA")
+    for item in result.get("intervals", []):
+        draw.rectangle((item["x_start_px"], 0, item["x_end_px"], out.height-1), fill=(30, 180, 70, 55), outline=(20, 150, 50, 220), width=2)
+    for item in result.get("gaps", []):
+        draw.rectangle((item["x_start_px"], 0, item["x_end_px"], out.height-1), fill=(230, 50, 40, 55), outline=(210, 40, 30, 220), width=2)
+    return out
+
+
+def analyze_core_row_v8(
+    row_image: Image.Image,
+    mm_per_px: float,
+    blue_hue_range: tuple[int, int] = (78, 132),
+    min_segment_mm: float = 25.0,
+    min_gap_mm: float = 8.0,
+) -> dict:
+    """Multi-band, blue-tray-aware core/gap segmentation for one 1 m row.
+
+    The method combines non-blue occupancy in three vertical bands, robust
+    smoothing and conservative three-state classification. It identifies
+    image-supported core-presence intervals and full-width gap candidates;
+    it does NOT infer natural joints, mechanical breaks, or RQD eligibility.
+    """
+    import cv2
+    import numpy as np
+
+    if not np.isfinite(mm_per_px) or mm_per_px <= 0:
+        raise ValueError("比例尺必須是有限且大於 0 的數值。")
+    if min_segment_mm <= 0 or min_gap_mm <= 0:
+        raise ValueError("最小岩芯區段與空隙長度必須大於 0。")
+    rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+    if w < 100 or h < 36:
+        return {"success": False, "segments": [], "gaps": [], "uncertain": [], "warning": "列影像尺寸不足，無法進行多區帶判識。"}
+
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    lo, hi = map(int, blue_hue_range)
+    if not (0 <= lo <= hi <= 179):
+        raise ValueError("藍色 Hue 範圍必須介於 0 至 179。")
+    blue = cv2.inRange(hsv, (lo, 38, 28), (hi, 255, 255)) > 0
+    # Exclude tray rims and possible labels near the row edges. Three bands
+    # provide evidence that a non-blue object is present through the core body.
+    y0, y1 = int(h * 0.18), int(h * 0.82)
+    if y1 - y0 < 18:
+        return {"success": False, "segments": [], "gaps": [], "uncertain": [], "warning": "有效中央影像高度不足。"}
+    band_edges = np.linspace(y0, y1, 4).astype(int)
+    band_occ = []
+    for bi in range(3):
+        band = blue[band_edges[bi]:band_edges[bi + 1], :]
+        band_occ.append(1.0 - band.mean(axis=0))
+    band_occ = np.asarray(band_occ, dtype=np.float32)
+    blue_ratio = float(blue[y0:y1, :].mean())
+    if blue_ratio < 0.035:
+        return {"success": False, "segments": [], "gaps": [], "uncertain": [],
+                "blue_background_ratio": round(blue_ratio, 4),
+                "warning": "中央區域缺乏足夠藍色托盤背景，無法安全區分岩芯與背景；已停止自動判識。"}
+
+    # Median filtering suppresses isolated stains/reflections. Physical kernel
+    # is capped to avoid erasing short features in low-resolution photos.
+    k = max(3, min(21, int(round(5.0 / mm_per_px)) | 1))
+    if k % 2 == 0:
+        k += 1
+    filtered = np.vstack([cv2.medianBlur(row.reshape(1, -1), k).reshape(-1) for row in band_occ])
+    mean_occ = filtered.mean(axis=0)
+    strong_bands = (filtered >= 0.28).sum(axis=0)
+    weak_bands = (filtered >= 0.10).sum(axis=0)
+    # 2/3 bands occupied => core-present. All 3 bands nearly empty => gap.
+    state = np.full(w, 1, dtype=np.uint8)  # 1 = uncertain
+    state[(strong_bands >= 2) & (mean_occ >= 0.24)] = 2  # core
+    state[(weak_bands == 0) & (mean_occ <= 0.08)] = 0  # clear gap
+
+    # Merge tiny uncertain runs only when both neighbours agree; preserve real
+    # gaps and avoid converting surface texture into a cut.
+    def runs_of(values):
+        out = []
+        start = 0
+        for idx in range(1, len(values) + 1):
+            if idx == len(values) or values[idx] != values[start]:
+                out.append((start, idx, int(values[start]))); start = idx
+        return out
+
+    runs = runs_of(state)
+    for ri in range(1, len(runs) - 1):
+        a, b, s = runs[ri]
+        left, right = runs[ri - 1], runs[ri + 1]
+        if s == 1 and left[2] == right[2] and (b - a) * mm_per_px <= 4.0:
+            state[a:b] = left[2]
+    runs = runs_of(state)
+    segments, gaps, uncertain = [], [], []
+    for a, b, s in runs:
+        length = (b - a) * mm_per_px
+        if s == 2 and length >= min_segment_mm:
+            coverage = float((strong_bands[a:b] >= 2).mean())
+            occ = float(mean_occ[a:b].mean())
+            confidence = "較高" if coverage >= 0.85 and occ >= 0.45 else "中" if coverage >= 0.60 else "低"
+            segments.append({"x_start_px": a, "x_end_px": b, "length_mm": round(length, 1),
+                             "band_coverage": round(coverage, 3), "mean_occupancy": round(occ, 3),
+                             "confidence": confidence, "status": "岩芯本體候選"})
+        elif s == 0 and length >= min_gap_mm:
+            gaps.append({"x_start_px": a, "x_end_px": b, "length_mm": round(length, 1),
+                         "mean_occupancy": round(float(mean_occ[a:b].mean()), 3),
+                         "status": "全高度低占據空隙候選"})
+        elif s == 1 and length >= 4.0:
+            uncertain.append({"x_start_px": a, "x_end_px": b, "length_mm": round(length, 1),
+                              "mean_occupancy": round(float(mean_occ[a:b].mean()), 3),
+                              "status": "不確定／需人工檢查"})
+
+    return {
+        "success": True, "image_width_px": w, "mm_per_px": float(mm_per_px),
+        "blue_background_ratio": round(blue_ratio, 4), "segments": segments,
+        "gaps": gaps, "uncertain": uncertain,
+        "method": "blue_tray_multiband_core_segmentation_v2",
+        "warning": "本結果是藍色托盤背景下的多區帶影像判識，不是已驗證的岩心語意模型。綠色區段仍可能包含污漬、標籤或非岩芯物；空隙也可能是遮擋。必須人工確認岩芯起訖、端部缺失及天然／機械斷裂，未確認前不得計入回收率或 RQD。照片不能直接量得 UCS。",
+    }
+
+
+def draw_core_row_analysis_v8(row_image: Image.Image, result: dict) -> Image.Image:
+    """Draw V8 segmentation: green core candidates, red gaps, amber uncertain."""
+    from PIL import ImageDraw
+    out = row_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out, "RGBA")
+    for key, fill, outline in (
+        ("segments", (25, 190, 75, 55), (15, 140, 55, 230)),
+        ("gaps", (235, 55, 45, 65), (205, 35, 25, 230)),
+        ("uncertain", (245, 175, 25, 65), (210, 135, 10, 230)),
+    ):
+        for item in result.get(key, []):
+            a, b = item["x_start_px"], item["x_end_px"]
+            draw.rectangle((a, 0, max(a, b - 1), out.height - 1), fill=fill, outline=outline, width=2)
+    return out

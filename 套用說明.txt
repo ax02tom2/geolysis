@@ -1,0 +1,9 @@
+geolysis 模組一 V8.1 整合版套用說明
+
+1. 將 ZIP 內 app.py、core_photo_analysis.py、requirements.txt 覆蓋到原專案相同位置。
+2. 將 point_editor 資料夾及其中 index.html 一併放到 app.py 同一層目錄（不可只複製 HTML 到其他資料夾）。
+3. tests/test_core_photo_analysis.py 與 CORE_PHOTO_TEST_NOTES.md 為測試及紀錄，可覆蓋原檔。
+4. requirements.txt 保留 Streamlit、Pillow、NumPy、opencv-python-headless 等既有依賴；若部署環境尚未安裝，依原有流程重新安裝依賴後再啟動。
+5. 不需修改模組二至五，也不需更新 README。
+
+注意：本版已通過核心單元測試與程式編譯，但本次執行環境未安裝 Streamlit，尚未完成瀏覽器元件拖曳測試或 Streamlit Cloud 實際部署測試。請先以測試 App 確認自訂四角編輯器在部署環境可正常顯示與回傳座標。

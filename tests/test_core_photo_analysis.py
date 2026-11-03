@@ -198,3 +198,123 @@ def test_core_discontinuity_detector_returns_no_candidates_for_uniform_row():
     result = detect_core_discontinuity_candidates(image, mm_per_px=1.0)
     assert result["success"] is True
     assert result["candidates"] == []
+
+
+def make_blue_core_row(width=1000, height=160, spans=((40, 260), (300, 520), (570, 820), (850, 960))):
+    image = Image.new("RGB", (width, height), (25, 95, 190))
+    draw = ImageDraw.Draw(image)
+    for a, b in spans:
+        draw.rounded_rectangle((a, 28, b, height - 28), radius=30, fill=(125, 112, 96), outline=(75, 68, 60), width=3)
+    return image
+
+
+def test_v7_blue_tray_core_occupancy_segments_and_gaps():
+    from core_photo_analysis import segment_core_occupancy, draw_core_occupancy_segments
+    image = make_blue_core_row()
+    result = segment_core_occupancy(image, mm_per_px=1.0, min_gap_mm=15)
+    assert result["success"] is True
+    assert len(result["intervals"]) == 4
+    assert len(result["gaps"]) >= 3
+    assert result["method"] == "blue_tray_nonblue_column_occupancy_v1"
+    assert draw_core_occupancy_segments(image, result).size == image.size
+    assert "不可直接用於 RQD" in result["warning"]
+
+
+def test_v7_occupancy_falls_back_for_non_blue_row():
+    from core_photo_analysis import segment_core_occupancy
+    image = Image.new("RGB", (1000, 160), (130, 110, 90))
+    result = segment_core_occupancy(image, mm_per_px=1.0)
+    assert result["success"] is False
+    assert result["intervals"] == []
+    assert "已停用自動分割" in result["warning"]
+
+
+def test_v7_occupancy_rejects_invalid_parameters():
+    import pytest
+    from core_photo_analysis import segment_core_occupancy
+    with pytest.raises(ValueError):
+        segment_core_occupancy(make_blue_core_row(), mm_per_px=0)
+    with pytest.raises(ValueError):
+        segment_core_occupancy(make_blue_core_row(), mm_per_px=1.0, min_core_occupancy=0.99)
+
+
+def test_v8_multiband_segmentation_finds_four_core_bodies_and_gaps():
+    from core_photo_analysis import analyze_core_row_v8, draw_core_row_analysis_v8
+    image = make_blue_core_row(width=1000, height=180,
+                               spans=((35, 230), (270, 470), (530, 760), (810, 965)))
+    result = analyze_core_row_v8(image, mm_per_px=1.0, min_segment_mm=40, min_gap_mm=12)
+    assert result["success"] is True
+    assert len(result["segments"]) == 4
+    assert len(result["gaps"]) >= 3
+    assert all(x["length_mm"] >= 40 for x in result["segments"])
+    assert all(x["confidence"] in {"較高", "中", "低"} for x in result["segments"])
+    assert draw_core_row_analysis_v8(image, result).size == image.size
+    assert "不得計入回收率或 RQD" in result["warning"]
+
+
+def test_v8_multiband_segmentation_marks_ambiguous_shadow_zone():
+    import numpy as np
+    from PIL import Image
+    from core_photo_analysis import analyze_core_row_v8
+    arr = np.zeros((180, 1000, 3), dtype=np.uint8)
+    arr[:] = (25, 95, 190)
+    # Main rock body in three bands, plus a partial-height non-blue shadow/stain.
+    arr[35:145, 60:430] = (125, 112, 96)
+    arr[75:105, 470:550] = (95, 85, 75)
+    result = analyze_core_row_v8(Image.fromarray(arr), mm_per_px=1.0, min_segment_mm=50)
+    assert result["success"] is True
+    assert any(x["x_start_px"] <= 470 and x["x_end_px"] >= 550 for x in result["uncertain"])
+
+
+def test_v8_refuses_non_blue_background_and_invalid_scale():
+    import pytest
+    from core_photo_analysis import analyze_core_row_v8
+    image = Image.new("RGB", (1000, 180), (130, 110, 90))
+    result = analyze_core_row_v8(image, mm_per_px=1.0)
+    assert result["success"] is False
+    assert result["segments"] == []
+    with pytest.raises(ValueError):
+        analyze_core_row_v8(image, mm_per_px=0)
+
+
+def test_rotate_image_clockwise_and_preserves_source():
+    from core_photo_analysis import rotate_image
+    image = Image.new("RGB", (120, 80), (10, 20, 30))
+    rotated = rotate_image(image, 90)
+    assert rotated.size == (80, 120)
+    assert image.size == (120, 80)
+    assert rotate_image(image, 180).size == (120, 80)
+    assert rotate_image(image, 270).size == (80, 120)
+
+
+def test_rotate_image_rejects_non_quarter_turn():
+    import pytest
+    from core_photo_analysis import rotate_image
+    with pytest.raises(ValueError):
+        rotate_image(Image.new("RGB", (100, 100)), 45)
+
+
+def test_validate_tray_quadrilateral_orders_and_checks_points():
+    import pytest
+    from core_photo_analysis import validate_tray_quadrilateral
+    points = [[390, 290], [10, 10], [390, 10], [10, 290]]
+    ordered = validate_tray_quadrilateral(points, 400, 300)
+    assert ordered == [[10.0, 10.0], [390.0, 10.0], [390.0, 290.0], [10.0, 290.0]]
+    with pytest.raises(ValueError):
+        validate_tray_quadrilateral([[-1, 0], [390, 10], [390, 290], [10, 290]], 400, 300)
+    with pytest.raises(ValueError):
+        validate_tray_quadrilateral([[10, 10], [20, 10], [20, 20], [10, 20]], 400, 300)
+
+
+def test_crop_tray_insets_returns_independent_crop_and_metadata():
+    import pytest
+    from core_photo_analysis import crop_tray_insets
+    image = Image.new("RGB", (1000, 400), (90, 100, 110))
+    cropped, info = crop_tray_insets(image, 2, 3, 5, 5)
+    assert cropped.size == (950, 360)
+    assert info["box_px"] == [20, 20, 970, 380]
+    assert image.size == (1000, 400)
+    with pytest.raises(ValueError):
+        crop_tray_insets(image, 30, 0, 0, 0)
+    with pytest.raises(ValueError):
+        crop_tray_insets(Image.new("RGB", (100, 100)), 20, 20, 20, 20)

@@ -3,8 +3,17 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import math
+import base64
+import hashlib
+from io import BytesIO
+from pathlib import Path
+import streamlit.components.v1 as components
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, rotate_image, validate_tray_quadrilateral, crop_tray_insets
+
+core_tray_editor = components.declare_component(
+    "core_tray_editor", path=str(Path(__file__).parent / "point_editor")
+)
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -49,7 +58,7 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
 
 
     # --- 岩芯照片分析（第一階段：照片建檔、比例校正與 RQD 計算） ---
-    with st.expander("📷 岩芯照片分析（第一階段測試版）", expanded=False):
+    with st.expander("📷 岩芯照片分析（旋轉、透視校正與分列判識）", expanded=False):
         st.markdown(
             "上傳岩芯箱照片並建立深度資料。可先檢查照片，並試行水平列界候選定位；"
             "**目前尚未自動量測每段岩芯長度，也未辨識天然節理／機械斷裂**，因此不會把影像候選冒充為正式 RQD。"
@@ -77,98 +86,139 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                 st.warning("尚未完成比例校正；目前不能從照片像素換算岩芯實際長度。")
 
         if core_photos:
-            st.markdown("**照片檢查結果**")
+            st.markdown("**照片前處理與岩芯列判識**")
+            st.caption("每張照片獨立保存旋轉、四角與裁切設定。標準箱型以 4 列 × 每列 1,000 mm 處理；請確認四角框住同一箱體，並確認裁切沒有切掉岩芯端部。")
             for idx, uploaded in enumerate(core_photos, start=1):
                 try:
-                    image, info = inspect_image(uploaded.getvalue())
+                    raw_bytes = uploaded.getvalue()
+                    image, info = inspect_image(raw_bytes)
+                    photo_token = hashlib.sha1(raw_bytes).hexdigest()[:12]
                     with st.container(border=True):
-                        st.image(image, caption=f"{uploaded.name}｜{info.width_px} × {info.height_px} px", use_container_width=True)
-                        st.caption(f"格式：{info.format}｜檔案大小：{info.file_size_bytes / 1024:.1f} KB")
-                        if st.checkbox("偵測岩芯箱外框四角並預覽透視校正", key=f"core_quad_detect_{idx}"):
-                            quad_result = detect_blue_tray_quadrilateral(image)
-                            if quad_result.get("success"):
-                                st.image(draw_tray_quadrilateral(image, quad_result), caption="紅框與黃點＝外框四角候選（1 至 4）；請確認四點均位於同一岩芯箱外框。", use_container_width=True)
-                                st.write({"外框面積比例": quad_result.get("area_ratio"), "長短邊比": quad_result.get("aspect_ratio"), "候選外框數": quad_result.get("candidate_count")})
-                                st.warning(quad_result.get("warning", ""))
-                                if st.checkbox("我已確認四角正確，顯示透視校正預覽", key=f"core_quad_accept_{idx}"):
-                                    try:
-                                        rectified, rect_info = rectify_tray_perspective(image, quad_result)
-                                        st.image(rectified, caption=f"透視校正預覽｜{rect_info['output_width_px']} × {rect_info['output_height_px']} px（原圖未變更）", use_container_width=True)
-                                        st.caption(rect_info["warning"])
-                                        st.markdown("**固定岩芯箱規格：4 列 × 每列 1,000 mm**")
-                                        row_layout = calculate_fixed_tray_row_layout(
-                                            rectified, row_count=4, row_length_mm=1000.0
-                                        )
-                                        st.image(
-                                            draw_fixed_tray_row_layout(rectified, row_layout),
-                                            caption="黃色框＝四列等分候選；每列沿影像寬度方向以 1,000 mm 建立名義比例尺。請先確認列界與方向符合實際箱體。",
-                                            use_container_width=True,
-                                        )
-                                        st.metric("每列名義比例尺", f"{row_layout['mm_per_px']:.4f} mm/px")
-                                        st.dataframe(
-                                            [{"列別": r["row"], "實際列長 (mm)": r["known_length_mm"], "像素寬度 (px)": r["width_px"], "列高 (px)": r["height_px"], "比例尺 (mm/px)": round(r["mm_per_px"], 5)} for r in row_layout["rows"]],
-                                            hide_index=True,
-                                            use_container_width=True,
-                                        )
-                                        st.warning(row_layout["warning"])
-                                        row_crops = [rectified.crop(tuple(r["box_px"])) for r in row_layout["rows"]]
-                                        crop_cols = st.columns(4)
-                                        for row_i, row_crop in enumerate(row_crops):
-                                            with crop_cols[row_i]:
-                                                st.image(row_crop, caption=f"第 {row_i + 1} 列｜1 m", use_container_width=True)
-                                        st.markdown("#### V6｜逐列岩芯不連續位置候選")
-                                        st.caption("系統只標示影像可能不連續的位置；不是天然節理分類，也不會自動認定為 RQD 合格段。")
-                                        for row_i, row_crop in enumerate(row_crops):
-                                            with st.expander(f"第 {row_i + 1} 列｜疑似斷點候選", expanded=(row_i == 0)):
-                                                st.caption("先將下方範圍調整至該列實際 1 m 的左右端點；不要把藍色箱框或空白端部算進 1 m。")
-                                                x_start, x_end = st.slider(
-                                                    "本列 1 m 有效量測範圍 (px)", min_value=0, max_value=row_crop.width,
-                                                    value=(0, row_crop.width), step=1,
-                                                    key=f"core_row_span_{idx}_{row_i}",
-                                                )
-                                                try:
-                                                    measured_row, row_cal = calibrate_row_measurement_span(row_crop, x_start, x_end, 1000.0)
-                                                    mm_px = row_cal["mm_per_px"]
-                                                    st.caption(f"有效範圍 {x_start}–{x_end} px｜比例尺 {mm_px:.4f} mm/px")
-                                                    candidate_result = detect_core_discontinuity_candidates(measured_row, mm_px)
-                                                    st.image(draw_core_discontinuity_candidates(measured_row, candidate_result), use_container_width=True)
-                                                    st.caption(candidate_result["warning"])
-                                                    candidate_x = [str(item["x_px"]) for item in candidate_result["candidates"]]
-                                                    st.write({"候選數": len(candidate_x), "候選位置 (mm)": [item["distance_mm"] for item in candidate_result["candidates"]]})
-                                                    confirmed_raw = st.text_input(
-                                                        "人工確認後的斷點 x 座標 (px，以本列有效範圍左端為 0；逗號分隔；留白代表不採用)",
-                                                        value=", ".join(candidate_x),
-                                                        key=f"core_confirmed_cuts_{idx}_{row_i}",
-                                                    )
-                                                    try:
-                                                        confirmed = [float(v.strip()) for v in confirmed_raw.replace("，", ",").split(",") if v.strip()] if confirmed_raw.strip() else []
-                                                        spans = segment_lengths_from_confirmed_cuts(measured_row.width, mm_px, confirmed)
-                                                        st.write({"依確認位置切分的影像區段長度 (mm，含列端邊界)": spans})
-                                                        st.warning("以上是影像區段長度，不等於實際回收岩芯段長；端部空隙、岩芯缺失及托盤空白仍須排除，且需判斷天然／機械斷裂後才能計算 RQD。")
-                                                    except ValueError as cut_exc:
-                                                        st.error(f"斷點座標格式或範圍錯誤：{cut_exc}")
-                                                    st.caption(row_cal["warning"])
-                                                except ValueError as span_exc:
-                                                    st.error(f"本列量測範圍設定錯誤：{span_exc}")
-                                    except Exception as rect_exc:
-                                        st.error(f"透視校正失敗：{rect_exc}；請改用原圖。")
+                        st.markdown(f"**{idx}. {uploaded.name}**")
+                        st.caption(f"原始照片：{info.width_px} × {info.height_px} px｜{info.file_size_bytes / 1024:.1f} KB")
+                        rotate_key = f"core_rotate_{photo_token}"
+                        rotation = st.selectbox(
+                            "照片旋轉（順時針）", [0, 90, 180, 270], index=0,
+                            format_func=lambda x: f"{x}°" if x else "0°（不旋轉）", key=rotate_key,
+                        )
+                        working_image = rotate_image(image, rotation)
+                        st.image(working_image, caption=f"旋轉後影像｜{working_image.width} × {working_image.height} px", use_container_width=True)
+
+                        config_key = f"core_quad_{photo_token}_{rotation}"
+                        if config_key not in st.session_state:
+                            detected = detect_blue_tray_quadrilateral(working_image)
+                            if detected.get("success"):
+                                initial_corners = detected["corners"]
+                                st.session_state[f"{config_key}_source"] = "藍色箱體自動偵測候選"
+                                st.session_state[f"{config_key}_detect_info"] = detected
                             else:
-                                st.warning(quad_result.get("warning", "未能可靠定位外框，保留原圖。"))
-                        if st.checkbox("分析岩芯箱列界候選（雙方法）", key=f"core_row_detect_{idx}"):
-                            gradient_result = detect_tray_rows(image)
-                            blue_result = detect_blue_tray_rows(image)
-                            st.image(
-                                draw_combined_row_candidates(image, [gradient_result, blue_result]),
-                                caption="紅線＝灰階水平梯度候選；藍線＝藍色箱體 Hough 候選。兩者都不是岩芯段界。",
-                                use_container_width=True,
-                            )
-                            st.markdown("**偵測方法比較**")
-                            st.write({
-                                "灰階梯度候選 y (px)": [x["y_px"] for x in gradient_result.get("candidates", [])],
-                                "藍箱 Hough 候選 y (px)": [x["y_px"] for x in blue_result.get("candidates", [])],
-                            })
-                            st.caption("藍箱方法：" + blue_result.get("method", "unknown") + "；線群數：" + str(blue_result.get("detected_line_groups", 0)))
-                            st.warning("兩種方法只用於定位岩芯箱列界。不能把箱格隔板當成岩芯天然節理，也不能直接據此計算 RQD。\n" + blue_result.get("warning", ""))
+                                margin_x, margin_y = working_image.width * 0.04, working_image.height * 0.04
+                                initial_corners = [[margin_x, margin_y], [working_image.width-margin_x, margin_y],
+                                                   [working_image.width-margin_x, working_image.height-margin_y],
+                                                   [margin_x, working_image.height-margin_y]]
+                                st.session_state[f"{config_key}_source"] = "人工調整用初始框（自動偵測未成功）"
+                                st.session_state[f"{config_key}_detect_info"] = detected
+                            st.session_state[config_key] = initial_corners
+                            st.session_state[f"{config_key}_initial"] = [point[:] for point in initial_corners]
+
+                        detect_info = st.session_state.get(f"{config_key}_detect_info", {})
+                        if detect_info.get("success"):
+                            st.success("已取得藍色托盤外框候選；仍須拖曳檢查四角位置。")
+                        else:
+                            st.warning("自動偵測未成功，已提供照片內縮 4% 的初始框。請手動拖曳四角，不要直接假設初始框正確。")
+                        st.caption("四角編輯器：拖曳 1 左上、2 右上、3 右下、4 左下控制點；完成後按編輯器內的「套用目前四角」。")
+                        preview_buf = BytesIO()
+                        working_image.save(preview_buf, format="JPEG", quality=88)
+                        image_data = "data:image/jpeg;base64," + base64.b64encode(preview_buf.getvalue()).decode("ascii")
+                        editor_value = core_tray_editor(
+                            image_data=image_data, corners=st.session_state[config_key],
+                            initial_corners=st.session_state.get(f"{config_key}_initial", st.session_state[config_key]),
+                            key=f"core_editor_{photo_token}_{rotation}", default=None,
+                    )
+                        if isinstance(editor_value, dict) and editor_value.get("applied"):
+                            try:
+                                checked = validate_tray_quadrilateral(
+                                    editor_value.get("corners"), working_image.width, working_image.height
+                                )
+                                st.session_state[config_key] = checked
+                                st.success("四角設定已套用並通過幾何檢查。")
+                            except Exception as corner_exc:
+                                st.error(f"四角設定未接受：{corner_exc}")
+
+                        use_quad = st.checkbox(
+                            "使用目前四角進行透視校正", key=f"core_use_quad_{photo_token}_{rotation}", value=False
+                        )
+                        if use_quad:
+                            try:
+                                corners = validate_tray_quadrilateral(
+                                    st.session_state[config_key], working_image.width, working_image.height
+                                )
+                                rectified, rect_info = rectify_tray_perspective(
+                                    working_image, {"success": True, "corners": corners}
+                                )
+                                st.image(rectified, caption=f"透視校正｜{rectified.width} × {rectified.height} px", use_container_width=True)
+                                st.caption(rect_info["warning"])
+
+                                st.markdown("**逐張照片裁切有效箱體範圍**")
+                                crop_col1, crop_col2 = st.columns(2)
+                                with crop_col1:
+                                    left_pct = st.slider("左側裁切 (%)", 0.0, 15.0, 2.0, 0.5, key=f"core_crop_l_{photo_token}")
+                                    top_pct = st.slider("上側裁切 (%)", 0.0, 15.0, 2.0, 0.5, key=f"core_crop_t_{photo_token}")
+                                with crop_col2:
+                                    right_pct = st.slider("右側裁切 (%)", 0.0, 15.0, 2.0, 0.5, key=f"core_crop_r_{photo_token}")
+                                    bottom_pct = st.slider("下側裁切 (%)", 0.0, 15.0, 2.0, 0.5, key=f"core_crop_b_{photo_token}")
+                                cropped_tray, crop_info = crop_tray_insets(
+                                    rectified, left_pct, right_pct, top_pct, bottom_pct
+                                )
+                                st.image(cropped_tray, caption=f"裁切後有效箱體｜{crop_info['width_px']} × {crop_info['height_px']} px", use_container_width=True)
+                                st.caption(crop_info["warning"])
+
+                                st.markdown("**4 列 × 每列 1,000 mm：分列與判識**")
+                                row_layout = calculate_fixed_tray_row_layout(
+                                    cropped_tray, row_count=4, row_length_mm=1000.0
+                                )
+                                st.image(
+                                    draw_fixed_tray_row_layout(cropped_tray, row_layout),
+                                    caption="黃色框＝四列等分位置。請確認實際箱格確實為四列，且每列有效長度為 1 m。",
+                                    use_container_width=True,
+                                )
+                                st.metric("每列名義比例尺", f"{row_layout['mm_per_px']:.4f} mm/px")
+                                row_crops = crop_fixed_tray_rows(cropped_tray, row_layout)
+                                crop_cols = st.columns(4)
+                                for row_i, row_crop in enumerate(row_crops):
+                                    with crop_cols[row_i]:
+                                        st.image(row_crop, caption=f"第 {row_i+1} 列｜1 m", use_container_width=True)
+
+                                for row_i, row_crop in enumerate(row_crops):
+                                    with st.expander(f"第 {row_i+1} 列｜岩芯本體／空隙判識", expanded=(row_i == 0)):
+                                        st.caption("系統以多高度區帶判斷影像占據情形；只產生岩芯本體與空隙候選，不自動判定天然節理、機械破損或 RQD 合格段。")
+                                        x_start, x_end = st.slider(
+                                            "本列有效 1 m 左右端點 (px)", 0, row_crop.width,
+                                            (0, row_crop.width), 1, key=f"core_v8_span_{photo_token}_{row_i}"
+                                        )
+                                        measured_row, row_cal = calibrate_row_measurement_span(
+                                            row_crop, x_start, x_end, 1000.0
+                                        )
+                                        result = analyze_core_row_v8(measured_row, row_cal["mm_per_px"])
+                                        if result.get("success"):
+                                            st.image(
+                                                draw_core_row_analysis_v8(measured_row, result),
+                                                caption="綠色＝岩芯本體候選；紅色＝疑似空隙；黃色＝不確定區。",
+                                                use_container_width=True,
+                                            )
+                                            st.write({
+                                                "岩芯本體候選數": len(result["segments"]),
+                                                "候選長度 (mm)": [round(x["length_mm"], 1) for x in result["segments"]],
+                                                "候選信心": [x["confidence"] for x in result["segments"]],
+                                                "疑似空隙 (mm)": [round(x["length_mm"], 1) for x in result["gaps"]],
+                                                "不確定區 (mm)": [round(x["length_mm"], 1) for x in result["uncertain"]],
+                                            })
+                                            st.warning(result["warning"])
+                                        else:
+                                            st.warning(result.get("warning", "本列無法判識。"))
+                                        st.caption(row_cal["warning"])
+                            except Exception as rect_exc:
+                                st.error(f"透視校正／分列失敗：{rect_exc}。請調整四角或減少裁切比例。")
                 except Exception as exc:
                     st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 
