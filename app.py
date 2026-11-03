@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -51,8 +51,8 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
     # --- 岩芯照片分析（第一階段：照片建檔、比例校正與 RQD 計算） ---
     with st.expander("📷 岩芯照片分析（第一階段測試版）", expanded=False):
         st.markdown(
-            "上傳岩芯箱照片並建立深度資料。此階段先完成照片檢查、比例校正及 RQD 計算流程；"
-            "**天然節理／機械斷裂自動辨識尚未啟用**，因此不會把未經確認的影像判讀冒充為正式 RQD。"
+            "上傳岩芯箱照片並建立深度資料。可先檢查照片，並試行水平列界候選定位；"
+            "**目前尚未自動量測每段岩芯長度，也未辨識天然節理／機械斷裂**，因此不會把影像候選冒充為正式 RQD。"
         )
         photo_col1, photo_col2 = st.columns([1, 1])
         with photo_col1:
@@ -84,6 +84,11 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                     with st.container(border=True):
                         st.image(image, caption=f"{uploaded.name}｜{info.width_px} × {info.height_px} px", use_container_width=True)
                         st.caption(f"格式：{info.format}｜檔案大小：{info.file_size_bytes / 1024:.1f} KB")
+                        if st.checkbox("分析水平列界候選", key=f"core_row_detect_{idx}"):
+                            row_result = detect_tray_rows(image)
+                            st.image(draw_row_candidates(image, row_result), caption="紅線為水平列界候選，請人工確認；不是岩芯段界。", use_container_width=True)
+                            st.caption(f"偵測到 {len(row_result['row_bands'])} 個候選列區段；候選邊界 y={row_result['row_bounds']} px。")
+                            st.warning(row_result.get("warning", "列界候選僅供定位，不可直接作為 RQD 計算依據。"))
                 except Exception as exc:
                     st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 

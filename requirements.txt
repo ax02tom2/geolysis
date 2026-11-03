@@ -3,3 +3,5 @@ pandas
 plotly
 geolysis
 Pillow
+
+numpy

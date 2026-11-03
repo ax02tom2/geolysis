@@ -89,3 +89,70 @@ def calculate_core_indices(
         "over_recovery": recovered_mm > drilled_mm,
         "lengths_mm": lengths,
     }
+
+
+def detect_tray_rows(image: Image.Image, max_rows: int = 12) -> dict:
+    """以水平邊界梯度找出岩芯箱列界候選；只做定位輔助，不辨識岩芯段或斷裂。
+
+    回傳 row_bounds（像素座標）及 row_bands。演算法使用全寬垂直灰階差，
+    對清楚的橫向隔板較敏感；文字、陰影、反光也可能形成假候選。
+    """
+    import numpy as np
+
+    if max_rows < 2 or max_rows > 30:
+        raise ValueError("max_rows 必須介於 2 至 30。")
+    gray = np.asarray(image.convert("L"), dtype=np.float32)
+    h, w = gray.shape
+    if h < 80 or w < 80:
+        return {"row_bounds": [0, h], "row_bands": [(0, h)], "candidates": [], "method": "image_too_small"}
+
+    # 降低文字與局部岩芯紋理的影響：以全寬平均垂直差作為橫向隔板分數。
+    diff = np.abs(np.diff(gray, axis=0))
+    score = diff.mean(axis=1)
+    smooth_n = max(3, int(round(h * 0.004)) | 1)
+    kernel = np.ones(smooth_n, dtype=np.float32) / smooth_n
+    smooth = np.convolve(score, kernel, mode="same")
+
+    med = float(np.median(smooth))
+    mad = float(np.median(np.abs(smooth - med)))
+    threshold = max(float(np.percentile(smooth, 82)), med + 2.0 * mad)
+    min_distance = max(12, int(h / (max_rows + 1)))
+    peaks = []
+    edge_margin = max(8, int(h * 0.07))  # 排除照片最外緣的箱體外框
+    for y in range(edge_margin, h - edge_margin):
+        if smooth[y] >= threshold and smooth[y] >= smooth[y - 1] and smooth[y] >= smooth[y + 1]:
+            peaks.append((float(smooth[y]), int(y)))
+    # 強峰優先，並限制相鄰候選過近；最後依 y 排序。
+    selected = []
+    for strength, y in sorted(peaks, reverse=True):
+        if all(abs(y - old_y) >= min_distance for _, old_y in selected):
+            selected.append((strength, y))
+        if len(selected) >= max_rows - 1:
+            break
+    selected.sort(key=lambda item: item[1])
+    bounds = [0] + [y for _, y in selected] + [h]
+    bands = [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1) if bounds[i + 1] - bounds[i] >= 12]
+    candidates = [
+        {"y_px": y, "strength": round(strength, 3)}
+        for strength, y in selected
+    ]
+    return {
+        "row_bounds": bounds,
+        "row_bands": bands,
+        "candidates": candidates,
+        "threshold": round(threshold, 3),
+        "method": "horizontal_gradient_candidate_v1",
+        "warning": "列界候選可能包含文字、陰影或反光；需人工確認，不能直接視為岩芯段界。",
+    }
+
+
+def draw_row_candidates(image: Image.Image, detection: dict) -> Image.Image:
+    """繪製水平列界候選，供使用者目視覆核。"""
+    from PIL import ImageDraw
+
+    out = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out)
+    for i, y in enumerate(detection.get("row_bounds", [])[1:-1], start=1):
+        draw.line((0, y, out.width, y), fill=(255, 40, 40), width=max(2, out.width // 1200))
+        draw.text((8, min(y + 3, out.height - 18)), f"candidate {i}: y={y}px", fill=(255, 40, 40), stroke_width=1, stroke_fill=(255, 255, 255))
+    return out
