@@ -71,3 +71,36 @@ def test_blue_tray_detector_gracefully_handles_non_blue_image():
     assert result["method"] == "blue_hough_v1"
     assert result["candidates"] == []
     assert "未找到" in result["warning"]
+
+
+def make_skewed_blue_tray():
+    import cv2
+    import numpy as np
+    from PIL import Image
+    canvas = np.full((600, 900, 3), (190, 190, 185), dtype=np.uint8)
+    outer = np.array([[150, 70], [760, 115], [700, 520], [105, 455]], dtype=np.int32)
+    cv2.fillConvexPoly(canvas, outer, (25, 95, 190))
+    inner = np.array([[170, 90], [740, 132], [682, 498], [128, 435]], dtype=np.int32)
+    cv2.fillConvexPoly(canvas, inner, (175, 150, 120))
+    return Image.fromarray(canvas)
+
+
+def test_blue_tray_quad_detection_and_perspective_rectification():
+    from core_photo_analysis import detect_blue_tray_quadrilateral, rectify_tray_perspective
+    image = make_skewed_blue_tray()
+    result = detect_blue_tray_quadrilateral(image)
+    assert result["success"] is True
+    assert len(result["corners"]) == 4
+    rectified, info = rectify_tray_perspective(image, result)
+    assert rectified.width >= 400
+    assert rectified.height >= 250
+    assert info["output_width_px"] == rectified.width
+    assert "不能因此取得真實 mm/px" in info["warning"]
+
+
+def test_blue_tray_quad_detector_falls_back_for_non_blue_image():
+    from core_photo_analysis import detect_blue_tray_quadrilateral
+    image = Image.new("RGB", (800, 500), (160, 145, 125))
+    result = detect_blue_tray_quadrilateral(image)
+    assert result["success"] is False
+    assert "未找到" in result["warning"]

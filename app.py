@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
-from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -84,6 +84,21 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                     with st.container(border=True):
                         st.image(image, caption=f"{uploaded.name}｜{info.width_px} × {info.height_px} px", use_container_width=True)
                         st.caption(f"格式：{info.format}｜檔案大小：{info.file_size_bytes / 1024:.1f} KB")
+                        if st.checkbox("偵測岩芯箱外框四角並預覽透視校正", key=f"core_quad_detect_{idx}"):
+                            quad_result = detect_blue_tray_quadrilateral(image)
+                            if quad_result.get("success"):
+                                st.image(draw_tray_quadrilateral(image, quad_result), caption="紅框與黃點＝外框四角候選（1 至 4）；請確認四點均位於同一岩芯箱外框。", use_container_width=True)
+                                st.write({"外框面積比例": quad_result.get("area_ratio"), "長短邊比": quad_result.get("aspect_ratio"), "候選外框數": quad_result.get("candidate_count")})
+                                st.warning(quad_result.get("warning", ""))
+                                if st.checkbox("我已確認四角正確，顯示透視校正預覽", key=f"core_quad_accept_{idx}"):
+                                    try:
+                                        rectified, rect_info = rectify_tray_perspective(image, quad_result)
+                                        st.image(rectified, caption=f"透視校正預覽｜{rect_info['output_width_px']} × {rect_info['output_height_px']} px（原圖未變更）", use_container_width=True)
+                                        st.caption(rect_info["warning"])
+                                    except Exception as rect_exc:
+                                        st.error(f"透視校正失敗：{rect_exc}；請改用原圖。")
+                            else:
+                                st.warning(quad_result.get("warning", "未能可靠定位外框，保留原圖。"))
                         if st.checkbox("分析岩芯箱列界候選（雙方法）", key=f"core_row_detect_{idx}"):
                             gradient_result = detect_tray_rows(image)
                             blue_result = detect_blue_tray_rows(image)

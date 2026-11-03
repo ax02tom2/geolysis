@@ -277,3 +277,106 @@ def draw_combined_row_candidates(image: Image.Image, detections: list[dict]) -> 
             draw.line((0, y, out.width, y), fill=color, width=max(2, out.width // 1400))
             draw.text((8, min(y + 3, out.height - 18)), f"{method.split('_')[0]} y={y}", fill=color, stroke_width=1, stroke_fill=(255, 255, 255))
     return out
+
+
+def _order_quad_points(points):
+    """Order four points as top-left, top-right, bottom-right, bottom-left."""
+    import numpy as np
+    pts = np.asarray(points, dtype=np.float32).reshape(4, 2)
+    s = pts.sum(axis=1)
+    d = np.diff(pts, axis=1).reshape(-1)
+    return np.array([pts[np.argmin(s)], pts[np.argmin(d)], pts[np.argmax(s)], pts[np.argmax(d)]], dtype=np.float32)
+
+
+def detect_blue_tray_quadrilateral(image: Image.Image) -> dict:
+    """偵測藍色岩芯箱外框四邊形；回傳原圖座標與幾何品質，不自動假定一定成功。"""
+    import cv2
+    import numpy as np
+
+    rgb = np.asarray(image.convert("RGB"))
+    h, w = rgb.shape[:2]
+    scale = min(1.0, 1800.0 / max(h, w))
+    sw, sh = max(1, int(w * scale)), max(1, int(h * scale))
+    small = cv2.resize(rgb, (sw, sh), interpolation=cv2.INTER_AREA) if scale < 1 else rgb
+    hsv = cv2.cvtColor(small, cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv, (78, 40, 30), (135, 255, 255))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (max(3, sw // 180), max(3, sh // 180)))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    candidates = []
+    image_area = float(sw * sh)
+    for contour in contours:
+        area = float(cv2.contourArea(contour))
+        if area < image_area * 0.08:
+            continue
+        peri = cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, 0.025 * peri, True)
+        if len(approx) == 4 and cv2.isContourConvex(approx):
+            quad = _order_quad_points(approx.reshape(4, 2))
+        else:
+            rect = cv2.minAreaRect(contour)
+            quad = _order_quad_points(cv2.boxPoints(rect))
+        sides = [float(np.linalg.norm(quad[(i + 1) % 4] - quad[i])) for i in range(4)]
+        top, right, bottom, left = sides
+        width_est = (top + bottom) / 2
+        height_est = (left + right) / 2
+        if min(width_est, height_est) < 1:
+            continue
+        aspect = max(width_est, height_est) / min(width_est, height_est)
+        if aspect > 12:
+            continue
+        rectangularity = min(area / max(cv2.contourArea(approx) if len(approx) == 4 else area, 1), 1.0)
+        score = area * min(aspect, 5) * rectangularity
+        candidates.append((score, quad, area, aspect, len(approx)))
+    if not candidates:
+        return {"success": False, "method": "blue_mask_quad_v1", "warning": "未找到面積足夠且形狀合理的藍色箱體外框；請使用原圖或人工校正。"}
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    _, quad, area, aspect, vertices = candidates[0]
+    quad_original = (quad / scale).tolist()
+    # Basic checks: corners must span enough of image and have no degenerate sides.
+    sides = [float(np.linalg.norm(quad[(i + 1) % 4] - quad[i])) for i in range(4)]
+    min_side = min(sides)
+    valid = area / image_area >= 0.08 and min_side >= min(sw, sh) * 0.08
+    return {
+        "success": bool(valid), "method": "blue_mask_quad_v1",
+        "corners": [[round(float(x), 1), round(float(y), 1)] for x, y in quad_original],
+        "area_ratio": round(area / image_area, 4), "aspect_ratio": round(aspect, 3),
+        "approx_vertices": int(vertices), "candidate_count": len(candidates),
+        "warning": "四角為藍色遮罩幾何候選，可能抓到局部箱體或背景物件；透視校正前請確認四角都落在同一岩芯箱外框。" if valid else "候選外框幾何品質不足，未建議校正。",
+    }
+
+
+def rectify_tray_perspective(image: Image.Image, detection: dict, max_dimension: int = 2400) -> tuple[Image.Image, dict]:
+    """依已確認四角進行透視校正；不修改輸入原圖。"""
+    import cv2
+    import numpy as np
+    if not detection.get("success") or len(detection.get("corners", [])) != 4:
+        raise ValueError("沒有可用的四角候選，無法進行透視校正。")
+    pts = np.asarray(detection["corners"], dtype=np.float32)
+    tl, tr, br, bl = pts
+    width = int(round(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl))))
+    height = int(round(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl))))
+    if width < 80 or height < 80:
+        raise ValueError("外框尺寸過小，校正結果不可靠。")
+    factor = min(1.0, max_dimension / max(width, height))
+    out_w, out_h = max(80, int(width * factor)), max(80, int(height * factor))
+    dst = np.array([[0, 0], [out_w - 1, 0], [out_w - 1, out_h - 1], [0, out_h - 1]], dtype=np.float32)
+    matrix = cv2.getPerspectiveTransform(pts, dst)
+    arr = np.asarray(image.convert("RGB"))
+    warped = cv2.warpPerspective(arr, matrix, (out_w, out_h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(245, 245, 245))
+    return Image.fromarray(warped), {"output_width_px": out_w, "output_height_px": out_h, "scale_factor": round(factor, 4), "warning": "透視校正僅改變影像幾何外觀；若原圖無尺度基準，不能因此取得真實 mm/px。"}
+
+
+def draw_tray_quadrilateral(image: Image.Image, detection: dict) -> Image.Image:
+    from PIL import ImageDraw
+    out = image.convert("RGB").copy()
+    if detection.get("success") and len(detection.get("corners", [])) == 4:
+        pts = [(int(round(x)), int(round(y))) for x, y in detection["corners"]]
+        draw = ImageDraw.Draw(out)
+        draw.line(pts + [pts[0]], fill=(255, 40, 30), width=max(3, out.width // 600))
+        for i, (x, y) in enumerate(pts, 1):
+            r = max(7, out.width // 100)
+            draw.ellipse((x-r, y-r, x+r, y+r), fill=(255, 230, 0), outline=(0, 0, 0), width=2)
+            draw.text((x+r, y+r), str(i), fill=(0, 0, 0), stroke_width=2, stroke_fill=(255, 255, 255))
+    return out
