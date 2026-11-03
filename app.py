@@ -2,67 +2,44 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import math
-import inspect
-import pkgutil
-import importlib
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
 st.title("🧱 geolysis 大地工程分析系統")
 st.markdown("""
 本系統完整呈現開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 之四大核心工程模組：
-* **模組一：土壤分類系統 (`soil_classifier`)** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
-* **模組二：SPT 標準貫入試驗全修正 (`spt`)** — 器材四項修正 ($E_m, C_B, C_S, C_R$)、7 大學者覆土壓力修正 ($C_N$) 與全鑽孔剖面批次繪圖
-* **模組三：容許承載力與沉陷控制 (`bearing_capacity.abc`)** — Bowles & Meyerhof 控制沉陷量之淺基礎與筏基設計
-* **模組四：極限承載力四大理論 (`bearing_capacity.ubc`)** — Terzaghi / Meyerhof / Hansen / Vesic 全套修正係數與三階段地下水折減
+- **模組一：土壤分類系統** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
+- **模組二：SPT 標準貫入試驗全修正** — 器材四項修正 ($E_m, C_B, C_S, C_R$)、7 大學者覆土壓力修正 ($C_N$) 與全鑽孔剖面批次繪圖
+- **模組三：容許承載力與沉陷控制** — Bowles & Meyerhof 控制沉陷量之淺基礎與筏基設計
+- **模組四：極限承載力四大理論** — Terzaghi / Meyerhof / Hansen / Vesic 全套修正係數與三階段地下水折減
 """)
 
 # ==============================================================================
-# 側邊欄：快速檢視模式與 geolysis 原生套件探測器
+# 側邊欄：快速檢視模式
 # ==============================================================================
-st.sidebar.title("🛠️ 顯示與套件探測")
+st.sidebar.title("🛠️ 畫面顯示設定")
 display_mode = st.sidebar.radio(
-    "選擇畫面展開模式：",
-    ["全部展開 (一覽全貌)", "僅展開：模組一 (土壤分類)", "僅展開：模組二 (SPT 全修正)", "僅展開：模組三 (ABC 容許承載力)", "僅展開：模組四 (UBC 極限承載力)"]
+    "選擇展開模式：",
+    [
+        "全部展開",
+        "模組一：土壤分類",
+        "模組二：SPT 全修正",
+        "模組三：容許承載力",
+        "模組四：極限承載力"
+    ]
 )
 
-st.sidebar.divider()
-st.sidebar.subheader("🔍 原生套件底層探測")
-try:
-    import geolysis
-    st.sidebar.success(f"✅ 已載入 `geolysis` ({getattr(geolysis, '__version__', '最新版')})")
-    submodules = ["geolysis"]
-    if hasattr(geolysis, "__path__"):
-        for _, modname, _ in pkgutil.walk_packages(path=geolysis.__path__, prefix=geolysis.__name__+'.'):
-            submodules.append(modname)
-    
-    selected_mod = st.sidebar.selectbox("檢視原創子模組：", submodules)
-    if selected_mod:
-        mod = importlib.import_module(selected_mod)
-        members = [name for name, obj in inspect.getmembers(mod) if not name.startswith("_")]
-        selected_member = st.sidebar.selectbox("檢視類別/函數原始碼：", ["(請選擇)"] + members)
-        if selected_member != "(請選擇)":
-            obj = getattr(mod, selected_member)
-            with st.expander(f"📜 原創原始碼檢視：`{selected_mod}.{selected_member}`", expanded=True):
-                try:
-                    st.code(inspect.getsource(obj), language="python")
-                except Exception:
-                    st.write(obj)
-except Exception as e:
-    st.sidebar.error(f"載入 `geolysis` 異常：{e}")
-
-# 控制各區塊是否預設展開
-exp_1 = display_mode in ["全部展開 (一覽全貌)", "僅展開：模組一 (土壤分類)"]
-exp_2 = display_mode in ["全部展開 (一覽全貌)", "僅展開：模組二 (SPT 全修正)"]
-exp_3 = display_mode in ["全部展開 (一覽全貌)", "僅展開：模組三 (ABC 容許承載力)"]
-exp_4 = display_mode in ["全部展開 (一覽全貌)", "僅展開：模組四 (UBC 極限承載力)"]
+exp_1 = display_mode in ["全部展開", "模組一：土壤分類"]
+exp_2 = display_mode in ["全部展開", "模組二：SPT 全修正"]
+exp_3 = display_mode in ["全部展開", "模組三：容許承載力"]
+exp_4 = display_mode in ["全部展開", "模組四：極限承載力"]
 
 
 # ==============================================================================
-# 模組一：土壤分類系統 (geolysis.soil_classifier)
+# 模組一：土壤分類系統
 # ==============================================================================
-with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO 完整分類引擎)", expanded=exp_1):
-    st.subheader("🌱 土壤分類系統 (`geolysis.soil_classifier`)")
+with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO)", expanded=exp_1):
+    st.subheader("🌱 土壤分類系統")
     col_a, col_b = st.columns(2)
     
     with col_a:
@@ -90,7 +67,6 @@ with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO 完整分�
         cc = (d30 ** 2) / (d10 * d60) if (d10 * d60) > 0 else 0.0
         st.caption(f"均勻係數 $C_u = {cu:.2f}$ ｜ 曲率係數 $C_c = {cc:.2f}$")
 
-    # 即時計算 USCS 與 AASHTO
     native_uscs_res, native_aashto_res = None, None
     try:
         from geolysis import soil_classifier as sc
@@ -170,10 +146,10 @@ with st.expander("🌱 模組一：土壤分類系統 (USCS & AASHTO 完整分�
 
 
 # ==============================================================================
-# 模組二：SPT 標準貫入試驗全修正 (geolysis.spt)
+# 模組二：SPT 標準貫入試驗全修正
 # ==============================================================================
-with st.expander("🔨 模組二：SPT 標準貫入試驗全修正系統 (Energy & Overburden Corrections)", expanded=exp_2):
-    st.subheader("🔨 SPT 標準貫入試驗全修正 (`geolysis.spt`)")
+with st.expander("🔨 模組二：SPT 標準貫入試驗全修正", expanded=exp_2):
+    st.subheader("🔨 SPT 標準貫入試驗全修正")
     col_spt1, col_spt2, col_spt3 = st.columns(3)
     
     with col_spt1:
@@ -266,10 +242,10 @@ with st.expander("🔨 模組二：SPT 標準貫入試驗全修正系統 (Energy
 
 
 # ==============================================================================
-# 模組三：容許承載力與沉陷控制 (geolysis.bearing_capacity.abc)
+# 模組三：容許承載力與沉陷控制
 # ==============================================================================
-with st.expander("📏 模組三：容許承載力與沉陷控制設計 (Allowable Bearing Capacity - ABC)", expanded=exp_3):
-    st.subheader("📏 容許承載力與沉陷控制 (`geolysis.bearing_capacity.abc`)")
+with st.expander("📏 模組三：容許承載力與沉陷控制", expanded=exp_3):
+    st.subheader("📏 容許承載力與沉陷控制")
     c_abc1, c_abc2, c_abc3 = st.columns(3)
     
     with c_abc1:
@@ -304,10 +280,10 @@ with st.expander("📏 模組三：容許承載力與沉陷控制設計 (Allowab
 
 
 # ==============================================================================
-# 模組四：極限承載力四大理論 (geolysis.bearing_capacity.ubc)
+# 模組四：極限承載力四大理論
 # ==============================================================================
-with st.expander("🏗️ 模組四：極限承載力四大理論完整版 (Ultimate Bearing Capacity - UBC)", expanded=exp_4):
-    st.subheader("🏗️ 極限承載力四大理論 (`geolysis.bearing_capacity.ubc`)")
+with st.expander("🏗️ 模組四：極限承載力四大理論", expanded=exp_4):
+    st.subheader("🏗️ 極限承載力四大理論")
     u_col1, u_col2, u_col3, u_col4 = st.columns(4)
     
     with u_col1:
