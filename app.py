@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import math
 
+from core_photo_analysis import inspect_image, pixel_scale_mm_per_px, parse_piece_lengths, calculate_core_indices
+
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
 st.title("🧱 geolysis 大地工程分析系統")
@@ -44,6 +46,100 @@ exp_5 = display_mode in ["全部展開", "模組五：極限承載力"]
 # ==============================================================================
 with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c', ϕ' (含 GSI 現場對照矩陣)", expanded=exp_1):
     st.subheader("⛰️ Hoek-Brown 岩體裂隙與等效莫耳－庫倫參數推估")
+
+
+    # --- 岩芯照片分析（第一階段：照片建檔、比例校正與 RQD 計算） ---
+    with st.expander("📷 岩芯照片分析（第一階段測試版）", expanded=False):
+        st.markdown(
+            "上傳岩芯箱照片並建立深度資料。此階段先完成照片檢查、比例校正及 RQD 計算流程；"
+            "**天然節理／機械斷裂自動辨識尚未啟用**，因此不會把未經確認的影像判讀冒充為正式 RQD。"
+        )
+        photo_col1, photo_col2 = st.columns([1, 1])
+        with photo_col1:
+            core_borehole = st.text_input("鑽孔編號（選填）", key="core_borehole_id")
+            depth_start = st.number_input("照片代表深度起點 [m]", min_value=0.0, value=12.0, step=0.5, key="core_depth_start")
+            depth_end = st.number_input("照片代表深度終點 [m]", min_value=0.1, value=15.0, step=0.5, key="core_depth_end")
+            core_photos = st.file_uploader(
+                "上傳岩芯箱照片（可多選）",
+                type=["jpg", "jpeg", "png", "webp"],
+                accept_multiple_files=True,
+                key="core_photo_upload",
+                help="建議使用原始照片，讓岩芯完整入鏡、避免透視變形，並保留岩芯箱刻度或尺寸參照。",
+            )
+        with photo_col2:
+            st.markdown("**比例校正**")
+            st.caption("若照片中有尺或已知尺寸的岩芯箱構件，可量取其像素長度後換算比例。")
+            ref_mm = st.number_input("參照物實際長度 [mm]", min_value=0.0, value=100.0, step=10.0, key="core_ref_mm")
+            ref_px = st.number_input("同一參照物在照片中的像素長度 [px]", min_value=0.0, value=0.0, step=1.0, key="core_ref_px")
+            if ref_px > 0 and ref_mm > 0:
+                st.success(f"比例：{pixel_scale_mm_per_px(ref_mm, ref_px):.4f} mm/px")
+            else:
+                st.warning("尚未完成比例校正；目前不能從照片像素換算岩芯實際長度。")
+
+        if core_photos:
+            st.markdown("**照片檢查結果**")
+            for idx, uploaded in enumerate(core_photos, start=1):
+                try:
+                    image, info = inspect_image(uploaded.getvalue())
+                    with st.container(border=True):
+                        st.image(image, caption=f"{uploaded.name}｜{info.width_px} × {info.height_px} px", use_container_width=True)
+                        st.caption(f"格式：{info.format}｜檔案大小：{info.file_size_bytes / 1024:.1f} KB")
+                except Exception as exc:
+                    st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
+
+        st.divider()
+        st.markdown("**RQD 計算資料（第一階段採可追溯的段長輸入）**")
+        st.caption(
+            "請依照片量測每一段可計入的岩芯長度，單位 mm，以逗號或換行分隔。"
+            "只輸入確認屬於天然岩芯段的長度；鑽取／搬運造成的機械斷裂須先依現場紀錄判別。"
+        )
+        piece_lengths_text = st.text_area(
+            "岩芯段長度 [mm]",
+            placeholder="例如：125, 180, 95, 210, 110",
+            key="core_piece_lengths",
+            height=90,
+        )
+        if st.button("計算採取率與 RQD", key="calculate_core_rqd"):
+            if depth_end <= depth_start:
+                st.error("深度終點必須大於起點。")
+            elif not piece_lengths_text.strip():
+                st.error("請先輸入可確認的岩芯段長度。")
+            else:
+                try:
+                    lengths = parse_piece_lengths(piece_lengths_text)
+                    indices = calculate_core_indices(depth_end - depth_start, lengths)
+                    st.session_state["core_rqd_result"] = indices
+                    st.session_state["core_rqd_depth"] = (depth_start, depth_end)
+                    st.session_state["core_rqd_borehole"] = core_borehole
+                except ValueError as exc:
+                    st.error(str(exc))
+
+        if "core_rqd_result" in st.session_state:
+            result = st.session_state["core_rqd_result"]
+            if result["over_recovery"]:
+                st.warning("回收岩芯總長超過鑽進長度，請檢查深度區間、重複量測或比例校正。")
+            r1, r2, r3 = st.columns(3)
+            r1.metric("岩芯採取率", f"{result['recovery_percent']:.1f}%")
+            r2.metric("RQD", f"{result['rqd_percent']:.1f}%")
+            r3.metric("符合 ≥100 mm 段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
+            st.caption(
+                f"鑽進長度 {result['drilled_length_mm']:.0f} mm；"
+                f"回收長度 {result['recovered_length_mm']:.0f} mm；"
+                f"RQD 計入長度 {result['rqd_length_mm']:.0f} mm。"
+                "此結果依人工確認段長計算，並非 AI 自動辨識成果。"
+            )
+            st.download_button(
+                "下載本區間 RQD 計算 JSON",
+                data=__import__("json").dumps({
+                    "borehole_id": st.session_state.get("core_rqd_borehole", ""),
+                    "depth_start_m": st.session_state.get("core_rqd_depth", (None, None))[0],
+                    "depth_end_m": st.session_state.get("core_rqd_depth", (None, None))[1],
+                    **result,
+                    "method_note": "RQD calculated from user-confirmed core piece lengths; natural/mechanical break classification is not automated.",
+                }, ensure_ascii=False, indent=2),
+                file_name="core_rqd_result.json",
+                mime="application/json",
+            )
     
     # --- 新增：GSI 視覺化交叉查表工具 ---
     with st.expander("🗺️ 點擊展開：GSI 現場岩芯/露頭條件交叉查表（自動判定 GSI）", expanded=False):
