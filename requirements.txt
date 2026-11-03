@@ -1,8 +1,4 @@
 streamlit
 pandas
 plotly
-docxtpl
-geopandas
-folium
-streamlit-folium
-pygeoda
+geolysis
