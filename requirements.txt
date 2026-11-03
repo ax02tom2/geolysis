@@ -3,6 +3,5 @@ pandas
 plotly
 geolysis
 Pillow
-
 numpy
 opencv-python-headless
