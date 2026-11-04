@@ -348,8 +348,8 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
             if f"mi = {k})" in rock_preset:
                 default_mi = v
                 break
-        mi = st.number_input("完整岩石材料常數 (mi)", min_value=1, max_value=40, value=default_mi, step=1)
-        sig_ci = st.number_input("完整岩石單軸抗壓強度 σci (UCS) [MPa]", min_value=0.5, max_value=250.0, value=25.0, step=1.0)
+        mi = st.number_input("完整岩石材料常數 (mi)", min_value=1, max_value=40, value=default_mi, step=1, key="geolysis_number_input_line_351")
+        sig_ci = st.number_input("完整岩石單軸抗壓強度 σci (UCS) [MPa]", min_value=0.5, max_value=250.0, value=25.0, step=1.0, key="geolysis_number_input_line_352")
         st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
 
     with hb_col2:
@@ -373,8 +373,8 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
             "隧道/深基礎分析 (Tunnels - 依深度 H)",
             "一般淺層/自訂國家有效圍壓 (General σ3_max)"
         ])
-        gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=23.0, step=0.5)
-        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0, value=20.0, step=1.0)
+        gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=23.0, step=0.5, key="geolysis_number_input_line_376")
+        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0, value=20.0, step=1.0, key="geolysis_number_input_line_377")
 
     # --- Hoek-Brown (2002) 核心運算 ---
     mb = mi * math.exp((gsi - 100.0) / (28.0 - 14.0 * d_factor))
@@ -444,18 +444,18 @@ with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded
     st.subheader("🌱 土壤分類系統")
     col_a, col_b = st.columns(2)
     with col_a:
-        ll = st.number_input("液性限度 Liquid Limit (LL) [%]", min_value=0.0, max_value=200.0, value=42.0, step=1.0)
-        pl = st.number_input("塑性限度 Plastic Limit (PL) [%]", min_value=0.0, max_value=200.0, value=22.0, step=1.0)
+        ll = st.number_input("液性限度 Liquid Limit (LL) [%]", min_value=0.0, max_value=200.0, value=42.0, step=1.0, key="geolysis_number_input_line_447")
+        pl = st.number_input("塑性限度 Plastic Limit (PL) [%]", min_value=0.0, max_value=200.0, value=22.0, step=1.0, key="geolysis_number_input_line_448")
         is_np = st.checkbox("無塑性 (Non-Plastic, NP)", value=False)
         organic = st.checkbox("含高有機質 (Organic Soil)", value=False)
         pi = 0.0 if is_np else max(0.0, ll - pl)
     with col_b:
-        fines = st.number_input("過 200 號篩百分比 (Fines < 0.075mm) [%]", min_value=0.0, max_value=100.0, value=38.0, step=1.0)
-        sand = st.number_input("砂粒含量 (Sand, 0.075mm ~ 4.75mm) [%]", min_value=0.0, max_value=100.0, value=42.0, step=1.0)
+        fines = st.number_input("過 200 號篩百分比 (Fines < 0.075mm) [%]", min_value=0.0, max_value=100.0, value=38.0, step=1.0, key="geolysis_number_input_line_453")
+        sand = st.number_input("砂粒含量 (Sand, 0.075mm ~ 4.75mm) [%]", min_value=0.0, max_value=100.0, value=42.0, step=1.0, key="geolysis_number_input_line_454")
         gravel = max(0.0, 100.0 - fines - sand)
-        d10 = st.number_input("有效粒徑 D10 [mm]", min_value=0.001, value=0.15, format="%.3f")
-        d30 = st.number_input("粒徑 D30 [mm]", min_value=0.001, value=0.60, format="%.3f")
-        d60 = st.number_input("粒徑 D60 [mm]", min_value=0.001, value=1.80, format="%.3f")
+        d10 = st.number_input("有效粒徑 D10 [mm]", min_value=0.001, value=0.15, format="%.3f", key="geolysis_number_input_line_456")
+        d30 = st.number_input("粒徑 D30 [mm]", min_value=0.001, value=0.60, format="%.3f", key="geolysis_number_input_line_457")
+        d60 = st.number_input("粒徑 D60 [mm]", min_value=0.001, value=1.80, format="%.3f", key="geolysis_number_input_line_458")
         cu = d60 / d10 if d10 > 0 else 0.0
         cc = (d30 ** 2) / (d10 * d60) if (d10 * d60) > 0 else 0.0
 
@@ -482,11 +482,11 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
     st.subheader("🔨 SPT 標準貫入試驗全修正")
     col_spt1, col_spt2, col_spt3 = st.columns(3)
     with col_spt1:
-        n_measured = st.number_input("現場量測 SPT-N 值", min_value=1, max_value=100, value=18)
+        n_measured = st.number_input("現場量測 SPT-N 值", min_value=1, max_value=100, value=18, key="geolysis_number_input_line_485")
         em = 0.80
         cb, cs, cr = 1.0, 1.0, 0.95
     with col_spt2:
-        sigma_v = st.number_input("有效覆土應力 σ'_v [kPa]", min_value=5.0, value=95.0, step=5.0)
+        sigma_v = st.number_input("有效覆土應力 σ'_v [kPa]", min_value=5.0, value=95.0, step=5.0, key="geolysis_number_input_line_489")
         cn = min(2.0, math.sqrt(100.0 / sigma_v))
     n60 = (n_measured * em * cb * cs * cr) / 0.60
     n1_60_corr = n60 * cn
@@ -504,10 +504,10 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
     st.subheader("📏 容許承載力與沉陷控制")
     c_abc1, c_abc2, c_abc3 = st.columns(3)
     with c_abc1:
-        n_design = st.number_input("影響深度內設計平均 N 值", min_value=1.0, value=float(round(n1_60_corr, 1)), step=1.0)
+        n_design = st.number_input("影響深度內設計平均 N 值", min_value=1.0, value=float(round(n1_60_corr, 1)), step=1.0, key="geolysis_number_input_line_507")
     with c_abc2:
-        b_abc = st.number_input("基礎寬度 B [m]", min_value=0.3, value=2.5, step=0.1)
-        df_abc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1)
+        b_abc = st.number_input("基礎寬度 B [m]", min_value=0.3, value=2.5, step=0.1, key="geolysis_number_input_line_509")
+        df_abc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1, key="geolysis_number_input_line_510")
     with c_abc3:
         qa = (n_design / 0.08) * min(1.0 + 0.33 * (df_abc / b_abc), 1.33)
         st.success(f"#### 容許承載力 qa：`{qa:.2f} kPa`")
@@ -522,18 +522,18 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
     with u_col1:
         ubc_theory = st.selectbox("選擇理論公式", ["Vesic (1973)", "Hansen (1970)", "Meyerhof (1963)", "Terzaghi (1943)"])
         f_shape = st.selectbox("基礎形狀", ["連續/條形 (Strip)", "方形 (Square)", "圓形 (Circle)", "矩形 (Rectangle)"])
-        b_ubc = st.number_input("基礎寬度 B [m]", min_value=0.2, value=2.0, step=0.1)
-        df_ubc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1)
+        b_ubc = st.number_input("基礎寬度 B [m]", min_value=0.2, value=2.0, step=0.1, key="geolysis_number_input_line_525")
+        df_ubc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1, key="geolysis_number_input_line_526")
     with u_col2:
         param_source = st.selectbox("力學參數來源", ["手動輸入 c, ϕ", "帶入模組一：Hoek-Brown 等效 c', ϕ'", "帶入模組三：SPT 經驗估算 ϕ"])
         default_c = float(round(c_hb_kpa, 1)) if "模組一" in param_source else 15.0
         default_phi = float(round(phi_hb_deg, 1)) if "模組一" in param_source else (float(round(phi_hat, 1)) if "模組三" in param_source else 30.0)
-        c_ubc = st.number_input("凝聚力 c [kPa]", min_value=0.0, value=default_c, step=1.0)
-        phi_ubc = st.number_input("內摩擦角 ϕ [度]", min_value=0.0, max_value=55.0, value=min(55.0, default_phi), step=1.0)
-        gamma_ubc = st.number_input("濕單位重 γ [kN/m³]", min_value=10.0, value=18.5, step=0.5)
-        fs_ubc = st.number_input("安全係數 (FS)", min_value=1.0, value=3.0, step=0.5)
+        c_ubc = st.number_input("凝聚力 c [kPa]", min_value=0.0, value=default_c, step=1.0, key="geolysis_number_input_line_531")
+        phi_ubc = st.number_input("內摩擦角 ϕ [度]", min_value=0.0, max_value=55.0, value=min(55.0, default_phi), step=1.0, key="geolysis_number_input_line_532")
+        gamma_ubc = st.number_input("濕單位重 γ [kN/m³]", min_value=10.0, value=18.5, step=0.5, key="geolysis_number_input_line_533")
+        fs_ubc = st.number_input("安全係數 (FS)", min_value=1.0, value=3.0, step=0.5, key="geolysis_number_input_line_534")
     with u_col3:
-        dw_ubc = st.number_input("地下水位深度 Dw [m]", min_value=0.0, value=1.2, step=0.2)
+        dw_ubc = st.number_input("地下水位深度 Dw [m]", min_value=0.0, value=1.2, step=0.2, key="geolysis_number_input_line_536")
     
     # 簡易極限承載力運算
     phi_r = math.radians(phi_ubc)

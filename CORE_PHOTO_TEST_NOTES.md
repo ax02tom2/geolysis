@@ -127,3 +127,27 @@ python -c "import core_photo_analysis; print('core import OK')"
 ## 尚未驗證
 
 目前環境沒有 Streamlit 套件，且無法從套件來源安裝，因此未完成 Streamlit App 啟動、實際瀏覽器拖曳或 Streamlit Cloud 部署測試。全部影像判識測試仍為合成影像；尚無現場岩心照片及專家標註資料。
+
+
+# V8.2.1｜Streamlit number_input 元件 ID 修正
+
+## 問題與修正
+
+使用者在 Streamlit Cloud 執行時回報 `StreamlitDuplicateElementId`，錯誤指向多個 `st.number_input()` 自動產生相同 ID。檢查 V8.2 `app.py` 後，發現模組二至五有多組相同標籤／參數的數字輸入欄位，例如模組二與模組五的基礎寬度、埋深等欄位；這些元件在 Streamlit 頁面執行時可能同時建立，因此不能依賴自動 ID。
+
+修正方式：
+1. 為 `app.py` 中全部 27 個 `st.number_input()` 指定明確且唯一的 `key`。
+2. 原本岩心照片深度與比例校正欄位已經有專用 key，予以保留。
+3. 其餘 23 個數字欄位使用不同的 `geolysis_number_input_line_<原始行號>` key，避免跨模組同名欄位衝突。
+4. 新增 `tests/test_streamlit_widget_keys.py`，靜態解析 `app.py`，確保每個 number_input 都有字串 key 且不重複，防止日後回歸。
+
+## V8.2.1 驗證
+
+- `PYTHONPATH=. pytest -q`：**27 passed**（含 number_input key 回歸測試）。
+- `python -m py_compile app.py core_photo_analysis.py`：通過。
+- AST 檢查：27 個 number_input、27 個明確 key、無缺漏及重複。
+- ZIP 完整性：通過。
+
+## 限制
+
+本次環境沒有安裝 Streamlit，因此未能在本機啟動完整 App 或重現 Cloud 瀏覽器流程。此修正針對錯誤原因逐一補上唯一 key，並以 AST 回歸測試確認；仍需 Cloud 部署後確認實際執行。未修改模組二至五的計算邏輯，只補上 UI 元件識別 key。
