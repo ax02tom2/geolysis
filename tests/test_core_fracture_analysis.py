@@ -79,3 +79,64 @@ def test_slanted_trace_is_only_a_low_confidence_natural_joint_prompt():
     overlay = draw_core_fracture_candidates(image, result)
     assert overlay.size == image.size
     assert overlay.tobytes() != image.tobytes()
+
+
+def test_v8_row_analysis_handles_float_occupancy_without_opencv_median_blur():
+    """Regression: OpenCV 5 medianBlur rejects the float32 occupancy profile."""
+    from core_photo_analysis import analyze_core_row_v8
+
+    image = Image.new("RGB", (1200, 100), (35, 105, 185))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle(
+        (120, 17, 1080, 83), radius=30,
+        fill=(165, 158, 145), outline=(75, 70, 65), width=2,
+    )
+    result = analyze_core_row_v8(image, mm_per_px=1000.0 / 1170.0)
+    assert result["success"] is True
+    assert result["segments"]
+    assert "medianBlur" not in result.get("warning", "")
+
+
+def test_v8_analysis_returns_consistent_structure_for_each_depth_row():
+    from core_photo_analysis import analyze_core_row_v8
+
+    rows = []
+    for core_start, core_end in [(120, 1080), (140, 1060), (160, 1040), (100, 1100)]:
+        image = Image.new("RGB", (1200, 100), (35, 105, 185))
+        ImageDraw.Draw(image).rounded_rectangle(
+            (core_start, 17, core_end, 83), radius=25,
+            fill=(165, 158, 145), outline=(75, 70, 65), width=2,
+        )
+        rows.append(analyze_core_row_v8(image, mm_per_px=1000.0 / 1170.0))
+    assert all(item["success"] for item in rows)
+    assert all("segments" in item and "gaps" in item and "uncertain" in item for item in rows)
+
+
+def test_v8_does_not_depend_on_opencv_median_blur(monkeypatch):
+    import cv2
+    from core_photo_analysis import analyze_core_row_v8
+
+    def reject_median_blur(*args, **kwargs):
+        raise cv2.error("simulated OpenCV 5 medianBlur depth assertion")
+
+    monkeypatch.setattr(cv2, "medianBlur", reject_median_blur)
+    image = Image.new("RGB", (1200, 100), (35, 105, 185))
+    ImageDraw.Draw(image).rounded_rectangle(
+        (120, 17, 1080, 83), radius=30,
+        fill=(165, 158, 145), outline=(75, 70, 65), width=2,
+    )
+    result = analyze_core_row_v8(image, mm_per_px=1000.0 / 1170.0)
+    assert result["success"] is True
+    assert result["segments"]
+
+
+def test_no_fracture_candidates_do_not_produce_assumed_100_percent_rqd():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    result = estimate_rqd_from_image_segments(
+        [{"x_start_px": 0, "x_end_px": 800}], [], 1.25,
+    )
+    assert result["ready"] is False
+    assert result["recovery_percent"] == 100.0
+    assert result["rqd_percent"] is None
+    assert "不代表沒有天然節理" in result["warning"]

@@ -812,7 +812,17 @@ def analyze_core_row_v8(
     k = max(3, min(21, int(round(5.0 / mm_per_px)) | 1))
     if k % 2 == 0:
         k += 1
-    filtered = np.vstack([cv2.medianBlur(row.reshape(1, -1), k).reshape(-1) for row in band_occ])
+    # band_occ 是 0~1 的 float32 一維占據率，不符合 OpenCV medianBlur
+    # 在部分版本（包含 OpenCV 5 部署環境）的輸入深度限制。改用 NumPy
+    # 一維滑動視窗中位數，保留 float32 精度並避免 OpenCV 後端相容性問題。
+    pad = k // 2
+    filtered_rows = []
+    for row in band_occ:
+        row = np.asarray(row, dtype=np.float32).reshape(-1)
+        padded = np.pad(row, (pad, pad), mode="edge")
+        windows = np.lib.stride_tricks.sliding_window_view(padded, k)
+        filtered_rows.append(np.median(windows, axis=-1).astype(np.float32, copy=False))
+    filtered = np.vstack(filtered_rows)
     mean_occ = filtered.mean(axis=0)
     strong_bands = (filtered >= 0.28).sum(axis=0)
     weak_bands = (filtered >= 0.10).sum(axis=0)
@@ -1106,6 +1116,20 @@ def estimate_rqd_from_image_segments(
         }
 
     total_core_mm = sum(b - a for a, b in intervals)
+    # 沒有偵測到候選不等於確認沒有天然節理；因此可保留影像初估採取率，
+    # 但不能把整段岩心自動視為一整段合格岩心並回報 RQD=100%。
+    if not breaks:
+        return {
+            "success": True, "ready": False,
+            "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1),
+            "rqd_percent": None,
+            "recovered_length_mm": round(total_core_mm, 1),
+            "rqd_length_mm": None,
+            "piece_lengths_mm": [],
+            "unresolved_count": 0,
+            "warning": "未找到明確斷裂候選，不代表沒有天然節理；請人工檢視岩心，暫不推定影像 RQD。",
+        }
+
     rqd_mm = 0.0
     piece_lengths = []
     natural_positions = sorted(

@@ -56,10 +56,17 @@ def _cached_rectify_tray(image, corners_tuple):
 
 @st.cache_data(show_spinner=False, max_entries=128)
 def _cached_row_analysis(image, mm_per_px):
-    result = analyze_core_row_v8(image, mm_per_px)
-    fracture_result = detect_core_break_candidates_v1(image, mm_per_px)
-    result = dict(result)
+    # 岩芯本體／空隙分析與疑似斷裂線分析分開處理：斷裂線演算法失敗時，
+    # 不可連帶把已成功的岩芯占據分析判成整列失敗。
+    result = dict(analyze_core_row_v8(image, mm_per_px))
+    fracture_result = {"success": False, "candidates": [],
+                       "warning": "疑似斷裂線分析尚未完成。"}
+    try:
+        fracture_result = detect_core_break_candidates_v1(image, mm_per_px)
+    except Exception as fracture_exc:
+        fracture_result["warning"] = f"疑似斷裂線分析失敗：{fracture_exc}"
     result["break_candidates"] = fracture_result.get("candidates", [])
+    result["break_detection_success"] = bool(fracture_result.get("success"))
     result["break_detection_warning"] = fracture_result.get("warning", "")
     overlay = draw_core_row_analysis_v8(image, result) if result.get("success") else image.convert("RGB").copy()
     if fracture_result.get("success") and fracture_result.get("candidates"):
@@ -206,7 +213,13 @@ def _build_page_result_table(page_rows, analyses):
         break_summary = "；".join(
             f"{b.get('candidate_id', 'F?')} {b.get('distance_mm', 0):.0f}mm：{b.get('suggested_class', '待確認')}"
             for b in breaks
-        ) or "未找到明確候選（不代表沒有斷裂）"
+        )
+        if not break_summary:
+            break_summary = (
+                "未找到明確候選（不代表沒有斷裂）"
+                if result.get("break_detection_success")
+                else "斷裂偵測未完成，無法判斷候選位置"
+            )
         rows.append({
             "列號": rec.row_number if rec.row_number is not None else "未辨識",
             "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
@@ -215,6 +228,11 @@ def _build_page_result_table(page_rows, analyses):
             "疑似缺失長度 (mm)": gap_mm,
             "不確定區長度 (mm)": uncertain_mm,
             "疑似斷裂數": len(breaks),
+            "斷裂偵測狀態": (
+                "完成；找到候選" if result.get("break_detection_success") and breaks
+                else "完成；未找到明確候選（不代表沒有斷裂）" if result.get("break_detection_success")
+                else result.get("break_detection_warning", "斷裂偵測未完成")
+            ),
             "斷裂位置與系統提示": break_summary,
             "系統初步結果": status,
             "說明": note,
@@ -257,6 +275,14 @@ def _build_image_rqd_review_table(page_rows, analyses, reviewed_break_df):
         if not result.get("success"):
             estimate = {"ready": False, "recovery_percent": None, "rqd_percent": None,
                         "warning": result.get("warning", "影像判識失敗")}
+        elif not result.get("break_detection_success"):
+            core_mm = _candidate_length(result.get("segments", []))
+            estimate = {
+                "ready": False,
+                "recovery_percent": round(core_mm / 10.0, 1),
+                "rqd_percent": None,
+                "warning": result.get("break_detection_warning") or "疑似斷裂分析未完成，暫不估算影像 RQD。",
+            }
         else:
             row_id = rec.row_number if rec.row_number is not None else "未辨識"
             estimate = estimate_rqd_from_image_segments(
