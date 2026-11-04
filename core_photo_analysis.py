@@ -953,8 +953,25 @@ def detect_core_break_candidates_v1(
             "warning": "未找到足夠明確的橫向不連續線；不代表岩心沒有天然節理或破損。",
         }
 
+    # OpenCV 的 HoughLinesP 回傳形狀依版本／建置可能是 (N, 1, 4)、
+    # (N, 4)，少數情況也可能是單筆 (4,)；不可固定使用 lines[:, 0, :]。
+    # 統一整理成 N×4，避免「too many indices for array」中斷整列分析。
+    line_array = np.asarray(lines)
+    if line_array.ndim == 1 and line_array.size >= 4:
+        line_array = line_array.reshape(1, -1)
+    elif line_array.ndim == 3 and line_array.shape[-1] >= 4:
+        line_array = line_array.reshape(-1, line_array.shape[-1])
+    elif line_array.ndim == 2 and line_array.shape[1] >= 4:
+        pass
+    else:
+        return {
+            "success": False, "candidates": [], "image_width_px": w,
+            "mm_per_px": float(mm_per_px), "blue_background_ratio": round(blue_ratio, 4),
+            "warning": f"HoughLinesP 回傳格式無法辨識（shape={line_array.shape}）；斷裂候選分析未完成。",
+        }
+
     raw = []
-    for entry in lines[:, 0, :]:
+    for entry in line_array[:, :4]:
         x1, yy1, x2, yy2 = [int(v) for v in entry]
         dx, dy = x2 - x1, yy2 - yy1
         length = float(np.hypot(dx, dy))

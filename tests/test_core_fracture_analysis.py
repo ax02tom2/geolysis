@@ -140,3 +140,34 @@ def test_no_fracture_candidates_do_not_produce_assumed_100_percent_rqd():
     assert result["recovery_percent"] == 100.0
     assert result["rqd_percent"] is None
     assert "不代表沒有天然節理" in result["warning"]
+
+
+def test_fracture_detector_accepts_opencv_hough_n_by_4_shape(monkeypatch):
+    import cv2
+    import numpy as np
+    from core_photo_analysis import detect_core_break_candidates_v1
+
+    # OpenCV build may return N×4 instead of N×1×4.
+    monkeypatch.setattr(
+        cv2, "HoughLinesP",
+        lambda *args, **kwargs: np.array([[400, 18, 402, 83]], dtype=np.int32),
+    )
+    result = detect_core_break_candidates_v1(_synthetic_core_row(), 1.25)
+    assert result["success"] is True
+    assert len(result["candidates"]) == 1
+    assert abs(result["candidates"][0]["distance_mm"] - 501.2) < 1.0
+
+
+def test_fracture_detector_accepts_opencv_hough_n_by_1_by_4_shape(monkeypatch):
+    import cv2
+    import numpy as np
+    from core_photo_analysis import detect_core_break_candidates_v1
+
+    monkeypatch.setattr(
+        cv2, "HoughLinesP",
+        lambda *args, **kwargs: np.array([[[400, 18, 402, 83]]], dtype=np.int32),
+    )
+    result = detect_core_break_candidates_v1(_synthetic_core_row(), 1.25)
+    assert result["success"] is True
+    assert len(result["candidates"]) == 1
+    assert abs(result["candidates"][0]["distance_mm"] - 501.2) < 1.0
