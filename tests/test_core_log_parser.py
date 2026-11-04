@@ -130,3 +130,9 @@ def test_pdf_reads_header_depth_only_when_explicitly_labelled():
     result = parse_pdf_core_log(data)
     assert result["borehole_id"] == "BH-07"
     assert result["header_depth_range_m"] == (12.0, 32.0)
+
+
+def test_pdf_parser_always_returns_warnings_list_for_app_ui():
+    result = parse_pdf_core_log(_pdf_fixture())
+    assert isinstance(result.get("warnings"), list)
+    assert "metadata_warnings" in result

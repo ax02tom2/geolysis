@@ -191,6 +191,52 @@ def _build_page_result_table(page_rows, analyses):
     return pd.DataFrame(rows)
 
 
+def _build_depth_metrics_table(page_rows, analyses, edited_rows):
+    """Build per-metre preliminary image estimates and user-confirmed indices."""
+    output = []
+    for idx, rec in enumerate(page_rows):
+        result = analyses.get(_record_key(rec), {})
+        image_core_mm = _candidate_length(result.get("segments", [])) if result.get("success") else None
+        image_recovery = round(image_core_mm / 10.0, 1) if image_core_mm is not None else None
+        edit = edited_rows.iloc[idx] if idx < len(edited_rows) else {}
+        recovered = edit.get("實際回收長度 (mm)") if hasattr(edit, "get") else None
+        pieces_raw = edit.get("天然節理分段長度 (mm；逗號分隔)", "") if hasattr(edit, "get") else ""
+        confirmed_recovery = None
+        confirmed_rqd = None
+        rqd_note = "待確認天然節理分段"
+        validation_note = ""
+        try:
+            recovered_mm = None
+            if recovered is not None and pd.notna(recovered) and float(recovered) > 0:
+                recovered_mm = float(recovered)
+                confirmed_recovery = round(recovered_mm / 10.0, 1)
+                if recovered_mm > 1000.0:
+                    validation_note = "回收長度超過 1,000 mm，請核對"
+            if isinstance(pieces_raw, str) and pieces_raw.strip():
+                piece_values = parse_piece_lengths(pieces_raw)
+                qualifying_mm = sum(v for v in piece_values if v >= 100.0)
+                confirmed_rqd = round(qualifying_mm / 10.0, 1)
+                rqd_note = "已依輸入天然節理段長計算"
+                if qualifying_mm > 1000.0:
+                    validation_note = "RQD 計入長度超過鑽進長度，請核對"
+                elif recovered_mm is not None and qualifying_mm > recovered_mm:
+                    validation_note = "RQD 計入長度大於回收長度，請核對"
+        except (ValueError, TypeError):
+            rqd_note = "段長格式需檢查"
+            validation_note = "請檢查輸入是否為正數，並以逗號分隔"
+        output.append({
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "影像估計岩心長度 (mm)": image_core_mm,
+            "影像初估採取率 (%)": image_recovery,
+            "人工確認採取率 (%)": confirmed_recovery,
+            "人工確認 RQD (%)": confirmed_rqd,
+            "RQD 狀態": rqd_note,
+            "資料檢核": validation_note,
+        })
+    return pd.DataFrame(output)
+
+
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
 st.title("🧱 geolysis 大地工程分析系統")
@@ -311,8 +357,8 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         caption=f"第 {selected_page} 頁完整頁面預覽｜{page_view['width_px']} × {page_view['height_px']} px（2.5× PDF 頁面渲染）",
                         width="stretch",
                     )
-                    st.caption("標記說明：綠色＝影像中有岩心外觀候選；紅色＝影像中有疑似缺失；黃色＝影像不確定或無法判釋。這些是電腦初步辨識，不是天然節理判定，也不是正式採取率或 RQD。")
-                    st.markdown("**本頁完整判釋成果表**")
+                    st.caption("圖面顏色只表示電腦找到的影像位置：綠色為可能有岩心、紅色為可能缺失、黃色為看不清楚。顏色不代表天然節理，也不直接等於採取率或 RQD。")
+                    st.markdown("**本頁逐深度成果表**")
                     st.dataframe(
                         _build_page_result_table(page_rows, analyses),
                         hide_index=True, width="stretch",
@@ -322,7 +368,37 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                             "不確定區長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
                         },
                     )
-                    st.caption("表格一次列出本頁全部岩心列，不必逐列開啟。候選長度是依每列名義 1,000 mm 換算的影像占據區間，不等於實際回收岩心長度。")
+                    st.caption("以上是系統對每一公尺影像的初步辨識。影像初估長度可協助快速檢視，但不能冒充實際取回長度；RQD 必須依天然節理分段。")
+                    st.markdown("**逐深度確認採取率與 RQD**")
+                    edit_rows = []
+                    for rec in page_rows:
+                        edit_rows.append({
+                            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                                             if rec.depth_start_m is not None else "待確認"),
+                            "實際回收長度 (mm)": None,
+                            "天然節理分段長度 (mm；逗號分隔)": "",
+                        })
+                    edit_df = pd.DataFrame(edit_rows)
+                    edit_key = f"core_depth_metrics_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}_{selected_page}"
+                    edited_df = st.data_editor(
+                        edit_df, key=edit_key, hide_index=True, width="stretch",
+                        num_rows="fixed",
+                        disabled=["深度區間 (m)"],
+                        column_config={
+                            "實際回收長度 (mm)": st.column_config.NumberColumn(
+                                "實際回收長度 (mm)", min_value=0.0, max_value=1000.0, step=1.0,
+                                help="填入該 1 m 深度內實際取回的全部岩心長度；機械破損但可接合者仍計入。",
+                            ),
+                            "天然節理分段長度 (mm；逗號分隔)": st.column_config.TextColumn(
+                                "天然節理分段長度 (mm；逗號分隔)",
+                                help="填入天然節理界定的每段長度，例如 125, 180, 95。可接合的機械破損先接合。",
+                            ),
+                        },
+                    )
+                    metrics_df = _build_depth_metrics_table(page_rows, analyses, edited_df)
+                    st.markdown("**每一深度的計算結果**")
+                    st.dataframe(metrics_df, hide_index=True, width="stretch")
+                    st.caption("影像初估採取率＝影像中的岩心外觀候選長度 ÷ 1,000 mm；人工確認採取率與 RQD 只在填入該深度的實際量測資料後顯示。RQD 只加總 ≥100 mm 的天然節理分段。")
                 else:
                     st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 實際分頁。建議使用同一份文件匯出的 PDF，以檢視完整原頁與判釋疊圖。")
                     row_labels = [
@@ -490,77 +566,78 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             except Exception as exc:
                 st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 
-        st.divider()
-        st.markdown("**人工確認後計算採取率與 RQD**")
-        st.caption("採取率與 RQD 必須分開輸入：採取率使用所有實際取回岩心的總長度；RQD 使用依天然節理分段後的各段長度，只有 ≥100 mm 才計入。機械破損若可接合，應先接合，不可當成天然節理切段。系統不會從目前影像候選自動推定這些工程判斷。")
-        if depth_start is None or depth_end is None:
-            rqd_depth_cols = st.columns(2)
-            with rqd_depth_cols[0]:
-                rqd_depth_start = st.number_input("本次計算起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_rqd_manual_start")
-            with rqd_depth_cols[1]:
-                rqd_depth_end = st.number_input("本次計算結束深度（m）", min_value=0.1, value=1.0, step=0.5, key="core_rqd_manual_end")
-        else:
-            rqd_depth_start, rqd_depth_end = float(depth_start), float(depth_end)
-            st.caption(f"計算深度範圍：{rqd_depth_start:g}–{rqd_depth_end:g} m（由柱狀圖列號推算）。")
-        recovered_total_mm = st.number_input(
-            "實際取回岩心總長度（mm；所有取回岩心都計入）",
-            min_value=0.0, value=0.0, step=10.0, key="core_recovered_total_mm",
-        )
-        rqd_piece_lengths_text = st.text_area(
-            "依天然節理分段後的岩心長度（mm；以逗號分隔）",
-            placeholder="例如：125, 180, 95, 210, 110（僅天然節理界定的段長；95 mm 不計入 RQD）",
-            key="core_rqd_piece_lengths",
-            height=72,
-        )
-        if st.button("計算採取率與 RQD", key="calculate_core_rqd"):
-            if rqd_depth_end <= rqd_depth_start:
-                st.error("結束深度必須大於起始深度。")
-            elif recovered_total_mm <= 0:
-                st.error("請先輸入實際取回岩心總長度。")
-            elif not rqd_piece_lengths_text.strip():
-                st.error("請輸入依天然節理分段後的岩心長度，才能計算 RQD。")
+        if core_log_file is None:
+            st.divider()
+            st.markdown("**原始照片模式：人工計算採取率與 RQD**")
+            st.caption("此模式沒有整孔列深度索引，請自行指定計算深度；採取率與 RQD 分開計算。機械破損若可接合，應先接合，不可當成天然節理切段。")
+            if depth_start is None or depth_end is None:
+                rqd_depth_cols = st.columns(2)
+                with rqd_depth_cols[0]:
+                    rqd_depth_start = st.number_input("本次計算起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_rqd_manual_start")
+                with rqd_depth_cols[1]:
+                    rqd_depth_end = st.number_input("本次計算結束深度（m）", min_value=0.1, value=1.0, step=0.5, key="core_rqd_manual_end")
             else:
-                try:
-                    natural_piece_lengths = parse_piece_lengths(rqd_piece_lengths_text)
-                    indices = calculate_core_indices(
-                        rqd_depth_end - rqd_depth_start, [recovered_total_mm],
-                        rqd_piece_lengths_mm=natural_piece_lengths,
-                    )
-                    st.session_state["core_rqd_result"] = indices
-                    st.session_state["core_rqd_depth"] = (rqd_depth_start, rqd_depth_end)
-                    st.session_state["core_rqd_borehole"] = core_borehole
-                except ValueError as exc:
-                    st.error(str(exc))
+                rqd_depth_start, rqd_depth_end = float(depth_start), float(depth_end)
+                st.caption(f"計算深度範圍：{rqd_depth_start:g}–{rqd_depth_end:g} m（由柱狀圖列號推算）。")
+            recovered_total_mm = st.number_input(
+                "實際取回岩心總長度（mm；所有取回岩心都計入）",
+                min_value=0.0, value=0.0, step=10.0, key="core_recovered_total_mm",
+            )
+            rqd_piece_lengths_text = st.text_area(
+                "依天然節理分段後的岩心長度（mm；以逗號分隔）",
+                placeholder="例如：125, 180, 95, 210, 110（僅天然節理界定的段長；95 mm 不計入 RQD）",
+                key="core_rqd_piece_lengths",
+                height=72,
+            )
+            if st.button("計算採取率與 RQD", key="calculate_core_rqd"):
+                if rqd_depth_end <= rqd_depth_start:
+                    st.error("結束深度必須大於起始深度。")
+                elif recovered_total_mm <= 0:
+                    st.error("請先輸入實際取回岩心總長度。")
+                elif not rqd_piece_lengths_text.strip():
+                    st.error("請輸入依天然節理分段後的岩心長度，才能計算 RQD。")
+                else:
+                    try:
+                        natural_piece_lengths = parse_piece_lengths(rqd_piece_lengths_text)
+                        indices = calculate_core_indices(
+                            rqd_depth_end - rqd_depth_start, [recovered_total_mm],
+                            rqd_piece_lengths_mm=natural_piece_lengths,
+                        )
+                        st.session_state["core_rqd_result"] = indices
+                        st.session_state["core_rqd_depth"] = (rqd_depth_start, rqd_depth_end)
+                        st.session_state["core_rqd_borehole"] = core_borehole
+                    except ValueError as exc:
+                        st.error(str(exc))
 
-        if "core_rqd_result" in st.session_state:
-            result = st.session_state["core_rqd_result"]
-            if result["over_recovery"]:
-                st.warning("回收岩心總長超過鑽進長度，請檢查深度區間或段長輸入。")
-            if result.get("rqd_exceeds_recovered"):
-                st.warning("RQD 計入長度大於實際回收長度，請檢查天然節理分段資料。")
-            if result.get("rqd_exceeds_drilled"):
-                st.warning("RQD 計入長度超過鑽進長度，請檢查輸入資料。")
-            r1, r2, r3 = st.columns(3)
-            r1.metric("岩心採取率", f"{result['recovery_percent']:.1f}%")
-            r2.metric("RQD", f"{result['rqd_percent']:.1f}%")
-            r3.metric("RQD 合格天然岩心段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
-            st.caption(
-                f"鑽進長度 {result['drilled_length_mm']:.0f} mm；"
-                f"回收長度 {result['recovered_length_mm']:.0f} mm；"
-                f"RQD 計入長度 {result['rqd_length_mm']:.0f} mm。"
-            )
-            st.download_button(
-                "下載 RQD 計算結果（JSON）",
-                data=__import__("json").dumps({
-                    "borehole_id": st.session_state.get("core_rqd_borehole", ""),
-                    "depth_start_m": st.session_state.get("core_rqd_depth", (None, None))[0],
-                    "depth_end_m": st.session_state.get("core_rqd_depth", (None, None))[1],
-                    **result,
-                    "method_note": "Core recovery uses total physically recovered core length. RQD uses only user-confirmed natural-discontinuity-bounded piece lengths >= 100 mm; mechanical breaks should be fitted together and must not be treated as natural discontinuities.",
-                }, ensure_ascii=False, indent=2),
-                file_name="core_rqd_result.json",
-                mime="application/json",
-            )
+            if "core_rqd_result" in st.session_state:
+                result = st.session_state["core_rqd_result"]
+                if result["over_recovery"]:
+                    st.warning("回收岩心總長超過鑽進長度，請檢查深度區間或段長輸入。")
+                if result.get("rqd_exceeds_recovered"):
+                    st.warning("RQD 計入長度大於實際回收長度，請檢查天然節理分段資料。")
+                if result.get("rqd_exceeds_drilled"):
+                    st.warning("RQD 計入長度超過鑽進長度，請檢查輸入資料。")
+                r1, r2, r3 = st.columns(3)
+                r1.metric("岩心採取率", f"{result['recovery_percent']:.1f}%")
+                r2.metric("RQD", f"{result['rqd_percent']:.1f}%")
+                r3.metric("RQD 合格天然岩心段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
+                st.caption(
+                    f"鑽進長度 {result['drilled_length_mm']:.0f} mm；"
+                    f"回收長度 {result['recovered_length_mm']:.0f} mm；"
+                    f"RQD 計入長度 {result['rqd_length_mm']:.0f} mm。"
+                )
+                st.download_button(
+                    "下載 RQD 計算結果（JSON）",
+                    data=__import__("json").dumps({
+                        "borehole_id": st.session_state.get("core_rqd_borehole", ""),
+                        "depth_start_m": st.session_state.get("core_rqd_depth", (None, None))[0],
+                        "depth_end_m": st.session_state.get("core_rqd_depth", (None, None))[1],
+                        **result,
+                        "method_note": "Core recovery uses total physically recovered core length. RQD uses only user-confirmed natural-discontinuity-bounded piece lengths >= 100 mm; mechanical breaks should be fitted together and must not be treated as natural discontinuities.",
+                    }, ensure_ascii=False, indent=2),
+                    file_name="core_rqd_result.json",
+                    mime="application/json",
+                )
 
     # --- 新增：GSI 視覺化交叉查表工具 ---
     with st.expander("🗺️ GSI 現場評估", expanded=False):

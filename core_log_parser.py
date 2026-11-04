@@ -268,7 +268,8 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
             "pages_detected": len(page_views), "rows_detected": len(records),
             "borehole_id": borehole_ids[0] if borehole_ids else None,
             "header_depth_range_m": depth_ranges[0] if depth_ranges else None,
-            "metadata_warnings": metadata_warnings, "format": "pdf"}
+            "warnings": warnings, "metadata_warnings": metadata_warnings,
+            "format": "pdf"}
 
 
 def _validate_row_sequence(records: list[CoreRowRecord], warnings: list[str]):
