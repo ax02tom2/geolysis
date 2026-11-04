@@ -9,21 +9,18 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import streamlit.components.v1 as components
-import importlib
 import traceback
 
 from core_log_parser import parse_core_log
 
-# 若僅更新 core_photo_analysis.py，Streamlit 的舊模組物件與 st.cache_data
-# 可能仍保留上一版的函式／失敗結果。以檔案內容 SHA256 偵測並重新載入，
-# 再把 SHA256 傳入分析快取鍵，確保引擎一變更就不會重用舊結果。
+# Core modules are imported normally once by Python. Do not force dynamic module re-execution
+# during Streamlit script reruns: a half-reloaded module can conflict with class
+# decorators and module registration. Cloud deployments restart the app process
+# when source files change. The source hash remains part of the cache key.
 import core_photo_analysis as _core_photo_analysis_module
 _CORE_ANALYSIS_SOURCE_PATH = Path(_core_photo_analysis_module.__file__).resolve()
 _CORE_ANALYSIS_SOURCE_SHA256 = hashlib.sha256(_CORE_ANALYSIS_SOURCE_PATH.read_bytes()).hexdigest()
-if getattr(_core_photo_analysis_module, "_loaded_source_sha256", None) != _CORE_ANALYSIS_SOURCE_SHA256:
-    _core_photo_analysis_module = importlib.reload(_core_photo_analysis_module)
-    _core_photo_analysis_module._loaded_source_sha256 = _CORE_ANALYSIS_SOURCE_SHA256
-CORE_ANALYSIS_BUILD_ID = f"v3-{_CORE_ANALYSIS_SOURCE_SHA256[:12]}"
+CORE_ANALYSIS_BUILD_ID = f"v3.2-{_CORE_ANALYSIS_SOURCE_SHA256[:12]}"
 
 from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, detect_core_break_candidates_v1, draw_core_fracture_candidates, estimate_rqd_from_image_segments, rotate_image, validate_tray_quadrilateral
 

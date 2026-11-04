@@ -72,3 +72,8 @@ pytest -q
 - 依同頁箱照高度判斷末頁圖片是否已裁成剩餘列數，避免重複裁切。
 - 可用 `H25_CORE_PDF` 環境變數執行實際 PDF 回歸測試；測試會檢查 3 頁、20/20/10 列、列號 1–50、深度及末兩列影像。
 - 本次 H25-1B 測試為 19 passed。分析核心仍未達到自動判定天然節理／機械破損的驗證程度，詳見 `VALIDATION_REPORT.txt`。
+
+
+## V3.2 Cloud startup hotfix
+
+V3.2 removes forced module reload during Streamlit reruns and replaces dataclass-based records with ordinary Python classes to avoid module-registration edge cases. This is a targeted mitigation for `AttributeError: NoneType ... __dict__`; confirm against the full Streamlit Cloud traceback after deployment.

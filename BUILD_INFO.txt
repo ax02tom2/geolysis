@@ -1,21 +1,19 @@
-Geolysis Core Analysis V3.1 - PDF parser and false-segmentation guard
-Build time: 2026-11-04T15:17:13+08:00
+Geolysis Module 1 V3.2 - Cloud startup import-safety hotfix
+Build time: 2026-11-04T17:30:00+08:00
 Timezone: Asia/Taipei (UTC+08:00)
 
-This build includes:
-- PDF image placement threshold corrected so the first box on each page is retained.
-- Partial final-box images are detected and are not cropped a second time.
-- High blue-mask coverage guard prevents likely blue-grey core from being silently classified as tray background.
-- Regression tests for row splitting and the supplied H25-1B 50 m PDF (fixture supplied through H25_CORE_PDF).
+Changes:
+- Removed forced importlib.reload from app startup/reruns.
+- Replaced dataclass records in core_log_parser.py and core_photo_analysis.py with ordinary Python classes.
+- Retained source SHA256 in analysis cache fingerprint/build ID.
+- Added regression tests for normal module registration and reload-path absence.
 
-Known limitations:
-- This is not a validated automatic natural-joint/mechanical-break classifier.
-- The existing Hough detector found only two candidate rows in the supplied 50-row PDF; most rows still require visual review.
-- Automatic core occupancy remains a heuristic. Eight rows were blocked by the new ambiguity guard; the other rows are not thereby certified as correct.
-- Streamlit Cloud/browser deployment was not tested in this environment.
-- This package does not include storage.py or Google Sheets engineering-cost storage.
+Scope:
+This hotfix targets the reported NoneType.__dict__ startup exception. It does not
+claim to prove the exact Cloud traceback without the full traceback from Logs.
+PDF parser and fracture-analysis behavior are otherwise unchanged from V3.1.
 
 SHA256:
-app.py: add3bab57cf7eec7bb54b82b3bccc423a24a05a7e0f253d62a5b0bdedebe14d9
-core_photo_analysis.py: ce2e9837bd92631a86846c814db6a3150de45a53074bcc035a82af9a98056845
-core_log_parser.py: 2d0ba2c117465ce58930fe5936a2dd1b70723afe1a23e5e61f724c3b2d0c7d00
+app.py: 9805662189bad1342b63a011f7a5f7546087e3370cdf2b6b5b595f92e803ff6b
+core_photo_analysis.py: 262f5428b4e107f80d46c67b6305794bc9fe53c6b1791bcbaeab0174b05dd67e
+core_log_parser.py: 4edd0b537b3295d43604c25d3cefcf6a2535f50aba65551cd99476dceff0b2f8

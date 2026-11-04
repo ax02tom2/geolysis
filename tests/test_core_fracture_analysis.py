@@ -218,5 +218,5 @@ def test_cache_invalidation_fingerprint_is_passed_to_both_app_call_sites():
     assert "def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str)" in app_source
     assert app_source.count("_cached_row_analysis(row_measurement, row_scale[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
     assert app_source.count("_cached_row_analysis(measured_row, row_cal[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
-    assert "importlib.reload(_core_photo_analysis_module)" in app_source
+    assert "importlib.reload(_core_photo_analysis_module)" not in app_source
     assert "break_detection_traceback" in app_source

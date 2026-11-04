@@ -7,7 +7,6 @@ once by the user; row numbering then provides the per-row sequence.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
 from io import BytesIO
 import re
 from typing import Any
@@ -17,20 +16,25 @@ from PIL import Image
 ROWS_PER_BOX = 4
 
 
-@dataclass
 class CoreRowRecord:
-    page: int
-    box_index: int
-    row_in_box: int
-    row_number: int | None
-    depth_start_m: float | None
-    depth_end_m: float | None
-    width_px: int
-    height_px: int
-    image: Image.Image
-    source: str
-    warnings: list[str]
-    page_bbox_px: tuple[int, int, int, int] | None = None
+    """Plain Python record; no runtime decorator dependency."""
+    def __init__(self, page: int, box_index: int, row_in_box: int,
+                 row_number: int | None, depth_start_m: float | None,
+                 depth_end_m: float | None, width_px: int, height_px: int,
+                 image: Image.Image, source: str, warnings: list[str],
+                 page_bbox_px: tuple[int, int, int, int] | None = None):
+        self.page = page
+        self.box_index = box_index
+        self.row_in_box = row_in_box
+        self.row_number = row_number
+        self.depth_start_m = depth_start_m
+        self.depth_end_m = depth_end_m
+        self.width_px = width_px
+        self.height_px = height_px
+        self.image = image
+        self.source = source
+        self.warnings = warnings
+        self.page_bbox_px = page_bbox_px
 
     def metadata(self) -> dict[str, Any]:
         return {

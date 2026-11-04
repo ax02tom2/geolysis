@@ -1,37 +1,15 @@
-Geolysis V3.1 - Validation report
-Date: 2026-11-04
-Timezone: Asia/Taipei (UTC+08:00)
-Reference input: H25-1B(50m).pdf supplied in this conversation
+Geolysis Module 1 V3.2 Validation Report
+Validation time: 2026-11-04 17:30 (Asia/Taipei, UTC+08:00)
 
-1. PDF structure and row extraction
-- PDF pages: 3
-- Expected row sequence: 1 through 50
-- Extracted rows: 50 / 50
-- Page row counts: 20, 20, 10
-- Depth indexing: 0.0-50.0 m at 1.0 m per row
-- Parser warnings: none
-- Rows 49 and 50: separate images, each 1379 x 109 px; no second crop
+Checks performed:
+- Python compilation: app.py, core_log_parser.py, core_photo_analysis.py passed.
+- pytest: 20 passed, 1 skipped.
+- Actual supplied H25-1B(50m).pdf parse: 3 pages, 50 rows, row numbers 1-50, depth 0-50 m, no parser warnings.
+- Final rows 49 and 50: each retained as 1379 x 109 px.
+- Isolated source execution without sys.modules registration: both core modules passed.
+- ZIP integrity and UTF-8 path checks performed after packaging.
 
-2. Image analysis diagnostic (not a geological validation)
-- Core-row analysis function executed successfully: 50 rows.
-- New ambiguity guard blocked automatic segmentation on 8 rows: 20, 24, 25, 26, 27, 28, 29, 33.
-- Reason: blue-mask coverage exceeded 35%, indicating material risk that blue-grey core pixels are being treated as tray background.
-- Remaining rows: 42 passed the software's execution/heuristic gate only. This does NOT prove that their core masks or recovery lengths are correct.
-- Existing Hough fracture detector: 2 candidate rows (13 and 31); 40 of the 42 unblocked rows had no candidate.
-- No candidate is not evidence of no natural joint. Candidate lines are not automatically classified as natural joints or mechanical breaks.
-- RQD is not certified by this image analysis. It still requires confirmed natural-joint segmentation and lengths >= 100 mm.
-
-3. Automated tests
-- Command: H25_CORE_PDF='/mnt/data/H25-1B(50m).pdf' pytest -q
-- Result: 19 passed
-- Python compile check: app.py, core_log_parser.py, core_photo_analysis.py passed.
-- ZIP integrity and extracted-package test: see release verification.
-
-4. Not tested
-- Streamlit runtime/import and browser UI: Streamlit is not installed in this build environment.
-- Streamlit Cloud deployment and GitHub deployment branch.
-- Other borehole PDF export formats, DOCX variants, scanned/rasterized pages, or different tray colours.
-- Ground-truth comparison against manually measured recovery and RQD.
-
-Interpretation
-This build fixes the confirmed PDF row-extraction defects and prevents a known high-blue-mask failure from producing misleading automatic lengths. It does not yet solve automatic fracture recognition across all rows. Do not use image-derived values as final engineering measurements without manual verification.
+Not performed:
+- Streamlit runtime import/startup and browser upload test: Streamlit is not installed in the build environment.
+- Streamlit Community Cloud deployment test: requires deployment access and the full Cloud traceback.
+- This is a targeted import-safety hotfix; it does not change or certify automatic fracture interpretation.

@@ -5,7 +5,6 @@ RQD 必須使用可追溯的實際岩芯段長度，且需排除機械斷裂。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from io import BytesIO
 from typing import Iterable
 
@@ -50,13 +49,17 @@ def _normalize_hough_lines(lines):
     return arr
 
 
-@dataclass
 class ImageInfo:
-    width_px: int
-    height_px: int
-    format: str
-    mode: str
-    file_size_bytes: int
+    """Small metadata record with explicit fields."""
+    __slots__ = ("width_px", "height_px", "format", "mode", "file_size_bytes")
+
+    def __init__(self, width_px: int, height_px: int, format: str,
+                 mode: str, file_size_bytes: int):
+        self.width_px = width_px
+        self.height_px = height_px
+        self.format = format
+        self.mode = mode
+        self.file_size_bytes = file_size_bytes
 
 
 def inspect_image(data: bytes) -> tuple[Image.Image, ImageInfo]:
