@@ -803,7 +803,17 @@ def analyze_core_row_v8(
     k = max(3, min(21, int(round(5.0 / mm_per_px)) | 1))
     if k % 2 == 0:
         k += 1
-    filtered = np.vstack([cv2.medianBlur(row.reshape(1, -1), k).reshape(-1) for row in band_occ])
+    # OpenCV 5 requires medianBlur input depth CV_8U for this 1-row path.
+    # band_occ is a float32 occupancy ratio in [0, 1], so quantize explicitly
+    # before filtering and convert back to float ratios afterwards. This keeps
+    # the thresholds below in their original 0..1 scale and is compatible with
+    # both OpenCV 4.x and 5.x.
+    filtered_rows = []
+    for row in band_occ:
+        row_u8 = np.clip(np.rint(row * 255.0), 0, 255).astype(np.uint8).reshape(1, -1)
+        smooth_u8 = cv2.medianBlur(row_u8, k)
+        filtered_rows.append(smooth_u8.reshape(-1).astype(np.float32) / 255.0)
+    filtered = np.vstack(filtered_rows)
     mean_occ = filtered.mean(axis=0)
     strong_bands = (filtered >= 0.28).sum(axis=0)
     weak_bands = (filtered >= 0.10).sum(axis=0)
