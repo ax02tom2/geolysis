@@ -12,6 +12,44 @@ from typing import Iterable
 from PIL import Image, ImageOps
 
 
+CORE_ANALYSIS_ENGINE_VERSION = "3.1-cache-aware-hough-normalization"
+
+
+def _normalize_hough_lines(lines):
+    """Normalize OpenCV HoughLinesP output into a strict N×4 numeric array.
+
+    OpenCV builds have returned (N, 1, 4), (N, 4), (1, 4), or (4,)
+    for the same logical result. This helper deliberately avoids any
+    fixed 3-D indexing and rejects ambiguous layouts explicitly.
+    """
+    import numpy as np
+
+    if lines is None:
+        return np.empty((0, 4), dtype=np.float64)
+    arr = np.asarray(lines)
+    if arr.size == 0:
+        return np.empty((0, 4), dtype=np.float64)
+    if arr.ndim == 1:
+        if arr.size != 4:
+            raise ValueError(f"HoughLinesP 單筆資料應有 4 個座標，實際 shape={arr.shape}")
+        arr = arr.reshape(1, 4)
+    elif arr.ndim >= 2 and arr.shape[-1] == 4:
+        arr = arr.reshape(-1, 4)
+    elif arr.ndim == 2 and arr.shape[0] == 4:
+        arr = arr.T
+    else:
+        raise ValueError(f"HoughLinesP 回傳格式無法整理為 N×4（shape={arr.shape}）")
+    try:
+        arr = np.asarray(arr, dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"HoughLinesP 座標不是數值：{exc}") from exc
+    if arr.ndim != 2 or arr.shape[1] != 4:
+        raise ValueError(f"HoughLinesP 正規化後 shape 異常：{arr.shape}")
+    if not np.isfinite(arr).all():
+        raise ValueError("HoughLinesP 座標包含 NaN 或無限值")
+    return arr
+
+
 @dataclass
 class ImageInfo:
     width_px: int
@@ -949,29 +987,30 @@ def detect_core_break_candidates_v1(
         return {
             "success": True, "candidates": [], "image_width_px": w,
             "mm_per_px": float(mm_per_px), "blue_background_ratio": round(blue_ratio, 4),
-            "method": "blue_mask_canny_hough_transverse_v1",
+            "method": "blue_mask_canny_hough_transverse_v2",
             "warning": "未找到足夠明確的橫向不連續線；不代表岩心沒有天然節理或破損。",
         }
 
-    # OpenCV 的 HoughLinesP 回傳形狀依版本／建置可能是 (N, 1, 4)、
-    # (N, 4)，少數情況也可能是單筆 (4,)；不可固定使用 lines[:, 0, :]。
-    # 統一整理成 N×4，避免「too many indices for array」中斷整列分析。
-    line_array = np.asarray(lines)
-    if line_array.ndim == 1 and line_array.size >= 4:
-        line_array = line_array.reshape(1, -1)
-    elif line_array.ndim == 3 and line_array.shape[-1] >= 4:
-        line_array = line_array.reshape(-1, line_array.shape[-1])
-    elif line_array.ndim == 2 and line_array.shape[1] >= 4:
-        pass
-    else:
+    # 以獨立正規化器處理 OpenCV 版本差異，任何輸出都不得假設為 3-D。
+    try:
+        line_array = _normalize_hough_lines(lines)
+    except Exception as line_exc:
         return {
             "success": False, "candidates": [], "image_width_px": w,
             "mm_per_px": float(mm_per_px), "blue_background_ratio": round(blue_ratio, 4),
-            "warning": f"HoughLinesP 回傳格式無法辨識（shape={line_array.shape}）；斷裂候選分析未完成。",
+            "warning": f"HoughLinesP 回傳格式處理失敗：{type(line_exc).__name__}: {line_exc}",
+        }
+
+    if line_array.shape[0] == 0:
+        return {
+            "success": True, "candidates": [], "image_width_px": w,
+            "mm_per_px": float(mm_per_px), "blue_background_ratio": round(blue_ratio, 4),
+            "method": "blue_mask_canny_hough_transverse_v2",
+            "warning": "未找到足夠明確的橫向不連續線；不代表岩心沒有天然節理或破損。",
         }
 
     raw = []
-    for entry in line_array[:, :4]:
+    for entry in line_array:
         x1, yy1, x2, yy2 = [int(v) for v in entry]
         dx, dy = x2 - x1, yy2 - yy1
         length = float(np.hypot(dx, dy))
@@ -1058,7 +1097,7 @@ def detect_core_break_candidates_v1(
     return {
         "success": True, "image_width_px": w, "mm_per_px": float(mm_per_px),
         "blue_background_ratio": round(blue_ratio, 4), "candidates": candidates,
-        "method": "blue_mask_canny_hough_transverse_v1",
+        "method": "blue_mask_canny_hough_transverse_v2",
         "warning": "分類建議只依線跡角度與連續性，信心一律保守標示為低；天然節理與機械破損可能具有相似外觀。必須人工確認，未確認前不得切分 RQD。未偵測到候選也不代表沒有斷裂。",
     }
 

@@ -9,8 +9,22 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import streamlit.components.v1 as components
+import importlib
+import traceback
 
 from core_log_parser import parse_core_log
+
+# 若僅更新 core_photo_analysis.py，Streamlit 的舊模組物件與 st.cache_data
+# 可能仍保留上一版的函式／失敗結果。以檔案內容 SHA256 偵測並重新載入，
+# 再把 SHA256 傳入分析快取鍵，確保引擎一變更就不會重用舊結果。
+import core_photo_analysis as _core_photo_analysis_module
+_CORE_ANALYSIS_SOURCE_PATH = Path(_core_photo_analysis_module.__file__).resolve()
+_CORE_ANALYSIS_SOURCE_SHA256 = hashlib.sha256(_CORE_ANALYSIS_SOURCE_PATH.read_bytes()).hexdigest()
+if getattr(_core_photo_analysis_module, "_loaded_source_sha256", None) != _CORE_ANALYSIS_SOURCE_SHA256:
+    _core_photo_analysis_module = importlib.reload(_core_photo_analysis_module)
+    _core_photo_analysis_module._loaded_source_sha256 = _CORE_ANALYSIS_SOURCE_SHA256
+CORE_ANALYSIS_BUILD_ID = f"v3-{_CORE_ANALYSIS_SOURCE_SHA256[:12]}"
+
 from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, detect_core_break_candidates_v1, draw_core_fracture_candidates, estimate_rqd_from_image_segments, rotate_image, validate_tray_quadrilateral
 
 core_tray_editor = components.declare_component(
@@ -55,19 +69,34 @@ def _cached_rectify_tray(image, corners_tuple):
 
 
 @st.cache_data(show_spinner=False, max_entries=128)
-def _cached_row_analysis(image, mm_per_px):
-    # 岩芯本體／空隙分析與疑似斷裂線分析分開處理：斷裂線演算法失敗時，
-    # 不可連帶把已成功的岩芯占據分析判成整列失敗。
+def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str):
+    # engine_fingerprint 是 core_photo_analysis.py 的內容 SHA256，必須納入快取鍵。
+    # 斷裂例外會被轉成結果字典，因此若不加版本鍵，舊失敗字典可能繼續被快取。
     result = dict(analyze_core_row_v8(image, mm_per_px))
     fracture_result = {"success": False, "candidates": [],
                        "warning": "疑似斷裂線分析尚未完成。"}
+    fracture_traceback = ""
     try:
         fracture_result = detect_core_break_candidates_v1(image, mm_per_px)
     except Exception as fracture_exc:
-        fracture_result["warning"] = f"疑似斷裂線分析失敗：{fracture_exc}"
+        fracture_result["warning"] = f"疑似斷裂線分析失敗：{type(fracture_exc).__name__}: {fracture_exc}"
+        fracture_traceback = traceback.format_exc()
+
+    try:
+        import cv2
+        opencv_version = cv2.__version__
+    except Exception:
+        opencv_version = "unavailable"
+
     result["break_candidates"] = fracture_result.get("candidates", [])
     result["break_detection_success"] = bool(fracture_result.get("success"))
     result["break_detection_warning"] = fracture_result.get("warning", "")
+    result["break_detection_traceback"] = fracture_traceback
+    result["analysis_engine_build"] = CORE_ANALYSIS_BUILD_ID
+    result["analysis_engine_fingerprint"] = engine_fingerprint
+    result["analysis_module_path"] = str(_CORE_ANALYSIS_SOURCE_PATH)
+    result["opencv_version"] = opencv_version
+
     overlay = draw_core_row_analysis_v8(image, result) if result.get("success") else image.convert("RGB").copy()
     if fracture_result.get("success") and fracture_result.get("candidates"):
         overlay = draw_core_fracture_candidates(overlay, fracture_result)
@@ -93,7 +122,7 @@ def _analyze_log_row(rec):
     row_measurement, row_scale = calibrate_row_measurement_span(
         rec.image, 0, rec.image.width, 1000.0
     )
-    result, overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
+    result, overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"], _CORE_ANALYSIS_SOURCE_SHA256)
     result = dict(result)
     result["_overlay"] = overlay
     return result
@@ -227,7 +256,7 @@ def _build_page_result_table(page_rows, analyses):
             "岩心影像候選長度 (mm)": core_mm,
             "疑似缺失長度 (mm)": gap_mm,
             "不確定區長度 (mm)": uncertain_mm,
-            "疑似斷裂數": len(breaks),
+            "疑似斷裂數": len(breaks) if result.get("break_detection_success") else None,
             "斷裂偵測狀態": (
                 "完成；找到候選" if result.get("break_detection_success") and breaks
                 else "完成；未找到明確候選（不代表沒有斷裂）" if result.get("break_detection_success")
@@ -353,6 +382,7 @@ def _build_depth_metrics_table(page_rows, analyses, edited_rows):
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
 st.title("🧱 geolysis 大地工程分析系統")
+st.caption(f"岩心分析引擎：{CORE_ANALYSIS_BUILD_ID}")
 st.markdown(r"""
 本系統結合 **Hoek-Brown (2002) 岩體裂隙參數推估** 與開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 核心工程模組：
 - **模組一：Hoek-Brown 岩體裂隙推估 ($c', \phi'$)** — 依據地質強度指標 (GSI，內建現場結構×節理交叉查表)、岩性常數 ($m_i$)、單壓強度與邊坡深度，自動轉換等效莫耳－庫倫參數
@@ -540,6 +570,25 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     st.markdown("**每一深度的計算結果**")
                     st.dataframe(metrics_df, hide_index=True, width="stretch")
                     st.caption("影像初估採取率＝影像中的岩心外觀候選長度 ÷ 1,000 mm；人工確認採取率與 RQD 只在填入該深度的實際量測資料後顯示。RQD 只加總 ≥100 mm 的天然節理分段。")
+                    with st.expander("分析引擎診斷（用於確認是否載入本版與追查錯誤）", expanded=False):
+                        st.write(f"分析引擎版本：`{CORE_ANALYSIS_BUILD_ID}`")
+                        st.write(f"核心程式 SHA256：`{_CORE_ANALYSIS_SOURCE_SHA256}`")
+                        st.write(f"核心模組路徑：`{_CORE_ANALYSIS_SOURCE_PATH}`")
+                        failed_rows = [
+                            (rec, analyses.get(_record_key(rec), {}))
+                            for rec in page_rows
+                            if not analyses.get(_record_key(rec), {}).get("break_detection_success")
+                        ]
+                        if failed_rows:
+                            st.warning(f"本頁有 {len(failed_rows)} 列斷裂偵測未成功。以下顯示完整例外位置，避免只看到錯誤摘要。")
+                            for failed_rec, failed_result in failed_rows:
+                                depth_label = (f"{failed_rec.depth_start_m:.1f}–{failed_rec.depth_end_m:.1f} m"
+                                               if failed_rec.depth_start_m is not None else f"第 {failed_rec.row_number} 列")
+                                st.markdown(f"**{depth_label}**｜{failed_result.get('break_detection_warning', '斷裂偵測未完成')}")
+                                if failed_result.get("break_detection_traceback"):
+                                    st.code(failed_result["break_detection_traceback"], language="text")
+                        else:
+                            st.success("本頁每列斷裂偵測均已執行完成（未找到候選仍不代表沒有天然節理）。")
                 else:
                     st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 實際分頁。建議使用同一份文件匯出的 PDF，以檢視完整原頁與判釋疊圖。")
                     row_labels = [
@@ -678,7 +727,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         measured_row, row_cal = calibrate_row_measurement_span(
                             row_crop, 0, row_crop.width, 1000.0
                         )
-                        result, analysis_overlay = _cached_row_analysis(measured_row, row_cal["mm_per_px"])
+                        result, analysis_overlay = _cached_row_analysis(measured_row, row_cal["mm_per_px"], _CORE_ANALYSIS_SOURCE_SHA256)
 
                         preview_col, _ = st.columns([3, 1])
                         with preview_col:

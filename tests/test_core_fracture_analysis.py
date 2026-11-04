@@ -171,3 +171,52 @@ def test_fracture_detector_accepts_opencv_hough_n_by_1_by_4_shape(monkeypatch):
     assert result["success"] is True
     assert len(result["candidates"]) == 1
     assert abs(result["candidates"][0]["distance_mm"] - 501.2) < 1.0
+
+
+def test_hough_normalizer_accepts_single_line_and_python_lists():
+    import numpy as np
+    from core_photo_analysis import _normalize_hough_lines
+
+    assert _normalize_hough_lines([10, 20, 30, 40]).shape == (1, 4)
+    assert _normalize_hough_lines([[10, 20, 30, 40], [50, 60, 70, 80]]).shape == (2, 4)
+    assert _normalize_hough_lines(np.array([[10], [20], [30], [40]])).shape == (1, 4)
+    assert _normalize_hough_lines(None).shape == (0, 4)
+
+
+def test_hough_normalizer_rejects_ambiguous_array_without_index_error():
+    import numpy as np
+    import pytest
+    from core_photo_analysis import _normalize_hough_lines
+
+    with pytest.raises(ValueError, match="shape"):
+        _normalize_hough_lines(np.zeros((5, 3), dtype=np.int32))
+
+
+def test_fracture_detector_accepts_grayscale_and_rgba_pil_images(monkeypatch):
+    import cv2
+    import numpy as np
+    from PIL import Image
+    from core_photo_analysis import detect_core_break_candidates_v1
+
+    hough = np.array([[400, 18, 402, 83]], dtype=np.int32)
+    monkeypatch.setattr(cv2, "HoughLinesP", lambda *args, **kwargs: hough)
+    rgb = _synthetic_core_row()
+    # Grayscale inputs are safely normalized but cannot pass the required blue-tray check.
+    gray_result = detect_core_break_candidates_v1(rgb.convert("L"), 1.25)
+    assert gray_result["success"] is False
+    assert "藍色托盤" in gray_result["warning"]
+
+    rgba_result = detect_core_break_candidates_v1(rgb.convert("RGBA"), 1.25)
+    assert rgba_result["success"] is True
+    assert len(rgba_result["candidates"]) == 1
+
+
+def test_cache_invalidation_fingerprint_is_passed_to_both_app_call_sites():
+    from pathlib import Path
+
+    app_source = Path(__file__).resolve().parents[1].joinpath("app.py").read_text(encoding="utf-8")
+    assert "def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str)" in app_source
+    assert app_source.count("_cached_row_analysis(row_measurement, row_scale[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
+    assert app_source.count("_cached_row_analysis(measured_row, row_cal[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
+    assert "importlib.reload(_core_photo_analysis_module)" in app_source
+    assert "break_detection_traceback" in app_source

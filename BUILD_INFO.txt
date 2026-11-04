@@ -1,0 +1,6 @@
+Geolysis Core Analysis V3
+Release time: 2026-11-04T14:48:22+08:00
+Timezone: Asia/Taipei (UTC+08:00)
+app.py SHA256: add3bab57cf7eec7bb54b82b3bccc423a24a05a7e0f253d62a5b0bdedebe14d9
+core_photo_analysis.py SHA256: 4503aedb875b1095c0385da0895b40973fc0ca46f6c65a994108d0795c9267a5
+Package scope: complete Streamlit project; modules 1 to 5 retained; storage.py/Google Sheets storage not included.
