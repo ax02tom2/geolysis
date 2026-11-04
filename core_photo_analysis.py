@@ -844,6 +844,10 @@ def analyze_core_row_v8(
         return {"success": False, "segments": [], "gaps": [], "uncertain": [],
                 "blue_background_ratio": round(blue_ratio, 4),
                 "warning": "中央區域缺乏足夠藍色托盤背景，無法安全區分岩芯與背景；已停止自動判識。"}
+    if blue_ratio > 0.35:
+        return {"success": False, "segments": [], "gaps": [], "uncertain": [],
+                "blue_background_ratio": round(blue_ratio, 4),
+                "warning": "中央區域藍色像素比例過高，與本列藍灰色岩心影像重疊的風險很高；舊式藍色遮罩可能把岩心誤當托盤。本列已停止自動估算回收長度，請先人工確認岩心範圍。"}
 
     # Median filtering suppresses isolated stains/reflections. Physical kernel
     # is capped to avoid erasing short features in low-resolution photos.
@@ -966,6 +970,11 @@ def detect_core_break_candidates_v1(
         return {
             "success": False, "candidates": [], "blue_background_ratio": round(blue_ratio, 4),
             "warning": "未辨識到足夠藍色托盤背景，無法可靠排除托盤邊緣；斷裂辨識已停止。",
+        }
+    if blue_ratio > 0.35:
+        return {
+            "success": False, "candidates": [], "blue_background_ratio": round(blue_ratio, 4),
+            "warning": "藍色遮罩覆蓋本列中央影像比例過高，可能把藍灰色岩心一併排除；本列斷裂候選不具可信度，已停止自動判讀。",
         }
 
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)

@@ -52,16 +52,19 @@ def _row_number_list(text: str) -> list[int]:
     return values
 
 
-def _crop_box_rows(image: Image.Image, visible_rows: int = 4) -> list[Image.Image]:
-    """Split a 4-row box image into top-to-bottom equal row strips."""
+def _crop_box_rows(image: Image.Image, visible_rows: int = 4,
+                   image_is_pre_cropped: bool = False) -> list[Image.Image]:
+    """Split a box image into visible row strips.
+
+    Some PDF exporters crop a final partial box to the rows that actually exist;
+    others retain a full four-row image while printing fewer row labels. The
+    caller determines which representation is present from same-page geometry.
+    """
     im = image.convert("RGB")
     visible_rows = max(1, min(ROWS_PER_BOX, int(visible_rows)))
     out = []
-    # The exporter keeps the complete box image on the final partial page;
-    # only the first N row labels are visible. Crop only the corresponding top
-    # N/4 fraction, then split that fraction into N equal bands.
-    visible_bottom = round(im.height * visible_rows / ROWS_PER_BOX)
-    usable = max(visible_rows, visible_bottom)
+    usable = im.height if image_is_pre_cropped else round(im.height * visible_rows / ROWS_PER_BOX)
+    usable = max(visible_rows, usable)
     for i in range(visible_rows):
         y0 = round(usable * i / visible_rows)
         y1 = round(usable * (i + 1) / visible_rows)
@@ -180,10 +183,28 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                     continue
                 placements.append((bbox.y0, bbox, xref))
             placements.sort(key=lambda x: (x[0], x[1].x0))
+            # Do not use a 16% page-height cutoff: this report places its first
+            # core box at y=118.5 pt (14.1% of page height), so that cutoff
+            # silently drops the first four metres on every page. Exclude the
+            # header by its upper-page placement and require a large box image.
             box_placements = [p for p in placements
-                              if p[1].y0 > page.rect.height * 0.16
-                              and p[1].width > page.rect.width * 0.35
+                              if p[1].y0 > page.rect.height * 0.12
+                              and p[1].x0 > page.rect.width * 0.07
+                              and p[1].width > page.rect.width * 0.60
                               and p[1].height > page.rect.height * 0.025]
+            # Determine the normal four-row embedded-image height for this page.
+            # A final image much shorter than that is already cropped to the
+            # remaining visible rows and must not be cropped a second time.
+            extracted_sizes = []
+            for _, candidate_bbox, candidate_xref in box_placements:
+                try:
+                    candidate_data = pdf.extract_image(candidate_xref)
+                    candidate_im = Image.open(BytesIO(candidate_data["image"]))
+                    extracted_sizes.append((candidate_xref, candidate_im.size))
+                except Exception:
+                    continue
+            full_heights = [size[1] for _, size in extracted_sizes if size[1] >= 0.72 * max((v[1] for _, v in extracted_sizes), default=1)]
+            typical_box_height = sorted(full_heights)[len(full_heights)//2] if full_heights else None
             page_records: list[CoreRowRecord] = []
             # Keep the complete page, including its header, depth scale, labels,
             # and original image placement. Embedded box images are separately
@@ -208,10 +229,10 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                     candidates.sort()
                     labels = [v for _, v in candidates]
                     visible = max(1, min(ROWS_PER_BOX, len(labels) if labels else ROWS_PER_BOX))
-                    row_images = _crop_box_rows(box_image, visible)
-                    # Match _crop_box_rows: the visible part occupies the top
-                    # visible/4 fraction of the full four-row box image.
-                    visible_y1 = bbox.y0 + bbox.height * visible / ROWS_PER_BOX
+                    image_is_pre_cropped = bool(typical_box_height and box_image.height < typical_box_height * 0.72)
+                    row_images = _crop_box_rows(box_image, visible, image_is_pre_cropped=image_is_pre_cropped)
+                    # Align page overlay geometry with the same crop decision.
+                    visible_y1 = bbox.y1 if image_is_pre_cropped else bbox.y0 + bbox.height * visible / ROWS_PER_BOX
                     for j, row_image in enumerate(row_images):
                         row_no = labels[j] if j < len(labels) else None
                         row_warnings = []

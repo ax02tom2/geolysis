@@ -1,6 +1,21 @@
-Geolysis Core Analysis V3
-Release time: 2026-11-04T14:48:22+08:00
+Geolysis Core Analysis V3.1 - PDF parser and false-segmentation guard
+Build time: 2026-11-04T15:17:13+08:00
 Timezone: Asia/Taipei (UTC+08:00)
-app.py SHA256: add3bab57cf7eec7bb54b82b3bccc423a24a05a7e0f253d62a5b0bdedebe14d9
-core_photo_analysis.py SHA256: 4503aedb875b1095c0385da0895b40973fc0ca46f6c65a994108d0795c9267a5
-Package scope: complete Streamlit project; modules 1 to 5 retained; storage.py/Google Sheets storage not included.
+
+This build includes:
+- PDF image placement threshold corrected so the first box on each page is retained.
+- Partial final-box images are detected and are not cropped a second time.
+- High blue-mask coverage guard prevents likely blue-grey core from being silently classified as tray background.
+- Regression tests for row splitting and the supplied H25-1B 50 m PDF (fixture supplied through H25_CORE_PDF).
+
+Known limitations:
+- This is not a validated automatic natural-joint/mechanical-break classifier.
+- The existing Hough detector found only two candidate rows in the supplied 50-row PDF; most rows still require visual review.
+- Automatic core occupancy remains a heuristic. Eight rows were blocked by the new ambiguity guard; the other rows are not thereby certified as correct.
+- Streamlit Cloud/browser deployment was not tested in this environment.
+- This package does not include storage.py or Google Sheets engineering-cost storage.
+
+SHA256:
+app.py: add3bab57cf7eec7bb54b82b3bccc423a24a05a7e0f253d62a5b0bdedebe14d9
+core_photo_analysis.py: ce2e9837bd92631a86846c814db6a3150de45a53074bcc035a82af9a98056845
+core_log_parser.py: 2d0ba2c117465ce58930fe5936a2dd1b70723afe1a23e5e61f724c3b2d0c7d00

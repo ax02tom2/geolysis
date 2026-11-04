@@ -1,0 +1,15 @@
+大地工程分析系統｜完整專案包 V3.1
+
+1. 將 ZIP 解壓縮至新資料夾。
+2. 確認 app.py、core_log_parser.py、core_photo_analysis.py、requirements.txt 位於同一層；point_editor 與 tests 資料夾也要保留。
+3. 安裝：python -m pip install -r requirements.txt
+4. 啟動：streamlit run app.py
+5. 測試：pytest -q；若要執行本次 H25-1B 實際 PDF 回歸測試，設定 H25_CORE_PDF 環境變數指向 PDF 後再執行 pytest -q。
+
+本次已修正 PDF 每頁第一箱漏列與末頁部分箱照重複裁切。藍色遮罩比例過高時會停止自動分割，避免把藍灰色岩心誤當托盤。
+
+重要限制：本版本尚未通過自動天然節理／機械破損分類的工程驗證。未找到候選不代表沒有天然節理；RQD 必須人工確認天然節理分段，且僅計入長度 >= 100 mm 的段落。
+
+此版本 app.py 不匯入 storage，也不包含工程估價系統的 Google Sheets 儲存功能。若 Cloud traceback 仍顯示 from storage import，表示部署端執行的不是本 ZIP 內這份 app.py。
+
+Streamlit Cloud／瀏覽器未在本次環境測試；詳見 VALIDATION_REPORT.txt。
