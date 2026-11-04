@@ -87,7 +87,7 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
 
         if core_photos:
             st.markdown("**照片前處理與岩芯列判識**")
-            st.caption("每張照片獨立保存旋轉、四角與裁切設定。標準箱型以 4 列 × 每列 1,000 mm 處理；請確認四角框住同一箱體，並確認裁切沒有切掉岩芯端部。")
+            st.caption("每張照片獨立保存旋轉、四角、裁切與列界設定。標準箱型以 4 列 × 每列 1,000 mm 處理；請確認四角框住同一箱體，並確認裁切沒有切掉岩芯端部。")
             for idx, uploaded in enumerate(core_photos, start=1):
                 try:
                     raw_bytes = uploaded.getvalue()
@@ -174,12 +174,21 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                                 st.caption(crop_info["warning"])
 
                                 st.markdown("**4 列 × 每列 1,000 mm：分列與判識**")
+                                st.caption("列界預設等分，但實際照片可能因箱體透視、列間隔或裁切而不完全等高；可在此逐張調整三條水平分界線。")
+                                row_boundary_cols = st.columns(3)
+                                with row_boundary_cols[0]:
+                                    row_b1 = st.slider("第 1／2 列分界 (%)", 10.0, 40.0, 25.0, 0.5, key=f"core_row_b1_{photo_token}")
+                                with row_boundary_cols[1]:
+                                    row_b2 = st.slider("第 2／3 列分界 (%)", 30.0, 70.0, 50.0, 0.5, key=f"core_row_b2_{photo_token}")
+                                with row_boundary_cols[2]:
+                                    row_b3 = st.slider("第 3／4 列分界 (%)", 60.0, 90.0, 75.0, 0.5, key=f"core_row_b3_{photo_token}")
                                 row_layout = calculate_fixed_tray_row_layout(
-                                    cropped_tray, row_count=4, row_length_mm=1000.0
+                                    cropped_tray, row_count=4, row_length_mm=1000.0,
+                                    row_boundaries_pct=[row_b1, row_b2, row_b3],
                                 )
                                 st.image(
                                     draw_fixed_tray_row_layout(cropped_tray, row_layout),
-                                    caption="黃色框＝四列等分位置。請確認實際箱格確實為四列，且每列有效長度為 1 m。",
+                                    caption="黃色框＝目前設定的四列範圍。請確認每列完整對應實際箱格，且沿列方向有效長度為 1 m。",
                                     use_container_width=True,
                                 )
                                 st.metric("每列名義比例尺", f"{row_layout['mm_per_px']:.4f} mm/px")
@@ -218,7 +227,7 @@ with st.expander("⛰️ 模組一：Hoek-Brown 岩體裂隙組成推估等效 c
                                             st.warning(result.get("warning", "本列無法判識。"))
                                         st.caption(row_cal["warning"])
                             except Exception as rect_exc:
-                                st.error(f"透視校正／分列失敗：{rect_exc}。請調整四角或減少裁切比例。")
+                                st.error(f"前處理／分列失敗：{rect_exc}。請檢查四角、裁切比例及三條列界是否由上至下遞增。")
                 except Exception as exc:
                     st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 

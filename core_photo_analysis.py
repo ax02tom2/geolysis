@@ -449,12 +449,14 @@ def calculate_fixed_tray_row_layout(
     rectified_image: Image.Image,
     row_count: int = 4,
     row_length_mm: float = 1000.0,
+    row_boundaries_pct: Iterable[float] | None = None,
 ) -> dict:
-    """依固定岩芯箱規格建立逐列量測區。
+    """依固定岩芯箱規格建立逐列量測區，可覆核調整列界。
 
-    假設透視校正後：每列沿影像寬度方向排列，四列沿影像高度方向堆疊。
-    row_length_mm 是每一列的已知實際長度；預設 4 列、每列 1000 mm。
-    這只建立幾何比例尺，不會辨識岩芯邊界或天然／機械斷裂。
+    假設透視校正後：每列沿影像寬度方向排列，列沿影像高度方向堆疊。
+    預設 4 列、每列 1,000 mm；row_boundaries_pct 是內部分界百分比，
+    例如 [24, 51, 76]。未提供時維持等分。這只建立幾何比例尺，
+    不會辨識岩芯邊界或天然／機械斷裂。
     """
     if row_count < 1 or row_count > 12:
         raise ValueError("列數必須介於 1 至 12。")
@@ -464,11 +466,24 @@ def calculate_fixed_tray_row_layout(
     if width < 80 or height < row_count * 20:
         raise ValueError("校正後影像尺寸不足，無法可靠分列。")
 
+    if row_boundaries_pct is None:
+        boundaries = [100.0 * i / row_count for i in range(1, row_count)]
+    else:
+        boundaries = [float(v) for v in row_boundaries_pct]
+        if len(boundaries) != row_count - 1:
+            raise ValueError(f"{row_count} 列必須提供 {row_count - 1} 個內部分界百分比。")
+        if any(not (0.0 < v < 100.0) for v in boundaries):
+            raise ValueError("列界百分比必須介於 0 至 100%。")
+        if any(b <= a for a, b in zip(boundaries, boundaries[1:])):
+            raise ValueError("列界必須由上至下遞增，不能重疊或倒置。")
+
+    y_bounds = [0] + [int(round(height * v / 100.0)) for v in boundaries] + [height]
+    if any((b - a) < 20 for a, b in zip(y_bounds, y_bounds[1:])):
+        raise ValueError("部分列高不足 20 px，請調整列界或提高影像解析度。")
+
     mm_per_px = float(row_length_mm) / float(width)
     rows = []
-    for index in range(row_count):
-        y0 = int(round(index * height / row_count))
-        y1 = int(round((index + 1) * height / row_count))
+    for index, (y0, y1) in enumerate(zip(y_bounds, y_bounds[1:])):
         rows.append({
             "row": index + 1,
             "box_px": [0, y0, width, y1],
@@ -482,10 +497,11 @@ def calculate_fixed_tray_row_layout(
         "row_length_mm": float(row_length_mm),
         "rectified_width_px": width,
         "rectified_height_px": height,
+        "row_boundaries_pct": boundaries,
         "mm_per_px": mm_per_px,
         "rows": rows,
-        "assumption": "透視校正後每列沿影像寬度方向；四列沿影像高度方向。列界採等分初始候選，仍須人工確認。",
-        "warning": "1 m/列可提供沿列方向的名義比例尺；若外框角點不準、箱體彎曲、鏡頭畸變或列長並非實際 1 m，比例尺會有誤差。此功能不辨識岩芯段界。",
+        "assumption": "透視校正後每列沿影像寬度方向；列界可採等分初始值或人工調整，仍須確認四列完整。",
+        "warning": "1 m/列可提供沿列方向的名義比例尺；若外框角點不準、箱體彎曲、鏡頭畸變或列長並非實際 1 m，比例尺會有誤差。列高不代表實際岩芯長度；本功能不辨識岩芯段界。",
     }
 
 

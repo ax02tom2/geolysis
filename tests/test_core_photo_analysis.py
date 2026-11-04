@@ -318,3 +318,29 @@ def test_crop_tray_insets_returns_independent_crop_and_metadata():
         crop_tray_insets(image, 30, 0, 0, 0)
     with pytest.raises(ValueError):
         crop_tray_insets(Image.new("RGB", (100, 100)), 20, 20, 20, 20)
+
+
+def test_custom_four_row_boundaries_allow_nonuniform_tray_rows():
+    from core_photo_analysis import calculate_fixed_tray_row_layout, crop_fixed_tray_rows
+    image = Image.new("RGB", (1000, 800), (140, 130, 120))
+    layout = calculate_fixed_tray_row_layout(
+        image, row_boundaries_pct=[23.0, 49.5, 76.0]
+    )
+    assert layout["row_boundaries_pct"] == [23.0, 49.5, 76.0]
+    assert [r["box_px"][1:4:2] for r in layout["rows"]] == [
+        [0, 184], [184, 396], [396, 608], [608, 800]
+    ]
+    assert [im.height for im in crop_fixed_tray_rows(image, layout)] == [184, 212, 212, 192]
+    assert all(abs(row["mm_per_px"] - 1.0) < 1e-12 for row in layout["rows"])
+
+
+def test_custom_four_row_boundaries_reject_order_and_too_short_rows():
+    import pytest
+    from core_photo_analysis import calculate_fixed_tray_row_layout
+    image = Image.new("RGB", (1000, 400), (140, 130, 120))
+    with pytest.raises(ValueError, match="遞增"):
+        calculate_fixed_tray_row_layout(image, row_boundaries_pct=[30, 25, 75])
+    with pytest.raises(ValueError, match="列高不足"):
+        calculate_fixed_tray_row_layout(image, row_boundaries_pct=[2, 50, 75])
+    with pytest.raises(ValueError, match="必須提供"):
+        calculate_fixed_tray_row_layout(image, row_boundaries_pct=[25, 75])
