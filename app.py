@@ -1,1040 +1,1016 @@
-import hashlib
-import inspect
-import io
-import json
-import math
-import os
-import shutil
-
-import altair as alt
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import math
+import base64
+import hashlib
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
+import streamlit.components.v1 as components
 
-from cost_logic import (
-    M1, M2, M3, M4, M5, M6, M7, M8, M9, MAJOR_ORDER, MAJOR_COLORS, DRIVERS,
-    auto_quantities, auto_prices, geometry_warnings, evaluate_others,
-    N_DRILL, DRILL_ZONES, DRILL_ZONE_SEP, ZONE_NONE, drill_zone_row,
-    N_ANCH_COVER, N_ANCH_LOAD, N_ANCH_TEST, N_SHOT, N_SHOT20, N_WELL_PUMPWELL, canonical_map, N_NAIL15, N_NAIL20, N_NAIL25,
-    N_GRID_RC, N_GRID_SP, N_PLANT, N_WALL_DRAIN, cq,
-    N_WELL_LINER32, N_WELL_LINER45, N_WELL_LINER53, N_WELL_RING, N_WELL_BACKFILL, N_WELL_PLAT, N_WELL_COVER,
-    N_WELL_EXC, N_ROAD_MAN, N_ROAD_MACH, N_DEMOL_RC, N_DEMOL_ROCK, HAUL_ZONES, haul_name,
-)
-from db_upgrade import (
-    SRC_CASE, SRC_DERIVED, SRC_EST, SRC_USER, SRC_EDIT, DEFAULT_SOURCES, mark_edits, upgrade_db,
-)
-from pcces_export import build_pcces_excel
-from storage import (
-    LocalStore, build_gsheet_store, diff_db, merge_db, diff_to_log_rows, now_str,
-)
+from core_log_parser import parse_core_log
+from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, detect_core_break_candidates_v1, draw_core_fracture_candidates, estimate_rqd_from_image_segments, rotate_image, validate_tray_quadrilateral
 
-st.set_page_config(
-    page_title="大地工程規劃階段經費初估",
-    page_icon="🧮",
-    layout="wide",
-    initial_sidebar_state="expanded",
+core_tray_editor = components.declare_component(
+    "core_tray_editor", path=str(Path(__file__).parent / "point_editor")
 )
 
-# ==========================================
-# 版本
-# ==========================================
-CURRENT_VERSION = "v17_shotcrete_pumpwell"  # 只有「預設資料庫內容」改動時才需要更改
 
-REQUIRED_COLS = ["主工項", "細項名稱", "單位", "單價(元)"]
-ALL_COLS = ["主工項", "細項名稱", "單位", "單價(元)", "備註", "資料來源"]
-
-
-# 新版 Streamlit 以 width="stretch" 取代 use_container_width=True (舊參數已被移除)；這裡自動相容新舊版本
-def _compat(name):
-    fn = getattr(st, name)
-    new_api = "width" in inspect.signature(fn).parameters
-
-    def inner(*args, **kwargs):
-        if "use_container_width" in kwargs:
-            flag = kwargs.pop("use_container_width")
-            if new_api:
-                kwargs["width"] = "stretch" if flag else "content"
-            else:
-                kwargs["use_container_width"] = flag
-        return fn(*args, **kwargs)
-    return inner
+# 圖片處理快取：Streamlit 每次 widget 互動都會重跑 app.py，
+# 因此將昂貴的解碼、托盤偵測、透視校正與列判識結果快取，避免反覆計算。
+@st.cache_data(show_spinner=False, max_entries=2)
+def _cached_parse_core_log(raw_bytes: bytes, filename: str):
+    # Parse document structure first; depth is applied after metadata review.
+    return parse_core_log(raw_bytes, filename, start_depth_m=None, row_length_m=1.0)
 
 
-for _n in ("dataframe", "data_editor", "altair_chart", "button", "download_button"):
-    setattr(st, _n, _compat(_n))
-
-# ==========================================
-# 預設單價資料庫 (規劃階段簡化版)
-# 單價依據：12 份已發包預算書 (地錨 / 排樁 / 集水井) 之詳細價目表整理
-# ==========================================
-# 資料來源：已發包案例 (取自預算書單價)／案例推算 (組合推算)／估算待核 (案例無此項，請以報價核對)／
-# 使用者新增／使用者修改 (改過預設單價，改版時照舊保留) — 常數定義在 db_upgrade.py
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_inspect_image(raw_bytes: bytes):
+    return inspect_image(raw_bytes)
 
 
-# (主工項, 細項名稱, 單位, 單價, 資料來源, 備註/案例依據)
-DEFAULT_DB = [
-    (M1, "噴凝土截水溝/排水溝 (含橫向截水溝)", "m", 5000, SRC_CASE, "案例 5,025~6,298 (3筆)"),
-    (M1, "縱向噴漿溝/陡槽溝", "m", 4200, SRC_CASE, "案例 3,939~4,342 (3筆)"),
-    (M1, "匯流井/跌水池", "座", 35000, SRC_CASE, "匯流井 27,143~51,484；跌水池 11,185~17,160"),
-
-    (M2, "橫向集水管 (HDPE有孔管，含鑽孔)", "m", 2400, SRC_CASE, "案例 1,180~2,620；近年 2,230~2,620"),
-
-    (M3, "井內土石方開挖及運棄", "m3", 2200, SRC_DERIVED, "0~20m 約2,100；20~40m 約2,300；>40m 深井可達6,300 (1案)"),
-    (M3, N_WELL_LINER32, "m", 37000, SRC_DERIVED, "案例 t=3.2mm 31,680~40,476 (中位約 37,000)；每口井 0~10m 段，數量＝各井該段長度合計"),
-    (M3, N_WELL_LINER45, "m", 47700, SRC_DERIVED, "案例 t=4.5mm 40,520~51,360 (中位 47,700)；每口井 10~15m 段"),
-    (M3, N_WELL_LINER53, "m", 50000, SRC_DERIVED, "案例 t=5.3mm 43,028~61,068，取 50,000 (不低於 t=4.5mm)；五彎仔 91,180~95,580 (含吊運復舊)、石碇鍍鋅 80,192 不納入；每口井 15m 以上段"),
-    (M3, N_WELL_RING, "環", 25800, SRC_DERIVED, "案例 19,390~40,917 (H125~H200)，中位約 25,800；每井 ⌈井深÷間距⌉ 環，案例約 1.1~1.6 m 一環"),
-    (M3, N_WELL_BACKFILL, "m3", 3200, SRC_CASE, "案例 3,111~3,330；數量＝環形空間 π/4×(開挖直徑²−4.5²)×井深 (約 2.95 m³/m，案例 2.9~3.2)"),
-    (M3, N_WELL_PLAT, "座", 67300, SRC_CASE, "案例 62,580~69,400 (中位 67,300；五彎仔 118,221 不納入)；每井約每 6 m 1 座，含爬梯 (案例無獨立爬梯項)"),
-    (M3, N_WELL_COVER, "座", 71250, SRC_CASE, "案例 71,250 (4 案相同)、92,482；每口井 1 座"),
-    (M3, N_WELL_PUMPWELL, "m", 4000, SRC_CASE, "案例 3,000~5,132 元/m (取 4,000)；長度同井深，填各井井深後數量自動帶入"),
-    (M3, "施工中抽排水及通風", "座", 200000, SRC_CASE, "案例抽排水照明 120,000~245,200"),
-    (M3, "施工中防災措施 (局限空間通風、氣體偵測、警報)", "座", 450000, SRC_DERIVED, "案例組價約 280,000~850,000/座"),
-    (M3, "集水管 (井內輻射，含鑽孔)", "m", 2400, SRC_CASE, "案例 1,180~2,620"),
-    (M3, "排水管 (井內長孔)", "m", 6000, SRC_EST, "L≤100m 約 2,230~4,000；L=100~200m 僅1案 8,000，請依孔長改單價"),
-
-    (M4, "預力地錨 (每m全長＝錨碇段+自由段，含鑽孔、鋼絞線、護管、灌漿)", "m", 3200, SRC_CASE,
-     "數量＝支數×(錨碇段+自由段) 全長；案例 1,600~3,701 元/m，近年(110~113年) 2,700~3,701"),
-    (M4, "錨頭組件", "支", 8000, SRC_CASE, "案例 4,000~16,017"),
-    (M4, N_ANCH_COVER, "支", 10000, SRC_USER, "使用者提供 10,000/支 (原「既有地錨檢修更新」)；數量自行填"),
-    (M4, N_ANCH_LOAD, "組", 60000, SRC_USER, "使用者提供 60,000/組；須配合施工辦理；數量自行填"),
-    (M4, N_ANCH_TEST, "式", 300000, SRC_USER, "使用者提供 300,000/式 (案例確認試驗 115,080~165,000/支)"),
-
-    (M5, N_SHOT, "m2", 1200, SRC_USER, "使用者提供 1,200/m² (t=10cm；原案例 3,300~3,564)；需搭配坡面洩水管 (每 2m×2m 1 支)"),
-    (M5, N_SHOT20, "m2", 1800, SRC_USER, "使用者提供 1,800/m² (t=20cm)；需搭配坡面洩水管 (每 2m×2m 1 支)"),
-    (M5, N_WALL_DRAIN, "支", 350, SRC_USER, "搭配噴凝土/掛網噴凝土護坡，每 2m×2m 設 1 支 (面積÷4，進位)；與擋土抗滑結構同一單價"),
-    (M5, N_NAIL15, "支", 1500, SRC_USER, "使用者提供 1,500/支；支數＝面積÷(1.5×1.5)，進位"),
-    (M5, N_NAIL20, "支", 3000, SRC_USER, "使用者提供 3,000/支；支數＝面積÷(2×2)，進位"),
-    (M5, N_NAIL25, "支", 4500, SRC_USER, "使用者提供 4,500/支；支數＝面積÷(2.5×2.5)，進位"),
-    (M5, N_GRID_RC, "m2", 5000, SRC_USER, "使用者提供 5,000"),
-    (M5, N_GRID_SP, "m2", 3000, SRC_USER, "使用者提供 3,000"),
-    (M5, N_PLANT, "m2", 800, SRC_USER, "使用者提供 800 (原坡面植生案例 435)"),
-
-    (M6, "抗滑樁/排樁 Φ1.2m (全套管，含鋼筋混凝土)", "m", 22000, SRC_CASE, "案例(111年排樁含繫梁) 21,800/m"),
-    (M6, "抗滑樁/排樁 Φ1.5m", "m", 31000, SRC_EST, "依Φ1.2m案例按斷面放大推估"),
-    (M6, "RC擋土牆 (含鋼筋、模板、混凝土)", "m3", 7500, SRC_DERIVED, "案例單價組價約 4,900~9,300"),
-    (M6, "坡面洩水管 (30~50cm)", "支", 350, SRC_USER, "每 2m×2m 設 1 支 (面積÷4，進位)；使用者提供 350 (原「坡面洩水孔」案例 1,000~1,300 為較長孔，已移除)"),
-
-    (M7, "被動式防落石網", "m", 35000, SRC_EST, "案例無此項，請以廠商報價核對 (500kJ 約此價；1000kJ 約55,000)"),
-    (M7, "主動式邊坡防護網", "m2", 3800, SRC_EST, "案例無此項，沿用舊庫"),
-
-    (M8, N_DRILL, "m", 4500, SRC_EST, "單價依上方「鑽探分區」帶入 (未選分區時用此價)；案例無單項；五彎仔補充地質探查整案 970,000"),
-    (M8, "傾斜管/水位觀測井 (含鑽孔)", "m", 5500, SRC_CASE, "傾斜管含鑽孔 5,500 (1案)；僅安裝 2,020~3,300"),
-    (M8, "施工期間監測及其他調查", "式", 500000, SRC_EST, "案例施工中監測 65,000~200,000/月；依期程自行估"),
-
-    (M9, "挖土方", "m3", 125, SRC_USER, "使用者提供區間 100~150，預設取中間值"),
-    (M9, "挖軟岩", "m3", 625, SRC_USER, "使用者提供區間 500~750，預設取中間值"),
-    (M9, "挖硬岩", "m3", 1100, SRC_USER, "使用者提供區間 1,000~1,200，預設取中間值"),
-    *[(M9, haul_name(z), "m3", price, SRC_DERIVED if tag == "案例" else SRC_EST, note)
-      for (z, price, tag, note) in HAUL_ZONES],
-    (M9, N_ROAD_MAN, "m", 1200, SRC_EST, "案例及公開資料查無人工便道單價；以約 0.5 工/m × 2,000 元/工 + 材料機具 20% 概估，請依地形與報價修正"),
-    (M9, N_ROAD_MACH, "m", 4000, SRC_USER, "使用者提供 4,000/m (案例機械便道 2,062~5,615/m²，約 1,600/m² 同量級)"),
-    (M9, N_DEMOL_RC, "m3", 900, SRC_USER, "使用者提供 900/m³"),
-    (M9, N_DEMOL_ROCK, "m2", 150, SRC_USER, "使用者提供 150/m²"),
-    (M9, "山區索道/吊運設備", "式", 900000, SRC_EST, "案例僅1筆 900,000 (台8線116k)"),
-]
-
-# 地質鑽探分區單價 (在「單價資料庫」可修改；主畫面不逐列顯示，改由「鑽探分區」下拉帶入)
-DEFAULT_DB += [
-    (M8, drill_zone_row(z), "m", price, SRC_USER if user_given else SRC_EST, note)
-    for (z, price, note, user_given) in DRILL_ZONES
-]
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_rotate_image(image, rotation: int):
+    return rotate_image(image, rotation)
 
 
-def _build_default_df():
-    rows = [
-        {"主工項": m, "細項名稱": n, "單位": u, "單價(元)": p, "備註": note, "資料來源": src}
-        for (m, n, u, p, src, note) in DEFAULT_DB
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_detect_tray_quad(image):
+    return detect_blue_tray_quadrilateral(image)
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_editor_image_data(image):
+    preview = BytesIO()
+    image.save(preview, format="JPEG", quality=82, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(preview.getvalue()).decode("ascii")
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_rectify_tray(image, corners_tuple):
+    corners = [list(point) for point in corners_tuple]
+    return rectify_tray_perspective(image, {"success": True, "corners": corners})
+
+
+@st.cache_data(show_spinner=False, max_entries=128)
+def _cached_row_analysis(image, mm_per_px):
+    result = analyze_core_row_v8(image, mm_per_px)
+    fracture_result = detect_core_break_candidates_v1(image, mm_per_px)
+    result = dict(result)
+    result["break_candidates"] = fracture_result.get("candidates", [])
+    result["break_detection_warning"] = fracture_result.get("warning", "")
+    overlay = draw_core_row_analysis_v8(image, result) if result.get("success") else image.convert("RGB").copy()
+    if fracture_result.get("success") and fracture_result.get("candidates"):
+        overlay = draw_core_fracture_candidates(overlay, fracture_result)
+    return result, overlay
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def _cached_editor_display(image):
+    # 顯示用縮圖不影響原始像素座標與後續量測影像。
+    preview = image.copy()
+    preview.thumbnail((1600, 1600))
+    return preview
+
+
+def _record_key(rec):
+    return (rec.page, rec.box_index, rec.row_in_box, rec.row_number)
+
+
+def _analyze_log_row(rec):
+    if rec.row_number is None:
+        return {"success": False, "warning": "未讀取到可靠列號，暫不建立判釋結果。",
+                "segments": [], "gaps": [], "uncertain": []}
+    row_measurement, row_scale = calibrate_row_measurement_span(
+        rec.image, 0, rec.image.width, 1000.0
+    )
+    result, overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
+    result = dict(result)
+    result["_overlay"] = overlay
+    return result
+
+
+def _candidate_length(items):
+    return round(sum(float(item.get("length_mm", 0)) for item in items), 1)
+
+
+def _load_review_font(size=18):
+    """Prefer a Traditional-Chinese-capable font; never rasterize CJK with DejaVu."""
+    candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKtc-Regular.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "C:/Windows/Fonts/msjh.ttc",
+        "C:/Windows/Fonts/msjhbd.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
     ]
+    for candidate in candidates:
+        if Path(candidate).is_file():
+            try:
+                return ImageFont.truetype(candidate, size), True
+            except Exception:
+                continue
+    # ASCII-only fallback is intentional: Pillow's default font cannot render CJK.
+    return ImageFont.load_default(), False
+
+
+def _compose_full_page_review(page_image, row_records, analyses=None, show_analysis=True):
+    """Overlay image-derived candidates on the full PDF page without changing source data."""
+    canvas = page_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(canvas)
+    font, has_cjk_font = _load_review_font(18)
+
+    analyses = analyses or {}
+    for rec in row_records:
+        if not rec.page_bbox_px:
+            continue
+        x0, y0, x1, y1 = [int(v) for v in rec.page_bbox_px]
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(canvas.width, x1), min(canvas.height, y1)
+        if x1 <= x0 or y1 <= y0:
+            continue
+
+        result = analyses.get(_record_key(rec), {})
+        status = "待人工確認"
+        if show_analysis:
+            if result.get("success"):
+                overlay = result.get("_overlay")
+                if overlay is not None:
+                    target_size = (x1 - x0, y1 - y0)
+                    overlay_resized = overlay.convert("RGB").resize(target_size, Image.Resampling.BILINEAR)
+                    original_crop = canvas.crop((x0, y0, x1, y1))
+                    canvas.paste(Image.blend(original_crop, overlay_resized, 0.55), (x0, y0))
+                if result.get("uncertain"):
+                    status = "需確認"
+                elif result.get("segments") and result.get("gaps"):
+                    status = "岩心與缺失候選"
+                elif result.get("gaps"):
+                    status = "有缺失候選"
+                elif result.get("segments"):
+                    status = "有岩心候選"
+                else:
+                    status = "未辨識到明確候選"
+            elif result:
+                status = "無法判釋"
+
+        color = {
+            "有岩心候選": (20, 145, 65),
+            "有缺失候選": (195, 55, 45),
+            "岩心與缺失候選": (215, 145, 20),
+            "未辨識到明確候選": (215, 145, 20),
+            "需確認": (215, 145, 20),
+            "無法判釋": (215, 145, 20),
+            "待人工確認": (215, 145, 20),
+        }.get(status, (215, 145, 20))
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=color, width=3)
+        depth_label = (f"{rec.depth_start_m:.1f}-{rec.depth_end_m:.1f}m"
+                       if rec.depth_start_m is not None else ("深度待確認" if has_cjk_font else "DEPTH N/A"))
+        row_label = f"第{rec.row_number}列" if rec.row_number is not None else f"頁{rec.page}-箱{rec.box_index}-列{rec.row_in_box}"
+        label = (f"{row_label} | {depth_label} | {status}" if has_cjk_font
+                 else f"ROW {rec.row_number or rec.row_in_box} | {depth_label} | REVIEW")
+        text_box = draw.textbbox((0, 0), label, font=font)
+        label_w = min(canvas.width - 8, text_box[2] - text_box[0] + 12)
+        label_h = text_box[3] - text_box[1] + 10
+        label_y = max(0, y0 - label_h)
+        draw.rectangle((x0, label_y, min(canvas.width - 1, x0 + label_w), label_y + label_h), fill=color)
+        draw.text((x0 + 6, label_y + 4), label, fill=(255, 255, 255), font=font)
+    return canvas
+
+
+def _build_page_result_table(page_rows, analyses):
+    rows = []
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        if result.get("success"):
+            core_mm = _candidate_length(result.get("segments", []))
+            gap_mm = _candidate_length(result.get("gaps", []))
+            uncertain_mm = _candidate_length(result.get("uncertain", []))
+            if uncertain_mm > 0:
+                status = "需人工確認"
+            elif core_mm > 0 and gap_mm > 0:
+                status = "岩心與缺失候選"
+            elif gap_mm > 0:
+                status = "有疑似缺失"
+            elif core_mm > 0:
+                status = "有岩心候選"
+            else:
+                status = "未辨識到明確候選"
+            note = "影像候選，尚未人工確認"
+        else:
+            core_mm = gap_mm = uncertain_mm = None
+            status = "無法判釋" if result else "待確認"
+            note = result.get("warning", "缺少可靠列號或分析資料")
+        breaks = result.get("break_candidates", [])
+        break_summary = "；".join(
+            f"{b.get('candidate_id', 'F?')} {b.get('distance_mm', 0):.0f}mm：{b.get('suggested_class', '待確認')}"
+            for b in breaks
+        ) or "未找到明確候選（不代表沒有斷裂）"
+        rows.append({
+            "列號": rec.row_number if rec.row_number is not None else "未辨識",
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "岩心影像候選長度 (mm)": core_mm,
+            "疑似缺失長度 (mm)": gap_mm,
+            "不確定區長度 (mm)": uncertain_mm,
+            "疑似斷裂數": len(breaks),
+            "斷裂位置與系統提示": break_summary,
+            "系統初步結果": status,
+            "說明": note,
+        })
     return pd.DataFrame(rows)
 
 
-# ==========================================
-# 資料處理函式
-# ==========================================
-def normalize_db(df):
-    """驗證並整理資料庫；格式有誤時丟出 ValueError，不會讓整個 App 當掉"""
-    df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    missing = [c for c in REQUIRED_COLS if c not in df.columns]
-    if missing:
-        raise ValueError("缺少必要欄位：" + "、".join(missing))
-    if "備註" not in df.columns:
-        df["備註"] = ""
-    if "資料來源" not in df.columns:
-        df["資料來源"] = SRC_USER
-    df = df[ALL_COLS].copy()
-    for c in ["主工項", "細項名稱", "單位", "備註", "資料來源"]:
-        df[c] = df[c].fillna("").astype(str).str.strip()
-    df.loc[df["資料來源"] == "", "資料來源"] = SRC_USER
-    price = pd.to_numeric(
-        df["單價(元)"].astype(str).str.replace(",", "", regex=False), errors="coerce"
-    )
-    bad = df[price.isna() | (df["主工項"] == "") | (df["細項名稱"] == "")]
-    if len(bad) > 0:
-        raise ValueError(
-            f"有 {len(bad)} 列的主工項、細項名稱或單價無效 (第一筆在表格第 {bad.index[0] + 1} 列)"
-        )
-    df["單價(元)"] = price.round().astype(int)
-    df = df.drop_duplicates(subset=["主工項", "細項名稱"], keep="last").reset_index(drop=True)
-    return df
-
-
-DEFAULT_DF = normalize_db(_build_default_df())
-
-# 防呆：cost_logic 引用的細項名稱必須存在於預設資料庫 (改名時會立刻提醒)
-import cost_logic as _cl
-_missing = [v for k, v in vars(_cl).items() if k.startswith('N_') and v not in set(DEFAULT_DF['細項名稱'])]
-assert not _missing, f'cost_logic 細項名稱與資料庫不一致：{_missing}'
-
-
-# ==========================================
-# 儲存後端：secrets 有設定 Google 試算表就用它 (永久保存)，否則退回本機檔案
-# ==========================================
-@st.cache_resource(ttl=600, show_spinner=False)
-def _get_store():
-    try:
-        cfg = st.secrets["gsheet"]
-        info = st.secrets["gcp_service_account"]
-    except Exception:
-        return LocalStore(), None
-    try:
-        return build_gsheet_store(info, cfg["spreadsheet_id"]), None
-    except Exception as e:
-        return LocalStore(), f"Google 試算表連線失敗，暫時改用本機檔案：{e}"
-
-
-store, store_err = _get_store()
-
-
-def initialize_database():
-    """版本不同時才重建資料庫；重建前先備份。保留「使用者新增」「使用者修改」項目；
-    舊版 (v14/v15) 尚無修改標記時，以舊預設快照比對，找出使用者改過的單價一併保留。"""
-    cur = store.read_db()
-    if cur is not None and store.get_version() == CURRENT_VERSION:
-        return
-    new_df, notes = DEFAULT_DF.copy(), []
-    if cur is not None:
-        store.backup_db("before_upgrade")
-        try:
-            if "資料來源" in cur.columns:
-                new_df, notes = upgrade_db(normalize_db(cur), DEFAULT_DF, store.get_version())
-        except Exception as e:
-            notes = [f"保留使用者修改失敗，已改用預設值 (舊檔已備份)：{e}"]
-            new_df = DEFAULT_DF.copy()
-    store.write_db(new_df)
-    store.set_version(CURRENT_VERSION)
-    rows = [[now_str(), "(系統)", "資料庫版本升級", "", "", "", "", CURRENT_VERSION,
-             "重建預設單價，保留「使用者新增」「使用者修改」項目"]]
-    rows += [[now_str(), "(系統)", "升級保留", "", "", "", "", "", n] for n in notes]
-    store.append_log(rows)
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def _cached_db(_store):
-    return _store.read_db()
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def _cached_hist(_store):
-    return _store.read_history()
-
-
-@st.cache_data(ttl=30, show_spinner=False)
-def _cached_log(_store):
-    return _store.read_log()
-
-
-def load_db():
-    try:
-        return normalize_db(_cached_db(store))
-    except Exception as e:
-        st.error(f"共用資料庫讀取失敗，暫時使用內建預設值：{e}")
-        return DEFAULT_DF.copy()
-
-
-def load_history():
-    return _cached_hist(store)
-
-
-def commit_db(new_df, cur_df, user, action, note, backup_tag):
-    """寫入資料庫並記錄「誰、何時、改了什麼」。回傳變更筆數 (0＝沒有變更，不寫入)。"""
-    new_df = mark_edits(cur_df, new_df, DEFAULT_DF)   # 預設項目改了單價/單位 → 標「使用者修改」，改版時保留
-    changes = diff_db(cur_df, new_df)
-    if not changes:
-        return 0
-    store.backup_db(backup_tag)
-    store.write_db(new_df)
-    store.append_log(diff_to_log_rows(changes, user, action, note))
-    st.cache_data.clear()
-    return len(changes)
-
-
-# ==========================================
-# 單價資料庫編輯權限：secrets 的 [editors] 有設定帳號密碼 → 需登入才能改；沒設定 → 不限制
-# ==========================================
-def _load_editors():
-    try:
-        editors = dict(st.secrets["editors"])
-        if not editors:
-            return {}
-        return {
-            str(k): str(v)
-            for k, v in editors.items()
-        }
-    except Exception:
-        return {}
-
-
-EDITORS = _load_editors()
-
-
-def can_edit():
-    return bool(EDITORS) and bool(
-        st.session_state.get("editor_ok")
-    )
-
-
-def acting_user():
-    """記錄用的使用者：已登入 → 登入帳號 (已驗證)；否則 → 側邊欄填的名字 (未驗證)"""
-    if st.session_state.get("editor_ok"):
-        return st.session_state.get("editor_user", "")
-    return (st.session_state.get("user_name") or "").strip()
-
-
-def _login(account, password):
-    import hmac
-    real = EDITORS.get(account.strip())
-    if real is not None and hmac.compare_digest(real.encode("utf-8"), password.encode("utf-8")):
-        st.session_state["editor_ok"] = True
-        st.session_state["editor_user"] = account.strip()
-        return True
-    return False
-
-
-# 上傳檔欄名別名 (相容「單價依據與合理性評估.xlsx」第 1 分頁的欄名)
-COL_ALIAS = {"規劃單價(元)": "單價(元)", "規劃單價": "單價(元)", "單價": "單價(元)",
-             "案例依據/說明": "備註", "案例依據": "備註", "說明": "備註"}
-
-
-def _canon_columns(df):
-    df = df.dropna(how="all").copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    ren = {c: COL_ALIAS[c] for c in df.columns if c in COL_ALIAS and COL_ALIAS[c] not in df.columns}
-    return df.rename(columns=ren)
-
-
-def read_uploaded_csv(uploaded):
-    data = uploaded.getvalue()
-    last_err = None
-    for enc in ("utf-8-sig", "cp950"):
-        try:
-            return pd.read_csv(io.BytesIO(data), encoding=enc)
-        except UnicodeDecodeError as e:
-            last_err = e
-    raise ValueError(f"無法判讀檔案編碼 (請存成 UTF-8 CSV)：{last_err}")
-
-
-def read_uploaded_table(uploaded):
-    """CSV 或 Excel(.xlsx)。Excel 會找第一個同時含必要欄位的分頁。"""
-    if uploaded.name.lower().endswith(".xlsx"):
-        xl = pd.ExcelFile(io.BytesIO(uploaded.getvalue()))
-        for sh in xl.sheet_names:
-            df = _canon_columns(xl.parse(sh))
-            if all(c in df.columns for c in REQUIRED_COLS):
-                return df
-        raise ValueError("Excel 中找不到同時含「主工項、細項名稱、單位、單價」欄位的分頁")
-    return _canon_columns(read_uploaded_csv(uploaded))
-
-
-def rec_get(rec, *keys, default=0):
-    for k in keys:
-        if k in rec and rec[k] is not None:
-            return rec[k]
-    return default
-
-
-def _clear_history():
-    user = acting_user()
-    store.clear_history()
-    store.append_log([[now_str(), user, "清空歷史紀錄", "", "", "", "", "", ""]])
-    st.cache_data.clear()
-    st.session_state["confirm_clear"] = False
-    st.session_state["flash"] = "已清空團隊紀錄 (已記入更新紀錄)。"
-
-
-def md(t):
-    """Streamlit markdown 會把成對的 ~ 當刪除線；顯示文字一律跳脫"""
-    return str(t).replace("~", "\\~")
-
-
-def money(x):
-    return f"{int(round(x)):,}"
-
-
-# ---- 數量/單價輸入框：顯示千位數逗號 (st.number_input 不支援，改用文字框＋自動格式化) ----
-def _fmt_num(v, integer):
-    if v is None or v == "":
-        return ""
-    if integer or float(v) == int(float(v)):
-        return f"{int(round(float(v))):,}"
-    return f"{float(v):,.4f}".rstrip("0").rstrip(".")
-
-
-def _parse_num(txt):
-    t = str(txt or "").replace(",", "").replace("，", "").replace(" ", "").strip()
-    if t == "":
-        return None
-    try:
-        return float(t)
-    except ValueError:
-        return "bad"
-
-
-def _comma_cb(key, integer):
-    v = _parse_num(st.session_state.get(key, ""))
-    if v == "bad" or (v is not None and v < 0):      # 無法判讀或負數 → 還原上一個有效值
-        st.session_state[key] = st.session_state.get(key + "__ok", "")
-        return
-    st.session_state[key] = st.session_state[key + "__ok"] = _fmt_num(v, integer)
-
-
-def comma_input(container, label, key, default=None, integer=True, help=None, collapsed=True):
-    """文字框版數字輸入：輸入後自動加千位數逗號。預設值改變 (如資料庫單價更新、參數變動) 時重新帶入，行為同 number_input。
-    回傳 int (integer=True) 或 float；空白回傳 0。"""
-    dtxt = _fmt_num(default, integer)
-    if key not in st.session_state or st.session_state.get(key + "__def") != dtxt:
-        st.session_state[key] = st.session_state[key + "__ok"] = st.session_state[key + "__def"] = dtxt
-    container.text_input(label, key=key, on_change=_comma_cb, args=(key, integer), help=help,
-                         label_visibility="collapsed" if collapsed else "visible")
-    v = _parse_num(st.session_state.get(key, ""))
-    if v is None or v == "bad":
-        return 0
-    return int(round(v)) if integer else float(v)
-
-
-# ==========================================
-# 計算與 Excel 匯出
-# ==========================================
-def calc_costs(direct_by_major, p):
-    """費用結構：雜項工程 (% 直接費)、職業安全衛生及環境保護 (% 直接費)
-    → 保險、廠商管理及利潤 (% 直接+雜項+職安) → 營業稅 (% 前四項和)。
-    其他費用(選填)以含稅發包工程費為基數計算。"""
+def _build_break_review_table(page_rows, analyses):
     rows = []
-    for m, d in direct_by_major.items():
-        misc = d * p["misc"] / 100
-        safety = d * p["safety"] / 100
-        prof = (d + misc + safety) * p["profit"] / 100
-        tax = (d + misc + safety + prof) * p["tax"] / 100
-        rows.append({"主工項": m, "直接工程費": d, "雜項工程": misc, "職安及環保": safety,
-                     "保險、廠商管理及利潤": prof, "營業稅": tax, "合計": d + misc + safety + prof + tax})
-    df = pd.DataFrame(rows)
-    contract = df["合計"].sum() if len(df) else 0
-    others = {
-        "物價調整費": contract * p["escalation"] / 100,
-        "工程預備費": contract * p["contingency"] / 100,
-        "設計監造費": contract * p["design"] / 100,
-    }
-    return df, contract, others
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        for candidate in result.get("break_candidates", []):
+            rows.append({
+                "列號": rec.row_number if rec.row_number is not None else "未辨識",
+                "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                                 if rec.depth_start_m is not None else "待確認"),
+                "候選編號": candidate.get("candidate_id", "F?"),
+                "距本列起點 (mm)": float(candidate.get("distance_mm", 0)),
+                "系統影像提示": candidate.get("suggested_class", "不確定／需人工確認"),
+                "信心": candidate.get("confidence", "低"),
+                "人工覆核分類": "待確認",
+            })
+    return pd.DataFrame(rows, columns=[
+        "列號", "深度區間 (m)", "候選編號", "距本列起點 (mm)",
+        "系統影像提示", "信心", "人工覆核分類",
+    ])
 
 
-def build_excel(lines, p, project_name):
-    """產出 Excel：總表 + 每個主工項一張分頁"""
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
-    thin = Side(style="thin", color="999999")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-    head_fill = PatternFill("solid", fgColor="DDEBF7")
-    sub_fill = PatternFill("solid", fgColor="F2F2F2")
-    bold = Font(bold=True)
-    wb = Workbook()
-    ws0 = wb.active
-    ws0.title = "總表"
-
-    def style_row(ws, r, ncol=7, fill=None, b=False):
-        for c in range(1, ncol + 1):
-            cell = ws.cell(row=r, column=c)
-            cell.border = border
-            if fill:
-                cell.fill = fill
-            if b:
-                cell.font = bold
-            if c in (4, 5, 6):
-                cell.number_format = "#,##0.##" if c == 4 else "#,##0"
-            if c in (1, 3):
-                cell.alignment = Alignment(horizontal="center")
-
-    def set_widths(ws):
-        for col, w in zip("ABCDEFG", (8, 52, 8, 12, 14, 16, 46)):
-            ws.column_dimensions[col].width = w
-
-    majors = [m for m in MAJOR_ORDER if any(l["主工項"] == m for l in lines)]
-    majors += [m for m in dict.fromkeys(l["主工項"] for l in lines) if m not in majors]
-    direct_by_major = {m: sum(l["複價"] for l in lines if l["主工項"] == m) for m in majors}
-    cost_df, contract, others = calc_costs(direct_by_major, p)
-
-    # --- 各主工項分頁 ---
-    for m in majors:
-        name = "".join(ch for ch in m if ch not in '[]:*?/\\')[:31]
-        ws = wb.create_sheet(name)
-        set_widths(ws)
-        ws.append(["項次", "工程名稱", "單位", "數量", "單價", "複價", "備註"])
-        style_row(ws, 1, fill=head_fill, b=True)
-        ws.append(["一", m])
-        style_row(ws, 2, b=True)
-        r = 3
-        for i, l in enumerate([x for x in lines if x["主工項"] == m], 1):
-            ws.append([i, l["細項名稱"], l["單位"], l["數量"], l["單價"], l["複價"], l["備註"]])
-            style_row(ws, r)
-            ws.cell(row=r, column=2).alignment = Alignment(wrap_text=True)
-            r += 1
-        d = direct_by_major[m]
-        misc = d * p["misc"] / 100
-        safety = d * p["safety"] / 100
-        prof = (d + misc + safety) * p["profit"] / 100
-        tax = (d + misc + safety + prof) * p["tax"] / 100
-        ws.append(["", "小計", "", "", "", d, ""]); style_row(ws, r, fill=sub_fill, b=True); r += 1
-        ws.append(["二", "雜項工程", "%", p["misc"], d, misc, "一項和之 %g%%" % p["misc"]]); style_row(ws, r); r += 1
-        ws.append(["三", "職業安全衛生及環境保護", "%", p["safety"], d, safety, "一項和之 %g%%" % p["safety"]]); style_row(ws, r); r += 1
-        ws.append(["四", "保險、廠商管理及利潤", "%", p["profit"], d + misc + safety, prof, "一~三項和之 %g%%" % p["profit"]]); style_row(ws, r); r += 1
-        ws.append(["五", "營業稅", "%", p["tax"], d + misc + safety + prof, tax, "一~四項和之 %g%%" % p["tax"]]); style_row(ws, r); r += 1
-        ws.append(["", "總計", "", "", "", d + misc + safety + prof + tax, ""]); style_row(ws, r, fill=sub_fill, b=True)
-        ws.freeze_panes = "A2"
-
-    # --- 總表 (9 欄：項次 / 主工項 / 直接工程費 / 雜項 / 職安及環保 / 保險管理利潤 / 營業稅 / 合計) ---
-    for col, w in zip("ABCDEFGHI", (8, 34, 2, 14, 14, 14, 16, 14, 16)):
-        ws0.column_dimensions[col].width = w
-    ws0.append([project_name or "(未命名專案)"])
-    ws0["A1"].font = Font(bold=True, size=14)
-    heads = ["項次", "主工項", "", "直接工程費", "雜項工程", "職安及環保", "保險、廠商管理及利潤", "營業稅", "合計"]
-    ws0.append(heads)
-    style_row(ws0, 2, ncol=9, fill=head_fill, b=True)
-    for c in range(1, 10):
-        ws0.cell(row=2, column=c).alignment = Alignment(horizontal="center", wrap_text=True)
-    r = 3
-    for i, row in enumerate(cost_df.itertuples(index=False), 1):
-        ws0.append([i, row[0], "", row[1], row[2], row[3], row[4], row[5], row[6]])
-        style_row(ws0, r, ncol=9)
-        for c in range(4, 10):
-            ws0.cell(row=r, column=c).number_format = "#,##0"
-        r += 1
-    tot = cost_df[["直接工程費", "雜項工程", "職安及環保", "保險、廠商管理及利潤", "營業稅", "合計"]].sum()
-    ws0.append(["", "含稅發包工程費 (各項合計)", ""] + [tot[c] for c in tot.index])
-    style_row(ws0, r, ncol=9, fill=sub_fill, b=True)
-    for c in range(4, 10):
-        ws0.cell(row=r, column=c).number_format = "#,##0"
-    r += 1
-    for k, v in others.items():
-        if v:
-            ws0.append(["", k, "", "", "", "", "", "", v]); style_row(ws0, r, ncol=9)
-            ws0.cell(row=r, column=9).number_format = "#,##0"; r += 1
-    ws0.append(["", "總計", "", "", "", "", "", "", contract + sum(others.values())])
-    style_row(ws0, r, ncol=9, fill=sub_fill, b=True); ws0.cell(row=r, column=9).number_format = "#,##0"
-    ws0.cell(row=r + 2, column=2, value="註：初估單價為規劃階段概估，請依實際地質、施工條件及報價調整。")
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+def _build_image_rqd_review_table(page_rows, analyses, reviewed_break_df):
+    rows = []
+    reviewed_by_row = {}
+    if reviewed_break_df is not None and not reviewed_break_df.empty:
+        for _, item in reviewed_break_df.iterrows():
+            reviewed_by_row.setdefault(item.get("列號"), []).append({
+                "distance_mm": float(item.get("距本列起點 (mm)", 0)),
+                "review_class": item.get("人工覆核分類", "待確認"),
+            })
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        if not result.get("success"):
+            estimate = {"ready": False, "recovery_percent": None, "rqd_percent": None,
+                        "warning": result.get("warning", "影像判識失敗")}
+        else:
+            row_id = rec.row_number if rec.row_number is not None else "未辨識"
+            estimate = estimate_rqd_from_image_segments(
+                result.get("segments", []), reviewed_by_row.get(row_id, []),
+                float(result.get("mm_per_px", 1.0)), row_length_mm=1000.0,
+            )
+        rows.append({
+            "列號": rec.row_number if rec.row_number is not None else "未辨識",
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "影像初估採取率 (%)": estimate.get("recovery_percent"),
+            "影像初估 RQD (%)": estimate.get("rqd_percent"),
+            "判釋狀態": (
+                ("候選已覆核；初估值待確認" if result.get("break_candidates") else "未檢出斷裂；需目視核對")
+                if estimate.get("ready") else "待覆核／無法估算"
+            ),
+            "說明": estimate.get("warning", ""),
+        })
+    return pd.DataFrame(rows)
 
 
-# ==========================================
-# 初始化
-# ==========================================
-if "db_ready" not in st.session_state:
-    try:
-        initialize_database()
-    except Exception as e:
-        st.error(f"資料庫初始化失敗：{e}")
-    st.session_state["db_ready"] = True
-db = load_db()
-UNITS_INT = {"式", "座", "組", "孔", "處", "支", "次", "月", "人月", "套"}   # (數量一律整數，保留供參考)
-ROW_NOTE_DEFAULT = {N_ANCH_LOAD: "須配合施工辦理"}
+def _build_depth_metrics_table(page_rows, analyses, edited_rows):
+    """Build per-metre preliminary image estimates and user-confirmed indices."""
+    output = []
+    for idx, rec in enumerate(page_rows):
+        result = analyses.get(_record_key(rec), {})
+        image_core_mm = _candidate_length(result.get("segments", [])) if result.get("success") else None
+        image_recovery = round(image_core_mm / 10.0, 1) if image_core_mm is not None else None
+        edit = edited_rows.iloc[idx] if idx < len(edited_rows) else {}
+        recovered = edit.get("實際回收長度 (mm)") if hasattr(edit, "get") else None
+        pieces_raw = edit.get("天然節理分段長度 (mm；逗號分隔)", "") if hasattr(edit, "get") else ""
+        confirmed_recovery = None
+        confirmed_rqd = None
+        rqd_note = "待確認天然節理分段"
+        validation_note = ""
+        try:
+            recovered_mm = None
+            if recovered is not None and pd.notna(recovered) and float(recovered) > 0:
+                recovered_mm = float(recovered)
+                confirmed_recovery = round(recovered_mm / 10.0, 1)
+                if recovered_mm > 1000.0:
+                    validation_note = "回收長度超過 1,000 mm，請核對"
+            if isinstance(pieces_raw, str) and pieces_raw.strip():
+                piece_values = parse_piece_lengths(pieces_raw)
+                qualifying_mm = sum(v for v in piece_values if v >= 100.0)
+                confirmed_rqd = round(qualifying_mm / 10.0, 1)
+                rqd_note = "已依輸入天然節理段長計算"
+                if qualifying_mm > 1000.0:
+                    validation_note = "RQD 計入長度超過鑽進長度，請核對"
+                elif recovered_mm is not None and qualifying_mm > recovered_mm:
+                    validation_note = "RQD 計入長度大於回收長度，請核對"
+        except (ValueError, TypeError):
+            rqd_note = "段長格式需檢查"
+            validation_note = "請檢查輸入是否為正數，並以逗號分隔"
+        output.append({
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "影像估計岩心長度 (mm)": image_core_mm,
+            "影像初估採取率 (%)": image_recovery,
+            "人工確認採取率 (%)": confirmed_recovery,
+            "人工確認 RQD (%)": confirmed_rqd,
+            "RQD 狀態": rqd_note,
+            "資料檢核": validation_note,
+        })
+    return pd.DataFrame(output)
 
-if "flash" in st.session_state:
-    st.success(st.session_state.pop("flash"))
 
-st.markdown(
-    """
-    <style>
-    .metric-card {background:#f0f6ff;border-left:6px solid #1f77b4;padding:14px 18px;border-radius:8px;margin-bottom:8px;}
-    .metric-card h2 {margin:0;color:#1f3b57;}
-    .metric-card p {margin:0;color:#555;}
-    [class*="st-key-qty2_"] input, [class*="st-key-prc_"] input, [class*="st-key-drvn_"] input {text-align:right;}
-    </style>
-    """,
-    unsafe_allow_html=True,
+st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
+
+st.title("🧱 geolysis 大地工程分析系統")
+st.markdown(r"""
+本系統結合 **Hoek-Brown (2002) 岩體裂隙參數推估** 與開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 核心工程模組：
+- **模組一：Hoek-Brown 岩體裂隙推估 ($c', \phi'$)** — 依據地質強度指標 (GSI，內建現場結構×節理交叉查表)、岩性常數 ($m_i$)、單壓強度與邊坡深度，自動轉換等效莫耳－庫倫參數
+- **模組二：土壤分類系統** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
+- **模組三：SPT 標準貫入試驗全修正** — 器材四項修正 ($E_m, C_B, C_S, C_R$)、7 大學者覆土壓力修正 ($C_N$) 與全鑽孔剖面批次繪圖
+- **模組四：容許承載力與沉陷控制** — Bowles & Meyerhof 控制沉陷量之淺基礎與筏基設計
+- **模組五：極限承載力四大理論** — Terzaghi / Meyerhof / Hansen / Vesic 全套修正係數與三階段地下水折減
+""")
+
+# ==============================================================================
+# 側邊欄：快速檢視模式
+# ==============================================================================
+st.sidebar.title("🛠️ 畫面顯示設定")
+display_mode = st.sidebar.radio(
+    "選擇展開模式：",
+    [
+        "全部展開",
+        "模組一：Hoek-Brown 岩體參數",
+        "模組二：土壤分類",
+        "模組三：SPT 全修正",
+        "模組四：容許承載力",
+        "模組五：極限承載力"
+    ]
 )
 
-st.title("🧮 大地工程規劃階段經費初估")
-st.caption("規劃用精簡版：先填各主工項上方的設計參數 (井深、地錨支數等)，數量自動帶出；沒列到的必要工項由系統依案例評估並列出內容。")
+exp_1 = display_mode in ["全部展開", "模組一：Hoek-Brown 岩體參數"]
+exp_2 = display_mode in ["全部展開", "模組二：土壤分類"]
+exp_3 = display_mode in ["全部展開", "模組三：SPT 全修正"]
+exp_4 = display_mode in ["全部展開", "模組四：容許承載力"]
+exp_5 = display_mode in ["全部展開", "模組五：極限承載力"]
 
-# ==========================================
-# 側邊欄：費率設定
-# ==========================================
-with st.sidebar:
-    if st.session_state.get("editor_ok"):
-        st.caption(f"👤 已登入：{st.session_state.get('editor_user', '')}")
-    else:
-        st.text_input("👤 你的名字", key="user_name",
-                      help=("發布歷史紀錄時記錄發布者。" if EDITORS else
-                            "修改單價、上傳更新、發布紀錄時會記入「更新紀錄」(誰、何時、改了什麼)。"))
-    if store.kind == "gsheet":
-        st.caption("☁️ 資料存於 Google 試算表 (永久保存)")
-    else:
-        st.caption("⚠️ 目前為本機檔案模式：網頁重啟或重新部署後，單價修改與歷史紀錄可能消失。")
-    if store_err:
-        st.warning(store_err)
-    st.header("⚙️ 費用比例")
-    misc = st.number_input("雜項工程 (% 直接工程費)", 0.0, 50.0, 20.0, 0.5, key="rate_misc",
-                           help=md("含品管、交維、臨時設施等 (職安及環保另列)。以直接工程費為基數。"))
-    safety = st.number_input("職業安全衛生及環境保護 (% 直接工程費)", 0.0, 20.0, 3.5, 0.5, key="rate_safety",
-                             help="以直接工程費為基數。")
-    profit = st.number_input("保險、廠商管理及利潤 (% )", 0.0, 30.0, 10.5, 0.5, key="rate_profit",
-                             help=md("基數＝直接工程費＋雜項工程＋職安及環保 (比照預算書「包商利潤、保險及管理費 (一~九)項*10.5%」)。"))
-    tax = st.number_input("營業稅 (%)", 0.0, 20.0, 5.0, 0.5, key="rate_tax", help="基數＝直接工程費＋雜項＋職安及環保＋保險、廠商管理及利潤。")
-    st.markdown("**其他費用 (選填，0 = 不計)**")
-    escalation = st.number_input("物價調整費 (% 含稅發包費)", 0.0, 20.0, 0.0, 0.5, key="rate_esc")
-    contingency = st.number_input("工程預備費 (% 含稅發包費)", 0.0, 30.0, 0.0, 0.5, key="rate_cont")
-    design = st.number_input("設計監造費 (% 含稅發包費)", 0.0, 20.0, 0.0, 0.5, key="rate_design")
-    st.caption(md("已發包案例的「總價/主體工程」約 1.29~1.45 倍 (含機關工程管理費約 2~4%、空污費 0.3%、物調等)。上列預設值只算到含稅發包工程費，規劃階段建議視需要加列其他費用。"))
 
-params = {"misc": misc, "safety": safety, "profit": profit, "tax": tax, "escalation": escalation,
-          "contingency": contingency, "design": design}
+# ==============================================================================
+# 模組一：Hoek-Brown (2002) 岩體裂隙推估等效 c', phi' (含 GSI 視覺化查表)
+# ==============================================================================
+with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=exp_1):
+    st.subheader("Hoek–Brown 岩體強度參數")
 
-page_options = ["📊 專案經費初估", "📚 單價資料庫", "📁 團隊歷史紀錄"]
-selected_page = st.radio(
-    "功能頁面", page_options, horizontal=True, key="active_page",
-    label_visibility="collapsed",
-)
 
-# ==========================================
-# TAB 1
-# ==========================================
-if selected_page == "📊 專案經費初估":
-    pc1, pc2, pc3 = st.columns([2, 1.2, 1])
-    project_name = pc1.text_input("專案名稱", key="project_name")
-    agency_name = pc2.text_input("機關名稱 (PCCES 版 Excel 表頭，可空白)", key="agency_name")
-    site_name = pc3.text_input("施工地點 (可空白)", key="site_name")
-    present = [m for m in MAJOR_ORDER if m in set(db["主工項"])]
-    extras = [m for m in dict.fromkeys(db["主工項"]) if m not in present]
-    major_options = present + extras
-    selected_raw = st.multiselect("本案涵蓋的主工項", major_options, key="majors",
-                              help="只勾選本案會用到的工項，未填數量的細項不會計入。")
-    selected = [m for m in major_options if m in selected_raw]   # 依編號排序，不依點選順序
+    # --- 岩芯照片分析：固定 4 m／箱、每列 1 m ---
+    with st.expander("📷 岩心照片分析與 RQD", expanded=False):
+        st.caption("標準岩心箱固定 4,000 mm、4 列，每列 1,000 mm。系統完成照片校正後自動分列，不需另設列數、列長或比例尺。")
 
-    show_ref = st.toggle("顯示單價依據 (案例區間)", value=False, key="show_ref",
-                         help="預設隱藏以保持畫面簡潔；也可把滑鼠移到單價欄的 ⓘ 查看。")
+        core_borehole = ""
+        depth_start = None
+        depth_end = None
 
-    lines = []
-    est_notes = []   # 以經驗概估(非案例)的評估項目，最後統一提醒
-    W = [4, 0.8, 1.2, 1.3, 1.4, 2.3]
-    for m in selected:
-        sub = db[db["主工項"] == m]
-        # 鑽探分區列只在資料庫存放單價，不逐列顯示 (由「鑽探分區」下拉帶入)
-        sub = sub[~sub["細項名稱"].str.startswith(N_DRILL + DRILL_ZONE_SEP)].reset_index(drop=True)
-        # 使用者在資料庫改過細項名稱 (如「中間平台」→「中間平台(含爬梯)」) 時，仍對應到內建項目，自動算量不中斷
-        cmap = canonical_map(m, sub["細項名稱"])
-        inv_cmap = {v: k for k, v in cmap.items()}
-        with st.expander(m, expanded=True):
-            # ---- ① 幾何參數 (防呆：先填這裡，下方數量自動帶出，仍可手動修改) ----
-            drv = {}
-            spec = DRIVERS.get(m, [])
-            if spec:
-                st.markdown("**① 先填設計參數 → 下方數量自動計算 (之後仍可手動改)**")
-                for i0 in range(0, len(spec), 4):
-                    chunk = spec[i0:i0 + 4]
-                    for col, sp in zip(st.columns(len(chunk)), chunk):
-                        kk = f"drv_{m}|{sp['key']}"
-                        if sp.get("text"):
-                            drv[sp["key"]] = col.text_input(sp["label"], value=sp["default"], key=kk, help=sp.get("help"))
-                        elif sp.get("options"):
-                            drv[sp["key"]] = col.selectbox(sp["label"], sp["options"], key=kk, help=sp.get("help"))
-                        else:
-                            dflt = sp["default"]   # None = 留白，由使用者依設計填寫
-                            drv[sp["key"]] = comma_input(col, sp["label"], f"drvn_{m}|{sp['key']}", dflt,
-                                                         integer=bool(sp.get("int")), help=sp.get("help"), collapsed=False)
-                for msg in geometry_warnings(m, drv):
-                    (st.info if msg.startswith("ℹ️") else st.warning)(md(msg))
-            auto_q = auto_quantities(m, drv)
-            auto_p = auto_prices(m, drv)
-            if m == M8 and drv.get("zone") and drv["zone"] != ZONE_NONE:
-                zr = db[(db["主工項"] == M8) & (db["細項名稱"] == drill_zone_row(drv["zone"]))]
-                if len(zr):
-                    auto_p[N_DRILL] = (int(zr.iloc[0]["單價(元)"]), f"依分區「{drv['zone']}」(可於單價資料庫修改分區單價)")
-            # 資料庫單價已被使用者改過 (與預設不同) → 以資料庫單價為準，不再用程式內建的分段加權價
-            for _n in list(auto_p):
-                _d = DEFAULT_DF[(DEFAULT_DF["主工項"] == m) & (DEFAULT_DF["細項名稱"] == _n)]
-                _c = db[(db["主工項"] == m) & (db["細項名稱"] == inv_cmap.get(_n, _n))]
-                if _n == N_WELL_EXC and len(_d) and len(_c) and int(_d.iloc[0]["單價(元)"]) != int(_c.iloc[0]["單價(元)"]):
-                    auto_p.pop(_n)
-            # 參數改變 → 自動數量 widget 換新 key，重新帶入新計算值
-            sig = hashlib.md5(json.dumps(drv, sort_keys=True, default=str).encode()).hexdigest()[:6]
+        st.markdown("**整孔柱狀圖匯入（主要方式）**")
+        st.caption("優先以完整 PDF 頁面呈現原始資料，判釋標記直接疊在原頁面上；原始文件不會被修改。")
+        core_log_file = st.file_uploader(
+            "上傳整孔岩心柱狀圖（DOCX／PDF）",
+            type=["docx", "pdf"],
+            accept_multiple_files=False,
+            key="core_log_upload",
+            help="支援 Core-photo-depth-matching-alignment 工具輸出的 Word／PDF 格式。PDF 可完整呈現原頁面並疊加判釋標記。",
+        )
+        if core_log_file is not None:
+            try:
+                parsed_log = _cached_parse_core_log(core_log_file.getvalue(), core_log_file.name)
+                row_records = parsed_log["records"]
+                detected_borehole = parsed_log.get("borehole_id") or ""
+                detected_range = parsed_log.get("header_depth_range_m")
+                st.markdown("**文件資料確認**")
+                core_borehole = st.text_input(
+                    "鑽孔編號", value=detected_borehole,
+                    key=f"core_borehole_id_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}",
+                    help="若文件頁首可讀取，會自動帶入；否則可留白或補填。",
+                )
+                if detected_range:
+                    depth_start = float(detected_range[0])
+                    st.caption(f"已從 PDF 可選取文字讀取頁首深度範圍：{detected_range[0]:g}–{detected_range[1]:g} m。請核對頁面內容。")
+                else:
+                    depth_start = st.number_input(
+                        "起始深度（m；文件無法自動辨識時才需填寫）",
+                        min_value=0.0, value=0.0, step=0.5,
+                        key=f"core_depth_start_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}",
+                    )
+                for rec in row_records:
+                    if rec.row_number is not None and depth_start is not None:
+                        rec.depth_start_m = float(depth_start) + (rec.row_number - 1)
+                        rec.depth_end_m = rec.depth_start_m + 1.0
+                depth_values = [r.depth_end_m for r in row_records if r.depth_end_m is not None]
+                depth_end = max(depth_values) if depth_values else None
+                if depth_end is not None and depth_start is not None:
+                    st.caption(f"整孔索引深度：{depth_start:g}–{depth_end:g} m（結束深度由列號自動計算，不需另外輸入）。")
+                st.success(f"已讀取 {parsed_log['pages_detected']} 頁，建立 {len(row_records)} 列索引。")
 
-            if m == M9:
-                st.caption("剩餘土石方運棄依「運距分區」分列：同一案分送不同土資場時，各分區各填數量；施工便道人工/機械分列，臨時沉砂、臨排、擋土等含在雜項工程費率。")
-            st.markdown("**② 工項數量**" if spec else "**工項數量**")
-            h = st.columns(W)
-            for c, t in zip(h, ["工程名稱", "單位", "數量", "單價 (可改)", "複價", "備註 (如 L=50m@3m)"]):
-                c.markdown(f"**{t}**")
-            qmap, direct_listed = {}, 0.0
-            for _, row in sub.iterrows():
-                name = row["細項名稱"]
-                cname = cmap.get(name, name)     # 內建項目名稱 (自動算量、評估邏輯用)
-                k = f"{m}|{name}"
-                c = st.columns(W)
-                tag = "" if row["資料來源"] in (SRC_CASE, SRC_USER) else f" `{row['資料來源']}`"
-                c[0].markdown(f"{name}{tag}")
-                is_auto = cname in auto_q
-                if is_auto:
-                    c[0].caption(md(f"🔗 自動：{auto_q[cname][1]}"))
-                if cname in auto_p:
-                    c[0].caption(md(f"🔗 單價自動：{auto_p[cname][1]}"))
-                if show_ref and row["備註"]:
-                    c[0].caption(md(f"📖 {row['備註']}"))
-                c[1].write(row["單位"])
-                dq = auto_q[cname][0] if is_auto else 0
-                qkey = f"qty2_{k}_{sig}" if is_auto else f"qty2_{k}"
-                # 工程數量一律以整數 (無條件進位) 填列；數量、單價皆顯示千位數逗號
-                qty = comma_input(c[2], "數量", qkey, cq(dq))
-                dp = auto_p[cname][0] if cname in auto_p else int(row["單價(元)"])
-                pkey = f"prc_{k}_{sig}" if cname in auto_p else f"prc_{k}"
-                price = comma_input(c[3], "單價", pkey, dp, help=md(row["備註"]) if row["備註"] else None)
-                note = c[5].text_input("備註", value=ROW_NOTE_DEFAULT.get(cname, ""), key=f"note_{k}", label_visibility="collapsed")
-                amt = qty * price
-                c[4].write(money(amt) if qty else "-")
-                qmap[cname] = float(qty)
-                if qty:
-                    direct_listed += amt
-                    lines.append({"主工項": m, "細項名稱": name, "單位": row["單位"],
-                                  "數量": float(qty), "單價": int(price), "複價": float(amt), "備註": note})
-                # 防呆提醒：手動改掉自動數量 / 單價偏離資料庫過多
-                if is_auto and abs(qty - dq) > max(0.5, abs(dq) * 0.01):
-                    st.warning(md(f"⚠️ 「{name}」數量目前為 {qty:g}，依上方參數應為 {dq:,.1f}。"))
-                base = int(row["單價(元)"])
-                if qty and cname not in auto_p and base > 0 and abs(price - base) / base > 0.3:
-                    st.warning(f"⚠️ 「{name}」單價 {price:,} 與資料庫 {base:,} 相差超過 30%，請確認。")
+                if parsed_log.get("format") == "pdf" and parsed_log.get("page_views"):
+                    page_views = parsed_log["page_views"]
+                    page_numbers = [v["page"] for v in page_views]
+                    selected_page = st.selectbox(
+                        "檢視原始頁面", page_numbers,
+                        format_func=lambda p: f"第 {p} 頁／共 {len(page_numbers)} 頁",
+                        key="core_log_active_page",
+                    )
+                    page_view = next(v for v in page_views if v["page"] == selected_page)
+                    page_rows = [r for r in row_records if r.page == selected_page]
+                    analyses = {}
+                    for rec in page_rows:
+                        try:
+                            analyses[_record_key(rec)] = _analyze_log_row(rec)
+                        except Exception as row_exc:
+                            analyses[_record_key(rec)] = {"success": False, "warning": f"分析失敗：{row_exc}",
+                                                          "segments": [], "gaps": [], "uncertain": []}
+                    page_display_mode = st.radio(
+                        "頁面顯示", ["判釋疊圖", "原始頁面"], horizontal=True,
+                        key=f"core_log_display_mode_{selected_page}",
+                    )
+                    review_image = _compose_full_page_review(
+                        page_view["image"], page_rows, analyses,
+                        show_analysis=(page_display_mode == "判釋疊圖"),
+                    )
+                    st.image(
+                        review_image,
+                        caption=f"第 {selected_page} 頁完整頁面預覽｜{page_view['width_px']} × {page_view['height_px']} px（2.5× PDF 頁面渲染）",
+                        width="stretch",
+                    )
+                    st.caption("區塊顏色：綠色＝可能有岩心；紅色＝可能缺失；黃色＝看不清楚。斷裂線標記：紅線＝斜向線跡提示、橘線＝較直且近垂直線跡提示、黃線＝特徵不足；F1、F2 為候選編號。這些顏色及幾何提示都不是天然節理／機械破損的正式判定。")
+                    st.markdown("**本頁逐深度成果表**")
+                    st.dataframe(
+                        _build_page_result_table(page_rows, analyses),
+                        hide_index=True, width="stretch",
+                        column_config={
+                            "岩心影像候選長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                            "疑似缺失長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                            "不確定區長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                        },
+                    )
+                    st.caption("以上是系統對每一公尺影像的初步辨識。斷裂線只代表疑似位置；斜向或較直的外觀不是天然／機械破損的可靠證明。")
+                    st.markdown("**疑似斷裂位置覆核**")
+                    break_review_df = _build_break_review_table(page_rows, analyses)
+                    if not break_review_df.empty:
+                        st.caption("請逐一確認系統找到的斷裂候選。天然節理會切分岩心段；機械破損若可接合，不切分 RQD；誤判可標記為非斷裂。")
+                        break_review_key = f"core_break_review_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}_{selected_page}"
+                        reviewed_break_df = st.data_editor(
+                            break_review_df, key=break_review_key, hide_index=True,
+                            width="stretch", num_rows="fixed",
+                            disabled=["列號", "深度區間 (m)", "候選編號", "距本列起點 (mm)", "系統影像提示", "信心"],
+                            column_config={
+                                "距本列起點 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                                "人工覆核分類": st.column_config.SelectboxColumn(
+                                    "人工覆核分類",
+                                    options=["待確認", "天然節理", "機械破損", "非斷裂／誤判"],
+                                    required=True,
+                                    help="這是人工確認欄位。只有確認為天然節理的候選才會切分影像估算 RQD。",
+                                ),
+                            },
+                        )
+                    else:
+                        reviewed_break_df = break_review_df
+                        st.info("本頁未找到明確的橫向斷裂線候選；這不代表岩心沒有天然節理，仍需目視檢查原始照片。")
+                    st.markdown("**每 1 m 影像初估採取率與 RQD**")
+                    st.dataframe(
+                        _build_image_rqd_review_table(page_rows, analyses, reviewed_break_df),
+                        hide_index=True, width="stretch",
+                    )
+                    st.caption("這是依影像岩心區間與人工覆核斷裂分類計算的初估值，可能漏掉不明顯節理或受遮擋影響；不得取代實際岩心量測及正式 RQD。")
+                    st.markdown("**逐深度確認採取率與 RQD**")
+                    edit_rows = []
+                    for rec in page_rows:
+                        edit_rows.append({
+                            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                                             if rec.depth_start_m is not None else "待確認"),
+                            "實際回收長度 (mm)": None,
+                            "天然節理分段長度 (mm；逗號分隔)": "",
+                        })
+                    edit_df = pd.DataFrame(edit_rows)
+                    edit_key = f"core_depth_metrics_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}_{selected_page}"
+                    edited_df = st.data_editor(
+                        edit_df, key=edit_key, hide_index=True, width="stretch",
+                        num_rows="fixed",
+                        disabled=["深度區間 (m)"],
+                        column_config={
+                            "實際回收長度 (mm)": st.column_config.NumberColumn(
+                                "實際回收長度 (mm)", min_value=0.0, max_value=1000.0, step=1.0,
+                                help="填入該 1 m 深度內實際取回的全部岩心長度；機械破損但可接合者仍計入。",
+                            ),
+                            "天然節理分段長度 (mm；逗號分隔)": st.column_config.TextColumn(
+                                "天然節理分段長度 (mm；逗號分隔)",
+                                help="填入天然節理界定的每段長度，例如 125, 180, 95。可接合的機械破損先接合。",
+                            ),
+                        },
+                    )
+                    metrics_df = _build_depth_metrics_table(page_rows, analyses, edited_df)
+                    st.markdown("**每一深度的計算結果**")
+                    st.dataframe(metrics_df, hide_index=True, width="stretch")
+                    st.caption("影像初估採取率＝影像中的岩心外觀候選長度 ÷ 1,000 mm；人工確認採取率與 RQD 只在填入該深度的實際量測資料後顯示。RQD 只加總 ≥100 mm 的天然節理分段。")
+                else:
+                    st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 實際分頁。建議使用同一份文件匯出的 PDF，以檢視完整原頁與判釋疊圖。")
+                    row_labels = [
+                        (f"第 {r.row_number} 列｜{r.depth_start_m:.1f}–{r.depth_end_m:.1f} m"
+                         if r.row_number is not None and r.depth_start_m is not None
+                         else f"頁 {r.page}／箱 {r.box_index}／第 {r.row_in_box} 列｜深度待確認")
+                        for r in row_records
+                    ]
+                    selected_log_row = st.selectbox(
+                        "檢視單列岩心影像", list(range(len(row_records))),
+                        format_func=lambda i: row_labels[i], key="core_log_active_row",
+                    )
+                    st.image(row_records[selected_log_row].image, width="stretch")
 
-            if m == M5 and qmap.get(N_SHOT, 0) + qmap.get(N_SHOT20, 0) > 0 and qmap.get(N_WALL_DRAIN, 0) == 0:
-                st.warning("⚠️ 已列噴凝土/掛網噴凝土護坡，需搭配坡面洩水管 (每 2m×2m 1 支)，目前數量為 0；請在上方填「噴凝土面積 (t=10cm / t=20cm)」自動帶入。")
+                with st.expander("匯入索引與解析警告", expanded=False):
+                    import json as _json
+                    index_payload = {
+                        "borehole_id": core_borehole or None,
+                        "start_depth_m": float(depth_start) if depth_start is not None else None,
+                        "end_depth_m": float(depth_end) if depth_end is not None else None,
+                        "depth_source": "PDF 頁首可選取文字" if parsed_log.get("header_depth_range_m") else "使用者補填起始深度",
+                        "row_length_m": 1.0,
+                        "rows_per_box": 4,
+                        "pages_detected": parsed_log["pages_detected"],
+                        "rows_detected": len(row_records),
+                        "rows": [rec.metadata() for rec in row_records],
+                        "warnings": parsed_log["warnings"],
+                        "note": "Embedded row images are extracted at their original embedded pixel dimensions without additional JPEG recompression. Full-page preview is rendered separately at 2.5x. Candidate lengths are image heuristics, not measured core recovery or RQD.",
+                    }
+                    st.download_button(
+                        "下載岩心列深度索引（JSON）",
+                        data=_json.dumps(index_payload, ensure_ascii=False, indent=2),
+                        file_name="core_log_depth_index.json", mime="application/json",
+                        key="download_core_log_index",
+                    )
+                    for warning in parsed_log["warnings"]:
+                        st.warning(warning)
+                for warning in parsed_log.get("metadata_warnings", []):
+                    st.warning(warning)
+                st.caption("系統目前只提供影像初判。天然節理、機械破損及實際岩心段長仍須人工確認，確認後才能計算正式採取率與 RQD。")
+            except Exception as log_exc:
+                st.error(f"柱狀圖解析失敗：{log_exc}")
 
-            # ---- ③ 其他必要工項：系統依案例/參數評估，並列出內容 ----
-            comps = evaluate_others(m, drv, qmap, direct_listed)
-            if comps:
-                st.markdown("**③ 其他必要工項 (系統評估，內容如下)**")
-                oc1, oc2 = st.columns([2, 1])
-                use_oth = oc1.checkbox("計入下列評估項目", value=True, key=f"useoth_{m}")
-                factor = oc2.number_input("評估調整倍率", min_value=0.0, max_value=5.0, value=1.0, step=0.1,
-                                          key=f"othf_{m}", help="整體放大/縮小評估金額，例如偏遠山區、工期長可調 1.2")
-                cdf = pd.DataFrame([{
-                    "項目": x["名稱"], "單位": x["單位"], "數量": x["數量"],
-                    "單價": round(x["單價"] * factor), "複價": round(cq(x["數量"]) * x["單價"] * factor),
-                    "可信度": x["可信度"], "評估依據": x["依據"],
-                } for x in comps])
-                st.dataframe(cdf.style.format({"數量": "{:,.1f}", "單價": "{:,.0f}", "複價": "{:,.0f}"}),
-                             use_container_width=True, hide_index=True)
-                st.caption(md(f"評估小計：{money(cdf['複價'].sum())} 元"
-                           + ("" if use_oth else "　(未計入)")
-                           + "｜施工便道另列於「9.土方及假設工程」；臨時沉砂、臨排、擋土等臨時設施已含在雜項工程費率內，此處不重複。"))
-                if use_oth:
-                    for x in comps:
-                        lines.append({"主工項": m, "細項名稱": "【評估】" + x["名稱"], "單位": x["單位"],
-                                      "數量": float(cq(x["數量"])), "單價": int(round(x["單價"] * factor)),
-                                      "複價": float(cq(x["數量"]) * x["單價"] * factor), "備註": x["依據"]})
-                        if x["可信度"] == "估算":
-                            est_notes.append(f"{m}｜{x['名稱']}")
-
-            # ---- 手動追加 (一般用不到) ----
-            with st.popover("＋ 手動追加零星工項 (一式)"):
-                k = f"{m}|__lump"
-                lname = st.text_input("名稱", value="其他零星工項 (一式)", key=f"lname_{k}")
-                lamt = comma_input(st, "金額 (元)", f"lamt_{k}", 0, collapsed=False)
-                lnote = st.text_input("說明包含哪些內容", key=f"note_{k}")
-            if lamt > 0:
-                lines.append({"主工項": m, "細項名稱": (lname or "其他零星工項 (一式)").strip(), "單位": "式",
-                              "數量": 1.0, "單價": int(lamt), "複價": float(lamt), "備註": lnote})
-
-    st.markdown("---")
-    if not lines:
-        st.info("請先勾選主工項並填入數量，系統會即時試算。")
-    else:
-        majors_used = [m for m in dict.fromkeys(l["主工項"] for l in lines)]
-        direct_by_major = {m: sum(l["複價"] for l in lines if l["主工項"] == m) for m in majors_used}
-        cost_df, contract, others = calc_costs(direct_by_major, params)
-        total = contract + sum(others.values())
-        direct_total = cost_df["直接工程費"].sum()
-
-        st.markdown(
-            f"<div class='metric-card'><p>估算總經費 (NT$)</p><h2>{money(total)}</h2>"
-            f"<p>含稅發包工程費 {money(contract)}　｜　直接工程費 {money(direct_total)}</p></div>",
-            unsafe_allow_html=True,
+        st.divider()
+        st.markdown("**原始岩心箱照片（備用方式）**")
+        core_photos = st.file_uploader(
+            "上傳單張或多張原始岩心箱照片",
+            type=["jpg", "jpeg", "png", "webp"],
+            accept_multiple_files=True,
+            key="core_photo_upload",
         )
 
-        st.markdown("##### 各主工項經費 (比照 Excel 分頁小計)")
-        show = cost_df.copy()
-        for c in show.columns[1:]:
-            show[c] = show[c].map(money)
-        st.dataframe(show, use_container_width=True, hide_index=True)
-
-        chart_df = cost_df[["主工項", "合計"]]
-        chart = alt.Chart(chart_df).mark_bar().encode(
-            x=alt.X("合計:Q", title="含稅經費 (元)"),
-            y=alt.Y("主工項:N", sort=MAJOR_ORDER, title=None),
-            color=alt.Color("主工項:N", legend=None,
-                            scale=alt.Scale(domain=MAJOR_ORDER, range=MAJOR_COLORS)),
-            tooltip=["主工項", alt.Tooltip("合計:Q", format=",.0f")],
-        ).properties(height=40 * len(chart_df) + 40)
-        st.altair_chart(chart, use_container_width=True)
-
-        with st.expander("📋 完整明細表"):
-            detail = pd.DataFrame(lines)
-            st.dataframe(detail.style.format({"數量": "{:,.1f}", "單價": "{:,.0f}", "複價": "{:,.0f}"}),
-                         use_container_width=True, hide_index=True)
-
-        s = pd.DataFrame([
-            ["直接工程費", direct_total],
-            [f"雜項工程 ({misc:g}%)", cost_df["雜項工程"].sum()],
-            [f"職業安全衛生及環境保護 ({safety:g}%)", cost_df["職安及環保"].sum()],
-            [f"保險、廠商管理及利潤 ({profit:g}%)", cost_df["保險、廠商管理及利潤"].sum()],
-            [f"營業稅 ({tax:g}%)", cost_df["營業稅"].sum()],
-            ["含稅發包工程費", contract],
-            *[[k, v] for k, v in others.items() if v],
-            ["總計", total],
-        ], columns=["項目", "金額(元)"])
-        s["金額(元)"] = s["金額(元)"].map(money)
-        st.markdown("##### 經費結構")
-        st.dataframe(s, use_container_width=True, hide_index=True)
-
-        unpriced = [l["細項名稱"] for l in lines
-                    if l["主工項"] in set(db["主工項"]) and
-                    db[(db["主工項"] == l["主工項"]) & (db["細項名稱"] == l["細項名稱"])]["資料來源"].eq(SRC_EST).any()]
-        if unpriced:
-            st.warning("以下項目單價為「估算待核」(案例中無依據)，請以廠商報價或 PCCES 核對：\n\n- " + "\n- ".join(unpriced))
-
-        if est_notes:
-            st.info("以下「其他必要工項」為工程經驗概估 (非案例單價)，請依實際條件核對：\n\n- " + "\n- ".join(md(x) for x in est_notes))
-
-        b1, b2, b3, b4 = st.columns(4)
-        with b1:
-            st.download_button(
-                "📥 下載 Excel (總表+各主工項分頁)",
-                data=build_excel(lines, params, project_name),
-                file_name=f"{project_name or '經費初估'}_經費估算.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+        if core_photos:
+            photo_labels = [f"{i + 1}. {photo.name}" for i, photo in enumerate(core_photos)]
+            selected_photo_index = st.selectbox(
+                "選擇要處理的照片", options=list(range(len(core_photos))),
+                format_func=lambda i: photo_labels[i], key="core_active_photo_index",
             )
-        with b2:
-            st.download_button(
-                "📥 下載 PCCES 版 Excel (預算總表+詳細表)",
-                data=build_pcces_excel(lines, params, project_name, agency_name, site_name),
-                file_name=f"{project_name or '經費初估'}_PCCES版.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                help="比照預算書格式：壹 發包工作費 → 排水/地錨/邊坡…各工程 → 雜項、職安、利潤、營業稅。",
-            )
-        with b3:
-            st.download_button(
-                "📥 下載明細 CSV",
-                data=pd.DataFrame(lines).to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"{project_name or '經費初估'}_明細.csv", mime="text/csv",
-                use_container_width=True,
-            )
-        with b4:
-            if st.button("📤 發布至團隊歷史紀錄", use_container_width=True):
-                if not project_name.strip():
-                    st.error("請先輸入專案名稱。")
-                elif not acting_user():
-                    st.error("請先在左側輸入你的名字。")
-                else:
-                    store.append_history({
-                        "時間": now_str(),
-                        "專案名稱": project_name.strip(),
-                        "發布者": acting_user(),
-                        "直接工程費": direct_total,
-                        "附屬費用": cost_df["雜項工程"].sum(),
-                        "職安環保費": cost_df["職安及環保"].sum(),
-                        "管理費": cost_df["保險、廠商管理及利潤"].sum(),
-                        "物價調整費": others["物價調整費"],
-                        "預備費": others["工程預備費"],
-                        "營業稅": cost_df["營業稅"].sum(),
-                        "設計監造費": others["設計監造費"],
-                        "總經費": total,
-                        "細項明細": lines,
-                    })
-                    st.cache_data.clear()
-                    st.session_state["flash"] = "已發布至團隊歷史紀錄。"
-                    st.rerun()
+            uploaded = core_photos[selected_photo_index]
+            try:
+                raw_bytes = uploaded.getvalue()
+                image, info = _cached_inspect_image(raw_bytes)
+                photo_token = hashlib.sha1(raw_bytes).hexdigest()[:12]
+                rotate_key = f"core_rotate_{photo_token}"
+                rotation = st.selectbox(
+                    "照片方向", [0, 90, 180, 270], index=0,
+                    format_func=lambda x: f"旋轉 {x}°" if x else "原始方向",
+                    key=rotate_key,
+                )
+                working_image = _cached_rotate_image(image, rotation)
 
-# ==========================================
-# TAB 2
-# ==========================================
-elif selected_page == "📚 單價資料庫":
-    st.header("📚 單價資料庫")
-    st.markdown(
-        "資料來源欄：**已發包案例** (直接取自預算書)、**案例推算** (用案例單價組合)、"
-        "**估算待核** (案例中無此項，請核對)、**使用者新增**、**使用者修改** (你改過的預設單價，系統改版時會保留，不用重打；"
-        "把單價改回預設值即還原，之後會跟著新版預設更新)。備註欄記錄案例價格區間。"
-    )
-    if not EDITORS:
-        st.warning("🔓 尚未讀到帳號密碼設定 (Secrets 的 [editors])，目前任何人都能編輯單價。")
-    if EDITORS and not can_edit():
-        st.info("🔒 目前為唯讀。要修改、新增或上傳單價，請先登入。")
-        with st.form("login_form"):
-            lc1, lc2 = st.columns(2)
-            acc = lc1.text_input("帳號")
-            pwd = lc2.text_input("密碼", type="password")
-            if st.form_submit_button("登入"):
-                if _login(acc, pwd):
-                    st.rerun()
-                else:
-                    st.error("帳號或密碼錯誤。")
-        q = st.text_input("🔍 關鍵字搜尋", key="db_search_ro")
-        view = db if not q else db[db.apply(lambda r: q in " ".join(r.astype(str)), axis=1)]
-        st.dataframe(view, use_container_width=True, hide_index=True)
-        st.download_button("📥 下載目前資料庫 CSV", data=db.to_csv(index=False).encode("utf-8-sig"),
-                           file_name="shared_cost_db.csv", mime="text/csv")
-    else:
-        if EDITORS:
-            st.caption(f"✅ 已登入：{st.session_state.get('editor_user', '')}　(修改會以此帳號記入更新紀錄)")
-            if st.button("登出"):
-                st.session_state["editor_ok"] = False
-                st.session_state["editor_user"] = ""
-                st.rerun()
-        q = st.text_input("🔍 關鍵字搜尋", key="db_search")
-        view = db if not q else db[db.apply(lambda r: q in " ".join(r.astype(str)), axis=1)]
-        edited = st.data_editor(
-            view, num_rows="dynamic", use_container_width=True, key="db_editor", hide_index=True,
-            column_config={"單價(元)": st.column_config.NumberColumn("單價(元)", min_value=0, format="localized")},
-        )
-        user = acting_user()
-        note_txt = st.text_input("本次修改備註 (選填，會記入更新紀錄)", key="edit_note")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("💾 儲存修改", use_container_width=True, disabled=bool(q),
-                         help="搜尋中無法儲存，請先清除關鍵字。新增的列請在『資料來源』留空或填『使用者新增』。"):
-                if not user:
-                    st.error("請先在左側輸入你的名字。" if not EDITORS else "請先登入。")
+                config_key = f"core_quad_{photo_token}_{rotation}"
+                rectified_key = f"core_rectified_{photo_token}_{rotation}"
+                if config_key not in st.session_state:
+                    detected = _cached_detect_tray_quad(working_image)
+                    if detected.get("success"):
+                        initial_corners = detected["corners"]
+                        st.session_state[f"{config_key}_source"] = "自動偵測"
+                    else:
+                        mx, my = working_image.width * 0.04, working_image.height * 0.04
+                        initial_corners = [
+                            [mx, my], [working_image.width - mx, my],
+                            [working_image.width - mx, working_image.height - my],
+                            [mx, working_image.height - my],
+                        ]
+                        st.session_state[f"{config_key}_source"] = "初始框，請人工修正"
+                    st.session_state[config_key] = initial_corners
+                    st.session_state[f"{config_key}_initial"] = [point[:] for point in initial_corners]
+                    st.session_state[rectified_key] = False
+
+                with st.expander("照片四角校正（需要時再展開調整）", expanded=not st.session_state.get(rectified_key, False)):
+                    editor_col, _ = st.columns([3, 1])
+                    with editor_col:
+                        st.caption("拖曳四個角點，讓框線貼齊整個岩心箱外緣。")
+                        editor_value = core_tray_editor(
+                            image_data=_cached_editor_image_data(working_image),
+                            corners=st.session_state[config_key],
+                            initial_corners=st.session_state.get(f"{config_key}_initial", st.session_state[config_key]),
+                            key=f"core_editor_{photo_token}_{rotation}", default=None,
+                        )
+                        if isinstance(editor_value, dict) and editor_value.get("applied"):
+                            try:
+                                checked = validate_tray_quadrilateral(
+                                    editor_value.get("corners"), working_image.width, working_image.height
+                                )
+                                if checked != st.session_state[config_key]:
+                                    st.session_state[config_key] = checked
+                                    st.session_state[rectified_key] = False
+                                    st.success("照片四角已更新。")
+                            except Exception as corner_exc:
+                                st.error(f"四角設定無效：{corner_exc}")
+
+                        if st.button("確認四角並校正照片", key=f"core_rectify_btn_{photo_token}_{rotation}", type="primary"):
+                            st.session_state[rectified_key] = True
+
+                if st.session_state.get(rectified_key, False):
+                    try:
+                        corners = validate_tray_quadrilateral(
+                            st.session_state[config_key], working_image.width, working_image.height
+                        )
+                        rectified, _ = _cached_rectify_tray(
+                            working_image, tuple(tuple(float(v) for v in point) for point in corners)
+                        )
+                        layout = calculate_fixed_tray_row_layout(
+                            rectified, row_count=4, row_length_mm=1000.0
+                        )
+                        row_crops = crop_fixed_tray_rows(rectified, layout)
+
+                        st.success("照片校正完成：已依固定規格分成 4 列，每列 1 m。")
+                        row_index = st.selectbox(
+                            "選擇岩心列", options=[0, 1, 2, 3],
+                            format_func=lambda i: f"第 {i + 1} 列（1,000 mm）",
+                            key=f"core_active_row_{photo_token}_{rotation}",
+                        )
+                        row_crop = row_crops[row_index]
+                        measured_row, row_cal = calibrate_row_measurement_span(
+                            row_crop, 0, row_crop.width, 1000.0
+                        )
+                        result, analysis_overlay = _cached_row_analysis(measured_row, row_cal["mm_per_px"])
+
+                        preview_col, _ = st.columns([3, 1])
+                        with preview_col:
+                            if result.get("success"):
+                                st.image(
+                                    _cached_editor_display(analysis_overlay),
+                                    caption=f"第 {row_index + 1} 列判識結果｜綠色：岩心候選；紅色：空隙候選；黃色：不確定區",
+                                    width="stretch",
+                                )
+                                result_cols = st.columns(3)
+                                result_cols[0].metric("岩心候選", len(result["segments"]))
+                                result_cols[1].metric("空隙候選", len(result["gaps"]))
+                                result_cols[2].metric("不確定區", len(result["uncertain"]))
+                                with st.expander("查看候選長度", expanded=False):
+                                    st.write({
+                                        "岩心候選長度（mm）": [round(x["length_mm"], 1) for x in result["segments"]],
+                                        "疑似空隙長度（mm）": [round(x["length_mm"], 1) for x in result["gaps"]],
+                                        "不確定區長度（mm）": [round(x["length_mm"], 1) for x in result["uncertain"]],
+                                    })
+                                st.caption("影像判識僅提供候選區段；天然節理與機械破損仍須人工確認，不能直接視為 RQD。")
+                            else:
+                                st.info(result.get("warning", "目前照片無法判識，請調整四角或照片方向。"))
+
+                    except Exception as rect_exc:
+                        st.error(f"照片校正或分列失敗：{rect_exc}")
+            except Exception as exc:
+                st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
+
+        if core_log_file is None:
+            st.divider()
+            st.markdown("**原始照片模式：人工計算採取率與 RQD**")
+            st.caption("此模式沒有整孔列深度索引，請自行指定計算深度；採取率與 RQD 分開計算。機械破損若可接合，應先接合，不可當成天然節理切段。")
+            if depth_start is None or depth_end is None:
+                rqd_depth_cols = st.columns(2)
+                with rqd_depth_cols[0]:
+                    rqd_depth_start = st.number_input("本次計算起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_rqd_manual_start")
+                with rqd_depth_cols[1]:
+                    rqd_depth_end = st.number_input("本次計算結束深度（m）", min_value=0.1, value=1.0, step=0.5, key="core_rqd_manual_end")
+            else:
+                rqd_depth_start, rqd_depth_end = float(depth_start), float(depth_end)
+                st.caption(f"計算深度範圍：{rqd_depth_start:g}–{rqd_depth_end:g} m（由柱狀圖列號推算）。")
+            recovered_total_mm = st.number_input(
+                "實際取回岩心總長度（mm；所有取回岩心都計入）",
+                min_value=0.0, value=0.0, step=10.0, key="core_recovered_total_mm",
+            )
+            rqd_piece_lengths_text = st.text_area(
+                "依天然節理分段後的岩心長度（mm；以逗號分隔）",
+                placeholder="例如：125, 180, 95, 210, 110（僅天然節理界定的段長；95 mm 不計入 RQD）",
+                key="core_rqd_piece_lengths",
+                height=72,
+            )
+            if st.button("計算採取率與 RQD", key="calculate_core_rqd"):
+                if rqd_depth_end <= rqd_depth_start:
+                    st.error("結束深度必須大於起始深度。")
+                elif recovered_total_mm <= 0:
+                    st.error("請先輸入實際取回岩心總長度。")
+                elif not rqd_piece_lengths_text.strip():
+                    st.error("請輸入依天然節理分段後的岩心長度，才能計算 RQD。")
                 else:
                     try:
-                        n = commit_db(normalize_db(edited), db, user, "表格編輯", note_txt, "before_edit")
-                        st.session_state["flash"] = (f"已儲存 {n} 項變更並記入更新紀錄。" if n else "沒有任何變更。")
-                        st.rerun()
-                    except ValueError as e:
-                        st.error(f"儲存失敗：{e}")
-        with c2:
-            st.download_button("📥 下載目前資料庫 CSV", data=db.to_csv(index=False).encode("utf-8-sig"),
-                               file_name="shared_cost_db.csv", mime="text/csv", use_container_width=True)
+                        natural_piece_lengths = parse_piece_lengths(rqd_piece_lengths_text)
+                        indices = calculate_core_indices(
+                            rqd_depth_end - rqd_depth_start, [recovered_total_mm],
+                            rqd_piece_lengths_mm=natural_piece_lengths,
+                        )
+                        st.session_state["core_rqd_result"] = indices
+                        st.session_state["core_rqd_depth"] = (rqd_depth_start, rqd_depth_end)
+                        st.session_state["core_rqd_borehole"] = core_borehole
+                    except ValueError as exc:
+                        st.error(str(exc))
 
-        st.markdown("##### 📤 上傳單價更新 (先預覽差異，確認後才寫入)")
-        st.caption(md("支援 CSV 或 Excel(.xlsx)。必要欄位：主工項、細項名稱、單位、單價；選填：備註、資料來源。"
-                      "欄名「規劃單價(元)」「案例依據/說明」也可 (同 單價依據與合理性評估.xlsx 第 1 分頁格式)。"
-                      "以「主工項＋細項名稱」對應既有項目。"))
-        up = st.file_uploader("選擇檔案", type=["csv", "xlsx"], key="db_upload")
-        mode = st.radio("上傳方式", ["合併 (新增或更新，不刪除原有項目)", "整份覆蓋 (檔案中沒有的原有項目會被刪除)"],
-                        key="up_mode")
-        if up is not None:
-            changes = None
-            try:
-                raw = read_uploaded_table(up)
-                upd = normalize_db(raw)
-                merged = merge_db(db, upd, "資料來源" in raw.columns) if mode.startswith("合併") else upd
-                changes = diff_db(db, merged)
-            except ValueError as e:
-                st.error(f"檔案格式有誤：{e}")
-            if changes is not None:
-                if not changes:
-                    st.info("與目前資料庫完全相同，沒有需要更新的項目。")
-                else:
-                    cdf = pd.DataFrame(changes)
-                    n_add, n_mod, n_del = [int((cdf["類型"] == t).sum()) for t in ("新增", "修改", "刪除")]
-                    st.markdown(f"**預覽：新增 {n_add} 項、修改 {n_mod} 欄、刪除 {n_del} 項**")
-                    st.dataframe(cdf, use_container_width=True, hide_index=True)
-                    big = [c for c in changes if c["漲跌"] and abs(float(c["漲跌"].rstrip("%"))) > 30]
-                    if big:
-                        st.warning(f"⚠️ 有 {len(big)} 項單價漲跌超過 30%，請確認檔案單位與數字無誤。")
-                    if n_del:
-                        st.warning("⚠️ 整份覆蓋會刪除上列項目；若只是要更新部分單價，請改選「合併」。")
-                    if st.button("✅ 確認寫入資料庫", type="primary"):
-                        if not user:
-                            st.error("請先在左側輸入你的名字。" if not EDITORS else "請先登入。")
-                        else:
-                            act = "上傳合併" if mode.startswith("合併") else "上傳覆蓋"
-                            tag = "before_upload"
-                            note = (note_txt + "　" if note_txt else "") + f"檔案：{up.name}"
-                            n = commit_db(merged, db, user, act, note, tag)
-                            st.session_state["flash"] = f"已寫入 {n} 項變更並記入更新紀錄。"
-                            st.rerun()
+            if "core_rqd_result" in st.session_state:
+                result = st.session_state["core_rqd_result"]
+                if result["over_recovery"]:
+                    st.warning("回收岩心總長超過鑽進長度，請檢查深度區間或段長輸入。")
+                if result.get("rqd_exceeds_recovered"):
+                    st.warning("RQD 計入長度大於實際回收長度，請檢查天然節理分段資料。")
+                if result.get("rqd_exceeds_drilled"):
+                    st.warning("RQD 計入長度超過鑽進長度，請檢查輸入資料。")
+                r1, r2, r3 = st.columns(3)
+                r1.metric("岩心採取率", f"{result['recovery_percent']:.1f}%")
+                r2.metric("RQD", f"{result['rqd_percent']:.1f}%")
+                r3.metric("RQD 合格天然岩心段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
+                st.caption(
+                    f"鑽進長度 {result['drilled_length_mm']:.0f} mm；"
+                    f"回收長度 {result['recovered_length_mm']:.0f} mm；"
+                    f"RQD 計入長度 {result['rqd_length_mm']:.0f} mm。"
+                )
+                st.download_button(
+                    "下載 RQD 計算結果（JSON）",
+                    data=__import__("json").dumps({
+                        "borehole_id": st.session_state.get("core_rqd_borehole", ""),
+                        "depth_start_m": st.session_state.get("core_rqd_depth", (None, None))[0],
+                        "depth_end_m": st.session_state.get("core_rqd_depth", (None, None))[1],
+                        **result,
+                        "method_note": "Core recovery uses total physically recovered core length. RQD uses only user-confirmed natural-discontinuity-bounded piece lengths >= 100 mm; mechanical breaks should be fitted together and must not be treated as natural discontinuities.",
+                    }, ensure_ascii=False, indent=2),
+                    file_name="core_rqd_result.json",
+                    mime="application/json",
+                )
 
+    # --- 新增：GSI 視覺化交叉查表工具 ---
+    with st.expander("🗺️ GSI 現場評估", expanded=False):
+        st.markdown("請依據現場岩體狀況，分別選取 **「岩體結構 (Structure)」** 與 **「節理面狀況 (Surface Condition)」**：")
+        
+        gsi_struct = st.selectbox("1. 岩體結構評估 (Structure)", [
+            "A. 巨塊狀 (Intact/Massive): 岩石塊體巨大，裂隙極少或無 (極佳)",
+            "B. 塊狀 (Blocky): 幾組互相交切之節理，岩塊呈方塊狀互鎖 (良好)",
+            "C. 次塊狀/夾雜碎屑 (Very Blocky / Disturbed): 多組密集節理，常受擾動或輕微風化",
+            "D. 碎裂/高度解體 (Blocky/Seamy/Broken): 節理極度發育，破碎成多角形小塊",
+            "E. 泥化破碎/極度揉屬 (Crushed/Sheared/Faulted): 如斷層泥、極度風化碎屑或土石混合崩積料"
+        ])
+        
+        gsi_cond = st.selectbox("2. 節理面狀況評估 (Joint Condition)", [
+            "I. 節理面極佳：平滑、未風化、面緊密閉合、無填充物",
+            "II. 節理面良好：輕微粗糙、微風化、面微開口 (<1mm)",
+            "III. 節理面普通：平滑至中等粗糙、中度風化、有軟弱夾層填充物",
+            "IV. 節理面不良：風化嚴重、夾有黏土質軟弱填充物、面開口較大 (>1-5mm)",
+            "V. 節理面極差：極度風化碎裂、厚層泥質填充物、遇水易軟化崩解"
+        ])
+        
+        # 簡易 GSI 矩陣對照邏輯
+        struct_idx = ["A", "B", "C", "D", "E"].index(gsi_struct[0])
+        cond_idx = ["I", "II", "III", "IV", "V"].index(gsi_cond[0])
+        
+        # 經典 GSI 矩陣估算矩陣
+        gsi_matrix = [
+            [85, 75, 65, 55, 40], # Massive (A)
+            [75, 65, 55, 45, 30], # Blocky (B)
+            [65, 55, 45, 35, 25], # Very Blocky (C)
+            [50, 45, 35, 25, 15], # Broken (D)
+            [35, 30, 25, 20, 10]  # Crushed (E)
+        ]
+        matrix_gsi = gsi_matrix[struct_idx][cond_idx]
+        st.success(f"🎯 依據現場條件交叉對照，建議 **GSI = {matrix_gsi}**。您可以直接在下方滑桿套用此數值！")
+        
+        apply_matrix_gsi = st.button("📥 一鍵套用此 GSI 建議值")
 
-    with st.expander("🕘 更新紀錄 (誰、何時、改了什麼)"):
-        lg = _cached_log(store)
-        if len(lg):
-            st.dataframe(lg.iloc[::-1].head(300), use_container_width=True, hide_index=True)
-            st.download_button("📥 下載完整更新紀錄 CSV", data=lg.to_csv(index=False).encode("utf-8-sig"),
-                               file_name="update_log.csv", mime="text/csv")
-        else:
-            st.info("尚無更新紀錄。")
+    hb_col1, hb_col2, hb_col3 = st.columns(3)
+    
+    with hb_col1:
+        st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
+        default_gsi_val = matrix_gsi if 'apply_matrix_gsi' in locals() and apply_matrix_gsi else 45
+        gsi = st.slider("地質強度指標 (GSI)", min_value=10, max_value=95, value=default_gsi_val, step=1)
+        
+        rock_preset = st.selectbox("選擇台灣常見岩性組成 (自動帶入常數 mi)", [
+            "砂岩 Sandstone (mi = 17)",
+            "頁岩 Shale (mi = 6)",
+            "泥岩 / 黏土岩 Mudstone / Claystone (mi = 4)",
+            "粉砂岩 Siltstone (mi = 7)",
+            "板岩 Slate (mi = 7)",
+            "片岩 Schist (mi = 10)",
+            "礫岩 Conglomerate (mi = 21)",
+            "石灰岩 Limestone (mi = 10)",
+            "安山岩 Andesite (mi = 25)",
+            "花崗岩 Granite (mi = 32)",
+            "自訂輸入 mi"
+        ])
+        mi_dict = {"17": 17, "6": 6, "4": 4, "7": 7, "10": 10, "21": 21, "25": 25, "32": 32}
+        default_mi = 17
+        for k, v in mi_dict.items():
+            if f"mi = {k})" in rock_preset:
+                default_mi = v
+                break
+        mi = st.number_input("完整岩石材料常數 (mi)", min_value=1, max_value=40, value=default_mi, step=1, key="geolysis_number_input_line_351")
+        sig_ci = st.number_input("完整岩石單軸抗壓強度 σci (UCS) [MPa]", min_value=0.5, max_value=250.0, value=25.0, step=1.0, key="geolysis_number_input_line_352")
+        st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
 
-# ==========================================
-# TAB 3
-# ==========================================
-else:
-    st.header("📁 團隊歷史估算紀錄")
-    history_data = load_history()
-    if history_data:
-        all_export = []
-        for record in reversed(history_data):
-            who = f" ({record['發布者']})" if record.get("發布者") else ""
-            title = f"📌 [{record.get('時間', '')}] {record.get('專案名稱', '(未命名)')}{who} ─ 總經費: NT$ {int(float(rec_get(record, '總經費'))):,}"
-            with st.expander(title):
-                m1 = st.columns(5)
-                m1[0].metric("直接工程費", f"{int(rec_get(record, '直接工程費')):,}")
-                m1[1].metric("雜項/附屬費用", f"{int(rec_get(record, '附屬費用', '安全品管等附屬', '雜項費')):,}")
-                m1[2].metric("職安及環保", f"{int(rec_get(record, '職安環保費')):,}")
-                m1[3].metric("管理及利潤", f"{int(rec_get(record, '管理費')):,}")
-                m1[4].metric("營業稅", f"{int(rec_get(record, '營業稅')):,}")
-                m2 = st.columns(4)
-                m2[0].metric("物價調整費", f"{int(rec_get(record, '物價調整費')):,}")
-                m2[1].metric("預備費", f"{int(rec_get(record, '預備費')):,}")
-                m2[2].metric("設計監造費", f"{int(rec_get(record, '設計監造費')):,}")
-                m2[3].metric("總經費", f"{int(rec_get(record, '總經費')):,}")
-                if record.get("細項明細"):
-                    d = pd.DataFrame(record["細項明細"])
-                    fmt = {c: "{:,.0f}" for c in ("單價(元)", "單價", "複價") if c in d.columns}
-                    if "數量" in d.columns:
-                        fmt["數量"] = "{:,.1f}"
-                    st.dataframe(d.style.format(fmt), use_container_width=True, hide_index=True)
-                    for row in record["細項明細"]:
-                        x = dict(row)
-                        x["專案名稱"] = record.get("專案名稱", "")
-                        x["估算時間"] = record.get("時間", "")
-                        all_export.append(x)
-                else:
-                    st.warning("舊版紀錄未儲存明細。")
-        st.markdown("---")
-        b1, b2, b3 = st.columns(3)
-        with b1:
-            summ = pd.DataFrame(history_data).drop(columns=["細項明細"], errors="ignore")
-            st.download_button("📥 下載總表 CSV", data=summ.to_csv(index=False).encode("utf-8-sig"),
-                               file_name="history_summary.csv", mime="text/csv", use_container_width=True)
-        with b2:
-            if all_export:
-                ex = pd.DataFrame(all_export)
-                cols = ["專案名稱", "估算時間"] + [c for c in ex.columns if c not in ("專案名稱", "估算時間")]
-                st.download_button("📥 下載含明細 CSV", data=ex[cols].to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="history_full_details.csv", mime="text/csv", use_container_width=True)
-        with b3:
-            st.checkbox("我了解將清空所有同仁的紀錄 (系統會先自動備份)", key="confirm_clear")
-            st.button("🗑 清空所有團隊紀錄", use_container_width=True,
-                      disabled=not (st.session_state.get("confirm_clear", False) and acting_user() and can_edit()),
-                      on_click=_clear_history, help="需先勾選左側確認；並需已輸入名字 (有設定帳號密碼時，需先在「單價資料庫」分頁登入)。")
+    with hb_col2:
+        st.markdown("##### 2. 擾動因子與工程應用尺度")
+        d_preset = st.selectbox("開挖/自然擾動程度參考 (D)", [
+            "自然邊坡 / 人工精細開挖或機械開挖 (D = 0.0)",
+            "小規模控制爆破或輕微解壓邊坡 (D = 0.5)",
+            "大規模開挖鬆動 / 嚴重應力釋放或崩塌擾動邊坡 (D = 0.7)",
+            "劣質爆破岩坡 (D = 1.0)",
+            "自訂擾動因子 D"
+        ])
+        if "0.0" in d_preset: d_default = 0.0
+        elif "0.5" in d_preset: d_default = 0.5
+        elif "0.7" in d_preset: d_default = 0.7
+        elif "1.0" in d_preset: d_default = 1.0
+        else: d_default = 0.0
+        d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
+        
+        app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
+            "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
+            "隧道/深基礎分析 (Tunnels - 依深度 H)",
+            "一般淺層/自訂國家有效圍壓 (General σ3_max)"
+        ])
+        gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=23.0, step=0.5, key="geolysis_number_input_line_376")
+        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0, value=20.0, step=1.0, key="geolysis_number_input_line_377")
+
+    # --- Hoek-Brown (2002) 核心運算 ---
+    mb = mi * math.exp((gsi - 100.0) / (28.0 - 14.0 * d_factor))
+    s_hb = math.exp((gsi - 100.0) / (9.0 - 3.0 * d_factor))
+    a_hb = 0.5 + (1.0 / 6.0) * (math.exp(-gsi / 15.0) - math.exp(-20.0 / 3.0))
+    
+    sig_c_mass = sig_ci * (s_hb ** a_hb)
+    sig_cm = sig_ci * ((mb + 4.0 * s_hb - a_hb * (mb - 8.0 * s_hb)) * ((mb / 4.0 + s_hb) ** (a_hb - 1.0))) / (2.0 * (1.0 + a_hb) * (2.0 + a_hb))
+    
+    gamma_mpa = gamma_rock / 1000.0
+    if "邊坡" in app_type:
+        sig3_max = sig_cm * 0.72 * ((sig_cm / (gamma_mpa * h_slope)) ** (-0.91))
+    elif "隧道" in app_type:
+        sig3_max = sig_cm * 0.47 * ((sig_cm / (gamma_mpa * h_slope)) ** (-0.94))
     else:
-        st.info("目前尚無團隊估算紀錄。")
+        sig3_max = sig_ci / 4.0
+        
+    sig3n = max(1e-5, sig3_max / sig_ci)
+    
+    num_phi = 6.0 * a_hb * mb * ((s_hb + mb * sig3n) ** (a_hb - 1.0))
+    den_phi = 2.0 * (1.0 + a_hb) * (2.0 + a_hb) + 6.0 * a_hb * mb * ((s_hb + mb * sig3n) ** (a_hb - 1.0))
+    sin_phi = max(0.0, min(0.99, num_phi / den_phi))
+    phi_hb_deg = math.degrees(math.asin(sin_phi))
+    
+    num_c = sig_ci * ((1.0 + 2.0 * a_hb) * s_hb + (1.0 - a_hb) * mb * sig3n) * ((s_hb + mb * sig3n) ** (a_hb - 1.0))
+    den_c = (1.0 + a_hb) * (2.0 + a_hb) * math.sqrt(1.0 + (6.0 * a_hb * mb * ((s_hb + mb * sig3n) ** (a_hb - 1.0))) / ((1.0 + a_hb) * (2.0 + a_hb)))
+    c_hb_mpa = num_c / den_c
+    c_hb_kpa = c_hb_mpa * 1000.0
+    
+    if sig_ci <= 100.0:
+        em_gpa = (1.0 - d_factor / 2.0) * math.sqrt(sig_ci / 100.0) * (10.0 ** ((gsi - 10.0) / 40.0))
+    else:
+        em_gpa = (1.0 - d_factor / 2.0) * (10.0 ** ((gsi - 10.0) / 40.0))
 
-st.markdown("---")
-st.markdown(
-    "<div style='text-align:center;color:gray;font-size:13px;'>"
-    "📌 預設單價整理自 12 份已發包預算書 (地錨、排樁、集水井)，各案年度不同、未做物價調整；"
-    "標示「估算待核」者案例中無依據。本系統僅供規劃階段概估，正式經費應依地質調查、設計圖說及預算書為準。"
-    "</div>",
-    unsafe_allow_html=True,
-)
+    with hb_col3:
+        st.markdown("##### 3. 等效莫耳－庫倫與岩體參數成果")
+        st.success(f"#### 等效凝聚力 $c'$：`{c_hb_kpa:.1f} kPa` ({c_hb_mpa:.3f} MPa)\n#### 等效內摩擦角 $\\phi'$：`{phi_hb_deg:.2f}°`")
+        st.metric("岩體變形模數 $E_m$", f"{em_gpa:.2f} GPa ({em_gpa*1000:.0f} MPa)")
+        st.metric("岩體整體抗壓強度 $\\sigma_{cm}$", f"{sig_cm:.2f} MPa ({sig_cm*1000:.0f} kPa)")
+        st.caption(f"**Hoek-Brown 準則常數**：$m_b = {mb:.3f}$ ｜ $s = {s_hb:.5f}$ ｜ $a = {a_hb:.3f}$")
+
+    with st.expander("📈 展開檢視：Hoek-Brown 非線性破壞包絡線 vs. 等效莫耳－庫倫直線圖", expanded=False):
+        s3_vals_kpa = [sig3_max * 1000.0 * (i / 50.0) for i in range(51)]
+        s1_hb_kpa = []
+        s1_mc_kpa = []
+        tan_phi = math.tan(math.radians(phi_hb_deg))
+        kp = (1.0 + sin_phi) / (1.0 - sin_phi)
+        sig_cm_mc_kpa = 2.0 * c_hb_kpa * math.sqrt(kp)
+        
+        for s3_k in s3_vals_kpa:
+            s3_m = s3_k / 1000.0
+            s1_m = s3_m + sig_ci * ((mb * (s3_m / sig_ci) + s_hb) ** a_hb)
+            s1_hb_kpa.append(s1_m * 1000.0)
+            s1_mc_kpa.append(sig_cm_mc_kpa + kp * s3_k)
+            
+        fig_hb = go.Figure()
+        fig_hb.add_trace(go.Scatter(x=s3_vals_kpa, y=s1_hb_kpa, mode='lines', name='Hoek-Brown 非線性準則', line=dict(color='#d62728', width=3)))
+        fig_hb.add_trace(go.Scatter(x=s3_vals_kpa, y=s1_mc_kpa, mode='lines', name=f"等效 Mohr-Coulomb (c'={c_hb_kpa:.0f}kPa, ϕ'={phi_hb_deg:.1f}°)", line=dict(color='#1f77b4', width=2, dash='dash')))
+        fig_hb.update_layout(title="主應力空間破壞包絡線擬合 (σ1 vs. σ3)", xaxis_title="最小主應力 / 圍壓 σ3 [kPa]", yaxis_title="最大主應力 σ1 [kPa]", height=380)
+        st.plotly_chart(fig_hb, width="stretch")
+
+
+# ==============================================================================
+# 模組二：土壤分類系統
+# ==============================================================================
+with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded=exp_2):
+    st.subheader("🌱 土壤分類系統")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        ll = st.number_input("液性限度 Liquid Limit (LL) [%]", min_value=0.0, max_value=200.0, value=42.0, step=1.0, key="geolysis_number_input_line_447")
+        pl = st.number_input("塑性限度 Plastic Limit (PL) [%]", min_value=0.0, max_value=200.0, value=22.0, step=1.0, key="geolysis_number_input_line_448")
+        is_np = st.checkbox("無塑性 (Non-Plastic, NP)", value=False)
+        organic = st.checkbox("含高有機質 (Organic Soil)", value=False)
+        pi = 0.0 if is_np else max(0.0, ll - pl)
+    with col_b:
+        fines = st.number_input("過 200 號篩百分比 (Fines < 0.075mm) [%]", min_value=0.0, max_value=100.0, value=38.0, step=1.0, key="geolysis_number_input_line_453")
+        sand = st.number_input("砂粒含量 (Sand, 0.075mm ~ 4.75mm) [%]", min_value=0.0, max_value=100.0, value=42.0, step=1.0, key="geolysis_number_input_line_454")
+        gravel = max(0.0, 100.0 - fines - sand)
+        d10 = st.number_input("有效粒徑 D10 [mm]", min_value=0.001, value=0.15, format="%.3f", key="geolysis_number_input_line_456")
+        d30 = st.number_input("粒徑 D30 [mm]", min_value=0.001, value=0.60, format="%.3f", key="geolysis_number_input_line_457")
+        d60 = st.number_input("粒徑 D60 [mm]", min_value=0.001, value=1.80, format="%.3f", key="geolysis_number_input_line_458")
+        cu = d60 / d10 if d10 > 0 else 0.0
+        cc = (d30 ** 2) / (d10 * d60) if (d10 * d60) > 0 else 0.0
+
+    a_line = 0.73 * (ll - 20.0)
+    if fines >= 50.0:
+        uscs_sym, uscs_desc = ("CL", "無機低塑性黏土") if ll < 50 else ("CH", "無機高塑性黏土")
+    else:
+        uscs_sym, uscs_desc = "SC", "黏土質砂土"
+    
+    gi = max(0, round((fines - 35.0) * (0.2 + 0.005 * (ll - 40.0)) + 0.01 * (fines - 15.0) * (pi - 10.0)))
+    aashto_sym, aashto_desc = ("A-7-6", "普通至不良（粉土－黏土材料）") if fines > 35 else ("A-2-4", "優良至良好（粒料土壤）")
+
+    res_col1, res_col2 = st.columns(2)
+    with res_col1:
+        st.success(f"#### USCS 分類結果：`{uscs_sym}` — {uscs_desc}")
+    with res_col2:
+        st.info(f"#### AASHTO 分類結果：`{aashto_sym} ({gi})` — {aashto_desc}")
+
+
+# ==============================================================================
+# 模組三：SPT 標準貫入試驗全修正
+# ==============================================================================
+with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=exp_3):
+    st.subheader("🔨 SPT 標準貫入試驗全修正")
+    col_spt1, col_spt2, col_spt3 = st.columns(3)
+    with col_spt1:
+        n_measured = st.number_input("現場量測 SPT-N 值", min_value=1, max_value=100, value=18, key="geolysis_number_input_line_485")
+        em = 0.80
+        cb, cs, cr = 1.0, 1.0, 0.95
+    with col_spt2:
+        sigma_v = st.number_input("有效覆土應力 σ'_v [kPa]", min_value=5.0, value=95.0, step=5.0, key="geolysis_number_input_line_489")
+        cn = min(2.0, math.sqrt(100.0 / sigma_v))
+    n60 = (n_measured * em * cb * cs * cr) / 0.60
+    n1_60_corr = n60 * cn
+    phi_hat = min(45.0, math.sqrt(20.0 * n1_60_corr) + 15.0)
+    with col_spt3:
+        st.metric("能量與器材修正值 N60", f"{n60:.2f}")
+        st.metric("最終設計貫入值 (N1)'60", f"{n1_60_corr:.2f}")
+        st.info(f"💡 推估內摩擦角：**{phi_hat:.1f}°**")
+
+
+# ==============================================================================
+# 模組四：容許承載力與沉陷控制
+# ==============================================================================
+with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp_4):
+    st.subheader("📏 容許承載力與沉陷控制")
+    c_abc1, c_abc2, c_abc3 = st.columns(3)
+    with c_abc1:
+        n_design = st.number_input("影響深度內設計平均 N 值", min_value=1.0, value=float(round(n1_60_corr, 1)), step=1.0, key="geolysis_number_input_line_507")
+    with c_abc2:
+        b_abc = st.number_input("基礎寬度 B [m]", min_value=0.3, value=2.5, step=0.1, key="geolysis_number_input_line_509")
+        df_abc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1, key="geolysis_number_input_line_510")
+    with c_abc3:
+        qa = (n_design / 0.08) * min(1.0 + 0.33 * (df_abc / b_abc), 1.33)
+        st.success(f"#### 容許承載力 qa：`{qa:.2f} kPa`")
+
+
+# ==============================================================================
+# 模組五：極限承載力四大理論
+# ==============================================================================
+with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp_5):
+    st.subheader("🏗️ 極限承載力四大理論")
+    u_col1, u_col2, u_col3, u_col4 = st.columns(4)
+    with u_col1:
+        ubc_theory = st.selectbox("選擇理論公式", ["Vesic (1973)", "Hansen (1970)", "Meyerhof (1963)", "Terzaghi (1943)"])
+        f_shape = st.selectbox("基礎形狀", ["連續/條形 (Strip)", "方形 (Square)", "圓形 (Circle)", "矩形 (Rectangle)"])
+        b_ubc = st.number_input("基礎寬度 B [m]", min_value=0.2, value=2.0, step=0.1, key="geolysis_number_input_line_525")
+        df_ubc = st.number_input("基礎埋深 Df [m]", min_value=0.0, value=1.5, step=0.1, key="geolysis_number_input_line_526")
+    with u_col2:
+        param_source = st.selectbox("力學參數來源", ["手動輸入 c, ϕ", "帶入模組一：Hoek-Brown 等效 c', ϕ'", "帶入模組三：SPT 經驗估算 ϕ"])
+        default_c = float(round(c_hb_kpa, 1)) if "模組一" in param_source else 15.0
+        default_phi = float(round(phi_hb_deg, 1)) if "模組一" in param_source else (float(round(phi_hat, 1)) if "模組三" in param_source else 30.0)
+        c_ubc = st.number_input("凝聚力 c [kPa]", min_value=0.0, value=default_c, step=1.0, key="geolysis_number_input_line_531")
+        phi_ubc = st.number_input("內摩擦角 ϕ [度]", min_value=0.0, max_value=55.0, value=min(55.0, default_phi), step=1.0, key="geolysis_number_input_line_532")
+        gamma_ubc = st.number_input("濕單位重 γ [kN/m³]", min_value=10.0, value=18.5, step=0.5, key="geolysis_number_input_line_533")
+        fs_ubc = st.number_input("安全係數 (FS)", min_value=1.0, value=3.0, step=0.5, key="geolysis_number_input_line_534")
+    with u_col3:
+        dw_ubc = st.number_input("地下水位深度 Dw [m]", min_value=0.0, value=1.2, step=0.2, key="geolysis_number_input_line_536")
+    
+    # 簡易極限承載力運算
+    phi_r = math.radians(phi_ubc)
+    nq = math.exp(math.pi * math.tan(phi_r)) * (math.tan(math.radians(45.0) + phi_r / 2.0) ** 2)
+    nc = (nq - 1.0) / math.tan(phi_r) if phi_ubc > 0 else 5.14
+    q_ult = (c_ubc * nc) + (gamma_ubc * df_ubc * nq)
+    q_allow = q_ult / fs_ubc
+
+    with u_col4:
+        st.metric("總極限承載力 q_ult", f"{q_ult:.2f} kPa")
+        st.metric(f"總容許承載力 q_all (FS={fs_ubc})", f"{q_allow:.2f} kPa")
