@@ -9,6 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import streamlit.components.v1 as components
 
+from core_log_parser import parse_core_log
 from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, rotate_image, validate_tray_quadrilateral
 
 core_tray_editor = components.declare_component(
@@ -18,6 +19,11 @@ core_tray_editor = components.declare_component(
 
 # 圖片處理快取：Streamlit 每次 widget 互動都會重跑 app.py，
 # 因此將昂貴的解碼、托盤偵測、透視校正與列判識結果快取，避免反覆計算。
+@st.cache_data(show_spinner=False, max_entries=8)
+def _cached_parse_core_log(raw_bytes: bytes, filename: str, start_depth_m: float):
+    return parse_core_log(raw_bytes, filename, start_depth_m=start_depth_m, row_length_m=1.0)
+
+
 @st.cache_data(show_spinner=False, max_entries=64)
 def _cached_inspect_image(raw_bytes: bytes):
     return inspect_image(raw_bytes)
@@ -111,12 +117,100 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         with meta_cols[0]:
             core_borehole = st.text_input("鑽孔編號（選填）", key="core_borehole_id")
         with meta_cols[1]:
-            depth_start = st.number_input("起始深度（m）", min_value=0.0, value=12.0, step=0.5, key="core_depth_start")
+            depth_start = st.number_input("起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_depth_start")
         with meta_cols[2]:
             depth_end = st.number_input("結束深度（m）", min_value=0.1, value=15.0, step=0.5, key="core_depth_end")
 
+        st.markdown("**整孔柱狀圖匯入（主要方式）**")
+        st.caption("直接上傳由岩心照片整理工具產製的 Word／PDF。系統會擷取每箱照片，依 4 列 × 每列 1 m 切成單列影像，並讀取旁側連續列號建立深度索引。")
+        core_log_file = st.file_uploader(
+            "上傳整孔岩心柱狀圖（DOCX／PDF）",
+            type=["docx", "pdf"],
+            accept_multiple_files=False,
+            key="core_log_upload",
+            help="支援 Core-photo-depth-matching-alignment 工具輸出的 Word／PDF 格式。",
+        )
+        if core_log_file is not None:
+            try:
+                parsed_log = _cached_parse_core_log(
+                    core_log_file.getvalue(), core_log_file.name, float(depth_start)
+                )
+                row_records = parsed_log["records"]
+                st.success(f"已擷取 {parsed_log['pages_detected']} 頁、{len(row_records)} 列岩心影像。")
+                for warning in parsed_log["warnings"]:
+                    st.warning(warning)
+                import json as _json
+                index_payload = {
+                    "borehole_id": core_borehole or None,
+                    "start_depth_m": float(depth_start),
+                    "row_length_m": 1.0,
+                    "rows_per_box": 4,
+                    "pages_detected": parsed_log["pages_detected"],
+                    "rows_detected": len(row_records),
+                    "rows": [rec.metadata() for rec in row_records],
+                    "warnings": parsed_log["warnings"],
+                    "note": "Depths are derived from the user-provided start depth and sequential row labels. Header image OCR is not yet implemented.",
+                }
+                st.download_button(
+                    "下載岩心列深度索引（JSON）",
+                    data=_json.dumps(index_payload, ensure_ascii=False, indent=2),
+                    file_name="core_log_depth_index.json", mime="application/json",
+                    key="download_core_log_index",
+                )
+                row_labels = []
+                for i, rec in enumerate(row_records):
+                    if rec.row_number is not None and rec.depth_start_m is not None:
+                        label = f"第 {rec.row_number} 列｜{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f} m"
+                    elif rec.row_number is not None:
+                        label = f"第 {rec.row_number} 列｜深度待確認"
+                    else:
+                        label = f"頁 {rec.page}／箱 {rec.box_index}／第 {rec.row_in_box} 列｜列號待確認"
+                    row_labels.append(label)
+                selected_log_row = st.selectbox(
+                    "檢視單列岩心影像", options=list(range(len(row_records))),
+                    format_func=lambda i: row_labels[i], key="core_log_active_row",
+                )
+                selected_record = row_records[selected_log_row]
+                log_col1, log_col2 = st.columns([3, 1])
+                with log_col1:
+                    st.image(
+                        selected_record.image,
+                        caption=f"{row_labels[selected_log_row]}｜{selected_record.width_px} × {selected_record.height_px} px",
+                        use_container_width=True,
+                    )
+                with log_col2:
+                    st.metric("頁碼", selected_record.page)
+                    st.metric("箱序", selected_record.box_index)
+                    st.metric("箱內列序", selected_record.row_in_box)
+                    if selected_record.row_number is not None:
+                        st.metric("辨識列號", selected_record.row_number)
+                    if selected_record.depth_start_m is not None:
+                        st.caption(f"深度：{selected_record.depth_start_m:.1f}–{selected_record.depth_end_m:.1f} m")
+                if selected_record.row_number is not None:
+                    row_measurement, row_scale = calibrate_row_measurement_span(
+                        selected_record.image, 0, selected_record.image.width, 1000.0
+                    )
+                    log_result, log_overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
+                    if log_result.get("success"):
+                        st.image(
+                            _cached_editor_display(log_overlay),
+                            caption="影像候選：綠色為岩心候選、紅色為低占據空隙、黃色為不確定區；不等同天然節理或正式 RQD。",
+                            use_container_width=True,
+                        )
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("岩心候選區", len(log_result["segments"]))
+                        m2.metric("疑似空隙區", len(log_result["gaps"]))
+                        m3.metric("不確定區", len(log_result["uncertain"]))
+                    else:
+                        st.info(log_result.get("warning", "此列暫時無法完成影像候選分析。"))
+                st.caption("目前完成文件擷取、列號與深度索引及單列影像候選分析。頁首孔號／深度範圍仍是圖片，尚未自動 OCR；起始深度由上方輸入一次。RQD 仍須人工確認天然節理與機械破損。")
+            except Exception as log_exc:
+                st.error(f"柱狀圖解析失敗：{log_exc}")
+
+        st.divider()
+        st.markdown("**原始岩心箱照片（備用方式）**")
         core_photos = st.file_uploader(
-            "上傳岩心箱照片（可多選）",
+            "上傳單張或多張原始岩心箱照片",
             type=["jpg", "jpeg", "png", "webp"],
             accept_multiple_files=True,
             key="core_photo_upload",
