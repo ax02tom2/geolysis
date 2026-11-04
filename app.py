@@ -6,6 +6,7 @@ import math
 import base64
 import hashlib
 from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 import streamlit.components.v1 as components
 
@@ -19,7 +20,7 @@ core_tray_editor = components.declare_component(
 
 # 圖片處理快取：Streamlit 每次 widget 互動都會重跑 app.py，
 # 因此將昂貴的解碼、托盤偵測、透視校正與列判識結果快取，避免反覆計算。
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_data(show_spinner=False, max_entries=2)
 def _cached_parse_core_log(raw_bytes: bytes, filename: str, start_depth_m: float):
     return parse_core_log(raw_bytes, filename, start_depth_m=start_depth_m, row_length_m=1.0)
 
@@ -65,6 +66,80 @@ def _cached_editor_display(image):
     preview = image.copy()
     preview.thumbnail((1600, 1600))
     return preview
+
+
+def _compose_full_page_review(page_image, row_records, selected_record=None, show_analysis=True):
+    """Draw row-level V8 candidates directly over the complete original PDF page."""
+    canvas = page_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(canvas)
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 18)
+    except Exception:
+        font = ImageFont.load_default()
+
+    for rec in row_records:
+        if not rec.page_bbox_px:
+            continue
+        x0, y0, x1, y1 = [int(v) for v in rec.page_bbox_px]
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(canvas.width, x1), min(canvas.height, y1)
+        if x1 <= x0 or y1 <= y0:
+            continue
+
+        status = "待確認"
+        if show_analysis and rec.row_number is not None:
+            try:
+                row_measurement, row_scale = calibrate_row_measurement_span(
+                    rec.image, 0, rec.image.width, 1000.0
+                )
+                analysis, row_overlay = _cached_row_analysis(
+                    row_measurement, row_scale["mm_per_px"]
+                )
+                if analysis.get("success") and row_overlay is not None:
+                    target_size = (x1 - x0, y1 - y0)
+                    overlay_resized = row_overlay.convert("RGB").resize(target_size, Image.Resampling.BILINEAR)
+                    original_crop = canvas.crop((x0, y0, x1, y1))
+                    canvas.paste(Image.blend(original_crop, overlay_resized, 0.72), (x0, y0))
+                    if analysis.get("uncertain"):
+                        status = "需確認"
+                    elif analysis.get("gaps"):
+                        status = "有疑似空隙"
+                    else:
+                        status = "岩心候選"
+                else:
+                    status = "無法判釋"
+            except Exception:
+                status = "分析失敗"
+
+        selected = (selected_record is not None and
+                    rec.page == selected_record.page and
+                    rec.row_number == selected_record.row_number and
+                    rec.box_index == selected_record.box_index and
+                    rec.row_in_box == selected_record.row_in_box)
+        color = (20, 105, 220) if selected else {
+            "岩心候選": (20, 165, 75),
+            "有疑似空隙": (210, 45, 40),
+            "需確認": (225, 155, 20),
+            "無法判釋": (225, 155, 20),
+            "分析失敗": (225, 155, 20),
+            "待確認": (225, 155, 20),
+        }.get(status, (225, 155, 20))
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=color, width=6 if selected else 3)
+        depth_label = (f"{rec.depth_start_m:.1f}-{rec.depth_end_m:.1f}m"
+                       if rec.depth_start_m is not None else "DEPTH?")
+        row_label = f"R{rec.row_number}" if rec.row_number is not None else f"P{rec.page}-B{rec.box_index}-R{rec.row_in_box}"
+        status_label = {
+            "岩心候選": "CORE", "有疑似空隙": "GAP?", "需確認": "CHECK",
+            "無法判釋": "N/A", "分析失敗": "ERROR", "待確認": "REVIEW",
+        }.get(status, "REVIEW")
+        label = f"{row_label} | {depth_label} | {status_label}"
+        text_box = draw.textbbox((0, 0), label, font=font)
+        label_w = min(canvas.width - 8, text_box[2] - text_box[0] + 12)
+        label_h = text_box[3] - text_box[1] + 10
+        label_y = max(0, y0 - label_h)
+        draw.rectangle((x0, label_y, min(canvas.width - 1, x0 + label_w), label_y + label_h), fill=color)
+        draw.text((x0 + 6, label_y + 4), label, fill=(255, 255, 255), font=font)
+    return canvas
 
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
@@ -122,13 +197,13 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             depth_end = st.number_input("結束深度（m）", min_value=0.1, value=15.0, step=0.5, key="core_depth_end")
 
         st.markdown("**整孔柱狀圖匯入（主要方式）**")
-        st.caption("直接上傳由岩心照片整理工具產製的 Word／PDF。系統會擷取每箱照片，依 4 列 × 每列 1 m 切成單列影像，並讀取旁側連續列號建立深度索引。")
+        st.caption("優先以完整 PDF 頁面呈現原始資料，判釋標記直接疊在原頁面上；原始文件不會被修改。")
         core_log_file = st.file_uploader(
             "上傳整孔岩心柱狀圖（DOCX／PDF）",
             type=["docx", "pdf"],
             accept_multiple_files=False,
             key="core_log_upload",
-            help="支援 Core-photo-depth-matching-alignment 工具輸出的 Word／PDF 格式。",
+            help="支援 Core-photo-depth-matching-alignment 工具輸出的 Word／PDF 格式。PDF 可完整呈現原頁面並疊加判釋標記。",
         )
         if core_log_file is not None:
             try:
@@ -136,74 +211,98 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     core_log_file.getvalue(), core_log_file.name, float(depth_start)
                 )
                 row_records = parsed_log["records"]
-                st.success(f"已擷取 {parsed_log['pages_detected']} 頁、{len(row_records)} 列岩心影像。")
-                for warning in parsed_log["warnings"]:
-                    st.warning(warning)
-                import json as _json
-                index_payload = {
-                    "borehole_id": core_borehole or None,
-                    "start_depth_m": float(depth_start),
-                    "row_length_m": 1.0,
-                    "rows_per_box": 4,
-                    "pages_detected": parsed_log["pages_detected"],
-                    "rows_detected": len(row_records),
-                    "rows": [rec.metadata() for rec in row_records],
-                    "warnings": parsed_log["warnings"],
-                    "note": "Depths are derived from the user-provided start depth and sequential row labels. Header image OCR is not yet implemented.",
-                }
-                st.download_button(
-                    "下載岩心列深度索引（JSON）",
-                    data=_json.dumps(index_payload, ensure_ascii=False, indent=2),
-                    file_name="core_log_depth_index.json", mime="application/json",
-                    key="download_core_log_index",
-                )
-                row_labels = []
-                for i, rec in enumerate(row_records):
-                    if rec.row_number is not None and rec.depth_start_m is not None:
-                        label = f"第 {rec.row_number} 列｜{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f} m"
-                    elif rec.row_number is not None:
-                        label = f"第 {rec.row_number} 列｜深度待確認"
-                    else:
-                        label = f"頁 {rec.page}／箱 {rec.box_index}／第 {rec.row_in_box} 列｜列號待確認"
-                    row_labels.append(label)
-                selected_log_row = st.selectbox(
-                    "檢視單列岩心影像", options=list(range(len(row_records))),
-                    format_func=lambda i: row_labels[i], key="core_log_active_row",
-                )
-                selected_record = row_records[selected_log_row]
-                log_col1, log_col2 = st.columns([3, 1])
-                with log_col1:
+                st.success(f"已讀取 {parsed_log['pages_detected']} 頁，建立 {len(row_records)} 列深度索引。")
+
+                if parsed_log.get("format") == "pdf" and parsed_log.get("page_views"):
+                    page_views = parsed_log["page_views"]
+                    page_numbers = [v["page"] for v in page_views]
+                    selected_page = st.selectbox(
+                        "檢視原始頁面", page_numbers,
+                        format_func=lambda p: f"第 {p} 頁／共 {len(page_numbers)} 頁",
+                        key="core_log_active_page",
+                    )
+                    page_view = next(v for v in page_views if v["page"] == selected_page)
+                    page_rows = [r for r in row_records if r.page == selected_page]
+                    row_options = list(range(len(page_rows)))
+                    selected_idx = st.selectbox(
+                        "選取列（可用來定位及查看判釋摘要）",
+                        row_options,
+                        format_func=lambda i: (
+                            f"第 {page_rows[i].row_number} 列｜{page_rows[i].depth_start_m:.1f}–{page_rows[i].depth_end_m:.1f} m"
+                            if page_rows[i].row_number is not None and page_rows[i].depth_start_m is not None
+                            else f"箱 {page_rows[i].box_index}／第 {page_rows[i].row_in_box} 列｜深度待確認"
+                        ),
+                        key=f"core_log_selected_row_page_{selected_page}",
+                    ) if page_rows else None
+                    selected_record = page_rows[selected_idx] if selected_idx is not None else None
+                    page_display_mode = st.radio(
+                        "頁面顯示", ["判釋疊圖", "原始頁面"], horizontal=True,
+                        key=f"core_log_display_mode_{selected_page}",
+                    )
+                    review_image = _compose_full_page_review(
+                        page_view["image"], page_rows, selected_record,
+                        show_analysis=(page_display_mode == "判釋疊圖"),
+                    )
                     st.image(
-                        selected_record.image,
-                        caption=f"{row_labels[selected_log_row]}｜{selected_record.width_px} × {selected_record.height_px} px",
-                        use_container_width=True,
+                        review_image,
+                        caption=f"第 {selected_page} 頁完整原始頁面｜{page_view['width_px']} × {page_view['height_px']} px 預覽",
+                        width="stretch",
                     )
-                with log_col2:
-                    st.metric("頁碼", selected_record.page)
-                    st.metric("箱序", selected_record.box_index)
-                    st.metric("箱內列序", selected_record.row_in_box)
-                    if selected_record.row_number is not None:
-                        st.metric("辨識列號", selected_record.row_number)
-                    if selected_record.depth_start_m is not None:
-                        st.caption(f"深度：{selected_record.depth_start_m:.1f}–{selected_record.depth_end_m:.1f} m")
-                if selected_record.row_number is not None:
-                    row_measurement, row_scale = calibrate_row_measurement_span(
-                        selected_record.image, 0, selected_record.image.width, 1000.0
-                    )
-                    log_result, log_overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
-                    if log_result.get("success"):
-                        st.image(
-                            _cached_editor_display(log_overlay),
-                            caption="影像候選：綠色為岩心候選、紅色為低占據空隙、黃色為不確定區；不等同天然節理或正式 RQD。",
-                            use_container_width=True,
+                    st.caption("綠框／綠色覆層：岩心本體候選；紅框／紅色覆層：疑似空隙；黃框：不確定或無法判釋；藍框：目前選取列。這些是影像候選，不代表天然節理或正式 RQD。")
+                    if selected_record is not None:
+                        st.markdown("**選取列的判釋摘要**")
+                        if selected_record.row_number is not None:
+                            st.write(f"第 {selected_record.row_number} 列｜深度 {selected_record.depth_start_m:.1f}–{selected_record.depth_end_m:.1f} m")
+                        else:
+                            st.warning("此列尚未取得可靠列號，深度需要人工確認。")
+                        row_measurement, row_scale = calibrate_row_measurement_span(
+                            selected_record.image, 0, selected_record.image.width, 1000.0
                         )
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("岩心候選區", len(log_result["segments"]))
-                        m2.metric("疑似空隙區", len(log_result["gaps"]))
-                        m3.metric("不確定區", len(log_result["uncertain"]))
-                    else:
-                        st.info(log_result.get("warning", "此列暫時無法完成影像候選分析。"))
-                st.caption("目前完成文件擷取、列號與深度索引及單列影像候選分析。頁首孔號／深度範圍仍是圖片，尚未自動 OCR；起始深度由上方輸入一次。RQD 仍須人工確認天然節理與機械破損。")
+                        log_result, _ = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
+                        if log_result.get("success"):
+                            a, b, c = st.columns(3)
+                            a.metric("岩心本體候選", len(log_result["segments"]))
+                            b.metric("疑似空隙", len(log_result["gaps"]))
+                            c.metric("不確定區", len(log_result["uncertain"]))
+                            st.caption("目前演算法是影像占據特徵分析，尚未判斷天然節理、機械破損或 RQD 合格段。")
+                        else:
+                            st.warning(log_result.get("warning", "此列暫時無法完成影像候選分析。"))
+                else:
+                    st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 的實際分頁版面；暫以列清單檢視，避免產生與原文件不一致的假頁面。建議使用原工具匯出的 PDF 進行完整頁面疊圖。")
+                    row_labels = [
+                        (f"第 {r.row_number} 列｜{r.depth_start_m:.1f}–{r.depth_end_m:.1f} m"
+                         if r.row_number is not None and r.depth_start_m is not None
+                         else f"頁 {r.page}／箱 {r.box_index}／第 {r.row_in_box} 列｜深度待確認")
+                        for r in row_records
+                    ]
+                    selected_log_row = st.selectbox(
+                        "檢視單列岩心影像", list(range(len(row_records))),
+                        format_func=lambda i: row_labels[i], key="core_log_active_row",
+                    )
+                    st.image(row_records[selected_log_row].image, width="stretch")
+
+                with st.expander("匯入索引與解析警告", expanded=False):
+                    import json as _json
+                    index_payload = {
+                        "borehole_id": core_borehole or None,
+                        "start_depth_m": float(depth_start),
+                        "row_length_m": 1.0,
+                        "rows_per_box": 4,
+                        "pages_detected": parsed_log["pages_detected"],
+                        "rows_detected": len(row_records),
+                        "rows": [rec.metadata() for rec in row_records],
+                        "warnings": parsed_log["warnings"],
+                        "note": "PDF page previews are rendered from the original pages. Row depths are derived from the user-provided start depth and sequential row labels; verify against the page header.",
+                    }
+                    st.download_button(
+                        "下載岩心列深度索引（JSON）",
+                        data=_json.dumps(index_payload, ensure_ascii=False, indent=2),
+                        file_name="core_log_depth_index.json", mime="application/json",
+                        key="download_core_log_index",
+                    )
+                    for warning in parsed_log["warnings"]:
+                        st.warning(warning)
+                st.caption("頁面上的色彩標記僅代表系統初步候選。正式回收率、RQD 與 Hoek–Brown 參數，仍須經過人工確認。")
             except Exception as log_exc:
                 st.error(f"柱狀圖解析失敗：{log_exc}")
 
@@ -310,7 +409,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                                 st.image(
                                     _cached_editor_display(analysis_overlay),
                                     caption=f"第 {row_index + 1} 列判識結果｜綠色：岩心候選；紅色：空隙候選；黃色：不確定區",
-                                    use_container_width=True,
+                                    width="stretch",
                                 )
                                 result_cols = st.columns(3)
                                 result_cols[0].metric("岩心候選", len(result["segments"]))
@@ -530,7 +629,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         fig_hb.add_trace(go.Scatter(x=s3_vals_kpa, y=s1_hb_kpa, mode='lines', name='Hoek-Brown 非線性準則', line=dict(color='#d62728', width=3)))
         fig_hb.add_trace(go.Scatter(x=s3_vals_kpa, y=s1_mc_kpa, mode='lines', name=f"等效 Mohr-Coulomb (c'={c_hb_kpa:.0f}kPa, ϕ'={phi_hb_deg:.1f}°)", line=dict(color='#1f77b4', width=2, dash='dash')))
         fig_hb.update_layout(title="主應力空間破壞包絡線擬合 (σ1 vs. σ3)", xaxis_title="最小主應力 / 圍壓 σ3 [kPa]", yaxis_title="最大主應力 σ1 [kPa]", height=380)
-        st.plotly_chart(fig_hb, use_container_width=True)
+        st.plotly_chart(fig_hb, width="stretch")
 
 
 # ==============================================================================
