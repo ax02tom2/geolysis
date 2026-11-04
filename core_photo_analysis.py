@@ -880,3 +880,252 @@ def draw_core_row_analysis_v8(row_image: Image.Image, result: dict) -> Image.Ima
             a, b = item["x_start_px"], item["x_end_px"]
             draw.rectangle((a, 0, max(a, b - 1), out.height - 1), fill=fill, outline=outline, width=2)
     return out
+
+
+def detect_core_break_candidates_v1(
+    row_image: Image.Image,
+    mm_per_px: float,
+    min_line_coverage: float = 0.72,
+    min_separation_mm: float = 25.0,
+) -> dict:
+    """Detect transverse fracture-like traces on a single 1 m core row.
+
+    This is a conservative image-cue detector, not a geological classifier.
+    It uses blue-tray masking and near-transverse Canny/Hough line segments.
+    Suggested natural/mechanical labels are geometry-based review prompts only;
+    every candidate remains unconfirmed and must be checked by an engineer.
+    """
+    import cv2
+    import numpy as np
+
+    if not np.isfinite(mm_per_px) or mm_per_px <= 0:
+        raise ValueError("mm_per_px 必須是有限且大於 0 的數值。")
+    if not 0.1 <= min_line_coverage <= 0.9:
+        raise ValueError("min_line_coverage 必須介於 0.1 至 0.9。")
+    if min_separation_mm <= 0:
+        raise ValueError("min_separation_mm 必須大於 0。")
+
+    rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+    if w < 100 or h < 36:
+        return {"success": False, "candidates": [], "warning": "列影像尺寸不足，無法辨識疑似斷裂。"}
+
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    blue = cv2.inRange(hsv, (78, 38, 28), (132, 255, 255)) > 0
+    y0, y1 = int(h * 0.14), int(h * 0.86)
+    blue_ratio = float(blue[y0:y1].mean())
+    if blue_ratio < 0.02:
+        return {
+            "success": False, "candidates": [], "blue_background_ratio": round(blue_ratio, 4),
+            "warning": "未辨識到足夠藍色托盤背景，無法可靠排除托盤邊緣；斷裂辨識已停止。",
+        }
+
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    edges = cv2.Canny(gray, 35, 110)
+    core_mask = (~blue).astype(np.uint8) * 255
+    core_mask[:y0, :] = 0
+    core_mask[y1:, :] = 0
+    edges = cv2.bitwise_and(edges, core_mask)
+
+    min_line = max(12, int(round((y1 - y0) * min_line_coverage)))
+    min_gap = max(3, int(round(h * 0.08)))
+    threshold = max(12, int(round((y1 - y0) * 0.20)))
+    lines = cv2.HoughLinesP(
+        edges, 1, np.pi / 180.0, threshold=threshold,
+        minLineLength=min_line, maxLineGap=min_gap,
+    )
+    if lines is None:
+        return {
+            "success": True, "candidates": [], "image_width_px": w,
+            "mm_per_px": float(mm_per_px), "blue_background_ratio": round(blue_ratio, 4),
+            "method": "blue_mask_canny_hough_transverse_v1",
+            "warning": "未找到足夠明確的橫向不連續線；不代表岩心沒有天然節理或破損。",
+        }
+
+    raw = []
+    for entry in lines[:, 0, :]:
+        x1, yy1, x2, yy2 = [int(v) for v in entry]
+        dx, dy = x2 - x1, yy2 - yy1
+        length = float(np.hypot(dx, dy))
+        if length < min_line:
+            continue
+        angle = float(np.degrees(np.arctan2(abs(dy), abs(dx) + 1e-9)))
+        # Core axis is horizontal; retain only traces that cross a meaningful
+        # portion of the visible core diameter.
+        if angle < 52.0:
+            continue
+        mx, my = int(round((x1 + x2) / 2)), int(round((yy1 + yy2) / 2))
+        # Exclude the tray/core end boundaries; these are commonly stronger
+        # edges than actual fractures and otherwise create false candidates.
+        x_margin = max(8, int(round(w * 0.05)))
+        if not (x_margin <= mx < w - x_margin and y0 <= my < y1):
+            continue
+        raw.append({
+            "x_mid": mx, "y_mid": my, "angle": angle, "length": length,
+            "line": [x1, yy1, x2, yy2],
+        })
+
+    # Merge Hough fragments belonging to the same visible trace.
+    raw.sort(key=lambda item: item["x_mid"])
+    cluster_tol = max(4, int(round(w * 0.012)))
+    clusters = []
+    for item in raw:
+        if not clusters or item["x_mid"] - np.median([v["x_mid"] for v in clusters[-1]]) > cluster_tol:
+            clusters.append([item])
+        else:
+            clusters[-1].append(item)
+
+    min_sep_px = max(3, int(round(min_separation_mm / mm_per_px)))
+    candidates = []
+    for cluster in clusters:
+        best = max(cluster, key=lambda item: item["length"])
+        total_len = max(item["length"] for item in cluster)
+        coverage = min(1.0, total_len / max(1.0, float(y1 - y0)))
+        if coverage < min_line_coverage:
+            continue
+        x_values = np.asarray([item["x_mid"] for item in cluster], dtype=float)
+        dispersion = float(np.std(x_values)) if len(x_values) > 1 else 0.0
+        consistency = float(1.0 / (1.0 + dispersion / max(2.0, h * 0.06)))
+        angle = float(np.median([item["angle"] for item in cluster]))
+
+        # These are deliberately weak, geometry-only suggestions. Natural
+        # joints can also be perpendicular and mechanical breaks can be oblique.
+        if 78.0 <= angle <= 102.0 and coverage >= 0.58 and consistency >= 0.45:
+            suggested = "疑似機械破損特徵"
+            cue = "線跡較直且接近垂直於岩心長軸；亦可能是真實天然節理。"
+            confidence = "低"
+        elif 52.0 <= angle < 78.0 or 102.0 < angle <= 128.0:
+            suggested = "疑似天然節理特徵"
+            cue = "線跡呈斜向；僅憑單張二維影像不能排除機械破損。"
+            confidence = "低"
+        else:
+            suggested = "不確定／需人工確認"
+            cue = "線跡連續性或幾何特徵不足，無法提供分類建議。"
+            confidence = "低"
+
+        x_px = int(round(float(np.median(x_values))))
+        distance_mm = round(x_px * mm_per_px, 1)
+        if candidates and (distance_mm - candidates[-1]["distance_mm"]) < min_separation_mm:
+            if coverage > candidates[-1]["coverage"]:
+                candidates[-1] = {
+                    "candidate_id": f"F{len(candidates) + 1}", "x_px": x_px,
+                    "distance_mm": distance_mm, "angle_deg": round(angle, 1),
+                    "coverage": round(coverage, 3), "line_consistency": round(consistency, 3),
+                    "suggested_class": suggested, "confidence": confidence,
+                    "review_status": "待人工確認", "cue": cue,
+                    "line": best["line"],
+                }
+            continue
+        candidates.append({
+            "candidate_id": f"F{len(candidates) + 1}", "x_px": x_px,
+            "distance_mm": distance_mm, "angle_deg": round(angle, 1),
+            "coverage": round(coverage, 3), "line_consistency": round(consistency, 3),
+            "suggested_class": suggested, "confidence": confidence,
+            "review_status": "待人工確認", "cue": cue,
+            "line": best["line"],
+        })
+
+    for index, candidate in enumerate(candidates, start=1):
+        candidate["candidate_id"] = f"F{index}"
+    return {
+        "success": True, "image_width_px": w, "mm_per_px": float(mm_per_px),
+        "blue_background_ratio": round(blue_ratio, 4), "candidates": candidates,
+        "method": "blue_mask_canny_hough_transverse_v1",
+        "warning": "分類建議只依線跡角度與連續性，信心一律保守標示為低；天然節理與機械破損可能具有相似外觀。必須人工確認，未確認前不得切分 RQD。未偵測到候選也不代表沒有斷裂。",
+    }
+
+
+def draw_core_fracture_candidates(row_image: Image.Image, detection: dict) -> Image.Image:
+    """Draw fracture candidates with ASCII IDs to avoid rasterized CJK font issues."""
+    from PIL import ImageDraw
+
+    out = row_image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out, "RGBA")
+    palette = {
+        "疑似天然節理特徵": (220, 45, 45, 235),
+        "疑似機械破損特徵": (245, 135, 20, 240),
+        "不確定／需人工確認": (245, 190, 25, 240),
+    }
+    for candidate in detection.get("candidates", []):
+        color = palette.get(candidate.get("suggested_class"), (245, 190, 25, 240))
+        line = candidate.get("line")
+        if line and len(line) == 4:
+            draw.line(tuple(int(v) for v in line), fill=color, width=max(3, out.width // 350))
+        else:
+            x = int(candidate.get("x_px", 0))
+            draw.line((x, 0, x, out.height - 1), fill=color, width=max(3, out.width // 350))
+        x = int(candidate.get("x_px", 0))
+        draw.ellipse((x - 5, 3, x + 5, 13), fill=color, outline=(20, 20, 20, 255), width=1)
+        # ASCII-only label remains legible even if the deployment lacks CJK fonts.
+        draw.text((min(max(2, x + 6), max(2, out.width - 34)), 2), candidate["candidate_id"], fill=(255, 255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0, 255))
+    return out
+
+
+def estimate_rqd_from_image_segments(
+    core_segments: Iterable[dict],
+    reviewed_breaks: Iterable[dict],
+    mm_per_px: float,
+    row_length_mm: float = 1000.0,
+    rqd_threshold_mm: float = 100.0,
+) -> dict:
+    """Estimate per-row recovery/RQD after every detected break is reviewed.
+
+    Core intervals come from the image occupancy detector; only breaks manually
+    confirmed as natural joints split an interval. Mechanical breaks are treated
+    as rejoinable. This remains a preliminary image estimate, not a measured RQD.
+    """
+    import math
+
+    if not math.isfinite(mm_per_px) or mm_per_px <= 0:
+        raise ValueError("mm_per_px 必須是有限且大於 0 的數值。")
+    if row_length_mm <= 0 or rqd_threshold_mm <= 0:
+        raise ValueError("列長與 RQD 門檻必須大於 0。")
+
+    breaks = list(reviewed_breaks)
+    allowed = {"天然節理", "機械破損", "非斷裂／誤判"}
+    unresolved = [b for b in breaks if b.get("review_class") not in allowed]
+    if unresolved:
+        return {
+            "success": True, "ready": False, "recovery_percent": None,
+            "rqd_percent": None, "unresolved_count": len(unresolved),
+            "warning": "尚有斷裂候選未覆核；暫不估算本列 RQD。",
+        }
+
+    intervals = []
+    for item in core_segments:
+        a = max(0.0, float(item.get("x_start_px", 0)) * mm_per_px)
+        b = min(row_length_mm, float(item.get("x_end_px", 0)) * mm_per_px)
+        if b > a:
+            intervals.append((a, b))
+    if not intervals:
+        return {
+            "success": True, "ready": False, "recovery_percent": None,
+            "rqd_percent": None, "unresolved_count": 0,
+            "warning": "未取得可靠岩心本體區間，無法估算本列採取率或 RQD。",
+        }
+
+    total_core_mm = sum(b - a for a, b in intervals)
+    rqd_mm = 0.0
+    piece_lengths = []
+    natural_positions = sorted(
+        float(item.get("distance_mm", 0)) for item in breaks
+        if item.get("review_class") == "天然節理"
+    )
+    for a, b in intervals:
+        cuts = [x for x in natural_positions if a < x < b]
+        bounds = [a] + cuts + [b]
+        lengths = [right - left for left, right in zip(bounds, bounds[1:])]
+        piece_lengths.extend(lengths)
+        rqd_mm += sum(length for length in lengths if length >= rqd_threshold_mm)
+
+    return {
+        "success": True, "ready": True,
+        "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1),
+        "rqd_percent": round(rqd_mm / row_length_mm * 100.0, 1),
+        "recovered_length_mm": round(total_core_mm, 1),
+        "rqd_length_mm": round(rqd_mm, 1),
+        "piece_lengths_mm": [round(v, 1) for v in piece_lengths],
+        "unresolved_count": 0,
+        "warning": "依影像岩心區間及人工覆核斷裂類別推算；可能受岩心遮擋、透視、漏檢及占據分割誤差影響，不是實測採取率或正式 RQD。",
+    }

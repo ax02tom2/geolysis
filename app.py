@@ -11,7 +11,7 @@ from pathlib import Path
 import streamlit.components.v1 as components
 
 from core_log_parser import parse_core_log
-from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, rotate_image, validate_tray_quadrilateral
+from core_photo_analysis import inspect_image, parse_piece_lengths, calculate_core_indices, detect_tray_rows, draw_row_candidates, detect_blue_tray_rows, draw_combined_row_candidates, detect_blue_tray_quadrilateral, draw_tray_quadrilateral, rectify_tray_perspective, calculate_fixed_tray_row_layout, draw_fixed_tray_row_layout, crop_fixed_tray_rows, detect_core_discontinuity_candidates, draw_core_discontinuity_candidates, segment_lengths_from_confirmed_cuts, calibrate_row_measurement_span, segment_core_occupancy, draw_core_occupancy_segments, analyze_core_row_v8, draw_core_row_analysis_v8, detect_core_break_candidates_v1, draw_core_fracture_candidates, estimate_rqd_from_image_segments, rotate_image, validate_tray_quadrilateral
 
 core_tray_editor = components.declare_component(
     "core_tray_editor", path=str(Path(__file__).parent / "point_editor")
@@ -57,7 +57,13 @@ def _cached_rectify_tray(image, corners_tuple):
 @st.cache_data(show_spinner=False, max_entries=128)
 def _cached_row_analysis(image, mm_per_px):
     result = analyze_core_row_v8(image, mm_per_px)
-    overlay = draw_core_row_analysis_v8(image, result) if result.get("success") else None
+    fracture_result = detect_core_break_candidates_v1(image, mm_per_px)
+    result = dict(result)
+    result["break_candidates"] = fracture_result.get("candidates", [])
+    result["break_detection_warning"] = fracture_result.get("warning", "")
+    overlay = draw_core_row_analysis_v8(image, result) if result.get("success") else image.convert("RGB").copy()
+    if fracture_result.get("success") and fracture_result.get("candidates"):
+        overlay = draw_core_fracture_candidates(overlay, fracture_result)
     return result, overlay
 
 
@@ -90,14 +96,31 @@ def _candidate_length(items):
     return round(sum(float(item.get("length_mm", 0)) for item in items), 1)
 
 
+def _load_review_font(size=18):
+    """Prefer a Traditional-Chinese-capable font; never rasterize CJK with DejaVu."""
+    candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKtc-Regular.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "C:/Windows/Fonts/msjh.ttc",
+        "C:/Windows/Fonts/msjhbd.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+    ]
+    for candidate in candidates:
+        if Path(candidate).is_file():
+            try:
+                return ImageFont.truetype(candidate, size), True
+            except Exception:
+                continue
+    # ASCII-only fallback is intentional: Pillow's default font cannot render CJK.
+    return ImageFont.load_default(), False
+
+
 def _compose_full_page_review(page_image, row_records, analyses=None, show_analysis=True):
     """Overlay image-derived candidates on the full PDF page without changing source data."""
     canvas = page_image.convert("RGB").copy()
     draw = ImageDraw.Draw(canvas)
-    try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 18)
-    except Exception:
-        font = ImageFont.load_default()
+    font, has_cjk_font = _load_review_font(18)
 
     analyses = analyses or {}
     for rec in row_records:
@@ -143,9 +166,10 @@ def _compose_full_page_review(page_image, row_records, analyses=None, show_analy
         }.get(status, (215, 145, 20))
         draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=color, width=3)
         depth_label = (f"{rec.depth_start_m:.1f}-{rec.depth_end_m:.1f}m"
-                       if rec.depth_start_m is not None else "深度待確認")
+                       if rec.depth_start_m is not None else ("深度待確認" if has_cjk_font else "DEPTH N/A"))
         row_label = f"第{rec.row_number}列" if rec.row_number is not None else f"頁{rec.page}-箱{rec.box_index}-列{rec.row_in_box}"
-        label = f"{row_label} | {depth_label} | {status}"
+        label = (f"{row_label} | {depth_label} | {status}" if has_cjk_font
+                 else f"ROW {rec.row_number or rec.row_in_box} | {depth_label} | REVIEW")
         text_box = draw.textbbox((0, 0), label, font=font)
         label_w = min(canvas.width - 8, text_box[2] - text_box[0] + 12)
         label_h = text_box[3] - text_box[1] + 10
@@ -178,6 +202,11 @@ def _build_page_result_table(page_rows, analyses):
             core_mm = gap_mm = uncertain_mm = None
             status = "無法判釋" if result else "待確認"
             note = result.get("warning", "缺少可靠列號或分析資料")
+        breaks = result.get("break_candidates", [])
+        break_summary = "；".join(
+            f"{b.get('candidate_id', 'F?')} {b.get('distance_mm', 0):.0f}mm：{b.get('suggested_class', '待確認')}"
+            for b in breaks
+        ) or "未找到明確候選（不代表沒有斷裂）"
         rows.append({
             "列號": rec.row_number if rec.row_number is not None else "未辨識",
             "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
@@ -185,8 +214,66 @@ def _build_page_result_table(page_rows, analyses):
             "岩心影像候選長度 (mm)": core_mm,
             "疑似缺失長度 (mm)": gap_mm,
             "不確定區長度 (mm)": uncertain_mm,
+            "疑似斷裂數": len(breaks),
+            "斷裂位置與系統提示": break_summary,
             "系統初步結果": status,
             "說明": note,
+        })
+    return pd.DataFrame(rows)
+
+
+def _build_break_review_table(page_rows, analyses):
+    rows = []
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        for candidate in result.get("break_candidates", []):
+            rows.append({
+                "列號": rec.row_number if rec.row_number is not None else "未辨識",
+                "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                                 if rec.depth_start_m is not None else "待確認"),
+                "候選編號": candidate.get("candidate_id", "F?"),
+                "距本列起點 (mm)": float(candidate.get("distance_mm", 0)),
+                "系統影像提示": candidate.get("suggested_class", "不確定／需人工確認"),
+                "信心": candidate.get("confidence", "低"),
+                "人工覆核分類": "待確認",
+            })
+    return pd.DataFrame(rows, columns=[
+        "列號", "深度區間 (m)", "候選編號", "距本列起點 (mm)",
+        "系統影像提示", "信心", "人工覆核分類",
+    ])
+
+
+def _build_image_rqd_review_table(page_rows, analyses, reviewed_break_df):
+    rows = []
+    reviewed_by_row = {}
+    if reviewed_break_df is not None and not reviewed_break_df.empty:
+        for _, item in reviewed_break_df.iterrows():
+            reviewed_by_row.setdefault(item.get("列號"), []).append({
+                "distance_mm": float(item.get("距本列起點 (mm)", 0)),
+                "review_class": item.get("人工覆核分類", "待確認"),
+            })
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        if not result.get("success"):
+            estimate = {"ready": False, "recovery_percent": None, "rqd_percent": None,
+                        "warning": result.get("warning", "影像判識失敗")}
+        else:
+            row_id = rec.row_number if rec.row_number is not None else "未辨識"
+            estimate = estimate_rqd_from_image_segments(
+                result.get("segments", []), reviewed_by_row.get(row_id, []),
+                float(result.get("mm_per_px", 1.0)), row_length_mm=1000.0,
+            )
+        rows.append({
+            "列號": rec.row_number if rec.row_number is not None else "未辨識",
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "影像初估採取率 (%)": estimate.get("recovery_percent"),
+            "影像初估 RQD (%)": estimate.get("rqd_percent"),
+            "判釋狀態": (
+                ("候選已覆核；初估值待確認" if result.get("break_candidates") else "未檢出斷裂；需目視核對")
+                if estimate.get("ready") else "待覆核／無法估算"
+            ),
+            "說明": estimate.get("warning", ""),
         })
     return pd.DataFrame(rows)
 
@@ -357,7 +444,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         caption=f"第 {selected_page} 頁完整頁面預覽｜{page_view['width_px']} × {page_view['height_px']} px（2.5× PDF 頁面渲染）",
                         width="stretch",
                     )
-                    st.caption("圖面顏色只表示電腦找到的影像位置：綠色為可能有岩心、紅色為可能缺失、黃色為看不清楚。顏色不代表天然節理，也不直接等於採取率或 RQD。")
+                    st.caption("區塊顏色：綠色＝可能有岩心；紅色＝可能缺失；黃色＝看不清楚。斷裂線標記：紅線＝斜向線跡提示、橘線＝較直且近垂直線跡提示、黃線＝特徵不足；F1、F2 為候選編號。這些顏色及幾何提示都不是天然節理／機械破損的正式判定。")
                     st.markdown("**本頁逐深度成果表**")
                     st.dataframe(
                         _build_page_result_table(page_rows, analyses),
@@ -368,7 +455,35 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                             "不確定區長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
                         },
                     )
-                    st.caption("以上是系統對每一公尺影像的初步辨識。影像初估長度可協助快速檢視，但不能冒充實際取回長度；RQD 必須依天然節理分段。")
+                    st.caption("以上是系統對每一公尺影像的初步辨識。斷裂線只代表疑似位置；斜向或較直的外觀不是天然／機械破損的可靠證明。")
+                    st.markdown("**疑似斷裂位置覆核**")
+                    break_review_df = _build_break_review_table(page_rows, analyses)
+                    if not break_review_df.empty:
+                        st.caption("請逐一確認系統找到的斷裂候選。天然節理會切分岩心段；機械破損若可接合，不切分 RQD；誤判可標記為非斷裂。")
+                        break_review_key = f"core_break_review_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}_{selected_page}"
+                        reviewed_break_df = st.data_editor(
+                            break_review_df, key=break_review_key, hide_index=True,
+                            width="stretch", num_rows="fixed",
+                            disabled=["列號", "深度區間 (m)", "候選編號", "距本列起點 (mm)", "系統影像提示", "信心"],
+                            column_config={
+                                "距本列起點 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                                "人工覆核分類": st.column_config.SelectboxColumn(
+                                    "人工覆核分類",
+                                    options=["待確認", "天然節理", "機械破損", "非斷裂／誤判"],
+                                    required=True,
+                                    help="這是人工確認欄位。只有確認為天然節理的候選才會切分影像估算 RQD。",
+                                ),
+                            },
+                        )
+                    else:
+                        reviewed_break_df = break_review_df
+                        st.info("本頁未找到明確的橫向斷裂線候選；這不代表岩心沒有天然節理，仍需目視檢查原始照片。")
+                    st.markdown("**每 1 m 影像初估採取率與 RQD**")
+                    st.dataframe(
+                        _build_image_rqd_review_table(page_rows, analyses, reviewed_break_df),
+                        hide_index=True, width="stretch",
+                    )
+                    st.caption("這是依影像岩心區間與人工覆核斷裂分類計算的初估值，可能漏掉不明顯節理或受遮擋影響；不得取代實際岩心量測及正式 RQD。")
                     st.markdown("**逐深度確認採取率與 RQD**")
                     edit_rows = []
                     for rec in page_rows:
