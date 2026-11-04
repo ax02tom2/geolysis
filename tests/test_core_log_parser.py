@@ -93,3 +93,40 @@ def test_docx_partial_last_box_keeps_only_visible_rows():
     assert result["records"][0].depth_start_m == 18.0
     assert result["records"][1].depth_end_m == 20.0
     assert all(r.image.height == 100 for r in result["records"])
+
+
+def test_pdf_keeps_full_page_preview_and_row_overlay_coordinates():
+    result = parse_pdf_core_log(_pdf_fixture(), start_depth_m=5.0)
+    assert len(result["page_views"]) == 1
+    page = result["page_views"][0]
+    assert page["page"] == 1
+    assert page["image"].size == (page["width_px"], page["height_px"])
+    assert page["image"].width > 595
+    assert all(r.page_bbox_px is not None for r in result["records"])
+    boxes = [r.page_bbox_px for r in result["records"]]
+    assert all(0 <= x0 < x1 <= page["width_px"] and 0 <= y0 < y1 <= page["height_px"]
+               for x0, y0, x1, y1 in boxes)
+    assert all(boxes[i][1] < boxes[i + 1][1] for i in range(len(boxes) - 1))
+
+
+def test_pdf_preview_is_rendered_at_higher_resolution_and_embedded_rows_keep_pixels():
+    result = parse_pdf_core_log(_pdf_fixture(), start_depth_m=5.0)
+    page = result["page_views"][0]
+    assert page["width_px"] >= 595 * 2.4
+    assert page["height_px"] >= 842 * 2.4
+    # Original embedded box image is 800 x 400; each of four row crops is 800 x 100.
+    assert result["records"][0].image.size == (800, 100)
+
+
+def test_pdf_reads_header_depth_only_when_explicitly_labelled():
+    pdf = fitz.open()
+    page = pdf.new_page(width=595, height=842)
+    page.insert_text((40, 45), "BH No.: BH-07 Depth: 12.0~32.0m", fontsize=10)
+    page.insert_image(fitz.Rect(40, 160, 470, 360), stream=_box_image())
+    for i, n in enumerate((1, 2, 3, 4)):
+        page.insert_text((485, 185 + i * 50), str(n), fontsize=12)
+    data = pdf.tobytes()
+    pdf.close()
+    result = parse_pdf_core_log(data)
+    assert result["borehole_id"] == "BH-07"
+    assert result["header_depth_range_m"] == (12.0, 32.0)

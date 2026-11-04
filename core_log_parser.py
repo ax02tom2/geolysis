@@ -160,6 +160,18 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
     try:
         for page_index, page in enumerate(pdf):
             page_words = page.get_text("words")
+            header_text = " ".join(str(w[4]) for w in page_words if float(w[1]) <= page.rect.height * 0.16)
+            # Read only selectable/vector text. Rasterized header OCR is deliberately
+            # not guessed here; the UI will request a start depth when unavailable.
+            borehole_match = re.search(
+                r"(?:鑽孔編號|鑽孔號|孔號|BH\s*No\.?)[：:\s]*([A-Za-z0-9_-]+)",
+                header_text, re.IGNORECASE,
+            )
+            depth_match = re.search(
+                r"(?:深度|Depth)[^0-9]{0,16}(\d+(?:\.\d+)?)\s*[~～至–—-]\s*(\d+(?:\.\d+)?)\s*m?",
+                header_text, re.IGNORECASE,
+            )
+            header_depth_range = (float(depth_match.group(1)), float(depth_match.group(2))) if depth_match else None
             placements = []
             for info in page.get_image_info(xrefs=True):
                 xref = int(info.get("xref") or 0)
@@ -174,9 +186,9 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                               and p[1].height > page.rect.height * 0.025]
             page_records: list[CoreRowRecord] = []
             # Keep the complete page, including its header, depth scale, labels,
-            # and original image placement. 1.5x is a readable preview while
-            # preserving the extracted embedded photos at their own resolution.
-            pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False, annots=True)
+            # and original image placement. Embedded box images are separately
+            # extracted below at their original embedded pixel dimensions.
+            pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5), alpha=False, annots=True)
             page_image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
             sx = pix.width / max(float(page.rect.width), 1e-9)
             sy = pix.height / max(float(page.rect.height), 1e-9)
@@ -233,6 +245,9 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                 "width_px": pix.width,
                 "height_px": pix.height,
                 "row_count": len(page_records),
+                "header_text": header_text,
+                "borehole_id": borehole_match.group(1) if borehole_match else None,
+                "header_depth_range_m": header_depth_range,
             })
     finally:
         pdf.close()
@@ -241,9 +256,19 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
         raise ValueError("PDF 中沒有找到符合格式的岩心箱照片。請確認是由岩心柱狀圖工具輸出的 PDF。")
     _attach_depths(records, start_depth_m, row_length_m)
     _validate_row_sequence(records, warnings)
+    borehole_ids = [v["borehole_id"] for v in page_views if v.get("borehole_id")]
+    depth_ranges = [v["header_depth_range_m"] for v in page_views if v.get("header_depth_range_m")]
+    metadata_warnings = []
+    if len(set(borehole_ids)) > 1:
+        metadata_warnings.append("不同頁面讀取到不同鑽孔編號，請人工核對。")
+    if depth_ranges and any(b != depth_ranges[0] for b in depth_ranges[1:]):
+        # Page ranges normally differ; retain them per page and do not flag.
+        pass
     return {"records": records, "page_views": page_views,
             "pages_detected": len(page_views), "rows_detected": len(records),
-            "borehole_id": None, "format": "pdf"}
+            "borehole_id": borehole_ids[0] if borehole_ids else None,
+            "header_depth_range_m": depth_ranges[0] if depth_ranges else None,
+            "metadata_warnings": metadata_warnings, "format": "pdf"}
 
 
 def _validate_row_sequence(records: list[CoreRowRecord], warnings: list[str]):

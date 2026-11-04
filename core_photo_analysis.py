@@ -62,21 +62,27 @@ def calculate_core_indices(
     drilled_interval_m: float,
     recovered_lengths_mm: Iterable[float],
     rqd_threshold_mm: float = 100.0,
+    rqd_piece_lengths_mm: Iterable[float] | None = None,
 ) -> dict:
-    """依輸入的實際岩芯段長度計算回收率與 RQD。
+    """Calculate core recovery and RQD from separately confirmed measurements.
 
-    回收率 = 回收岩芯總長 / 鑽進長度
-    RQD = 長度 >= 100 mm 的完整岩芯段總長 / 鑽進長度
+    Core recovery uses all physically recovered core length, including pieces
+    broken mechanically. RQD uses only lengths bounded by natural
+    discontinuities after mechanical breaks have been fitted together.
     """
     if drilled_interval_m <= 0:
         raise ValueError("鑽進深度區間必須大於 0。")
-    lengths = [float(x) for x in recovered_lengths_mm]
-    if any(x <= 0 for x in lengths):
-        raise ValueError("岩芯段長度必須全部大於 0。")
+    recovered_lengths = [float(x) for x in recovered_lengths_mm]
+    if any(x <= 0 for x in recovered_lengths):
+        raise ValueError("回收岩心長度必須全部大於 0。")
+    rqd_lengths = ([float(x) for x in rqd_piece_lengths_mm]
+                   if rqd_piece_lengths_mm is not None else list(recovered_lengths))
+    if any(x <= 0 for x in rqd_lengths):
+        raise ValueError("RQD 岩心段長度必須全部大於 0。")
 
     drilled_mm = drilled_interval_m * 1000.0
-    recovered_mm = sum(lengths)
-    rqd_mm = sum(x for x in lengths if x >= rqd_threshold_mm)
+    recovered_mm = sum(recovered_lengths)
+    rqd_mm = sum(x for x in rqd_lengths if x >= rqd_threshold_mm)
 
     return {
         "drilled_length_mm": drilled_mm,
@@ -84,10 +90,13 @@ def calculate_core_indices(
         "recovery_percent": recovered_mm / drilled_mm * 100.0,
         "rqd_length_mm": rqd_mm,
         "rqd_percent": rqd_mm / drilled_mm * 100.0,
-        "piece_count": len(lengths),
-        "qualifying_piece_count": sum(x >= rqd_threshold_mm for x in lengths),
+        "piece_count": len(rqd_lengths),
+        "qualifying_piece_count": sum(x >= rqd_threshold_mm for x in rqd_lengths),
         "over_recovery": recovered_mm > drilled_mm,
-        "lengths_mm": lengths,
+        "rqd_exceeds_recovered": rqd_mm > recovered_mm,
+        "rqd_exceeds_drilled": rqd_mm > drilled_mm,
+        "lengths_mm": recovered_lengths,
+        "rqd_lengths_mm": rqd_lengths,
     }
 
 
@@ -803,18 +812,7 @@ def analyze_core_row_v8(
     k = max(3, min(21, int(round(5.0 / mm_per_px)) | 1))
     if k % 2 == 0:
         k += 1
-    # Use NumPy for this one-dimensional median filter instead of cv2.medianBlur.
-    # OpenCV builds (including some OpenCV 5 deployments) can reject this input
-    # depending on the compiled backend even after dtype/channel normalization.
-    # The row is short (one value per image column), so a sliding-window median
-    # is inexpensive and removes the OpenCV-version dependency entirely.
-    filtered_rows = []
-    pad = k // 2
-    for row in band_occ:
-        padded = np.pad(row.astype(np.float32, copy=False), (pad, pad), mode="edge")
-        windows = np.lib.stride_tricks.sliding_window_view(padded, k)
-        filtered_rows.append(np.median(windows, axis=-1).astype(np.float32))
-    filtered = np.vstack(filtered_rows)
+    filtered = np.vstack([cv2.medianBlur(row.reshape(1, -1), k).reshape(-1) for row in band_occ])
     mean_occ = filtered.mean(axis=0)
     strong_bands = (filtered >= 0.28).sum(axis=0)
     weak_bands = (filtered >= 0.10).sum(axis=0)

@@ -21,8 +21,9 @@ core_tray_editor = components.declare_component(
 # 圖片處理快取：Streamlit 每次 widget 互動都會重跑 app.py，
 # 因此將昂貴的解碼、托盤偵測、透視校正與列判識結果快取，避免反覆計算。
 @st.cache_data(show_spinner=False, max_entries=2)
-def _cached_parse_core_log(raw_bytes: bytes, filename: str, start_depth_m: float):
-    return parse_core_log(raw_bytes, filename, start_depth_m=start_depth_m, row_length_m=1.0)
+def _cached_parse_core_log(raw_bytes: bytes, filename: str):
+    # Parse document structure first; depth is applied after metadata review.
+    return parse_core_log(raw_bytes, filename, start_depth_m=None, row_length_m=1.0)
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
@@ -68,8 +69,29 @@ def _cached_editor_display(image):
     return preview
 
 
-def _compose_full_page_review(page_image, row_records, selected_record=None, show_analysis=True):
-    """Draw row-level V8 candidates directly over the complete original PDF page."""
+def _record_key(rec):
+    return (rec.page, rec.box_index, rec.row_in_box, rec.row_number)
+
+
+def _analyze_log_row(rec):
+    if rec.row_number is None:
+        return {"success": False, "warning": "未讀取到可靠列號，暫不建立判釋結果。",
+                "segments": [], "gaps": [], "uncertain": []}
+    row_measurement, row_scale = calibrate_row_measurement_span(
+        rec.image, 0, rec.image.width, 1000.0
+    )
+    result, overlay = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
+    result = dict(result)
+    result["_overlay"] = overlay
+    return result
+
+
+def _candidate_length(items):
+    return round(sum(float(item.get("length_mm", 0)) for item in items), 1)
+
+
+def _compose_full_page_review(page_image, row_records, analyses=None, show_analysis=True):
+    """Overlay image-derived candidates on the full PDF page without changing source data."""
     canvas = page_image.convert("RGB").copy()
     draw = ImageDraw.Draw(canvas)
     try:
@@ -77,6 +99,7 @@ def _compose_full_page_review(page_image, row_records, selected_record=None, sho
     except Exception:
         font = ImageFont.load_default()
 
+    analyses = analyses or {}
     for rec in row_records:
         if not rec.page_bbox_px:
             continue
@@ -86,53 +109,43 @@ def _compose_full_page_review(page_image, row_records, selected_record=None, sho
         if x1 <= x0 or y1 <= y0:
             continue
 
-        status = "待確認"
-        if show_analysis and rec.row_number is not None:
-            try:
-                row_measurement, row_scale = calibrate_row_measurement_span(
-                    rec.image, 0, rec.image.width, 1000.0
-                )
-                analysis, row_overlay = _cached_row_analysis(
-                    row_measurement, row_scale["mm_per_px"]
-                )
-                if analysis.get("success") and row_overlay is not None:
+        result = analyses.get(_record_key(rec), {})
+        status = "待人工確認"
+        if show_analysis:
+            if result.get("success"):
+                overlay = result.get("_overlay")
+                if overlay is not None:
                     target_size = (x1 - x0, y1 - y0)
-                    overlay_resized = row_overlay.convert("RGB").resize(target_size, Image.Resampling.BILINEAR)
+                    overlay_resized = overlay.convert("RGB").resize(target_size, Image.Resampling.BILINEAR)
                     original_crop = canvas.crop((x0, y0, x1, y1))
-                    canvas.paste(Image.blend(original_crop, overlay_resized, 0.72), (x0, y0))
-                    if analysis.get("uncertain"):
-                        status = "需確認"
-                    elif analysis.get("gaps"):
-                        status = "有疑似空隙"
-                    else:
-                        status = "岩心候選"
+                    canvas.paste(Image.blend(original_crop, overlay_resized, 0.55), (x0, y0))
+                if result.get("uncertain"):
+                    status = "需確認"
+                elif result.get("segments") and result.get("gaps"):
+                    status = "岩心與缺失候選"
+                elif result.get("gaps"):
+                    status = "有缺失候選"
+                elif result.get("segments"):
+                    status = "有岩心候選"
                 else:
-                    status = "無法判釋"
-            except Exception:
-                status = "分析失敗"
+                    status = "未辨識到明確候選"
+            elif result:
+                status = "無法判釋"
 
-        selected = (selected_record is not None and
-                    rec.page == selected_record.page and
-                    rec.row_number == selected_record.row_number and
-                    rec.box_index == selected_record.box_index and
-                    rec.row_in_box == selected_record.row_in_box)
-        color = (20, 105, 220) if selected else {
-            "岩心候選": (20, 165, 75),
-            "有疑似空隙": (210, 45, 40),
-            "需確認": (225, 155, 20),
-            "無法判釋": (225, 155, 20),
-            "分析失敗": (225, 155, 20),
-            "待確認": (225, 155, 20),
-        }.get(status, (225, 155, 20))
-        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=color, width=6 if selected else 3)
+        color = {
+            "有岩心候選": (20, 145, 65),
+            "有缺失候選": (195, 55, 45),
+            "岩心與缺失候選": (215, 145, 20),
+            "未辨識到明確候選": (215, 145, 20),
+            "需確認": (215, 145, 20),
+            "無法判釋": (215, 145, 20),
+            "待人工確認": (215, 145, 20),
+        }.get(status, (215, 145, 20))
+        draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=color, width=3)
         depth_label = (f"{rec.depth_start_m:.1f}-{rec.depth_end_m:.1f}m"
-                       if rec.depth_start_m is not None else "DEPTH?")
-        row_label = f"R{rec.row_number}" if rec.row_number is not None else f"P{rec.page}-B{rec.box_index}-R{rec.row_in_box}"
-        status_label = {
-            "岩心候選": "CORE", "有疑似空隙": "GAP?", "需確認": "CHECK",
-            "無法判釋": "N/A", "分析失敗": "ERROR", "待確認": "REVIEW",
-        }.get(status, "REVIEW")
-        label = f"{row_label} | {depth_label} | {status_label}"
+                       if rec.depth_start_m is not None else "深度待確認")
+        row_label = f"第{rec.row_number}列" if rec.row_number is not None else f"頁{rec.page}-箱{rec.box_index}-列{rec.row_in_box}"
+        label = f"{row_label} | {depth_label} | {status}"
         text_box = draw.textbbox((0, 0), label, font=font)
         label_w = min(canvas.width - 8, text_box[2] - text_box[0] + 12)
         label_h = text_box[3] - text_box[1] + 10
@@ -140,6 +153,42 @@ def _compose_full_page_review(page_image, row_records, selected_record=None, sho
         draw.rectangle((x0, label_y, min(canvas.width - 1, x0 + label_w), label_y + label_h), fill=color)
         draw.text((x0 + 6, label_y + 4), label, fill=(255, 255, 255), font=font)
     return canvas
+
+
+def _build_page_result_table(page_rows, analyses):
+    rows = []
+    for rec in page_rows:
+        result = analyses.get(_record_key(rec), {})
+        if result.get("success"):
+            core_mm = _candidate_length(result.get("segments", []))
+            gap_mm = _candidate_length(result.get("gaps", []))
+            uncertain_mm = _candidate_length(result.get("uncertain", []))
+            if uncertain_mm > 0:
+                status = "需人工確認"
+            elif core_mm > 0 and gap_mm > 0:
+                status = "岩心與缺失候選"
+            elif gap_mm > 0:
+                status = "有疑似缺失"
+            elif core_mm > 0:
+                status = "有岩心候選"
+            else:
+                status = "未辨識到明確候選"
+            note = "影像候選，尚未人工確認"
+        else:
+            core_mm = gap_mm = uncertain_mm = None
+            status = "無法判釋" if result else "待確認"
+            note = result.get("warning", "缺少可靠列號或分析資料")
+        rows.append({
+            "列號": rec.row_number if rec.row_number is not None else "未辨識",
+            "深度區間 (m)": (f"{rec.depth_start_m:.1f}–{rec.depth_end_m:.1f}"
+                             if rec.depth_start_m is not None else "待確認"),
+            "岩心影像候選長度 (mm)": core_mm,
+            "疑似缺失長度 (mm)": gap_mm,
+            "不確定區長度 (mm)": uncertain_mm,
+            "系統初步結果": status,
+            "說明": note,
+        })
+    return pd.DataFrame(rows)
 
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
@@ -188,13 +237,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     with st.expander("📷 岩心照片分析與 RQD", expanded=False):
         st.caption("標準岩心箱固定 4,000 mm、4 列，每列 1,000 mm。系統完成照片校正後自動分列，不需另設列數、列長或比例尺。")
 
-        meta_cols = st.columns([1.3, 1, 1])
-        with meta_cols[0]:
-            core_borehole = st.text_input("鑽孔編號（選填）", key="core_borehole_id")
-        with meta_cols[1]:
-            depth_start = st.number_input("起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_depth_start")
-        with meta_cols[2]:
-            depth_end = st.number_input("結束深度（m）", min_value=0.1, value=15.0, step=0.5, key="core_depth_end")
+        core_borehole = ""
+        depth_start = None
+        depth_end = None
 
         st.markdown("**整孔柱狀圖匯入（主要方式）**")
         st.caption("優先以完整 PDF 頁面呈現原始資料，判釋標記直接疊在原頁面上；原始文件不會被修改。")
@@ -207,11 +252,34 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         )
         if core_log_file is not None:
             try:
-                parsed_log = _cached_parse_core_log(
-                    core_log_file.getvalue(), core_log_file.name, float(depth_start)
-                )
+                parsed_log = _cached_parse_core_log(core_log_file.getvalue(), core_log_file.name)
                 row_records = parsed_log["records"]
-                st.success(f"已讀取 {parsed_log['pages_detected']} 頁，建立 {len(row_records)} 列深度索引。")
+                detected_borehole = parsed_log.get("borehole_id") or ""
+                detected_range = parsed_log.get("header_depth_range_m")
+                st.markdown("**文件資料確認**")
+                core_borehole = st.text_input(
+                    "鑽孔編號", value=detected_borehole,
+                    key=f"core_borehole_id_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}",
+                    help="若文件頁首可讀取，會自動帶入；否則可留白或補填。",
+                )
+                if detected_range:
+                    depth_start = float(detected_range[0])
+                    st.caption(f"已從 PDF 可選取文字讀取頁首深度範圍：{detected_range[0]:g}–{detected_range[1]:g} m。請核對頁面內容。")
+                else:
+                    depth_start = st.number_input(
+                        "起始深度（m；文件無法自動辨識時才需填寫）",
+                        min_value=0.0, value=0.0, step=0.5,
+                        key=f"core_depth_start_{hashlib.md5(core_log_file.name.encode()).hexdigest()[:8]}",
+                    )
+                for rec in row_records:
+                    if rec.row_number is not None and depth_start is not None:
+                        rec.depth_start_m = float(depth_start) + (rec.row_number - 1)
+                        rec.depth_end_m = rec.depth_start_m + 1.0
+                depth_values = [r.depth_end_m for r in row_records if r.depth_end_m is not None]
+                depth_end = max(depth_values) if depth_values else None
+                if depth_end is not None and depth_start is not None:
+                    st.caption(f"整孔索引深度：{depth_start:g}–{depth_end:g} m（結束深度由列號自動計算，不需另外輸入）。")
+                st.success(f"已讀取 {parsed_log['pages_detected']} 頁，建立 {len(row_records)} 列索引。")
 
                 if parsed_log.get("format") == "pdf" and parsed_log.get("page_views"):
                     page_views = parsed_log["page_views"]
@@ -223,52 +291,40 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     )
                     page_view = next(v for v in page_views if v["page"] == selected_page)
                     page_rows = [r for r in row_records if r.page == selected_page]
-                    row_options = list(range(len(page_rows)))
-                    selected_idx = st.selectbox(
-                        "選取列（可用來定位及查看判釋摘要）",
-                        row_options,
-                        format_func=lambda i: (
-                            f"第 {page_rows[i].row_number} 列｜{page_rows[i].depth_start_m:.1f}–{page_rows[i].depth_end_m:.1f} m"
-                            if page_rows[i].row_number is not None and page_rows[i].depth_start_m is not None
-                            else f"箱 {page_rows[i].box_index}／第 {page_rows[i].row_in_box} 列｜深度待確認"
-                        ),
-                        key=f"core_log_selected_row_page_{selected_page}",
-                    ) if page_rows else None
-                    selected_record = page_rows[selected_idx] if selected_idx is not None else None
+                    analyses = {}
+                    for rec in page_rows:
+                        try:
+                            analyses[_record_key(rec)] = _analyze_log_row(rec)
+                        except Exception as row_exc:
+                            analyses[_record_key(rec)] = {"success": False, "warning": f"分析失敗：{row_exc}",
+                                                          "segments": [], "gaps": [], "uncertain": []}
                     page_display_mode = st.radio(
                         "頁面顯示", ["判釋疊圖", "原始頁面"], horizontal=True,
                         key=f"core_log_display_mode_{selected_page}",
                     )
                     review_image = _compose_full_page_review(
-                        page_view["image"], page_rows, selected_record,
+                        page_view["image"], page_rows, analyses,
                         show_analysis=(page_display_mode == "判釋疊圖"),
                     )
                     st.image(
                         review_image,
-                        caption=f"第 {selected_page} 頁完整原始頁面｜{page_view['width_px']} × {page_view['height_px']} px 預覽",
+                        caption=f"第 {selected_page} 頁完整頁面預覽｜{page_view['width_px']} × {page_view['height_px']} px（2.5× PDF 頁面渲染）",
                         width="stretch",
                     )
-                    st.caption("綠框／綠色覆層：岩心本體候選；紅框／紅色覆層：疑似空隙；黃框：不確定或無法判釋；藍框：目前選取列。這些是影像候選，不代表天然節理或正式 RQD。")
-                    if selected_record is not None:
-                        st.markdown("**選取列的判釋摘要**")
-                        if selected_record.row_number is not None:
-                            st.write(f"第 {selected_record.row_number} 列｜深度 {selected_record.depth_start_m:.1f}–{selected_record.depth_end_m:.1f} m")
-                        else:
-                            st.warning("此列尚未取得可靠列號，深度需要人工確認。")
-                        row_measurement, row_scale = calibrate_row_measurement_span(
-                            selected_record.image, 0, selected_record.image.width, 1000.0
-                        )
-                        log_result, _ = _cached_row_analysis(row_measurement, row_scale["mm_per_px"])
-                        if log_result.get("success"):
-                            a, b, c = st.columns(3)
-                            a.metric("岩心本體候選", len(log_result["segments"]))
-                            b.metric("疑似空隙", len(log_result["gaps"]))
-                            c.metric("不確定區", len(log_result["uncertain"]))
-                            st.caption("目前演算法是影像占據特徵分析，尚未判斷天然節理、機械破損或 RQD 合格段。")
-                        else:
-                            st.warning(log_result.get("warning", "此列暫時無法完成影像候選分析。"))
+                    st.caption("標記說明：綠色＝影像中有岩心外觀候選；紅色＝影像中有疑似缺失；黃色＝影像不確定或無法判釋。這些是電腦初步辨識，不是天然節理判定，也不是正式採取率或 RQD。")
+                    st.markdown("**本頁完整判釋成果表**")
+                    st.dataframe(
+                        _build_page_result_table(page_rows, analyses),
+                        hide_index=True, width="stretch",
+                        column_config={
+                            "岩心影像候選長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                            "疑似缺失長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                            "不確定區長度 (mm)": st.column_config.NumberColumn(format="%.1f"),
+                        },
+                    )
+                    st.caption("表格一次列出本頁全部岩心列，不必逐列開啟。候選長度是依每列名義 1,000 mm 換算的影像占據區間，不等於實際回收岩心長度。")
                 else:
-                    st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 的實際分頁版面；暫以列清單檢視，避免產生與原文件不一致的假頁面。建議使用原工具匯出的 PDF 進行完整頁面疊圖。")
+                    st.warning("DOCX 已擷取照片與列號，但目前尚未能忠實重建 Word 實際分頁。建議使用同一份文件匯出的 PDF，以檢視完整原頁與判釋疊圖。")
                     row_labels = [
                         (f"第 {r.row_number} 列｜{r.depth_start_m:.1f}–{r.depth_end_m:.1f} m"
                          if r.row_number is not None and r.depth_start_m is not None
@@ -285,14 +341,16 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     import json as _json
                     index_payload = {
                         "borehole_id": core_borehole or None,
-                        "start_depth_m": float(depth_start),
+                        "start_depth_m": float(depth_start) if depth_start is not None else None,
+                        "end_depth_m": float(depth_end) if depth_end is not None else None,
+                        "depth_source": "PDF 頁首可選取文字" if parsed_log.get("header_depth_range_m") else "使用者補填起始深度",
                         "row_length_m": 1.0,
                         "rows_per_box": 4,
                         "pages_detected": parsed_log["pages_detected"],
                         "rows_detected": len(row_records),
                         "rows": [rec.metadata() for rec in row_records],
                         "warnings": parsed_log["warnings"],
-                        "note": "PDF page previews are rendered from the original pages. Row depths are derived from the user-provided start depth and sequential row labels; verify against the page header.",
+                        "note": "Embedded row images are extracted at their original embedded pixel dimensions without additional JPEG recompression. Full-page preview is rendered separately at 2.5x. Candidate lengths are image heuristics, not measured core recovery or RQD.",
                     }
                     st.download_button(
                         "下載岩心列深度索引（JSON）",
@@ -302,7 +360,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     )
                     for warning in parsed_log["warnings"]:
                         st.warning(warning)
-                st.caption("頁面上的色彩標記僅代表系統初步候選。正式回收率、RQD 與 Hoek–Brown 參數，仍須經過人工確認。")
+                for warning in parsed_log.get("metadata_warnings", []):
+                    st.warning(warning)
+                st.caption("系統目前只提供影像初判。天然節理、機械破損及實際岩心段長仍須人工確認，確認後才能計算正式採取率與 RQD。")
             except Exception as log_exc:
                 st.error(f"柱狀圖解析失敗：{log_exc}")
 
@@ -431,25 +491,43 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 st.error(f"{uploaded.name}：圖片讀取失敗（{exc}）")
 
         st.divider()
-        st.markdown("**採取率與 RQD**")
-        st.caption("輸入人工確認的岩心段長（mm）；只有確認為天然岩心段且長度 ≥100 mm 的段落才計入 RQD。")
-        piece_lengths_text = st.text_area(
-            "岩心段長度（mm）",
-            placeholder="例如：125, 180, 95, 210, 110",
-            key="core_piece_lengths",
+        st.markdown("**人工確認後計算採取率與 RQD**")
+        st.caption("採取率與 RQD 必須分開輸入：採取率使用所有實際取回岩心的總長度；RQD 使用依天然節理分段後的各段長度，只有 ≥100 mm 才計入。機械破損若可接合，應先接合，不可當成天然節理切段。系統不會從目前影像候選自動推定這些工程判斷。")
+        if depth_start is None or depth_end is None:
+            rqd_depth_cols = st.columns(2)
+            with rqd_depth_cols[0]:
+                rqd_depth_start = st.number_input("本次計算起始深度（m）", min_value=0.0, value=0.0, step=0.5, key="core_rqd_manual_start")
+            with rqd_depth_cols[1]:
+                rqd_depth_end = st.number_input("本次計算結束深度（m）", min_value=0.1, value=1.0, step=0.5, key="core_rqd_manual_end")
+        else:
+            rqd_depth_start, rqd_depth_end = float(depth_start), float(depth_end)
+            st.caption(f"計算深度範圍：{rqd_depth_start:g}–{rqd_depth_end:g} m（由柱狀圖列號推算）。")
+        recovered_total_mm = st.number_input(
+            "實際取回岩心總長度（mm；所有取回岩心都計入）",
+            min_value=0.0, value=0.0, step=10.0, key="core_recovered_total_mm",
+        )
+        rqd_piece_lengths_text = st.text_area(
+            "依天然節理分段後的岩心長度（mm；以逗號分隔）",
+            placeholder="例如：125, 180, 95, 210, 110（僅天然節理界定的段長；95 mm 不計入 RQD）",
+            key="core_rqd_piece_lengths",
             height=72,
         )
         if st.button("計算採取率與 RQD", key="calculate_core_rqd"):
-            if depth_end <= depth_start:
+            if rqd_depth_end <= rqd_depth_start:
                 st.error("結束深度必須大於起始深度。")
-            elif not piece_lengths_text.strip():
-                st.error("請先輸入人工確認的岩心段長度。")
+            elif recovered_total_mm <= 0:
+                st.error("請先輸入實際取回岩心總長度。")
+            elif not rqd_piece_lengths_text.strip():
+                st.error("請輸入依天然節理分段後的岩心長度，才能計算 RQD。")
             else:
                 try:
-                    lengths = parse_piece_lengths(piece_lengths_text)
-                    indices = calculate_core_indices(depth_end - depth_start, lengths)
+                    natural_piece_lengths = parse_piece_lengths(rqd_piece_lengths_text)
+                    indices = calculate_core_indices(
+                        rqd_depth_end - rqd_depth_start, [recovered_total_mm],
+                        rqd_piece_lengths_mm=natural_piece_lengths,
+                    )
                     st.session_state["core_rqd_result"] = indices
-                    st.session_state["core_rqd_depth"] = (depth_start, depth_end)
+                    st.session_state["core_rqd_depth"] = (rqd_depth_start, rqd_depth_end)
                     st.session_state["core_rqd_borehole"] = core_borehole
                 except ValueError as exc:
                     st.error(str(exc))
@@ -458,10 +536,14 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             result = st.session_state["core_rqd_result"]
             if result["over_recovery"]:
                 st.warning("回收岩心總長超過鑽進長度，請檢查深度區間或段長輸入。")
+            if result.get("rqd_exceeds_recovered"):
+                st.warning("RQD 計入長度大於實際回收長度，請檢查天然節理分段資料。")
+            if result.get("rqd_exceeds_drilled"):
+                st.warning("RQD 計入長度超過鑽進長度，請檢查輸入資料。")
             r1, r2, r3 = st.columns(3)
             r1.metric("岩心採取率", f"{result['recovery_percent']:.1f}%")
             r2.metric("RQD", f"{result['rqd_percent']:.1f}%")
-            r3.metric("符合 ≥100 mm 段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
+            r3.metric("RQD 合格天然岩心段數", f"{result['qualifying_piece_count']} / {result['piece_count']}")
             st.caption(
                 f"鑽進長度 {result['drilled_length_mm']:.0f} mm；"
                 f"回收長度 {result['recovered_length_mm']:.0f} mm；"
@@ -474,7 +556,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     "depth_start_m": st.session_state.get("core_rqd_depth", (None, None))[0],
                     "depth_end_m": st.session_state.get("core_rqd_depth", (None, None))[1],
                     **result,
-                    "method_note": "RQD calculated from user-confirmed core piece lengths; natural/mechanical break classification is not automated.",
+                    "method_note": "Core recovery uses total physically recovered core length. RQD uses only user-confirmed natural-discontinuity-bounded piece lengths >= 100 mm; mechanical breaks should be fitted together and must not be treated as natural discontinuities.",
                 }, ensure_ascii=False, indent=2),
                 file_name="core_rqd_result.json",
                 mime="application/json",
