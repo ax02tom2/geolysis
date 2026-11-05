@@ -47,9 +47,17 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 
     with st.expander("🗺️ GSI 現場評估", expanded=False):
         st.markdown("請先對照下列圖例，再分別選取 **岩體結構** 與 **節理面狀況**。GSI 是地質判釋指標，不是由單一照片自動量測的物理量。")
-        st.info("**圖例與文獻**：建議先開啟 Hoek（2023）Practical Rock Engineering 第 15 圖（GSI 判讀矩陣），再參考 Medwedeff et al. 的 Figure 3（露頭照片與 GSI 判讀案例）。文獻圖僅供對照，不能取代現場地質判釋。")
-        st.markdown("- [Hoek：Practical Rock Engineering（Figure 15：GSI 判讀圖）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)\n- [Medwedeff et al.：現場露頭照片與 GSI 判讀案例（Figure 3）](https://deepblue.lib.umich.edu/bitstream/handle/2027.42/171564/jgrf21486.pdf?sequence=2)\n- [Hoek, Carter & Diederichs (2013)：GSI 圖量化研究](https://static.rocscience.cloud/assets/resources/learning/hoek/2013-Quantification-of-the-GSI-Chart.pdf)")
-        st.caption("現場觀察建議：記錄節理組數、平均間距、延續性、岩塊互鎖程度、粗糙度、風化程度、開口及填充物；最好同時拍攝全景與近照，並附比例尺。")
+        st.markdown("GSI 主要依 **岩體結構（破碎程度、節理組數與互鎖性）** 及 **不連續面表面品質（粗糙度、風化與填充物）** 綜合判讀。以下直接展示研究中的現場案例，請先看照片，再對照圖中的 GSI 區間。")
+        st.markdown("**現場露頭照片與 GSI 判讀案例**")
+        st.components.v1.iframe(
+            "https://deepblue.lib.umich.edu/bitstream/handle/2027.42/171564/jgrf21486.pdf?sequence=2#page=9&toolbar=0&navpanes=0",
+            height=680,
+            scrolling=True,
+        )
+        st.caption("圖例出處：Medwedeff, W. G. et al. (2022), Figure 3, *Journal of Geophysical Research: Earth Surface*, 127, e2021JF006240. 圖中案例描述為三組主要節理、間距約 10–30 cm、中度風化，作者判讀 GSI 約 50–65。")
+        with st.expander("文獻來源（完整論文與補充判讀資料）", expanded=False):
+            st.markdown("- [Medwedeff et al. (2022)：Figure 3 現場照片與 GSI 判讀案例](https://doi.org/10.1029/2021JF006240)\n- [Hoek：Practical Rock Engineering（GSI 判讀矩陣）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)\n- [Hoek, Carter & Diederichs (2013)：GSI 圖量化研究](https://static.rocscience.cloud/assets/resources/learning/hoek/2013-Quantification-of-the-GSI-Chart.pdf)")
+        st.caption("現場觀察建議：記錄節理組數、平均間距、延續性、岩塊互鎖程度、粗糙度、風化程度、開口及填充物；最好同時拍攝全景與近照，並附比例尺。文獻案例僅供比對，不代表其他岩性或露頭可直接套用相同 GSI。")
         
         gsi_struct = st.selectbox("1. 岩體結構評估 (Structure)", [
             "A. 巨塊狀 (Intact/Massive): 岩石塊體巨大，裂隙極少或無 (極佳)",
