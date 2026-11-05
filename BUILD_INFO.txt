@@ -1,9 +1,3 @@
-Geolysis Web Edition V4
-Build time: 2026-11-05 13:53:50 CST (UTC+08:00)
-
-Scope:
-- Retains the five engineering analysis modules from the supplied geolysis-main source.
-- Removes borehole-photo parsing, photo-based recovery/RQD estimation, fracture review UI, and local VLM dependencies from the web app.
-- Photo interpretation and RQD are provided by the separate Windows desktop package.
-
-Deployment target: Streamlit Community Cloud or standard Streamlit server.
+Build: geolysis Web V4 Hoek-Brown input hotfix
+Date: 2026-11-05 Asia/Taipei (UTC+08:00)
+Scope: restore the missing GSI / mi / UCS / D / application-scale input UI removed during web/core-photo separation.

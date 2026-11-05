@@ -1,11 +1,9 @@
-Geolysis Web Edition V4 validation
-Validation time: 2026-11-05 13:53:50 CST (UTC+08:00)
+Validation report — 2026-11-05 Asia/Taipei (UTC+08:00)
 
-Checks:
-- app.py Python compilation: passed.
-- Web-scope tests: 3 passed.
-- Five engineering module sections retained: passed static checks.
-- Photo/RQD/local-VLM UI and modules removed from web package: passed static checks.
-- Streamlit runtime/browser and Community Cloud deployment: not tested in this environment (Streamlit is not installed).
-
-The web package is intentionally separated from all core-photo/RQD processing.
+- Restored the original GSI matrix assessment and Hoek-Brown input controls from the uploaded source.
+- Restored GSI, mi, UCS, disturbance D, application type, unit weight, height and output columns before the Hoek-Brown calculations.
+- Python compilation: passed.
+- Hoek-Brown numerical smoke test: passed.
+- ZIP integrity and UTF-8 paths: passed.
+- Streamlit AppTest / Cloud deployment: not run; Streamlit is not installed in this build environment.
+- This archive contains only the web application files; core-photo analysis code and image-processing dependencies are excluded.

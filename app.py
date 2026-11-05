@@ -45,6 +45,97 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     st.subheader("Hoek–Brown 岩體強度參數")
 
 
+    with st.expander("🗺️ GSI 現場評估", expanded=False):
+        st.markdown("請依據現場岩體狀況，分別選取 **「岩體結構 (Structure)」** 與 **「節理面狀況 (Surface Condition)」**：")
+        
+        gsi_struct = st.selectbox("1. 岩體結構評估 (Structure)", [
+            "A. 巨塊狀 (Intact/Massive): 岩石塊體巨大，裂隙極少或無 (極佳)",
+            "B. 塊狀 (Blocky): 幾組互相交切之節理，岩塊呈方塊狀互鎖 (良好)",
+            "C. 次塊狀/夾雜碎屑 (Very Blocky / Disturbed): 多組密集節理，常受擾動或輕微風化",
+            "D. 碎裂/高度解體 (Blocky/Seamy/Broken): 節理極度發育，破碎成多角形小塊",
+            "E. 泥化破碎/極度揉屬 (Crushed/Sheared/Faulted): 如斷層泥、極度風化碎屑或土石混合崩積料"
+        ])
+        
+        gsi_cond = st.selectbox("2. 節理面狀況評估 (Joint Condition)", [
+            "I. 節理面極佳：平滑、未風化、面緊密閉合、無填充物",
+            "II. 節理面良好：輕微粗糙、微風化、面微開口 (<1mm)",
+            "III. 節理面普通：平滑至中等粗糙、中度風化、有軟弱夾層填充物",
+            "IV. 節理面不良：風化嚴重、夾有黏土質軟弱填充物、面開口較大 (>1-5mm)",
+            "V. 節理面極差：極度風化碎裂、厚層泥質填充物、遇水易軟化崩解"
+        ])
+        
+        # 簡易 GSI 矩陣對照邏輯
+        struct_idx = ["A", "B", "C", "D", "E"].index(gsi_struct[0])
+        cond_idx = ["I", "II", "III", "IV", "V"].index(gsi_cond[0])
+        
+        # 經典 GSI 矩陣估算矩陣
+        gsi_matrix = [
+            [85, 75, 65, 55, 40], # Massive (A)
+            [75, 65, 55, 45, 30], # Blocky (B)
+            [65, 55, 45, 35, 25], # Very Blocky (C)
+            [50, 45, 35, 25, 15], # Broken (D)
+            [35, 30, 25, 20, 10]  # Crushed (E)
+        ]
+        matrix_gsi = gsi_matrix[struct_idx][cond_idx]
+        st.success(f"🎯 依據現場條件交叉對照，建議 **GSI = {matrix_gsi}**。您可以直接在下方滑桿套用此數值！")
+        
+        apply_matrix_gsi = st.button("📥 一鍵套用此 GSI 建議值")
+
+    hb_col1, hb_col2, hb_col3 = st.columns(3)
+    
+    with hb_col1:
+        st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
+        default_gsi_val = matrix_gsi if 'apply_matrix_gsi' in locals() and apply_matrix_gsi else 45
+        gsi = st.slider("地質強度指標 (GSI)", min_value=10, max_value=95, value=default_gsi_val, step=1)
+        
+        rock_preset = st.selectbox("選擇台灣常見岩性組成 (自動帶入常數 mi)", [
+            "砂岩 Sandstone (mi = 17)",
+            "頁岩 Shale (mi = 6)",
+            "泥岩 / 黏土岩 Mudstone / Claystone (mi = 4)",
+            "粉砂岩 Siltstone (mi = 7)",
+            "板岩 Slate (mi = 7)",
+            "片岩 Schist (mi = 10)",
+            "礫岩 Conglomerate (mi = 21)",
+            "石灰岩 Limestone (mi = 10)",
+            "安山岩 Andesite (mi = 25)",
+            "花崗岩 Granite (mi = 32)",
+            "自訂輸入 mi"
+        ])
+        mi_dict = {"17": 17, "6": 6, "4": 4, "7": 7, "10": 10, "21": 21, "25": 25, "32": 32}
+        default_mi = 17
+        for k, v in mi_dict.items():
+            if f"mi = {k})" in rock_preset:
+                default_mi = v
+                break
+        mi = st.number_input("完整岩石材料常數 (mi)", min_value=1, max_value=40, value=default_mi, step=1, key="geolysis_number_input_line_351")
+        sig_ci = st.number_input("完整岩石單軸抗壓強度 σci (UCS) [MPa]", min_value=0.5, max_value=250.0, value=25.0, step=1.0, key="geolysis_number_input_line_352")
+        st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
+
+    with hb_col2:
+        st.markdown("##### 2. 擾動因子與工程應用尺度")
+        d_preset = st.selectbox("開挖/自然擾動程度參考 (D)", [
+            "自然邊坡 / 人工精細開挖或機械開挖 (D = 0.0)",
+            "小規模控制爆破或輕微解壓邊坡 (D = 0.5)",
+            "大規模開挖鬆動 / 嚴重應力釋放或崩塌擾動邊坡 (D = 0.7)",
+            "劣質爆破岩坡 (D = 1.0)",
+            "自訂擾動因子 D"
+        ])
+        if "0.0" in d_preset: d_default = 0.0
+        elif "0.5" in d_preset: d_default = 0.5
+        elif "0.7" in d_preset: d_default = 0.7
+        elif "1.0" in d_preset: d_default = 1.0
+        else: d_default = 0.0
+        d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
+        
+        app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
+            "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
+            "隧道/深基礎分析 (Tunnels - 依深度 H)",
+            "一般淺層/自訂國家有效圍壓 (General σ3_max)"
+        ])
+        gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=23.0, step=0.5, key="geolysis_number_input_line_376")
+        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0, value=20.0, step=1.0, key="geolysis_number_input_line_377")
+
+
     # --- Hoek-Brown (2002) 核心運算 ---
     mb = mi * math.exp((gsi - 100.0) / (28.0 - 14.0 * d_factor))
     s_hb = math.exp((gsi - 100.0) / (9.0 - 3.0 * d_factor))

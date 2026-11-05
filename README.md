@@ -24,3 +24,7 @@ Streamlit Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。本版本不
 
 ## 工程注意
 本系統提供工程估算與分類輔助，輸入資料、適用條件及公式假設仍須由工程人員核對；計算結果不應脫離地層、試驗及設計規範單獨使用。
+
+
+## 2026-11-05 hotfix
+Restored the missing GSI matrix, rock mi/UCS, disturbance D, application-scale, unit weight and height input controls in Module 1. The previous web split accidentally removed these controls while leaving calculation statements, causing a NameError.
