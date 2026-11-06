@@ -29,8 +29,8 @@ def test_classification_rejects_nonmonotonic_sieve():
 def test_spt_n60_and_n160_reference():
     r=spt_correct(20,60,1,1,12,100,'Liao & Whitman',1.7)
     assert r['N60']==pytest.approx(20)
-    assert r['CN']==pytest.approx(1)
-    assert r['N1_60']==pytest.approx(20)
+    assert r['CN']==pytest.approx((101.3/100)**0.5)
+    assert r['N1_60']==pytest.approx(20*(101.3/100)**0.5)
 
 
 def test_spt_rod_correction_and_profile_sort():
@@ -103,7 +103,7 @@ def test_terzaghi_local_shear_reduces_strength_and_capacity():
 
 def test_organic_soil_requires_confirmation_note():
     r=classify_uscs_aashto(p4=100,p10=98,p40=90,p200=70,ll=45,pl=20,organic=True)
-    assert r['USCS']=='OL'
+    assert r['USCS']=='OL（暫定）'
     assert '暫定' in r['organic_note']
 
 
@@ -182,3 +182,350 @@ def test_published_general_theory_factors_at_30deg():
         assert r['Nc']==pytest.approx(factors[0],abs=.03)
         assert r['Nq']==pytest.approx(factors[1],abs=.03)
         assert r['Ngamma']==pytest.approx(factors[2],abs=.03)
+
+
+def test_aashto_gi_matches_published_a4_negative_example():
+    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=60,ll=25,pl=24)
+    assert r['AASHTO']=='A-4'
+    assert r['GI']==0
+
+
+def test_aashto_gi_a2_7_uses_pi_component_only():
+    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=30,ll=50,pl=20)
+    assert r['AASHTO']=='A-2-7'
+    assert r['GI']==3
+
+
+def test_spt_cohesive_soil_skips_cn_and_uses_cb_one():
+    r=spt_correct(20,60,1.15,1.0,12,50,'Liao & Whitman',2.0,soil_behavior='cohesive')
+    assert r['CB']==1.0
+    assert r['CN']==1.0
+    assert r['N1_60']==pytest.approx(r['N60'])
+
+
+def test_spt_dilatancy_is_applied_after_overburden_correction():
+    r=spt_correct(30,60,1,1,12,50,'Liao & Whitman',2.0,apply_dilatancy=True)
+    assert r['N1_60']>15
+    assert r['N1_60_final']==pytest.approx(15+0.5*(r['N1_60']-15))
+
+
+def test_spt_profile_rejects_duplicate_depths_and_keeps_numeric_depth():
+    rows=[{'Depth_m':'5','N':'10','Effective_Stress_kPa':'50'}]
+    r=spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,rod_length_m=5,cn_method='不修正')
+    assert r[0]['Depth_m']==5.0
+    with pytest.raises(ValueError):
+        spt_profile(rows*2,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,rod_length_m=5,cn_method='不修正')
+
+
+def test_burland_burbidge_2025_static_example_and_factor_trends():
+    from geolysis_engine import burland_burbidge_2025_settlement
+    base=dict(n60_average=20,width_m=2,length_m=3,gross_pressure_kpa=150,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
+        granular_layer_thickness_m=10,years=30,load_type='static')
+    r=burland_burbidge_2025_settlement(**base)
+    assert r['settlement_mm']>0
+    assert r['C1_shape']>1
+    assert r['C3_time']==pytest.approx(1.5)
+    higher_n=burland_burbidge_2025_settlement(**{**base,'n60_average':30})
+    assert higher_n['settlement_mm']<r['settlement_mm']
+
+
+def test_burland_burbidge_2025_dilatancy_and_gravel_adjustments():
+    from geolysis_engine import burland_burbidge_2025_settlement
+    base=dict(n60_average=20,width_m=2,length_m=2,gross_pressure_kpa=150,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
+        granular_layer_thickness_m=10,years=3)
+    plain=burland_burbidge_2025_settlement(**base)
+    dil=burland_burbidge_2025_settlement(**base,fine_sand_saturated=True)
+    gravel=burland_burbidge_2025_settlement(**base,gravel_adjustment=True)
+    assert dil['N60_average_used']<plain['N60_average_used']
+    assert gravel['N60_average_used']>plain['N60_average_used']
+    assert dil['settlement_mm']>plain['settlement_mm']
+    assert gravel['settlement_mm']<plain['settlement_mm']
+
+
+def test_burland_burbidge_allowable_pressure_inverts_target_settlement():
+    from geolysis_engine import burland_burbidge_2025_allowable_pressure
+    args=dict(n60_average=20,width_m=2,length_m=3,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
+        granular_layer_thickness_m=10,years=30,load_type='static')
+    r=burland_burbidge_2025_allowable_pressure(target_settlement_mm=25,**args)
+    assert r['qa_settlement_gross_kpa']>0
+    assert r['settlement_mm']==pytest.approx(25,abs=1e-5)
+
+
+def test_burland_burbidge_overconsolidated_pressure_branches():
+    from geolysis_engine import burland_burbidge_2025_settlement
+    args=dict(n60_average=20,width_m=2,length_m=2,gross_pressure_kpa=50,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=250,
+        granular_layer_thickness_m=10,years=3,overconsolidated=True)
+    below=burland_burbidge_2025_settlement(**args)
+    above=burland_burbidge_2025_settlement(**{**args,'gross_pressure_kpa':200})
+    assert below['regime']=='超固結且未超過先期固結壓力'
+    assert above['regime']=='超固結且超過先期固結壓力'
+    assert above['settlement_mm']>below['settlement_mm']
+
+
+def test_burland_burbidge_profile_average_uses_depth_zone_and_pointwise_correction():
+    from geolysis_engine import burland_burbidge_average_n60_from_profile
+    rows=[{'Depth_below_base_m':0.2,'N60':20},
+          {'Depth_below_base_m':0.6,'N60':30},
+          {'Depth_below_base_m':2.0,'N60':40}]
+    r=burland_burbidge_average_n60_from_profile(rows,width_m=2,
+        granular_layer_thickness_m=10,fine_sand_saturated=True)
+    # For B=2 m, Zi is about 1.55 m; third measurement is outside the zone.
+    assert r['selected_count']==2
+    assert r['N60_average']==pytest.approx((17.5+22.5)/2)
+
+
+def test_burland_burbidge_profile_rejects_incompatible_adjustments():
+    from geolysis_engine import burland_burbidge_average_n60_from_profile
+    with pytest.raises(ValueError):
+        burland_burbidge_average_n60_from_profile(
+            [{'Depth_below_base_m':.5,'N60':20}],width_m=2,
+            granular_layer_thickness_m=5,gravel_adjustment=True,fine_sand_saturated=True)
+
+
+def test_spt_profile_refusal_row_is_retained_but_not_corrected():
+    rows=[{'Depth_m':5,'N':50,'Effective_Stress_kPa':50,'Refusal':'true'},
+          {'Depth_m':10,'N':20,'Effective_Stress_kPa':100,'Refusal':'false'}]
+    r=spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,rod_length_m=5,cn_method='不修正')
+    assert r[0]['N1_60_final'] is None
+    assert '拒錘' in r[0]['Correction_status']
+    assert r[1]['N1_60_final'] is not None
+
+
+def test_bearing_eccentricity_updates_depth_factor_using_effective_width():
+    args=dict(theory='Meyerhof',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
+        B=2,L=3,Df=1.5,water_depth=5,fs=3)
+    centered=bearing_capacity(**args)
+    eccentric=bearing_capacity(**args,eccentricity_B=.2)
+    assert eccentric['B_effective']==pytest.approx(1.6)
+    assert eccentric['dq']>centered['dq']
+
+
+def test_bearing_rejects_submerged_unit_weight_above_moist_unit_weight():
+    with pytest.raises(ValueError):
+        bearing_capacity(theory='Hansen',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=20,
+            B=2,L=3,Df=1.5,water_depth=5)
+
+
+def test_bearing_groundwater_gamma_adjustment_uses_effective_width():
+    args=dict(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
+        B=2,L=3,Df=1.5,water_depth=2.5,fs=3)
+    centered=bearing_capacity(**args)
+    eccentric=bearing_capacity(**args,eccentricity_B=.2)
+    assert centered['gamma_effective']==pytest.approx(13.5)
+    assert eccentric['gamma_effective']==pytest.approx(9+9*(1.0/1.6))
+
+
+def test_hoek_brown_2002_slope_parameters_and_gsi_sensitivity():
+    from geolysis_engine import hoek_brown_parameters
+    args=dict(mi=20,sigma_ci_mpa=35,disturbance=0.7,application='slope',
+              gamma_rock_kn_m3=21,height_m=20)
+    low=hoek_brown_parameters(gsi=35,**args)
+    mid=hoek_brown_parameters(gsi=40,**args)
+    high=hoek_brown_parameters(gsi=45,**args)
+    assert 0<low['phi_equiv_deg']<90
+    assert low['c_equiv_kpa']>0
+    assert low['sigma3_max_mpa']>0
+    assert low['mb']<mid['mb']<high['mb']
+    assert low['c_equiv_kpa']<mid['c_equiv_kpa']<high['c_equiv_kpa']
+    assert low['Em_gpa']<mid['Em_gpa']<high['Em_gpa']
+
+
+def test_hoek_brown_general_mode_requires_explicit_confinement():
+    from geolysis_engine import hoek_brown_parameters
+    args=dict(gsi=50,mi=17,sigma_ci_mpa=25,disturbance=0.0,
+              application='general',gamma_rock_kn_m3=23,height_m=20)
+    with pytest.raises(ValueError):
+        hoek_brown_parameters(**args)
+    r=hoek_brown_parameters(**args,sigma3_custom_mpa=1.0)
+    assert r['sigma3_max_mpa']==pytest.approx(1.0)
+    with pytest.raises(ValueError):
+        hoek_brown_parameters(**args,sigma3_custom_mpa=30.0)
+
+
+def test_uscs_low_plasticity_below_four_is_ml_even_if_above_a_line():
+    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=60,ll=25,pl=22)
+    assert r['USCS']=='ML'
+
+
+def test_uscs_coarse_grained_cl_ml_fines_over_twelve_uses_dual_fines_symbol():
+    r=classify_uscs_aashto(p4=80,p10=70,p40=55,p200=20,ll=25,pl=19,
+        d10=.1,d30=.3,d60=.8)
+    assert r['USCS']=='SC-SM'
+
+
+def test_uscs_equal_gravel_and_sand_is_sand_dominant():
+    r=classify_uscs_aashto(p4=55,p10=50,p40=40,p200=10,ll=30,pl=20,
+        d10=.1,d30=.3,d60=.8)
+    assert r['USCS'].startswith('SP-') or r['USCS'].startswith('SW-')
+
+
+def test_aashto_peat_is_a8_and_gi_zero():
+    r=classify_uscs_aashto(p4=100,p10=100,p40=100,p200=90,ll=100,pl=50,peat=True)
+    assert r['USCS']=='PT'
+    assert r['AASHTO']=='A-8'
+    assert r['GI']==0
+
+
+def test_spt_rod_factor_at_ten_meter_boundary_enters_one_point_zero_range():
+    from geolysis_engine import rod_factor
+    assert rod_factor(9.99)==pytest.approx(.95)
+    assert rod_factor(10.0)==pytest.approx(1.0)
+    assert rod_factor(10.01)==pytest.approx(1.0)
+
+
+def test_burland_burbidge_reports_no_feasible_pressure_if_baseline_exceeds_target():
+    from geolysis_engine import burland_burbidge_2025_allowable_pressure
+    r=burland_burbidge_2025_allowable_pressure(target_settlement_mm=1,
+        n60_average=5,width_m=3,length_m=3,initial_effective_stress_kpa=300,
+        preconsolidation_stress_kpa=300,granular_layer_thickness_m=10,years=30)
+    assert r['no_feasible_pressure'] is True
+    assert r['qa_settlement_gross_kpa']==pytest.approx(0,abs=1e-6)
+
+
+def test_aashto_gi_is_capped_at_twenty():
+    r=classify_uscs_aashto(p4=100,p10=100,p40=100,p200=100,ll=200,pl=0)
+    assert r['GI']==20
+
+
+def test_aashto_rounds_limits_before_group_assignment():
+    # P200=35.49 rounds to 35; P200=35.50 rounds to 36.
+    a=classify_uscs_aashto(p4=100,p10=80,p40=60,p200=35.49,ll=40,pl=29)
+    b=classify_uscs_aashto(p4=100,p10=80,p40=60,p200=35.50,ll=40,pl=29)
+    assert a['AASHTO'].startswith('A-2-')
+    assert b['AASHTO']=='A-6'
+
+
+def test_classical_bearing_factor_values_at_phi_30():
+    args=dict(c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
+        B=2,L=3,Df=1.5,water_depth=5,fs=3)
+    expected={'Meyerhof':15.67,'Hansen':15.07,'Vesic':22.40}
+    for theory,value in expected.items():
+        r=bearing_capacity(theory=theory,**args)
+        assert r['Ngamma']==pytest.approx(value,abs=.02)
+        assert r['Nq']==pytest.approx(18.40,abs=.02)
+        assert r['Nc']==pytest.approx(30.14,abs=.03)
+
+
+def test_hoek_brown_tunnel_mode_uses_tunnel_confinement_relation():
+    from geolysis_engine import hoek_brown_parameters
+    r=hoek_brown_parameters(gsi=50,mi=17,sigma_ci_mpa=25,disturbance=.3,
+        application='tunnel',gamma_rock_kn_m3=23,height_m=100)
+    assert r['sigma3_max_mpa']>0
+    assert r['sigma3_max_mpa']<r['sigma_ci_mpa']
+
+
+def test_clay_consolidation_search_limit_flag_uses_original_pressure_cap():
+    from geolysis_engine import consolidation_allowable_pressure
+    args=dict(target_settlement_mm=200,footing_pressure_factor=.5,
+        layer_thickness_m=5,initial_void_ratio=.8,compression_index=.3,
+        recompression_index=.05,initial_effective_stress_kpa=100,
+        preconsolidation_stress_kpa=150,max_pressure_kpa=10)
+    r=consolidation_allowable_pressure(**args)
+    assert r['search_limit_reached'] is True
+    args['target_settlement_mm']=.001
+    r2=consolidation_allowable_pressure(**args)
+    assert r2['search_limit_reached'] is False
+
+
+def test_clay_consolidation_rejects_invalid_stress_factor_and_void_ratio():
+    from geolysis_engine import consolidation_allowable_pressure, consolidation_settlement_1d
+    with pytest.raises(ValueError):
+        consolidation_allowable_pressure(target_settlement_mm=25,footing_pressure_factor=1.1,
+            layer_thickness_m=5,initial_void_ratio=.8,compression_index=.3,
+            recompression_index=.05,initial_effective_stress_kpa=100,
+            preconsolidation_stress_kpa=150)
+    with pytest.raises(ValueError):
+        consolidation_settlement_1d(layer_thickness_m=5,initial_void_ratio=0,
+            compression_index=.3,recompression_index=.05,
+            initial_effective_stress_kpa=100,preconsolidation_stress_kpa=150,
+            stress_increase_kpa=50)
+
+
+def test_hansen_vesic_allow_zero_base_adhesion_for_smooth_footing():
+    base=dict(c_kpa=20,phi_deg=0,gamma_moist=18,gamma_sub=9,
+        B=2,L=3,Df=1,water_depth=5,fs=3,horizontal_load=100,
+        vertical_load=1000,adhesion_ratio=0)
+    h=bearing_capacity(theory='Hansen',**base)
+    v=bearing_capacity(theory='Vesic',**base)
+    assert h['ic']==0
+    assert v['ic']==0
+
+
+def test_bearing_returns_gross_ultimate_over_fs_for_burland_cap():
+    r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
+        gamma_sub=9,B=2,L=3,Df=1.5,water_depth=5,fs=3)
+    assert r['qu_gross_over_FS']==pytest.approx(r['qu_gross']/3)
+    assert r['qa_gross']==pytest.approx(r['qa_net']+r['q_surcharge'])
+
+
+def test_burland_burbidge_rejects_mutually_exclusive_gravel_and_dilatancy_corrections():
+    from geolysis_engine import burland_burbidge_2025_settlement
+    with pytest.raises(ValueError):
+        burland_burbidge_2025_settlement(n60_average=20,width_m=2,length_m=2,
+            gross_pressure_kpa=150,initial_effective_stress_kpa=100,
+            preconsolidation_stress_kpa=100,granular_layer_thickness_m=10,
+            gravel_adjustment=True,fine_sand_saturated=True)
+
+
+def test_seed_idriss_cn_cap_is_limited_to_1_7_even_if_ui_cap_is_two():
+    r=spt_correct(20,60,1,1,12,25,'Seed & Idriss',2.0)
+    assert r['CN_cap_applied']==pytest.approx(1.7)
+    assert r['CN']==pytest.approx(1.7)
+
+
+def test_boussinesq_rectangular_center_factor_reference_limits_and_2to1_comparison():
+    from geolysis_engine import boussinesq_rectangular_center_factor
+    assert boussinesq_rectangular_center_factor(2,2,0)==pytest.approx(1.0)
+    exact=boussinesq_rectangular_center_factor(2,2,1)
+    simplified=4/((2+1)*(2+1))
+    assert exact==pytest.approx(.70088593,abs=1e-6)
+    assert exact>simplified
+    assert boussinesq_rectangular_center_factor(2,2,5)<exact
+
+
+def test_multilayer_consolidation_sums_layer_settlement_and_inverts_pressure():
+    from geolysis_engine import consolidation_settlement_layers, consolidation_allowable_pressure_layers
+    layers=[
+        {'Layer':'A','Depth_center_m':1.5,'Thickness_m':3,'e0':.8,'Cc':.3,'Cr':.05,'Sigma0_kPa':60,'SigmaP_kPa':100},
+        {'Layer':'B','Depth_center_m':5,'Thickness_m':4,'e0':.9,'Cc':.4,'Cr':.06,'Sigma0_kPa':100,'SigmaP_kPa':150},
+    ]
+    s=consolidation_settlement_layers(layers=layers,footing_width_m=2,footing_length_m=3,
+        net_pressure_kpa=100,stress_method='Boussinesq')
+    assert s['settlement_mm']==pytest.approx(sum(x['Settlement_mm'] for x in s['layer_results']))
+    q=consolidation_allowable_pressure_layers(layers=layers,footing_width_m=2,footing_length_m=3,
+        target_settlement_mm=25,stress_method='Boussinesq')
+    assert q['qa_primary_consolidation_kpa']>0
+    assert q['settlement_mm']==pytest.approx(25,abs=1e-5)
+    assert len(q['layer_results'])==2
+
+
+def test_multilayer_consolidation_rejects_duplicate_depths_and_bad_layer_inputs():
+    from geolysis_engine import consolidation_settlement_layers
+    base={'Depth_center_m':2,'Thickness_m':3,'e0':.8,'Cc':.3,'Cr':.05,'Sigma0_kPa':60,'SigmaP_kPa':100}
+    with pytest.raises(ValueError):
+        consolidation_settlement_layers(layers=[base,{**base,'Layer':'duplicate'}],
+            footing_width_m=2,footing_length_m=3,net_pressure_kpa=100)
+    with pytest.raises(ValueError):
+        consolidation_settlement_layers(layers=[{**base,'Cc':.01,'Cr':.2}],
+            footing_width_m=2,footing_length_m=3,net_pressure_kpa=100)
+
+
+def test_single_layer_consolidation_accepts_boussinesq_influence_factor():
+    from geolysis_engine import consolidation_allowable_pressure, boussinesq_rectangular_center_factor
+    factor=boussinesq_rectangular_center_factor(2,3,2)
+    r=consolidation_allowable_pressure(target_settlement_mm=25,
+        footing_pressure_factor=factor,layer_thickness_m=5,initial_void_ratio=.8,
+        compression_index=.3,recompression_index=.05,initial_effective_stress_kpa=100,
+        preconsolidation_stress_kpa=150,stress_method='Boussinesq')
+    assert r['qa_primary_consolidation_kpa']>0
+    assert 'Boussinesq' in r['method']
+
+
+def test_bearing_rejects_unknown_terzaghi_failure_mode():
+    with pytest.raises(ValueError):
+        bearing_capacity(theory='Terzaghi',c_kpa=10,phi_deg=30,gamma_moist=18,
+            gamma_sub=9,B=2,L=3,Df=1,water_depth=5,failure_mode='unknown')
