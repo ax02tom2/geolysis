@@ -182,27 +182,80 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
             st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
         
-        rock_preset = st.selectbox("選擇台灣常見岩性組成 (自動帶入常數 mi)", [
-            "砂岩 Sandstone (mi = 17)",
-            "頁岩 Shale (mi = 6)",
-            "泥岩 / 黏土岩 Mudstone / Claystone (mi = 4)",
-            "粉砂岩 Siltstone (mi = 7)",
-            "板岩 Slate (mi = 7)",
-            "片岩 Schist (mi = 10)",
-            "礫岩 Conglomerate (mi = 21)",
-            "石灰岩 Limestone (mi = 10)",
-            "安山岩 Andesite (mi = 25)",
-            "花崗岩 Granite (mi = 32)",
-            "自訂輸入 mi"
-        ])
-        mi_dict = {"17": 17, "6": 6, "4": 4, "7": 7, "10": 10, "21": 21, "25": 25, "32": 32}
-        default_mi = 17
-        for k, v in mi_dict.items():
-            if f"mi = {k})" in rock_preset:
-                default_mi = v
-                break
-        mi = st.number_input("完整岩石材料常數 (mi)", min_value=1, max_value=40, value=default_mi, step=1, key="geolysis_number_input_line_351")
-        sig_ci = st.number_input("完整岩石單軸抗壓強度 σci (UCS) [MPa]", min_value=0.5, max_value=250.0, value=25.0, step=1.0, key="geolysis_number_input_line_352")
+        rock_preset = st.selectbox("選擇完整岩石的岩性（供 mi 初估）", [
+            "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
+            "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
+            "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
+            "安山岩 Andesite", "花崗岩 Granite", "自訂輸入 mi"
+        ], key="hb_rock_type_for_mi")
+        # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
+        mi_reference = {
+            "砂岩 Sandstone": (17, 13, 21, "Hoek/Marinos & Hoek：17 ± 4"),
+            "頁岩 Shale": (6, 4, 8, "Hoek/Marinos & Hoek：6 ± 2"),
+            "泥岩／黏土岩 Mudstone / Claystone": (4, 2, 6, "Hoek/Marinos & Hoek：4 ± 2"),
+            "粉砂岩 Siltstone": (7, 5, 9, "Hoek/Marinos & Hoek：7 ± 2"),
+            "板岩 Slate": (7, 3, 11, "Hoek：7 ± 4；片理方向會影響"),
+            "片岩 Schist": (12, 9, 15, "Marinos & Hoek：12 ± 3；片理方向會影響"),
+            "礫岩／角礫岩 Conglomerate / Breccia": (20, 15, 25, "文獻估計值；膠結物差異大"),
+            "石灰岩 Limestone": (10, 8, 12, "Marinos & Hoek：10 ± 2"),
+            "安山岩 Andesite": (25, 20, 30, "Hoek/Marinos & Hoek：25 ± 5；火山岩變異可能很大"),
+            "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3")
+        }
+        if rock_preset == "自訂輸入 mi":
+            mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
+                value=17.0, step=0.5, key="hb_mi_custom")
+            st.caption("自訂 mi 應優先由完整岩石三軸試驗擬合取得；若無試驗，需註明採用的文獻依據。")
+        else:
+            mi_default, mi_low, mi_high, mi_source = mi_reference[rock_preset]
+            mi = st.number_input("完整岩石材料常數 mi（岩性文獻初估）", min_value=1.0, max_value=50.0,
+                value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
+            st.caption(f"參考範圍：mi 約 {mi_low}–{mi_high}；目前採用 {mi:g}。{mi_source}。這是岩性典型值，不代表本工址實測。")
+
+        st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
+        ucs_mode = st.radio("你目前有哪一種強度資料？", [
+            "已有實驗室 UCS 試驗值",
+            "沒有 UCS，以現場敲擊分級初估",
+            "目前沒有可用資料"
+        ], index=1, key="hb_ucs_source_mode")
+        ucs_valid = False
+        if ucs_mode == "已有實驗室 UCS 試驗值":
+            sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
+                value=25.0, step=1.0, key="hb_ucs_lab_value")
+            ucs_valid = True
+            st.caption("請輸入完整岩石試體的單軸壓縮強度，不是岩體強度，也不是節理面強度。若有多件試驗，建議依岩性／風化分區統計代表值與離散程度。")
+        elif ucs_mode == "沒有 UCS，以現場敲擊分級初估":
+            isrm_grade = st.selectbox("依完整岩塊現場敲擊／刻劃反應選擇 ISRM 強度等級", [
+                "請選擇現場等級",
+                "R6 極強（>250 MPa）：地質鎚多次敲擊僅崩小片，敲擊有清脆聲",
+                "R5 非常強（100–250 MPa）：需多次地質鎚敲擊才可打破完整岩塊",
+                "R4 強（50–100 MPa）：手持岩塊以地質鎚單次敲擊可打破",
+                "R3 中等強（25–50 MPa）：地質鎬用力敲擊可壓入約 5 mm，刀僅能刮痕",
+                "R2 弱（5–25 MPa）：刀可切削，但材料仍難以製作標準試體",
+                "R1 非常弱（1–5 MPa）：地質鎬用力敲擊會碎裂，可用刀削形",
+                "R0 極弱（0.25–1 MPa）：指甲可壓出凹痕"
+            ], key="hb_isrm_ucs_grade")
+            isrm_ranges = {
+                "R6": (250.0, 300.0, 300.0), "R5": (100.0, 250.0, 175.0),
+                "R4": (50.0, 100.0, 75.0), "R3": (25.0, 50.0, 37.5),
+                "R2": (5.0, 25.0, 15.0), "R1": (1.0, 5.0, 3.0), "R0": (0.25, 1.0, 0.625)
+            }
+            if isrm_grade.startswith("R"):
+                _grade = isrm_grade[:2]
+                _ucs_low, _ucs_high, _ucs_mid = isrm_ranges[_grade]
+                sig_ci = st.number_input("UCS 初估代表值 [MPa]（可依現場證據調整）",
+                    min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=1.0,
+                    key=f"hb_ucs_field_{_grade}")
+                ucs_valid = True
+                if _grade == "R6":
+                    st.warning("R6 僅表示 UCS 大於 250 MPa，沒有有限上限；300 MPa 只是暫用情境值，不是區間中點。請優先安排試驗或敏感度分析。")
+                else:
+                    st.info(f"ISRM 現場分級對應 UCS 約 {_ucs_low:g}–{_ucs_high:g} MPa；系統先以區間中點作初估，請勿當作試驗值。")
+            else:
+                sig_ci = 25.0
+                st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
+        else:
+            sig_ci = 25.0
+            st.warning("缺少 UCS 或可用的現場強度分級。請取得岩石試驗、點荷重並建立工址相關性，或先做現場強度分級；目前不會把 25 MPa 當成真實值進行分析。")
         st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
 
     with hb_col2:
@@ -239,6 +292,8 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     hb_current=None
     hb_error=None
     try:
+        if not ucs_valid:
+            raise ValueError("缺少 UCS 試驗值或有效的 ISRM 現場強度分級，請先補足資料。")
         if not gsi_selection_valid:
             raise ValueError("目前選取的岩體結構與不連續面品質組合不適用基本 GSI 圖，請重新選擇。")
         if gsi_lower > gsi_upper:
