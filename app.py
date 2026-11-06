@@ -7,6 +7,29 @@ from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, usac
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
+# 展開區版面修正：避免 expander 內容因內層容器溢出設定而被裁切。
+# 所有模組仍可獨立收合／展開；不改動計算欄位或分析流程。
+st.markdown("""
+<style>
+/* Streamlit expander：內容高度依實際內容延伸，不限制在固定高度 */
+div[data-testid="stExpander"],
+div[data-testid="stExpander"] details,
+div[data-testid="stExpander"] details > div,
+div[data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+/* 避免巢狀 expander 與欄位容器截斷圖表、說明或表單下緣 */
+div[data-testid="stExpander"] [data-testid="stExpanderDetails"] > div {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    min-height: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🧱 geolysis 大地工程分析系統")
 st.markdown(r"""
 本系統結合 **Hoek-Brown (2002) 岩體裂隙參數推估** 與開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 核心工程模組：
