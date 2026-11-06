@@ -259,6 +259,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         ], index=1, key="hb_ucs_source_mode")
         ucs_valid = False
         _ucs_range_low = _ucs_range_high = None
+        _ucs_range_label = None
         if ucs_mode == "已有實驗室 UCS 試驗值":
             sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
                 value=25.0, step=1.0, key="hb_ucs_lab_value")
@@ -266,6 +267,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 key="hb_ucs_lab_confirmed")
             ucs_valid = bool(lab_value_confirmed)
             _ucs_range_low = _ucs_range_high = sig_ci
+            _ucs_range_label = f"{sig_ci:g} MPa（試驗值）"
             if not ucs_valid:
                 st.warning("請先確認數值確實來自試驗報告；25 MPa 只是輸入欄位初始顯示值，不會在未確認時用於計算。")
             st.caption("請輸入完整岩石試體的單軸壓縮強度，不是岩體強度，也不是節理面強度。若有多件試驗，建議依岩性／風化分區統計代表值與離散程度。")
@@ -290,8 +292,10 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 _ucs_low, _ucs_high, _ucs_mid = isrm_ranges[_grade]
                 if _grade == "R6":
                     _ucs_range_low = _ucs_range_high = _ucs_mid
+                    _ucs_range_label = ">250 MPa（無有限上限；暫用 300 MPa 情境值）"
                 else:
                     _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
+                    _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa"
                 sig_ci = float(_ucs_mid)
                 with st.expander("進階調整：UCS 代表值", expanded=False):
                     sig_ci = st.number_input("UCS 代表值 [MPa]", min_value=0.1, max_value=1000.0,
@@ -306,6 +310,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
         elif ucs_mode.startswith("台灣東北部相似破碎風化砂岩案例"):
             _ucs_range_low, _ucs_range_high = 27.5, 32.5
+            _ucs_range_label = "27.5–32.5 MPa（案例回算測試值）"
             sig_ci = 30.0
             if rock_preset == "砂岩 Sandstone":
                 ucs_valid = True
@@ -420,8 +425,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         f"Em = {min(x['Em_gpa'] for x in _sens_rows):.2f}–{max(x['Em_gpa'] for x in _sens_rows):.2f} GPa。")
                     st.caption(
                         f"本次採用區間：GSI {gsi_lower}–{gsi_upper}；mi {mi_low:g}–{mi_high:g}；"
-                        f"UCS {(_ucs_range_low if _ucs_range_low is not None else sig_ci):g}–"
-                        f"{(_ucs_range_high if _ucs_range_high is not None else sig_ci):g} MPa；"
+                        f"UCS {_ucs_range_label or f'{sig_ci:g} MPa'}；"
                         f"D {d_range_low:g}–{d_range_high:g}。"
                         "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
