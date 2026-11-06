@@ -225,7 +225,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "片岩 Schist": (12, 9, 15, "Marinos & Hoek：12 ± 3；片理方向會影響"),
             "礫岩／角礫岩 Conglomerate / Breccia": (20, 15, 25, "文獻估計值；膠結物差異大"),
             "石灰岩 Limestone": (10, 8, 12, "Marinos & Hoek：10 ± 2"),
-            "安山岩 Andesite": (25, 20, 30, "Hoek/Marinos & Hoek：25 ± 5；火山岩變異可能很大"),
+            "安山岩 Andesite": (20, 2, 38, "USGS 2022：不同安山岩實測 mi 約 2–38；以 20 作區間中點初估，離散性極高"),
             "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3")
         }
         if rock_preset == "自訂輸入 mi":
@@ -298,10 +298,10 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     with hb_col2:
         st.markdown("##### 2. 擾動因子與工程應用尺度")
         d_preset = st.selectbox("開挖/自然擾動程度參考 (D)", [
-            "自然邊坡 / 人工精細開挖或機械開挖 (D = 0.0)",
-            "小規模控制爆破或輕微解壓邊坡 (D = 0.5)",
-            "大規模開挖鬆動 / 嚴重應力釋放或崩塌擾動邊坡 (D = 0.7)",
-            "劣質爆破岩坡 (D = 1.0)",
+            "自然坡面（無近期開挖或爆破；仍須檢查長期卸荷）(D = 0.0)",
+            "控制預裂／光面爆破，損傷較小 (D = 0.5)",
+            "弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)",
+            "未良好控制的生產爆破，近坡面嚴重損傷 (D = 1.0)",
             "自訂擾動因子 D"
         ])
         if "0.0" in d_preset: d_default = 0.0
@@ -371,11 +371,28 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
             if gsi_lower <= gsi_upper:
                 try:
-                    hb_lo=hoek_brown_parameters(gsi=gsi_lower,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
-                        application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,sigma3_custom_mpa=sigma3_general)
-                    hb_hi=hoek_brown_parameters(gsi=gsi_upper,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
-                        application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,sigma3_custom_mpa=sigma3_general)
-                    st.caption(f"GSI 區間敏感度（其餘參數固定）：c′ = {min(hb_lo['c_equiv_kpa'],hb_hi['c_equiv_kpa']):.1f}–{max(hb_lo['c_equiv_kpa'],hb_hi['c_equiv_kpa']):.1f} kPa；ϕ′ = {min(hb_lo['phi_equiv_deg'],hb_hi['phi_equiv_deg']):.1f}–{max(hb_lo['phi_equiv_deg'],hb_hi['phi_equiv_deg']):.1f}°；Em = {min(hb_lo['Em_gpa'],hb_hi['Em_gpa']):.2f}–{max(hb_lo['Em_gpa'],hb_hi['Em_gpa']):.2f} GPa。")
+                    _gsi_values = sorted(set([gsi_lower, gsi_upper]))
+                    _mi_values = sorted(set([mi_low, mi_high]))
+                    _ucs_values = sorted(set([_ucs_range_low if _ucs_range_low is not None else sig_ci,
+                                               _ucs_range_high if _ucs_range_high is not None else sig_ci]))
+                    _sens_rows = []
+                    for _gv in _gsi_values:
+                        for _mv in _mi_values:
+                            for _uv in _ucs_values:
+                                _sens_rows.append(hoek_brown_parameters(
+                                    gsi=_gv, mi=_mv, sigma_ci_mpa=_uv, disturbance=d_factor,
+                                    application=hb_application, gamma_rock_kn_m3=gamma_rock,
+                                    height_m=h_slope, sigma3_custom_mpa=sigma3_general))
+                    st.caption(
+                        f"參數範圍敏感度（GSI、mi、UCS 同時變動；D、γ、H 固定）："
+                        f"c′ = {min(x['c_equiv_kpa'] for x in _sens_rows):.1f}–{max(x['c_equiv_kpa'] for x in _sens_rows):.1f} kPa；"
+                        f"ϕ′ = {min(x['phi_equiv_deg'] for x in _sens_rows):.1f}–{max(x['phi_equiv_deg'] for x in _sens_rows):.1f}°；"
+                        f"Em = {min(x['Em_gpa'] for x in _sens_rows):.2f}–{max(x['Em_gpa'] for x in _sens_rows):.2f} GPa。")
+                    st.caption(
+                        f"本次採用區間：GSI {gsi_lower}–{gsi_upper}；mi {mi_low:g}–{mi_high:g}；"
+                        f"UCS {(_ucs_range_low if _ucs_range_low is not None else sig_ci):g}–"
+                        f"{(_ucs_range_high if _ucs_range_high is not None else sig_ci):g} MPa。"
+                        "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
                     st.warning(f"GSI 區間敏感度計算未完成：{exc}")
 
