@@ -178,7 +178,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     with hb_col1:
         st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
         default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
-        gsi = st.number_input("地質強度指標代表值 (GSI)", min_value=0, max_value=100, value=default_gsi_val, step=1, key="gsi_representative_value")
+        gsi = st.number_input("地質強度指標代表值 (GSI)", min_value=0, max_value=100, value=default_gsi_val, step=1, key=f"gsi_representative_value_{_struct_code}_{_cond_code}")
         if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
             st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
         
