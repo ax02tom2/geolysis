@@ -162,9 +162,13 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         _struct_code = gsi_struct[0]
         _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
         _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-        if _gsi_recommended is None:
+        _taiwan_case_gsi = st.session_state.get("hb_taiwan_case_gsi", False)
+        if _gsi_recommended is None and not _taiwan_case_gsi:
             st.error("這組結構與表面品質在 Hoek–Marinos (2000) 基本 GSI 圖中屬不適用／不建議組合，系統不自動給值。請重新檢查現場分類，或改用適合片理、層狀、flysch 等岩體的專用 GSI 圖。")
             st.info("特別注意：巨塊狀岩體不應搭配極差節理面；層狀／剪切狀岩體也不應直接套用極佳或良好節理面條件。")
+        elif _taiwan_case_gsi:
+            st.success("**目前採用相似案例回算 GSI 範圍：20–30；代表值：25**")
+            st.caption("上方結構與節理面分類仍保留作現場描述，但本次計算以案例區間取代交叉判讀數值。")
         else:
             _rec_lo, _rec_hi = _gsi_recommended
             st.success(f"**系統建議 GSI 範圍：{_rec_lo}–{_rec_hi}；建議代表值：{int(round((_rec_lo + _rec_hi)/2))}**")
@@ -175,7 +179,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             with _gsi_edit2:
                 st.number_input("GSI 初判上限", min_value=0, max_value=100, value=_rec_hi, step=1,
                     key=f"gsi_upper_{_struct_code}_{_cond_code}")
-            st.caption("建議值是依原始 GSI 圖趨勢估讀的初判區間，不是精確量測值；可依現地證據修改。Hoek 建議以合理範圍表達，不宜假裝 GSI 可精確到單一數字。")
+            st.caption("建議值是依 GSI 判讀圖趨勢估讀的初判區間，不是精確量測值；可依現地證據修改。")
 
         st.info("GSI 基本圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
         st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
@@ -346,7 +350,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         gamma_rock = gamma_default
         with st.expander("進階調整：岩體單位重", expanded=False):
             gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0,
-                value=gamma_default, step=0.5, key="geolysis_number_input_line_376")
+                value=gamma_default, step=0.5, key=f"geolysis_gamma_{'taiwan_case' if st.session_state.get('hb_taiwan_case_gsi', False) else 'general'}")
             st.caption(f"目前初估採 {gamma_default:g} kN/m³；若有密度／單位重試驗，請改用工址資料。")
         h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
             value=20.0, step=1.0, key="geolysis_number_input_line_377")
