@@ -49,6 +49,32 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     st.subheader("Hoek–Brown 岩體強度參數")
 
 
+    # GSI 交叉判讀表：依 Hoek & Marinos (2000) 原始圖的結構／表面品質趨勢作初步區間估讀。
+    # 數值是工程初判範圍，不是原圖提供的精確格點值；N/A 組合不強行產生 GSI。
+    gsi_struct_options = [
+        "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面",
+        "B. 塊狀 (Blocky)：三組左右不連續面交切，塊體互鎖、近立方體",
+        "C. 極塊狀 (Very Blocky)：四組以上節理，形成多面體塊體，仍具互鎖性",
+        "D. 塊狀／擾動／層狀 (Blocky/Disturbed/Seamy)：多組交切、褶皺或層理／片理持續發育",
+        "E. 解體狀 (Disintegrated)：互鎖性差，岩體嚴重破碎、角狀至次圓狀碎塊混雜",
+        "F. 層狀／剪切狀 (Laminated/Sheared)：弱片理或剪裂面密集，岩體缺乏塊狀性"
+    ]
+    gsi_cond_options = [
+        "I. 極佳 (Very Good)：非常粗糙、新鮮、未風化表面",
+        "II. 良好 (Good)：粗糙、微風化，可能有鐵染",
+        "III. 普通 (Fair)：平滑至中等粗糙、中度風化或蝕變",
+        "IV. 不良 (Poor)：擦痕／鏡面化或高度風化，具緻密塗層或填充物",
+        "V. 極差 (Very Poor)：高度風化，具軟弱黏土塗層或填充物"
+    ]
+    gsi_range_matrix = {
+        "A": [(90,100),(80,90),(70,80),None,None],
+        "B": [(75,85),(65,75),(55,65),(45,55),(35,45)],
+        "C": [(65,75),(55,65),(45,55),(35,45),(25,35)],
+        "D": [(50,60),(40,50),(30,40),(20,30),(10,20)],
+        "E": [None,(25,35),(18,27),(10,20),(5,15)],
+        "F": [None,None,(15,20),(10,15),(5,10)]
+    }
+
     with st.expander("🗺️ GSI 現場評估與文獻圖例", expanded=False):
         st.markdown("GSI 應由 **岩體結構／塊體互鎖程度** 與 **不連續面表面品質** 綜合判讀。先參考下列圖件與示意圖，再依現場觀察人工選定合理區間。")
 
@@ -99,36 +125,53 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 - [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)""")
 
         st.markdown("**1. 岩體結構**")
-        gsi_struct = st.selectbox("選擇最接近的結構描述", [
-            "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面",
-            "B. 塊狀 (Blocky)：三組左右不連續面交切，塊體互鎖、近立方體",
-            "C. 極塊狀 (Very Blocky)：四組以上節理，形成多面體塊體，仍具互鎖性",
-            "D. 塊狀／擾動／層狀 (Blocky/Disturbed/Seamy)：多組交切、褶皺或層理／片理持續發育",
-            "E. 解體狀 (Disintegrated)：互鎖性差，岩體嚴重破碎、角狀至次圓狀碎塊混雜",
-            "F. 層狀／剪切狀 (Laminated/Sheared)：弱片理或剪裂面密集，岩體缺乏塊狀性"
-        ], key="gsi_structure_class")
+        gsi_struct = st.selectbox("選擇最接近的結構描述", gsi_struct_options,
+            index=1, key="gsi_structure_class")
         st.markdown("**2. 不連續面表面品質**")
-        gsi_cond = st.selectbox("選擇最接近的節理面狀況", [
-            "I. 極佳 (Very Good)：非常粗糙、新鮮、未風化表面",
-            "II. 良好 (Good)：粗糙、微風化，可能有鐵染",
-            "III. 普通 (Fair)：平滑至中等粗糙、中度風化或蝕變",
-            "IV. 不良 (Poor)：擦痕／鏡面化或高度風化，具緻密塗層或填充物",
-            "V. 極差 (Very Poor)：高度風化，具軟弱黏土塗層或填充物"
-        ], key="gsi_surface_class")
-        st.caption("結構與表面品質只用來協助定位 GSI 圖上的區域；若岩體具有不利方向的連續弱面，可能由結構控制破壞，不能只用等向性 Hoek–Brown 岩體參數取代結構面分析。")
-        st.markdown("**3. 依 GSI 圖人工選定合理區間**")
-        gr1, gr2 = st.columns(2)
-        with gr1:
-            gsi_lower = st.number_input("GSI 初判下限", min_value=0, max_value=100, value=40, step=1, key="gsi_lower")
-        with gr2:
-            gsi_upper = st.number_input("GSI 初判上限", min_value=0, max_value=100, value=60, step=1, key="gsi_upper")
-        if gsi_lower > gsi_upper:
-            st.error("GSI 下限不可大於上限。")
-            gsi_default = 50
+        gsi_cond = st.selectbox("選擇最接近的節理面狀況", gsi_cond_options,
+            index=2, key="gsi_surface_class")
+        st.caption("選擇完成後，系統會依兩項條件的交叉位置提供 GSI 建議範圍；請再依露頭、岩心、岩性及現地尺度確認。")
+        st.caption("若存在不利方向且連續的弱面，可能屬結構控制破壞，不應只用等向性 Hoek–Brown 岩體參數取代結構面分析。")
+
+        _struct_code = gsi_struct[0]
+        _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
+        _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
+        if _gsi_recommended is None:
+            st.error("這組結構與表面品質在 Hoek–Marinos (2000) 基本 GSI 圖中屬不適用／不建議組合，系統不自動給值。請重新檢查現場分類，或改用適合片理、層狀、flysch 等岩體的專用 GSI 圖。")
+            st.info("特別注意：巨塊狀岩體不應搭配極差節理面；層狀／剪切狀岩體也不應直接套用極佳或良好節理面條件。")
         else:
-            gsi_default = int(round((gsi_lower + gsi_upper) / 2))
-            st.caption(f"人工判讀區間：GSI {gsi_lower}–{gsi_upper}；建議代表值先取區間中點 {gsi_default}，再依岩性、尺度與結構面控制情形調整。")
-        st.caption("圖表判讀應以範圍呈現；本系統不再用簡化 5×5 固定數值矩陣假裝成原始 GSI 圖。")
+            _rec_lo, _rec_hi = _gsi_recommended
+            st.success(f"**系統建議 GSI 範圍：{_rec_lo}–{_rec_hi}；建議代表值：{int(round((_rec_lo + _rec_hi)/2))}**")
+            _gsi_edit1, _gsi_edit2 = st.columns(2)
+            with _gsi_edit1:
+                st.number_input("GSI 初判下限", min_value=0, max_value=100, value=_rec_lo, step=1,
+                    key=f"gsi_lower_{_struct_code}_{_cond_code}")
+            with _gsi_edit2:
+                st.number_input("GSI 初判上限", min_value=0, max_value=100, value=_rec_hi, step=1,
+                    key=f"gsi_upper_{_struct_code}_{_cond_code}")
+            st.caption("建議值是依原始 GSI 圖趨勢估讀的初判區間，不是精確量測值；可依現地證據修改。Hoek 建議以合理範圍表達，不宜假裝 GSI 可精確到單一數字。")
+
+        st.info("GSI 基本圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
+        st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
+        with st.expander("文獻來源與圖說", expanded=False):
+            st.markdown("""- [Hoek：Practical Rock Engineering，Figure 6（Hoek & Marinos, 2000 GSI 基本圖）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)
+- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）
+- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)""")
+
+    gsi_struct = st.session_state.get("gsi_structure_class", gsi_struct_options[1])
+    gsi_cond = st.session_state.get("gsi_surface_class", gsi_cond_options[2])
+    _struct_code = gsi_struct[0]
+    _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
+    _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
+    gsi_selection_valid = _gsi_recommended is not None
+    if gsi_selection_valid:
+        _rec_lo, _rec_hi = _gsi_recommended
+        gsi_lower = int(st.session_state.get(f"gsi_lower_{_struct_code}_{_cond_code}", _rec_lo))
+        gsi_upper = int(st.session_state.get(f"gsi_upper_{_struct_code}_{_cond_code}", _rec_hi))
+        gsi_default = int(round((gsi_lower + gsi_upper) / 2)) if gsi_lower <= gsi_upper else int(round((_rec_lo + _rec_hi)/2))
+    else:
+        gsi_lower, gsi_upper, gsi_default = 0, 100, 50
+
 
     hb_col1, hb_col2, hb_col3 = st.columns(3)
     
@@ -196,6 +239,10 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     hb_current=None
     hb_error=None
     try:
+        if not gsi_selection_valid:
+            raise ValueError("目前選取的岩體結構與不連續面品質組合不適用基本 GSI 圖，請重新選擇。")
+        if gsi_lower > gsi_upper:
+            raise ValueError("GSI 初判下限不可大於上限，請修正區間。")
         hb_current = hoek_brown_parameters(gsi=gsi,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
             application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,
             sigma3_custom_mpa=sigma3_general)
