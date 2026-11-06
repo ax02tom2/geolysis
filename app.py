@@ -425,7 +425,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         f"Em = {min(x['Em_gpa'] for x in _sens_rows):.2f}–{max(x['Em_gpa'] for x in _sens_rows):.2f} GPa。")
                     st.caption(
                         f"本次採用區間：GSI {gsi_lower}–{gsi_upper}；mi {mi_low:g}–{mi_high:g}；"
-                        f"UCS {_ucs_range_label or f'{sig_ci:g} MPa'}；"
+                        f"UCS {_ucs_range_label or str(sig_ci) + ' MPa'}；"
                         f"D {d_range_low:g}–{d_range_high:g}。"
                         "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
