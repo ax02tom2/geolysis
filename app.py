@@ -98,7 +98,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         "F": [None,None,(15,20),(10,15),(5,10)]
     }
 
-    with st.expander("🗺️ GSI 現場評估與文獻圖例", expanded=False):
+    with st.expander("🗺️ GSI 現場評估與文獻圖例（先選兩項即可取得建議區間）", expanded=True):
         st.markdown("GSI 應由 **岩體結構／塊體互鎖程度** 與 **不連續面表面品質** 綜合判讀。先參考下列圖件與示意圖，再依現場觀察人工選定合理區間。")
 
         # 文獻圖縮小並排顯示，避免單張圖片佔滿整個頁面
@@ -201,7 +201,11 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     with hb_col1:
         st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
         default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
-        gsi = st.number_input("地質強度指標代表值 (GSI)", min_value=0, max_value=100, value=default_gsi_val, step=1, key=f"gsi_representative_value_{_struct_code}_{_cond_code}")
+        gsi = default_gsi_val
+        with st.expander("進階調整：GSI 代表值", expanded=False):
+            gsi = st.number_input("GSI 代表值", min_value=0, max_value=100, value=default_gsi_val, step=1,
+                key=f"gsi_representative_value_{_struct_code}_{_cond_code}")
+            st.caption("預設採判讀區間中點；若有露頭調查、岩心編錄或專業判釋，可自行調整。")
         if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
             st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
         
@@ -225,14 +229,16 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3")
         }
         if rock_preset == "自訂輸入 mi":
-            mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
+            mi_low = mi_high = mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
                 value=17.0, step=0.5, key="hb_mi_custom")
             st.caption("自訂 mi 應優先由完整岩石三軸試驗擬合取得；若無試驗，需註明採用的文獻依據。")
         else:
             mi_default, mi_low, mi_high, mi_source = mi_reference[rock_preset]
-            mi = st.number_input("完整岩石材料常數 mi（岩性文獻初估）", min_value=1.0, max_value=50.0,
-                value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
-            st.caption(f"參考範圍：mi 約 {mi_low}–{mi_high}；目前採用 {mi:g}。{mi_source}。這是岩性典型值，不代表本工址實測。")
+            mi = float(mi_default)
+            with st.expander("進階調整：mi", expanded=False):
+                mi = st.number_input("完整岩石材料常數 mi", min_value=1.0, max_value=50.0,
+                    value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
+            st.caption(f"文獻初估區間：mi 約 {mi_low}–{mi_high}；目前自動採用代表值 {mi:g}。{mi_source}。此區間不是本工址試驗值。")
 
         st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
         ucs_mode = st.radio("你目前有哪一種強度資料？", [
@@ -241,12 +247,14 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "目前沒有可用資料"
         ], index=1, key="hb_ucs_source_mode")
         ucs_valid = False
+        _ucs_range_low = _ucs_range_high = None
         if ucs_mode == "已有實驗室 UCS 試驗值":
             sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
                 value=25.0, step=1.0, key="hb_ucs_lab_value")
             lab_value_confirmed = st.checkbox("我已確認上方數值是試驗報告中的完整岩石 UCS", value=False,
                 key="hb_ucs_lab_confirmed")
             ucs_valid = bool(lab_value_confirmed)
+            _ucs_range_low = _ucs_range_high = sig_ci
             if not ucs_valid:
                 st.warning("請先確認數值確實來自試驗報告；25 MPa 只是輸入欄位初始顯示值，不會在未確認時用於計算。")
             st.caption("請輸入完整岩石試體的單軸壓縮強度，不是岩體強度，也不是節理面強度。若有多件試驗，建議依岩性／風化分區統計代表值與離散程度。")
@@ -269,9 +277,11 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             if isrm_grade.startswith("R"):
                 _grade = isrm_grade[:2]
                 _ucs_low, _ucs_high, _ucs_mid = isrm_ranges[_grade]
-                sig_ci = st.number_input("UCS 初估代表值 [MPa]（可依現場證據調整）",
-                    min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=1.0,
-                    key=f"hb_ucs_field_{_grade}")
+                _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
+                sig_ci = float(_ucs_mid)
+                with st.expander("進階調整：UCS 代表值", expanded=False):
+                    sig_ci = st.number_input("UCS 代表值 [MPa]", min_value=0.1, max_value=1000.0,
+                        value=float(_ucs_mid), step=1.0, key=f"hb_ucs_field_{_grade}")
                 ucs_valid = True
                 if _grade == "R6":
                     st.warning("R6 僅表示 UCS 大於 250 MPa，沒有有限上限；300 MPa 只是暫用情境值，不是區間中點。請優先安排試驗或敏感度分析。")
@@ -299,15 +309,23 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         elif "0.7" in d_preset: d_default = 0.7
         elif "1.0" in d_preset: d_default = 1.0
         else: d_default = 0.0
-        d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
+        d_factor = d_default
+        with st.expander("進階調整：擾動因子 D", expanded=False):
+            d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
+        st.caption("D 反映開挖造成的爆破損傷與應力鬆弛，不等於天然節理破碎程度。自然坡面若曾長期卸荷或有人工開挖，仍須依實際狀況判斷。")
         
         app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
             "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
             "隧道/深基礎分析 (Tunnels - 依深度 H)",
             "一般淺層/自訂有效圍壓 (General σ3_max)"
         ])
-        gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=23.0, step=0.5, key="geolysis_number_input_line_376")
-        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0, value=20.0, step=1.0, key="geolysis_number_input_line_377")
+        gamma_rock = 23.0
+        with st.expander("進階調整：岩體單位重", expanded=False):
+            gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0,
+                value=23.0, step=0.5, key="geolysis_number_input_line_376")
+            st.caption("目前先採 23 kN/m³ 作初估；若有密度／單位重試驗，請改用工址資料。")
+        h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
+            value=20.0, step=1.0, key="geolysis_number_input_line_377")
         sigma3_general = None
         if "一般淺層" in app_type:
             sigma3_general = st.number_input("自訂有效圍壓上限 σ3_max [MPa]", min_value=0.001, max_value=250.0, value=1.0, step=0.1, key="hb_sigma3_general")
