@@ -155,6 +155,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             index=2, key="gsi_surface_class")
         st.caption("選擇完成後，系統會依兩項條件的交叉位置提供 GSI 建議範圍；請再依露頭、岩心、岩性及現地尺度確認。")
         st.caption("若存在不利方向且連續的弱面，可能屬結構控制破壞，不應只用等向性 Hoek–Brown 岩體參數取代結構面分析。")
+        st.info("台灣實際案例參考：東北部破碎風化砂岩邊坡研究，現地初始參數範圍為 GSI 15–40、UCS 25–35 MPa、mi 約 17±4、D 0.7–0.9、單位重 25 kN/m³；回算較符合現地崩塌的組合集中於 GSI 20–30、D 0.8–0.9，並測試 UCS 27.5／30／32.5 MPa。僅供地質條件相近的破碎風化砂岩邊坡比對，不可直接套用其他岩性或工址。來源：[Shao et al. (2021), Sustainability 13, 13452](https://doi.org/10.3390/su132313452)。")
 
         _struct_code = gsi_struct[0]
         _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
@@ -277,7 +278,10 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             if isrm_grade.startswith("R"):
                 _grade = isrm_grade[:2]
                 _ucs_low, _ucs_high, _ucs_mid = isrm_ranges[_grade]
-                _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
+                if _grade == "R6":
+                    _ucs_range_low = _ucs_range_high = _ucs_mid
+                else:
+                    _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
                 sig_ci = float(_ucs_mid)
                 with st.expander("進階調整：UCS 代表值", expanded=False):
                     sig_ci = st.number_input("UCS 代表值 [MPa]", min_value=0.1, max_value=1000.0,
@@ -302,16 +306,20 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "控制預裂／光面爆破，損傷較小 (D = 0.5)",
             "弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)",
             "未良好控制的生產爆破，近坡面嚴重損傷 (D = 1.0)",
+            "台灣東北部相似破碎風化砂岩案例範圍 (D = 0.8–0.9)",
             "自訂擾動因子 D"
         ])
         if "0.0" in d_preset: d_default = 0.0
         elif "0.5" in d_preset: d_default = 0.5
         elif "0.7" in d_preset: d_default = 0.7
         elif "1.0" in d_preset: d_default = 1.0
+        elif "0.8–0.9" in d_preset: d_default = 0.85
         else: d_default = 0.0
+        d_range_low, d_range_high = ((0.8, 0.9) if "0.8–0.9" in d_preset else (d_default, d_default))
         d_factor = d_default
         with st.expander("進階調整：擾動因子 D", expanded=False):
             d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
+            d_range_low = d_range_high = d_factor
         st.caption("D 反映開挖造成的爆破損傷與應力鬆弛，不等於天然節理破碎程度。自然坡面若曾長期卸荷或有人工開挖，仍須依實際狀況判斷。")
         
         app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
@@ -375,23 +383,26 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                     _mi_values = sorted(set([mi_low, mi_high]))
                     _ucs_values = sorted(set([_ucs_range_low if _ucs_range_low is not None else sig_ci,
                                                _ucs_range_high if _ucs_range_high is not None else sig_ci]))
+                    _d_values = sorted(set([d_range_low, d_range_high]))
                     _sens_rows = []
                     for _gv in _gsi_values:
                         for _mv in _mi_values:
                             for _uv in _ucs_values:
-                                _sens_rows.append(hoek_brown_parameters(
-                                    gsi=_gv, mi=_mv, sigma_ci_mpa=_uv, disturbance=d_factor,
-                                    application=hb_application, gamma_rock_kn_m3=gamma_rock,
-                                    height_m=h_slope, sigma3_custom_mpa=sigma3_general))
+                                for _dv in _d_values:
+                                    _sens_rows.append(hoek_brown_parameters(
+                                        gsi=_gv, mi=_mv, sigma_ci_mpa=_uv, disturbance=_dv,
+                                        application=hb_application, gamma_rock_kn_m3=gamma_rock,
+                                        height_m=h_slope, sigma3_custom_mpa=sigma3_general))
                     st.caption(
-                        f"參數範圍敏感度（GSI、mi、UCS 同時變動；D、γ、H 固定）："
+                        f"參數範圍敏感度（GSI、mi、UCS、D 同時變動；γ、H 固定）："
                         f"c′ = {min(x['c_equiv_kpa'] for x in _sens_rows):.1f}–{max(x['c_equiv_kpa'] for x in _sens_rows):.1f} kPa；"
                         f"ϕ′ = {min(x['phi_equiv_deg'] for x in _sens_rows):.1f}–{max(x['phi_equiv_deg'] for x in _sens_rows):.1f}°；"
                         f"Em = {min(x['Em_gpa'] for x in _sens_rows):.2f}–{max(x['Em_gpa'] for x in _sens_rows):.2f} GPa。")
                     st.caption(
                         f"本次採用區間：GSI {gsi_lower}–{gsi_upper}；mi {mi_low:g}–{mi_high:g}；"
                         f"UCS {(_ucs_range_low if _ucs_range_low is not None else sig_ci):g}–"
-                        f"{(_ucs_range_high if _ucs_range_high is not None else sig_ci):g} MPa。"
+                        f"{(_ucs_range_high if _ucs_range_high is not None else sig_ci):g} MPa；"
+                        f"D {d_range_low:g}–{d_range_high:g}。"
                         "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
                     st.warning(f"GSI 區間敏感度計算未完成：{exc}")
