@@ -18,26 +18,16 @@ st.markdown(r"""
 """)
 
 # ==============================================================================
-# 側邊欄：快速檢視模式
+# 預設收合所有分析模組；使用者自行點選需要的模組展開
 # ==============================================================================
-st.sidebar.title("🛠️ 畫面顯示設定")
-display_mode = st.sidebar.radio(
-    "選擇展開模式：",
-    [
-        "全部展開",
-        "模組一：Hoek-Brown 岩體參數",
-        "模組二：土壤分類",
-        "模組三：SPT 全修正",
-        "模組四：容許承載力",
-        "模組五：極限承載力"
-    ]
-)
+st.sidebar.title("🛠️ 分析模組")
+st.sidebar.caption("所有模組預設收合，請在主畫面點選需要使用的模組。")
 
-exp_1 = display_mode in ["全部展開", "模組一：Hoek-Brown 岩體參數"]
-exp_2 = display_mode in ["全部展開", "模組二：土壤分類"]
-exp_3 = display_mode in ["全部展開", "模組三：SPT 全修正"]
-exp_4 = display_mode in ["全部展開", "模組四：容許承載力"]
-exp_5 = display_mode in ["全部展開", "模組五：極限承載力"]
+exp_1 = False
+exp_2 = False
+exp_3 = False
+exp_4 = False
+exp_5 = False
 
 
 # ==============================================================================
@@ -48,25 +38,52 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 
 
     with st.expander("🗺️ GSI 現場評估與文獻圖例", expanded=False):
-        st.markdown("GSI 應由 **岩體結構／塊體互鎖程度** 與 **不連續面表面品質** 綜合判讀。請先看原始 GSI 圖，再參考現場照片；圖表用來判讀區間，不宜把 GSI 當成精確單一測值。")
-        st.markdown("**文獻圖 1｜節理岩體 GSI 判讀圖**")
-        try:
-            st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png",
-                caption="Somodi et al. (2021), Figure 1：節理岩體 GSI 判讀圖（圖源所引為 Hoek et al.）",
-                use_container_width=True)
-        except Exception:
-            st.warning("GSI 判讀圖暫時無法從出版網站載入；下方保留文獻連結，並可先使用人工區間輸入。")
-        st.info("上方 GSI 判讀圖適用於一般節理岩體；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或各向異性／結構面分析，不宜硬套一般節理岩體圖。")
-        st.markdown("**文獻圖 2｜現場露頭照片**")
-        try:
-            st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g004.png",
-                caption="Somodi et al. (2021), Figure 4：左為風化近層狀粉砂岩；右為新鮮石英岩中的平面破壞。兩者均顯示層理尺度各向異性；照片是露頭構造案例，不可直接由照片換算 GSI。",
-                use_container_width=True)
-        except Exception:
-            st.warning("現場照片暫時無法從出版網站載入；可由下方文獻來源查閱。")
-        st.caption("補充 GSI 實際判讀案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65。此案例是作者對特定片岩露頭的判讀範圍，不可直接套用至其他岩性。")
+        st.markdown("GSI 應由 **岩體結構／塊體互鎖程度** 與 **不連續面表面品質** 綜合判讀。先參考下列圖件與示意圖，再依現場觀察人工選定合理區間。")
+
+        # 文獻圖縮小並排顯示，避免單張圖片佔滿整個頁面
+        fig_col1, fig_col2 = st.columns(2, gap="medium")
+        with fig_col1:
+            st.markdown("**文獻圖 1｜節理岩體 GSI 判讀圖**")
+            try:
+                st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png",
+                    caption="Somodi et al. (2021), Figure 1：一般節理岩體 GSI 判讀圖。",
+                    use_container_width=True)
+            except Exception:
+                st.warning("GSI 判讀圖暫時無法載入；請參考下方文獻來源。")
+        with fig_col2:
+            st.markdown("**文獻圖 2｜現場露頭照片**")
+            try:
+                st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g004.png",
+                    caption="Somodi et al. (2021), Figure 4：不同岩性露頭及層理尺度各向異性案例。",
+                    use_container_width=True)
+            except Exception:
+                st.warning("露頭照片暫時無法載入；請參考下方文獻來源。")
+
+        st.markdown("**GSI 判讀概念示意圖｜結構完整度 × 節理面品質**")
+        st.caption("此圖為系統自製的方向性示意，用來理解兩項判讀因子的相對影響；不是 Hoek 原始 GSI 圖，也不直接提供 GSI 數值。")
+        gsi_demo = go.Figure(data=go.Heatmap(
+            z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
+            x=["極佳","良好","普通","不良","極差"],
+            y=["A 巨塊狀／完整","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 層狀／剪切狀"],
+            text=[["較高","較高","中高","中低","較低"],
+                  ["較高","中高","中高","中低","較低"],
+                  ["中高","中高","中等","較低","較低"],
+                  ["中高","中等","中等","較低","低"],
+                  ["中等","中等","較低","低","低"],
+                  ["中等","較低","較低","低","低"]],
+            texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
+            xgap=3, ygap=3, hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"))
+        gsi_demo.update_layout(height=300, margin=dict(l=8,r=8,t=8,b=8),
+            xaxis_title="不連續面表面品質（粗糙度、風化、填充物）",
+            yaxis_title="岩體結構（破碎程度、塊體互鎖程度）",
+            font=dict(size=11))
+        st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
+
+        st.info("一般節理岩體圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
+        st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
         with st.expander("文獻來源與圖說", expanded=False):
-            st.markdown("- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）\n- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)\n- [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)")
+            st.markdown("- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）\\n- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)\\n- [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)")
+
         st.markdown("**1. 岩體結構**")
         gsi_struct = st.selectbox("選擇最接近的結構描述", [
             "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面",
