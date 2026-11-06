@@ -155,6 +155,8 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             index=2, key="gsi_surface_class")
         st.caption("選擇完成後，系統會依兩項條件的交叉位置提供 GSI 建議範圍；請再依露頭、岩心、岩性及現地尺度確認。")
         st.caption("若存在不利方向且連續的弱面，可能屬結構控制破壞，不應只用等向性 Hoek–Brown 岩體參數取代結構面分析。")
+        st.checkbox("本案與台灣東北部破碎風化砂岩邊坡相似，採用該研究回算 GSI 20–30", value=False, key="hb_taiwan_case_gsi")
+        st.caption("僅在岩性、破碎風化程度及坡面條件相近時勾選；勾選後會以案例 GSI 20–30 取代上方交叉判讀區間。")
         st.info("台灣實際案例參考：東北部破碎風化砂岩邊坡研究，現地初始參數範圍為 GSI 15–40、UCS 25–35 MPa、mi 約 17±4、D 0.7–0.9、單位重 25 kN/m³；回算較符合現地崩塌的組合集中於 GSI 20–30、D 0.8–0.9，並測試 UCS 27.5／30／32.5 MPa。僅供地質條件相近的破碎風化砂岩邊坡比對，不可直接套用其他岩性或工址。來源：[Shao et al. (2021), Sustainability 13, 13452](https://doi.org/10.3390/su132313452)。")
 
         _struct_code = gsi_struct[0]
@@ -195,6 +197,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         gsi_default = int(round((gsi_lower + gsi_upper) / 2)) if gsi_lower <= gsi_upper else int(round((_rec_lo + _rec_hi)/2))
     else:
         gsi_lower, gsi_upper, gsi_default = 0, 100, 50
+    if st.session_state.get("hb_taiwan_case_gsi", False):
+        gsi_lower, gsi_upper, gsi_default = 20, 30, 25
+        gsi_selection_valid = True
 
 
     hb_col1, hb_col2, hb_col3 = st.columns(3)
@@ -245,6 +250,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         ucs_mode = st.radio("你目前有哪一種強度資料？", [
             "已有實驗室 UCS 試驗值",
             "沒有 UCS，以現場敲擊分級初估",
+            "台灣東北部相似破碎風化砂岩案例（回算測試 UCS 27.5–32.5 MPa）",
             "目前沒有可用資料"
         ], index=1, key="hb_ucs_source_mode")
         ucs_valid = False
@@ -294,6 +300,15 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             else:
                 sig_ci = 25.0
                 st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
+        elif ucs_mode.startswith("台灣東北部相似破碎風化砂岩案例"):
+            _ucs_range_low, _ucs_range_high = 27.5, 32.5
+            sig_ci = 30.0
+            if rock_preset == "砂岩 Sandstone":
+                ucs_valid = True
+                st.info("採用案例回算時測試的 UCS 代表範圍 27.5–32.5 MPa，中間值 30 MPa；這不是本工址試驗值，只適用相似破碎風化砂岩。")
+            else:
+                ucs_valid = False
+                st.error("此案例參數僅適用砂岩。請先將完整岩石岩性選為砂岩，或改用現場敲擊分級／試驗資料。")
         else:
             sig_ci = 25.0
             st.warning("缺少 UCS 或可用的現場強度分級。請取得岩石試驗、點荷重並建立工址相關性，或先做現場強度分級；目前不會把 25 MPa 當成真實值進行分析。")
@@ -327,11 +342,12 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "隧道/深基礎分析 (Tunnels - 依深度 H)",
             "一般淺層/自訂有效圍壓 (General σ3_max)"
         ])
-        gamma_rock = 23.0
+        gamma_default = 25.0 if st.session_state.get("hb_taiwan_case_gsi", False) else 23.0
+        gamma_rock = gamma_default
         with st.expander("進階調整：岩體單位重", expanded=False):
             gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0,
-                value=23.0, step=0.5, key="geolysis_number_input_line_376")
-            st.caption("目前先採 23 kN/m³ 作初估；若有密度／單位重試驗，請改用工址資料。")
+                value=gamma_default, step=0.5, key="geolysis_number_input_line_376")
+            st.caption(f"目前初估採 {gamma_default:g} kN/m³；若有密度／單位重試驗，請改用工址資料。")
         h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
             value=20.0, step=1.0, key="geolysis_number_input_line_377")
         sigma3_general = None
