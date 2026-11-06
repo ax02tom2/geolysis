@@ -405,7 +405,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         f"D {d_range_low:g}–{d_range_high:g}。"
                         "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
-                    st.warning(f"GSI 區間敏感度計算未完成：{exc}")
+                    st.warning(f"參數區間敏感度計算未完成：{exc}；請檢查區間端點是否超出模型適用範圍。")
 
     with st.expander("📈 展開檢視：Hoek-Brown 非線性破壞包絡線 vs. 等效莫耳－庫倫直線圖", expanded=False):
         if hb_current is None:
