@@ -101,7 +101,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "北部": "北部：國道 3 號汐止砂岩／頁岩互層；另有北部七類岩性淺層岩坡參數研究。破碎風化岩坡曾回算 GSI 20–30、D 0.8–0.9，僅限相似條件。",
             "中部": "中部：明德水庫附近風化泥質砂岩／頁岩互層；廬山板岩深層變形。板岩具片理各向異性。",
             "南部": "南部：燕巢泥岩夾砂岩；南二高沿線常見砂頁岩互層、砂岩、礫岩及泥岩，弱岩遇水易軟化。",
-            "東部": "東部：安通混雜岩層（礫岩、泥岩、砂頁岩互層）；太魯閣地震後案例以破碎岩體與落石調查為主。"
+            "東部": "東部：蘇花 115.9k 板岩案例採 GSI 15／25／35（崩塌區／崩積層／較完整岩盤）、mi=10、D=0.7；屬該研究模型假設，不是全東部回算值。"
         }
         st.caption(region_cases[hb_region])
         if hb_terrain == "平地／沖積區":
@@ -124,9 +124,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 - 中部明德水庫：風化泥質砂岩與頁岩互層；研究未提供可直接套用的統一 GSI 範圍。
 - 中部廬山、南橫板岩／片岩：片理、褶皺與剪切帶控制，應優先做結構面／各向異性分析。
 - 南部燕巢：泥岩夾陡傾砂岩層，破壞受層間界面與入滲控制。
-- 東部安通：混雜岩層，不能只依行政區指定 GSI。
+- 東部蘇花 115.9k：板岩案例採 GSI 15／25／35、mi=10、D=0.7（研究假設）；安通混雜岩層則無可直接套用的統一值。
 
-來源：[北部參數研究](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)｜[中部明德水庫](https://doi.org/10.3390/w17243556)｜[廬山板岩](https://doi.org/10.1016/j.enggeo.2019.105387)｜[南部燕巢](https://doi.org/10.1007/s10346-019-01250-3)｜[東部安通](https://doi.org/10.3390/w12020480)
+來源：[蘇花 115.9k 研究](https://cswcs.org.tw/AllDataPos/JournalPos/VOL44/NO2/jcswc44%282%29097-104_01.pdf)｜[北部參數研究](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)｜[中部明德水庫](https://doi.org/10.3390/w17243556)｜[廬山板岩](https://doi.org/10.1016/j.enggeo.2019.105387)｜[南部燕巢](https://doi.org/10.1007/s10346-019-01250-3)｜[東部安通](https://doi.org/10.3390/w12020480)
             """)
             
     gsi_struct = st.session_state.get("gsi_structure_class", gsi_struct_options[1])
@@ -186,7 +186,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             with st.expander("進階調整：mi", expanded=False):
                 mi = st.number_input("完整岩石材料常數 mi", min_value=1.0, max_value=50.0,
                     value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
-            st.caption(f"文獻初估區間：mi 約 {mi_low}–{mi_high}；目前自動採用代表值 {mi:g}。{mi_source}。此區間不是本工址試驗值。")
+            st.caption(f"mi 初估：{mi_low}–{mi_high}；採用 {mi:g}。{mi_source}。")
 
         st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
         ucs_mode = st.radio("你目前有哪一種強度資料？", [
@@ -207,7 +207,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             _ucs_range_label = f"{sig_ci:g} MPa（試驗值）"
             if not ucs_valid:
                 st.warning("請先確認數值確實來自試驗報告；25 MPa 只是輸入欄位初始顯示值，不會在未確認時用於計算。")
-            st.caption("請輸入完整岩石試體的單軸壓縮強度，不是岩體強度，也不是節理面強度。若有多件試驗，建議依岩性／風化分區統計代表值與離散程度。")
+            st.caption("輸入完整岩塊試體 UCS，不是岩體或節理面強度。")
         elif ucs_mode == "沒有 UCS，以現場敲擊分級初估":
             isrm_grade = st.selectbox("依完整岩塊現場敲擊／刻劃反應選擇 ISRM 強度等級", [
                 "請選擇現場等級",
@@ -269,7 +269,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         with st.expander("進階調整：擾動因子 D", expanded=False):
             d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
             d_range_low = d_range_high = d_factor
-        st.caption("D 反映開挖造成的爆破損傷與應力鬆弛，不等於天然節理破碎程度。自然坡面若曾長期卸荷或有人工開挖，仍須依實際狀況判斷。")
+        st.caption("D 表示開挖／爆破損傷；天然節理破碎已由 GSI 反映。")
         
         app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
             "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
