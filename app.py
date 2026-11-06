@@ -82,7 +82,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         st.info("一般節理岩體圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
         st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
         with st.expander("文獻來源與圖說", expanded=False):
-            st.markdown("- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）\\n- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)\\n- [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)")
+            st.markdown("- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）\n- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)\\n- [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)")
 
         st.markdown("**1. 岩體結構**")
         gsi_struct = st.selectbox("選擇最接近的結構描述", [
