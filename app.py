@@ -221,7 +221,11 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         if ucs_mode == "已有實驗室 UCS 試驗值":
             sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
                 value=25.0, step=1.0, key="hb_ucs_lab_value")
-            ucs_valid = True
+            lab_value_confirmed = st.checkbox("我已確認上方數值是試驗報告中的完整岩石 UCS", value=False,
+                key="hb_ucs_lab_confirmed")
+            ucs_valid = bool(lab_value_confirmed)
+            if not ucs_valid:
+                st.warning("請先確認數值確實來自試驗報告；25 MPa 只是輸入欄位初始顯示值，不會在未確認時用於計算。")
             st.caption("請輸入完整岩石試體的單軸壓縮強度，不是岩體強度，也不是節理面強度。若有多件試驗，建議依岩性／風化分區統計代表值與離散程度。")
         elif ucs_mode == "沒有 UCS，以現場敲擊分級初估":
             isrm_grade = st.selectbox("依完整岩塊現場敲擊／刻劃反應選擇 ISRM 強度等級", [
