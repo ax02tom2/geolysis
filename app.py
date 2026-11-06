@@ -31,14 +31,7 @@ div[data-testid="stExpander"] [data-testid="stExpanderDetails"] > div {
 """, unsafe_allow_html=True)
 
 st.title("🧱 geolysis 大地工程分析系統")
-st.markdown(r"""
-本系統結合 **Hoek-Brown (2002) 岩體裂隙參數推估** 與開源套件 **[geolysis](https://github.com/patrickboateng/geolysis)** 核心工程模組：
-- **模組一：Hoek-Brown 岩體裂隙推估 ($c', \phi'$)** — 依據地質強度指標 (GSI，附文獻判讀圖、露頭照片及人工區間判讀)、岩性常數 ($m_i$)、單壓強度與邊坡深度，自動轉換等效莫耳－庫倫參數
-- **模組二：土壤分類系統** — USCS 統一土壤分類法 & AASHTO 公路土壤分類法（含群指數 $GI$ 與雙重符號判定）
-- **模組三：SPT 標準貫入試驗修正** — 能量、鑽孔直徑、取樣器、鑽桿與覆土壓力修正，含逐深度剖面
-- **模組四：容許承載力與沉陷控制** — 砂土 SPT 經驗法及黏土一維主固結沉陷反算
-- **模組五：極限承載力四大理論** — Terzaghi / Meyerhof / Hansen / Vesic 理論係數、形狀／深度／載重傾斜及地下水影響
-""")
+st.caption("岩土工程參數初估與分析｜選擇模組後輸入必要資料即可計算。")
 
 # ==============================================================================
 # 側邊欄：保留模組快速選擇；預設全部收合
@@ -98,96 +91,44 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         "F": [None,None,(15,20),(10,15),(5,10)]
     }
 
-    with st.expander("🗺️ GSI 現場評估與文獻圖例（先選兩項即可取得建議區間）", expanded=True):
-        st.markdown("GSI 應由 **岩體結構／塊體互鎖程度** 與 **不連續面表面品質** 綜合判讀。先參考下列圖件與示意圖，再依現場觀察人工選定合理區間。")
-
-        # 文獻圖縮小並排顯示，避免單張圖片佔滿整個頁面
-        fig_col1, fig_col2 = st.columns(2, gap="medium")
-        with fig_col1:
-            st.markdown("**文獻圖 1｜節理岩體 GSI 判讀圖**")
-            try:
-                st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png",
-                    caption="Somodi et al. (2021), Figure 1：一般節理岩體 GSI 判讀圖。",
-                    use_container_width=True)
-            except Exception:
-                st.warning("GSI 判讀圖暫時無法載入；請參考下方文獻來源。")
-        with fig_col2:
-            st.markdown("**文獻圖 2｜現場露頭照片**")
-            try:
-                st.image("https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g004.png",
-                    caption="Somodi et al. (2021), Figure 4：不同岩性露頭及層理尺度各向異性案例。",
-                    use_container_width=True)
-            except Exception:
-                st.warning("露頭照片暫時無法載入；請參考下方文獻來源。")
-
-        st.markdown("**GSI 判讀概念示意圖｜結構完整度 × 節理面品質**")
-        st.caption("此圖為系統自製的方向性示意，用來理解兩項判讀因子的相對影響；不是 Hoek 原始 GSI 圖，也不直接提供 GSI 數值。")
-        gsi_demo = go.Figure(data=go.Heatmap(
-            z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
-            x=["極佳","良好","普通","不良","極差"],
-            y=["A 巨塊狀／完整","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 層狀／剪切狀"],
-            text=[["較高","較高","中高","中低","較低"],
-                  ["較高","中高","中高","中低","較低"],
-                  ["中高","中高","中等","較低","較低"],
-                  ["中高","中等","中等","較低","低"],
-                  ["中等","中等","較低","低","低"],
-                  ["中等","較低","較低","低","低"]],
-            texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
-            xgap=3, ygap=3, hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"))
-        gsi_demo.update_layout(height=300, margin=dict(l=8,r=8,t=8,b=8),
-            xaxis_title="不連續面表面品質（粗糙度、風化、填充物）",
-            yaxis_title="岩體結構（破碎程度、塊體互鎖程度）",
-            font=dict(size=11))
-        st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
-
-        st.info("一般節理岩體圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
-        st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
-        with st.expander("文獻來源與圖說", expanded=False):
-            st.markdown("""- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）
-- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)
-- [Hoek：Practical Rock Engineering（GSI 判讀與限制）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)""")
-
-        st.markdown("**1. 岩體結構**")
-        gsi_struct = st.selectbox("選擇最接近的結構描述", gsi_struct_options,
-            index=1, key="gsi_structure_class")
-        st.markdown("**2. 不連續面表面品質**")
-        gsi_cond = st.selectbox("選擇最接近的節理面狀況", gsi_cond_options,
-            index=2, key="gsi_surface_class")
-        st.caption("選擇完成後，系統會依兩項條件的交叉位置提供 GSI 建議範圍；請再依露頭、岩心、岩性及現地尺度確認。")
-        st.caption("若存在不利方向且連續的弱面，可能屬結構控制破壞，不應只用等向性 Hoek–Brown 岩體參數取代結構面分析。")
-        st.checkbox("本案與台灣東北部破碎風化砂岩邊坡相似，採用該研究回算 GSI 20–30", value=False, key="hb_taiwan_case_gsi")
-        st.caption("僅在岩性、破碎風化程度及坡面條件相近時勾選；勾選後會以案例 GSI 20–30 取代上方交叉判讀區間。")
-        st.info("台灣實際案例參考：東北部破碎風化砂岩邊坡研究，現地初始參數範圍為 GSI 15–40、UCS 25–35 MPa、mi 約 17±4、D 0.7–0.9、單位重 25 kN/m³；回算較符合現地崩塌的組合集中於 GSI 20–30、D 0.8–0.9，並測試 UCS 27.5／30／32.5 MPa。其中 D 0.8–0.9 是該研究針對區域地震擾動與實際崩塌所做的案例回算值，不等同一般爆破施工的 D 分級；僅供地質條件相近的破碎風化砂岩邊坡比對，不可直接套用其他岩性或工址。來源：[Shao et al. (2021), Sustainability 13, 13452](https://doi.org/10.3390/su132313452)。")
-
+    with st.expander("現場判讀", expanded=True):
+        region_col, terrain_col = st.columns(2)
+        with region_col:
+            hb_region = st.selectbox("台灣區域", ["北部", "中部", "南部", "東部"], key="hb_region")
+        with terrain_col:
+            hb_terrain = st.selectbox("地形環境", ["山區／陡坡", "丘陵／台地", "平地／沖積區"], key="hb_terrain")
+        region_cases = {
+            "北部": "北部：國道 3 號汐止砂岩／頁岩互層；另有北部七類岩性淺層岩坡參數研究。破碎風化岩坡曾回算 GSI 20–30、D 0.8–0.9，僅限相似條件。",
+            "中部": "中部：明德水庫附近風化泥質砂岩／頁岩互層；廬山板岩深層變形。板岩具片理各向異性。",
+            "南部": "南部：燕巢泥岩夾砂岩；南二高沿線常見砂頁岩互層、砂岩、礫岩及泥岩，弱岩遇水易軟化。",
+            "東部": "東部：安通混雜岩層（礫岩、泥岩、砂頁岩互層）；太魯閣地震後案例以破碎岩體與落石調查為主。"
+        }
+        st.caption(region_cases[hb_region])
+        if hb_terrain == "平地／沖積區":
+            st.warning("平地多為土層，Hoek–Brown 岩體參數通常不適用；請確認分析對象確為岩盤。")
+        st.markdown("**岩體結構**")
+        gsi_struct = st.selectbox("選擇岩體破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
+        st.markdown("**節理面品質**")
+        gsi_cond = st.selectbox("選擇節理面風化／粗糙程度", gsi_cond_options, index=2, key="gsi_surface_class")
         _struct_code = gsi_struct[0]
         _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
         _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-        _taiwan_case_gsi = st.session_state.get("hb_taiwan_case_gsi", False)
-        if _gsi_recommended is None and not _taiwan_case_gsi:
-            st.error("這組結構與表面品質在 Hoek–Marinos (2000) 基本 GSI 圖中屬不適用／不建議組合，系統不自動給值。請重新檢查現場分類，或改用適合片理、層狀、flysch 等岩體的專用 GSI 圖。")
-            st.info("特別注意：巨塊狀岩體不應搭配極差節理面；層狀／剪切狀岩體也不應直接套用極佳或良好節理面條件。")
-        elif _taiwan_case_gsi:
-            st.success("**目前採用相似案例回算 GSI 範圍：20–30；代表值：25**")
-            st.caption("上方結構與節理面分類仍保留作現場描述，但本次計算以案例區間取代交叉判讀數值。")
+        if _gsi_recommended is None:
+            st.error("此組合不適用一般 GSI 判讀圖，請改用片理／剪切帶專用評估。")
         else:
             _rec_lo, _rec_hi = _gsi_recommended
-            st.success(f"**系統建議 GSI 範圍：{_rec_lo}–{_rec_hi}；建議代表值：{int(round((_rec_lo + _rec_hi)/2))}**")
-            _gsi_edit1, _gsi_edit2 = st.columns(2)
-            with _gsi_edit1:
-                st.number_input("GSI 初判下限", min_value=0, max_value=100, value=_rec_lo, step=1,
-                    key=f"gsi_lower_{_struct_code}_{_cond_code}")
-            with _gsi_edit2:
-                st.number_input("GSI 初判上限", min_value=0, max_value=100, value=_rec_hi, step=1,
-                    key=f"gsi_upper_{_struct_code}_{_cond_code}")
-            st.caption("建議值是依 GSI 判讀圖趨勢估讀的初判區間，不是精確量測值；可依現地證據修改。")
+            st.success(f"GSI 建議範圍：{_rec_lo}–{_rec_hi}｜代表值：{int(round((_rec_lo + _rec_hi)/2))}")
+        with st.expander("案例與判讀依據", expanded=False):
+            st.markdown("""
+- 北部破碎風化砂岩回算：GSI 20–30、D 0.8–0.9；不可當作全台通用值。
+- 中部明德水庫：風化泥質砂岩與頁岩互層；研究未提供可直接套用的統一 GSI 範圍。
+- 中部廬山、南橫板岩／片岩：片理、褶皺與剪切帶控制，應優先做結構面／各向異性分析。
+- 南部燕巢：泥岩夾陡傾砂岩層，破壞受層間界面與入滲控制。
+- 東部安通：混雜岩層，不能只依行政區指定 GSI。
 
-        st.info("GSI 基本圖不適用於所有岩性；若為片岩、片理／層理極發達、千枚岩、褶皺或剪切帶岩體，應查用相應的 foliated／flysch GSI 圖或採各向異性／結構面分析。露頭照片僅供構造案例比對，不可直接由照片換算 GSI。")
-        st.caption("補充案例：Medwedeff et al. (2022) Figure 3a 描述三組主要節理、間距約 10–30 cm、岩體中度風化，依 Figure 3b 判讀 GSI 約 50–65；此範圍僅適用該研究露頭，不可直接套用至其他岩性。")
-        with st.expander("文獻來源與圖說", expanded=False):
-            st.markdown("""- [Hoek：Practical Rock Engineering，Figure 6（Hoek & Marinos, 2000 GSI 基本圖）](https://static.rocscience.cloud/assets/resources/learning/hoek/Practical-Rock-Engineering-E.Hoek-2023.pdf)
-- [Somodi et al. (2021), Figure 1 與 Figure 4，Applied Sciences 11(8), 3351](https://doi.org/10.3390/app11083351)（CC BY 4.0）
-- [Medwedeff et al. (2022), Figure 3，Journal of Geophysical Research: Earth Surface, 127, e2021JF006240](https://doi.org/10.1029/2021JF006240)""")
-
+來源：[北部參數研究](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)｜[中部明德水庫](https://doi.org/10.3390/w17243556)｜[廬山板岩](https://doi.org/10.1016/j.enggeo.2019.105387)｜[南部燕巢](https://doi.org/10.1007/s10346-019-01250-3)｜[東部安通](https://doi.org/10.3390/w12020480)
+            """)
+            
     gsi_struct = st.session_state.get("gsi_structure_class", gsi_struct_options[1])
     gsi_cond = st.session_state.get("gsi_surface_class", gsi_cond_options[2])
     _struct_code = gsi_struct[0]
@@ -201,9 +142,6 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         gsi_default = int(round((gsi_lower + gsi_upper) / 2)) if gsi_lower <= gsi_upper else int(round((_rec_lo + _rec_hi)/2))
     else:
         gsi_lower, gsi_upper, gsi_default = 0, 100, 50
-    if st.session_state.get("hb_taiwan_case_gsi", False):
-        gsi_lower, gsi_upper, gsi_default = 20, 30, 25
-        gsi_selection_valid = True
 
 
     hb_col1, hb_col2, hb_col3 = st.columns(3)
@@ -254,7 +192,6 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         ucs_mode = st.radio("你目前有哪一種強度資料？", [
             "已有實驗室 UCS 試驗值",
             "沒有 UCS，以現場敲擊分級初估",
-            "台灣東北部相似破碎風化砂岩案例（回算測試 UCS 27.5–32.5 MPa）",
             "目前沒有可用資料"
         ], index=1, key="hb_ucs_source_mode")
         ucs_valid = False
@@ -308,16 +245,6 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             else:
                 sig_ci = 25.0
                 st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
-        elif ucs_mode.startswith("台灣東北部相似破碎風化砂岩案例"):
-            _ucs_range_low, _ucs_range_high = 27.5, 32.5
-            _ucs_range_label = "27.5–32.5 MPa（案例回算測試值）"
-            sig_ci = 30.0
-            if rock_preset == "砂岩 Sandstone":
-                ucs_valid = True
-                st.info("採用案例回算時測試的 UCS 代表範圍 27.5–32.5 MPa，中間值 30 MPa；這不是本工址試驗值，只適用相似破碎風化砂岩。")
-            else:
-                ucs_valid = False
-                st.error("此案例參數僅適用砂岩。請先將完整岩石岩性選為砂岩，或改用現場敲擊分級／試驗資料。")
         else:
             sig_ci = 25.0
             st.warning("缺少 UCS 或可用的現場強度分級。請取得岩石試驗、點荷重並建立工址相關性，或先做現場強度分級；目前不會把 25 MPa 當成真實值進行分析。")
@@ -330,16 +257,14 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "控制預裂／光面爆破，損傷較小 (D = 0.5)",
             "弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)",
             "未良好控制的生產爆破，近坡面嚴重損傷 (D = 1.0)",
-            "台灣東北部相似破碎風化砂岩案例範圍 (D = 0.8–0.9)",
             "自訂擾動因子 D"
         ])
         if "0.0" in d_preset: d_default = 0.0
         elif "0.5" in d_preset: d_default = 0.5
         elif "0.7" in d_preset: d_default = 0.7
         elif "1.0" in d_preset: d_default = 1.0
-        elif "0.8–0.9" in d_preset: d_default = 0.85
         else: d_default = 0.0
-        d_range_low, d_range_high = ((0.8, 0.9) if "0.8–0.9" in d_preset else (d_default, d_default))
+        d_range_low, d_range_high = d_default, d_default
         d_factor = d_default
         with st.expander("進階調整：擾動因子 D", expanded=False):
             d_factor = st.slider("擾動因子 (Disturbance Factor, D)", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
@@ -351,11 +276,11 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "隧道/深基礎分析 (Tunnels - 依深度 H)",
             "一般淺層/自訂有效圍壓 (General σ3_max)"
         ])
-        gamma_default = 25.0 if st.session_state.get("hb_taiwan_case_gsi", False) else 23.0
+        gamma_default = 23.0
         gamma_rock = gamma_default
         with st.expander("進階調整：岩體單位重", expanded=False):
             gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0,
-                value=gamma_default, step=0.5, key=f"geolysis_gamma_{'taiwan_case' if st.session_state.get('hb_taiwan_case_gsi', False) else 'general'}")
+                value=gamma_default, step=0.5, key="geolysis_gamma_general")
             st.caption(f"目前初估採 {gamma_default:g} kN/m³；若有密度／單位重試驗，請改用工址資料。")
         h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
             value=20.0, step=1.0, key="geolysis_number_input_line_377")
