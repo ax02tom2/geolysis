@@ -503,6 +503,46 @@ def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
 
 
 
+
+def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
+                                     compression_index, recompression_index,
+                                     initial_effective_stress_kpa,
+                                     preconsolidation_stress_kpa,
+                                     excavation_effective_stress_kpa,
+                                     final_effective_stress_kpa):
+    """Estimate excavation rebound and subsequent recompression using e-log-p indices.
+
+    Idealized NC/OC unloading-reloading path; rebound is negative settlement.
+    """
+    H=_finite('壓縮層厚度',layer_thickness_m)
+    e0=_finite('初始孔隙比',initial_void_ratio)
+    Cc=_finite('壓縮指數 Cc',compression_index)
+    Cr=_finite('再壓縮指數 Cr',recompression_index)
+    s0=_finite('開挖前有效應力',initial_effective_stress_kpa)
+    sp=_finite('先期固結壓力',preconsolidation_stress_kpa)
+    se=_finite('開挖後有效應力',excavation_effective_stress_kpa)
+    sf=_finite('基礎載重後最終有效應力',final_effective_stress_kpa)
+    if H<=0 or e0<=0 or Cc<=0 or Cr<0 or Cr>Cc:
+        raise ValueError('H、e0、Cc 須大於 0，且 0≤Cr≤Cc')
+    if not 0<se<=s0<=sp or sf<se:
+        raise ValueError('需符合 0 < σ′exc ≤ σ′0 ≤ σ′p，且 σ′f ≥ σ′exc')
+    denom=1.0+e0
+    rebound=-Cr*H/denom*math.log10(s0/se)
+    if sf<=sp:
+        recompression=Cr*H/denom*math.log10(sf/se)
+        regime='最終應力仍在先期固結壓力以下（再壓縮）'
+    else:
+        recompression=(Cr*H/denom*math.log10(sp/se)
+                       +Cc*H/denom*math.log10(sf/sp))
+        regime='最終應力超過先期固結壓力（再壓縮＋主壓縮）'
+    net=rebound+recompression
+    return {'rebound_mm':rebound*1000.0,
+            'recompression_settlement_mm':recompression*1000.0,
+            'net_settlement_mm':net*1000.0,
+            'regime':regime,
+            'method':'USACE EM 1110-1-1905 (2025) §7-15 / Table 7-10; idealized e-log-p path',
+            'limitations':'以 Cr/Cc 理想化 e-log-p 曲線估算；實際開挖回彈量可能小於理論值，需以卸載－再載重固結試驗曲線校核。'}
+
 def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
     """Compute differential settlement and angular distortion between two points."""
     a=_finite('位置 A 總沉陷',settlement_a_mm)
