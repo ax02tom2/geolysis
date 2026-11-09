@@ -494,7 +494,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 # ==============================================================================
 with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded=exp_2):
     st.subheader("🌱 土壤分類系統")
-    st.caption("依 ASTM D2487 與 AASHTO M 145 判別邏輯進行工程初判。篩分析通過率必須符合 P4 ≥ P10 ≥ P40 ≥ P200；分類百分比應以通過 3 in（75 mm）篩的土樣為基準，若含卵石／漂石須另加描述。")
+    st.caption("依 ASTM D2487 與 AASHTO M 145 判別邏輯進行工程初判。篩分析通過率必須符合 P4 ≥ P10 ≥ P40 ≥ P200；分類百分比以通過 3 in（75 mm）篩的土樣為基準。LL／PL 應採通過 #40（0.425 mm）篩的細料試驗值；若含卵石／漂石須另加描述。")
     peat=st.checkbox("泥炭／高度有機土（依現場外觀、纖維質與有機特徵辨識）",key="m2_peat")
     if peat:
         st.info("泥炭依現場辨識分類為 USCS PT、AASHTO A-8；此分類不需要篩分析、LL 或 PL。下列試驗欄位暫停使用。")
