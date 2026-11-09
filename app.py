@@ -819,8 +819,23 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                         st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
                 except Exception as time_exc:
                     st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-            st.warning("本模組只估算一維主固結沉陷；尚未計算即時沉陷、次壓縮、固結時間速率（Cv／排水距離）、開挖回彈及差異沉陷。σ′0、σ′p、Cc、Cr、e0 必須由代表性室內固結試驗與地層應力分析取得。")
+            st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率與次壓縮可於上方選填區估算；本版尚未整合開挖回彈至主計算流程。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
         except Exception as exc: st.error(f"黏土主固結估算失敗：{exc}")
+
+    with st.expander("差異沉陷／角變量檢核（兩位置比較）",expanded=False):
+        st.caption("將兩個位置各自計算得到的總沉陷量填入；本工具計算沉陷差與角變量，不擅自判定通過／不通過，容許值須依結構型式及適用規範選定。")
+        da,db,ds=st.columns(3)
+        with da: settle_a4=st.number_input("位置 A 總沉陷 [mm]",0.0,1000.0,20.0,1.0,key="m4_diff_a")
+        with db: settle_b4=st.number_input("位置 B 總沉陷 [mm]",0.0,1000.0,10.0,1.0,key="m4_diff_b")
+        with ds: spacing_diff4=st.number_input("兩位置距離 [m]",0.1,1000.0,5.0,0.1,key="m4_diff_spacing")
+        try:
+            diff4=differential_settlement(settlement_a_mm=settle_a4,
+                settlement_b_mm=settle_b4,spacing_m=spacing_diff4)
+            st.metric("差異沉陷量",f"{diff4['differential_settlement_mm']:.2f} mm")
+            st.metric("角變量（Δs／L）",f"1/{(1/diff4['angular_distortion']):.0f}" if diff4['angular_distortion']>0 else "0")
+            st.caption(f"角變量數值 = {diff4['angular_distortion']:.6f}；請依建築結構型式、跨距及設計規範判讀。")
+        except Exception as diff_exc:
+            st.error(f"差異沉陷檢核失敗：{diff_exc}")
     with st.expander("計算依據與文獻",expanded=False):
         st.markdown("- [USACE EM 1110-1-1905（2025）：第 6 章應力影響係數／Boussinesq／2:1，第 7-13 節 Burland–Burbidge SPT 沉陷法](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)\n- [Burland & Burbidge (1985)：Settlement of Foundations on Sand and Gravel](https://doi.org/10.1680/iicep.1985.1058)\n- [ASTM D2435/D2435M：一維固結試驗](https://www.astm.org/d2435_d2435m.html)\n- [USACE EM 1110-1-1905（1992）：舊版 Meyerhof SPT 公式](https://www.publications.usace.army.mil/Portals/76/Publications/EngineerManuals/EM_1110-1-1905.pdf)")
 
