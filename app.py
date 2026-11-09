@@ -566,7 +566,8 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
     a,b,c=st.columns(3)
     with a:
         n_measured=st.number_input("現場量測 N 值",0,200,18,1,key="m3_n")
-        er=st.number_input("錘擊能量比 ETR／ER [%]（依 ASTM D4633 實測或設備紀錄）",20.0,150.0,80.0,1.0,key="m3_er")
+        er=st.number_input("錘擊能量比 ETR／ER [%]（依 ASTM D4633 實測或設備紀錄）",20.0,150.0,60.0,1.0,key="m3_er")
+        st.caption("尚無能量校正報告時，60% 僅作標準化暫定假設；請取得設備實測 ETR 後更新，不可視為現場實測值。")
         cb_label=st.selectbox("鑽孔直徑（CB）",["65–115 mm（1.00）","150 mm（1.05）","200 mm（1.15）"],index=0,key="m3_cb_label")
         cb={"65–115 mm（1.00）":1.00,"150 mm（1.05）":1.05,"200 mm（1.15）":1.15}[cb_label]
     with b:
