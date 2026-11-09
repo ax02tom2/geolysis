@@ -531,7 +531,7 @@ with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded
         st.write(f"PI = {result['PI']:.1f}% ｜ Cu = {result['Cu'] if result['Cu'] is not None else '未計算'} ｜ Cc = {result['Cc'] if result['Cc'] is not None else '未計算'}")
         st.dataframe(pd.DataFrame([{'礫粒(%)':result['gravel_pct'],'砂粒(%)':result['sand_pct'],'細料(%)':result['fines_pct'],'A-line PI':result['A_line_PI']}]),hide_index=True,use_container_width=True)
         if result['organic_note']: st.warning(result['organic_note'])
-        st.caption("USCS：LL<50 時 PI<4 或位於 A 線下判 ML；PI>7 且位於 A 線上判 CL；4–7 的 A 線上區為 CL-ML。細料 >12% 且屬 CL-ML 時，粗粒土採 GC-GM／SC-SM；5–12% 細料仍依 ASTM 規則採雙重符號。未輸入 D10/D30/D60 時，不會虛構 GW/GP 或 SW/SP。AASHTO 限值依 M 145 將小數試驗值先四捨五入至整數；GI 上限 20，A-2-6／A-2-7 僅採 PI 部分。")
+        st.caption("USCS：LL<50 時 PI<4 或位於 A 線下判 ML；PI>7 且位於 A 線上判 CL；4–7 的 A 線上區為 CL-ML。細料 >12% 且屬 CL-ML 時，粗粒土採 GC-GM／SC-SM；5–12% 細料仍依 ASTM 規則採雙重符號。未輸入 D10/D30/D60 時，不會虛構 GW/GP 或 SW/SP。AASHTO 限值依 M 145 將小數試驗值先四捨五入至整數；GI 依 AASHTO M 145 計算並四捨五入至整數，負值歸零（不強制封頂 20）；A-2-6／A-2-7 僅採 PI 部分。")
         st.warning("分類結果仍須由完整粒徑曲線、液塑限試驗及有機土試驗確認；本工具不取代 ASTM/AASHTO 正式試驗與工程師判釋。")
     with st.expander("分類依據與文獻",expanded=False):
         st.markdown("- [ASTM D2487：Unified Soil Classification System](https://www.astm.org/d2487.html)\n- [AASHTO M 145：Classification of Soils and Soil-Aggregate Mixtures](https://store.transportation.org/)")
