@@ -117,12 +117,23 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         with fig_col1:
             st.markdown("<div style='text-align:center;font-weight:600'>文獻原圖</div>", unsafe_allow_html=True)
             st.markdown("""
-<div style="height:285px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden">
+<style>
+.gsi-lit-zoom-toggle { position:absolute; opacity:0; width:1px; height:1px; }
+.gsi-lit-zoom-label { display:flex; width:100%; min-height:285px; align-items:center; justify-content:center;
+  cursor:zoom-in; overflow:hidden; border-radius:8px; }
+.gsi-lit-zoom-label img { display:block; max-width:100%; max-height:280px; width:auto; height:auto;
+  object-fit:contain; transition:max-height .18s ease; }
+.gsi-lit-zoom-toggle:checked + .gsi-lit-zoom-label { cursor:zoom-out; min-height:72vh; align-items:flex-start; }
+.gsi-lit-zoom-toggle:checked + .gsi-lit-zoom-label img { max-height:72vh; }
+.gsi-lit-zoom-hint { text-align:center; font-size:.75rem; opacity:.72; margin-top:2px; }
+</style>
+<input class="gsi-lit-zoom-toggle" type="checkbox" id="gsi-lit-zoom-2026">
+<label class="gsi-lit-zoom-label" for="gsi-lit-zoom-2026">
   <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
-   alt="Somodi et al. (2021), Figure 1"
-   style="display:block;max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;margin:auto">
-</div>
-<div style="text-align:center;font-size:0.75rem;opacity:0.75">Somodi et al. (2021), Figure 1</div>
+       alt="Somodi et al. (2021), Figure 1">
+</label>
+<div class="gsi-lit-zoom-hint">點擊圖片放大，再點一次縮小（不會遮住左側判讀選項）</div>
+<div class="gsi-lit-zoom-hint">Somodi et al. (2021), Figure 1</div>
 """, unsafe_allow_html=True)
         with fig_col2:
             st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
@@ -211,14 +222,61 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             st.caption(f"mi 初估：{mi_low}–{mi_high}；採用 {mi:g}。{mi_source}。")
 
         st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
-        ucs_mode = st.radio("你目前有哪一種強度資料？", [
+        st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
+        ucs_mode = st.radio("UCS 資料來源", [
             "已有實驗室 UCS 試驗值",
-            "沒有 UCS，以現場敲擊分級初估",
-            "目前沒有可用資料"
+            "採用台灣岩性案例參考值",
+            "依現場敲擊分級初估"
         ], index=1, key="hb_ucs_source_mode")
         ucs_valid = False
         _ucs_range_low = _ucs_range_high = None
         _ucs_range_label = None
+
+        # 台灣案例／工程資料的完整岩石 UCS。kgf/cm² 以 0.0980665 換算為 MPa。
+        # 區間是來源資料範圍，不代表特定工址；使用者仍須核對岩性、風化與含水狀態。
+        _ucs_case_data = {
+            "南莊層砂岩｜隧道完整岩心試驗單一案例": (5.022, 5.022, 5.022,
+                "完整岩心 UCS = 5.022 MPa；同一案例三軸反算 mi = 7.752。這是單一試體／案例，不是南莊層通用值。",
+                "https://www.thb.gov.tw/FileResource.axd?path=html%2Fdoc%2F%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B%2F%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf"),
+            "五指山層砂岩｜台灣岩石工程性質彙整": (34.3, 83.4, 58.9,
+                "350–850 kgf/cm²，換算約 34.3–83.4 MPa。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "木山層砂岩｜台灣岩石工程性質彙整": (29.4, 63.7, 46.6,
+                "300–650 kgf/cm²，換算約 29.4–63.7 MPa。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "大寮層砂岩｜台灣岩石工程性質彙整": (20.6, 58.8, 39.7,
+                "210–600 kgf/cm²，換算約 20.6–58.8 MPa；資料列孔隙率部分大於 15%。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "石底層砂岩｜台灣岩石工程性質彙整": (13.7, 62.8, 38.3,
+                "140–640 kgf/cm²，換算約 13.7–62.8 MPa。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "南港層砂岩｜台灣岩石工程性質彙整": (9.8, 39.2, 24.5,
+                "100–400 kgf/cm²，換算約 9.8–39.2 MPa；資料列孔隙率 10–20%。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "安山岩（未風化）｜台灣岩石工程性質彙整": (78.5, 147.1, 112.8,
+                "800–1500 kgf/cm²，換算約 78.5–147.1 MPa。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "安山岩（風化）｜台灣岩石工程性質彙整": (14.7, 34.3, 24.5,
+                "150–350 kgf/cm²，換算約 14.7–34.3 MPa；不可與未風化安山岩混用。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "玄武岩｜台灣岩石工程性質彙整": (68.6, 343.2, 205.9,
+                "700–3500 kgf/cm²，換算約 68.6–343.2 MPa；範圍很寬，應做敏感度分析。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf")
+        }
+        _sandstone_cases = [k for k in _ucs_case_data if "砂岩" in k]
+        _case_by_rock = {
+            "砂岩 Sandstone": _sandstone_cases,
+            "安山岩 Andesite": [k for k in _ucs_case_data if "安山岩" in k],
+            "花崗岩 Granite": [],
+            "頁岩 Shale": [],
+            "泥岩／黏土岩 Mudstone / Claystone": [],
+            "粉砂岩 Siltstone": [],
+            "板岩 Slate": [],
+            "片岩 Schist": [],
+            "礫岩／角礫岩 Conglomerate / Breccia": [],
+            "石灰岩 Limestone": [],
+            "自訂輸入 mi": list(_ucs_case_data.keys())
+        }
         if ucs_mode == "已有實驗室 UCS 試驗值":
             sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
                 value=25.0, step=1.0, key="hb_ucs_lab_value")
@@ -228,9 +286,31 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             _ucs_range_low = _ucs_range_high = sig_ci
             _ucs_range_label = f"{sig_ci:g} MPa（試驗值）"
             if not ucs_valid:
-                st.warning("請先確認數值確實來自試驗報告；25 MPa 只是輸入欄位初始顯示值，不會在未確認時用於計算。")
+                st.warning("請先確認數值確實來自試驗報告；未確認前不會用於計算。")
             st.caption("輸入完整岩塊試體 UCS，不是岩體或節理面強度。")
-        elif ucs_mode == "沒有 UCS，以現場敲擊分級初估":
+        elif ucs_mode == "採用台灣岩性案例參考值":
+            _available_ucs_cases = _case_by_rock.get(rock_preset, [])
+            if not _available_ucs_cases:
+                sig_ci = 25.0
+                st.warning(f"目前選擇的岩性「{rock_preset}」沒有可直接對應的台灣 UCS 案例數值。請改選「依現場敲擊分級初估」，或輸入實驗室試驗值；系統不會拿其他岩性數值代替。")
+            else:
+                _case_key = f"hb_ucs_case_{rock_preset}"
+                _case_index = st.selectbox("選擇可參考的台灣岩性／試驗案例", _available_ucs_cases,
+                    index=0, key=_case_key)
+                _ucs_low, _ucs_high, _ucs_mid, _ucs_note, _ucs_source = _ucs_case_data[_case_index]
+                _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
+                _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa" if _ucs_low != _ucs_high else f"{_ucs_low:g} MPa（單一案例）"
+                sig_ci = st.number_input("UCS 採用代表值 [MPa]（可直接調整）",
+                    min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=0.5,
+                    key=f"hb_ucs_case_value_{_case_index}")
+                ucs_valid = True
+                st.info(f"參考範圍：{_ucs_range_label}；採用值：{sig_ci:g} MPa。{_ucs_note}")
+                st.markdown(f"[查看案例／資料來源]({_ucs_source})")
+                if _ucs_low != _ucs_high:
+                    st.caption("敏感度分析會使用來源區間上下限；上方代表值則用於目前這次計算。")
+                else:
+                    st.caption("這是單一案例數值，沒有可供推定的統計區間；敏感度分析暫以此值計算。")
+        else:
             isrm_grade = st.selectbox("依完整岩塊現場敲擊／刻劃反應選擇 ISRM 強度等級", [
                 "請選擇現場等級",
                 "R6 極強（>250 MPa）：地質鎚多次敲擊僅崩小片，敲擊有清脆聲",
@@ -255,8 +335,8 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 else:
                     _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
                     _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa"
-                sig_ci = float(_ucs_mid)
-                sig_ci = st.number_input("UCS 代表值 [MPa]（可直接調整）", min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=1.0, key=f"hb_ucs_field_{_grade}")
+                sig_ci = st.number_input("UCS 代表值 [MPa]（可直接調整）", min_value=0.1, max_value=1000.0,
+                    value=float(_ucs_mid), step=1.0, key=f"hb_ucs_field_{_grade}")
                 ucs_valid = True
                 if _grade == "R6":
                     st.warning("R6 僅表示 UCS 大於 250 MPa，沒有有限上限；300 MPa 只是暫用情境值，不是區間中點。請優先安排試驗或敏感度分析。")
@@ -265,9 +345,6 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             else:
                 sig_ci = 25.0
                 st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
-        else:
-            sig_ci = 25.0
-            st.warning("缺少 UCS 或可用的現場強度分級。請取得岩石試驗、點荷重並建立工址相關性，或先做現場強度分級；目前不會把 25 MPa 當成真實值進行分析。")
         st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
 
     with hb_col2:
