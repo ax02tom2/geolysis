@@ -127,7 +127,9 @@ def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
             raw_gi=f2
         else:
             raw_gi=f1+f2
-        gi=min(20,max(0,int(math.floor(raw_gi+0.5))))
+        # AASHTO M 145 §6.1.1: negative total GI is reported as zero;
+        # §6.1.2: report to nearest whole number. The standard does not cap GI at 20.
+        gi=max(0,int(math.floor(raw_gi+0.5)))
     return {'USCS':uscs,'AASHTO':aashto,'GI':int(gi),'PI':pi,'Cu':cu,'Cc':cc,
             'gravel_pct':100-p4,'sand_pct':p4-p200,'fines_pct':p200,
             'organic_note':organic_note,'A_line_PI':aline,'peat':bool(peat)}
