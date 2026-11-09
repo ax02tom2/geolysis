@@ -836,7 +836,7 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                         ("flexible_center_square",1.122,"方形柔性基礎中心")],
                         format_func=lambda x:x[2]+"（"+str(x[1])+"）",key="m4c_ip_im")
                 with im_c:
-                    st.caption("Es 必須來自適當試驗或可靠場址相關式；不可直接把 SPT N 值當成 Es。")
+                    st.warning("Es 預設 10 MPa 僅供示範運算，不是建議設計值。請以工作應變範圍的試驗或經場址校正的相關式取代；不可直接把 SPT N 值當成 Es。若無可靠 Es，請不要採用此即時沉陷數值。")
                 try:
                     immediate4=immediate_elastic_settlement(net_pressure_kpa=q_im4,
                         footing_width_m=qB,soil_modulus_mpa=es_im4,
