@@ -741,3 +741,18 @@ def test_secondary_compression_rejects_invalid_time_order():
         secondary_compression_settlement(layer_thickness_m=5,
             secondary_compression_index=.02,void_ratio_at_primary_end=.8,
             time_start_days=3650,time_end_days=365)
+
+
+def test_differential_settlement_and_angular_distortion():
+    from geolysis_engine import differential_settlement
+    r=differential_settlement(settlement_a_mm=20,settlement_b_mm=10,spacing_m=5)
+    assert r['differential_settlement_mm']==pytest.approx(10)
+    assert r['angular_distortion']==pytest.approx(.002)
+
+
+def test_differential_settlement_rejects_invalid_spacing_or_negative_values():
+    from geolysis_engine import differential_settlement
+    with pytest.raises(ValueError):
+        differential_settlement(settlement_a_mm=20,settlement_b_mm=10,spacing_m=0)
+    with pytest.raises(ValueError):
+        differential_settlement(settlement_a_mm=-1,settlement_b_mm=10,spacing_m=5)
