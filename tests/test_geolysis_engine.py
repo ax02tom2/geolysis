@@ -786,3 +786,20 @@ def test_excavation_rebound_recompression_rejects_inconsistent_stress_path():
             compression_index=.3,recompression_index=.05,
             initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
             excavation_effective_stress_kpa=120,final_effective_stress_kpa=150)
+
+
+def test_immediate_elastic_settlement_reference_equation():
+    from geolysis_engine import immediate_elastic_settlement
+    r=immediate_elastic_settlement(net_pressure_kpa=100,footing_width_m=2,
+        soil_modulus_mpa=10,poisson_ratio=.5,influence_factor=.82)
+    assert r['immediate_settlement_mm']==pytest.approx(12.3)
+
+
+def test_immediate_elastic_settlement_rejects_invalid_modulus_and_poisson_ratio():
+    from geolysis_engine import immediate_elastic_settlement
+    with pytest.raises(ValueError):
+        immediate_elastic_settlement(net_pressure_kpa=100,footing_width_m=2,
+            soil_modulus_mpa=0,poisson_ratio=.5)
+    with pytest.raises(ValueError):
+        immediate_elastic_settlement(net_pressure_kpa=100,footing_width_m=2,
+            soil_modulus_mpa=10,poisson_ratio=.6)
