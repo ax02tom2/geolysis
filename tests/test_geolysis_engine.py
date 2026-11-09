@@ -654,3 +654,43 @@ def test_coarse_soil_with_organic_silty_fines_uses_silty_symbol():
         d10=.1,d30=.3,d60=.8,organic=True,ll_oven_dried=15
     )
     assert r["USCS"]=="SM"
+
+
+def test_spt_profile_uses_per_depth_rod_length_when_provided():
+    rows=[
+        {'Depth_m':5,'N':12,'Effective_Stress_kPa':50,'Rod_Length_m':2.5},
+        {'Depth_m':10,'N':18,'Effective_Stress_kPa':95,'Rod_Length_m':5.0},
+        {'Depth_m':15,'N':25,'Effective_Stress_kPa':140,'Rod_Length_m':12.0},
+    ]
+    r=spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,
+        rod_length_m=8,cn_method='不修正')
+    assert [x['CR'] for x in r]==pytest.approx([.75,.85,1.0])
+    assert [x['Rod_Length_m'] for x in r]==pytest.approx([2.5,5.0,12.0])
+
+
+def test_spt_profile_falls_back_to_shared_rod_length_when_row_value_blank():
+    rows=[{'Depth_m':5,'N':12,'Effective_Stress_kPa':50,'Rod_Length_m':''}]
+    r=spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,
+        rod_length_m=5,cn_method='不修正')
+    assert r[0]['CR']==pytest.approx(.85)
+    assert r[0]['Rod_Length_m']==pytest.approx(5.0)
+
+
+@pytest.mark.parametrize("cap",[0.99,2.01,2.5])
+def test_spt_rejects_cn_cap_outside_usace_range(cap):
+    with pytest.raises(ValueError,match="CN 上限"):
+        spt_correct(20,60,1,1,12,100,'Liao & Whitman',cap)
+
+
+def test_spt_rejects_implausible_energy_ratio_over_150_percent():
+    with pytest.raises(ValueError,match="能量比"):
+        spt_correct(20,151,1,1,12,100,'Liao & Whitman',2.0)
+
+
+def test_spt_cn_methods_match_reference_equations():
+    lw=spt_correct(20,60,1,1,12,50,'Liao & Whitman',2.0)
+    seed=spt_correct(20,60,1,1,12,50,'Seed & Idriss',2.0)
+    skempton=spt_correct(20,60,1,1,12,50,'Skempton',2.0)
+    assert lw['CN']==pytest.approx((101.3/50)**.5)
+    assert seed['CN']==pytest.approx(1.7)
+    assert skempton['CN']==pytest.approx(2/(1+50/101.3))
