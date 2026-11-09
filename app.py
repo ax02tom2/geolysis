@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -820,6 +820,31 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                 except Exception as time_exc:
                     st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
 
+
+            with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
+                st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
+                im_a,im_b,im_c=st.columns(3)
+                with im_a:
+                    q_im4=st.number_input("實際淨接觸壓力 qnet [kPa]",min_value=0.0,max_value=20000.0,value=float(min(20000.0,max(0.0,qa_clay_final))),step=5.0,key="m4c_q_im")
+                    es_im4=st.number_input("土壤彈性模數 Es [MPa]",min_value=0.01,max_value=1000.0,value=10.0,step=0.5,key="m4c_es_im")
+                with im_b:
+                    nu_im4=st.number_input("蒲松比 ν",min_value=0.0,max_value=0.5,value=0.5,step=0.05,key="m4c_nu_im")
+                    ip_im4=st.selectbox("沉陷影響係數 Ip（近似）",[
+                        ("rigid_square",0.82,"方形剛性基礎"),
+                        ("rigid_rectangle_2",1.20,"長方形剛性基礎 L/B≈2"),
+                        ("rigid_strip",2.00,"條形剛性基礎"),
+                        ("flexible_center_square",1.122,"方形柔性基礎中心")],
+                        format_func=lambda x:x[2]+"（"+str(x[1])+"）",key="m4c_ip_im")
+                with im_c:
+                    st.caption("Es 必須來自適當試驗或可靠場址相關式；不可直接把 SPT N 值當成 Es。")
+                try:
+                    immediate4=immediate_elastic_settlement(net_pressure_kpa=q_im4,
+                        footing_width_m=qB,soil_modulus_mpa=es_im4,
+                        poisson_ratio=nu_im4,influence_factor=ip_im4[1])
+                    st.metric("即時／彈性沉陷 δi",f"{immediate4['immediate_settlement_mm']:.2f} mm")
+                    st.caption(immediate4['method']+"；"+immediate4['limitations'])
+                except Exception as immediate_exc:
+                    st.error(f"即時沉陷估算失敗：{immediate_exc}")
             with st.expander("開挖回彈與基礎再壓縮（選填）",expanded=False):
                 st.caption("依 USACE 2025 第 7-15 節／表 7-10，以 Cr、Cc 理想化 e-log-p 路徑估算；σ′exc 與 σ′f 應由開挖及載重後有效應力分析取得。")
                 re_a,re_b=st.columns(2)
