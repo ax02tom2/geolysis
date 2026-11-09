@@ -669,7 +669,7 @@ def test_spt_profile_uses_per_depth_rod_length_when_provided():
 
 
 def test_spt_profile_falls_back_to_shared_rod_length_when_row_value_blank():
-    rows=[{'Depth_m':5,'N':12,'Effective_Stress_kPa':50,'Rod_Length_m':''}]
+    rows=[{'Depth_m':5,'N':12,'Effective_Stress_kPa':50,'Rod_Length_m':float('nan')}]
     r=spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,
         rod_length_m=5,cn_method='不修正')
     assert r[0]['CR']==pytest.approx(.85)
