@@ -300,6 +300,15 @@ def test_spt_profile_refusal_row_is_retained_but_not_corrected():
     assert r[1]['N1_60_final'] is not None
 
 
+def test_spt_profile_refusal_rows_still_validate_source_values():
+    bad_n=[{'Depth_m':5,'N':-1,'Effective_Stress_kPa':50,'Refusal':True}]
+    bad_stress=[{'Depth_m':5,'N':50,'Effective_Stress_kPa':0,'Refusal':True}]
+    for rows in (bad_n,bad_stress):
+        with pytest.raises(ValueError,match='逐深度資料'):
+            spt_profile(rows,energy_ratio_pct=60,borehole_factor=1,sampler_factor=1,
+                rod_length_m=5,cn_method='不修正')
+
+
 def test_bearing_eccentricity_updates_depth_factor_using_effective_width():
     args=dict(theory='Meyerhof',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
         B=2,L=3,Df=1.5,water_depth=5,fs=3)
