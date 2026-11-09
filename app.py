@@ -91,64 +91,25 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         "F": [None,None,(15,20),(10,15),(5,10)]
     }
 
-    with st.expander("現場判讀與 GSI 初判", expanded=True):
-        # 左側集中所有現場選項與即時 GSI 結果；右側放判讀參考圖，避免圖文切斷操作流程。
-        judge_col, visual_col = st.columns([0.42, 0.58], gap="large")
-        with judge_col:
-            st.markdown("**工址背景**")
-            region_col, terrain_col = st.columns(2)
-            with region_col:
-                hb_region = st.selectbox("區域", ["北部", "中部", "南部", "東部"], key="hb_region")
-            with terrain_col:
-                hb_terrain = st.selectbox("地形", ["山區／陡坡", "丘陵／台地", "平地／沖積區"], key="hb_terrain")
-
-            case_library = {
-                "北部": {
-                    "侯硐多節理風化岩坡": "砂岩／頁岩等破碎風化岩坡；博士研究以實際崩塌回算 GSI 20–30、D 0.8–0.9。另整理北部七類岩性參數組合，適用於陡峭破碎風化岩坡初篩。",
-                    "國道 3 號汐止山崩": "砂岩、頁岩及砂頁岩互層的大型順向坡崩塌；文獻提供等效 c、φ、E，不是 Hoek–Brown 直接回算值。",
-                    "北部南莊層砂岩": "公路隧道工程案例：完整岩心 UCS 5.022 MPa、mi 7.752；岩體 GSI 估 40–55。屬特定隧道岩層，不可視為北部砂岩通用值。",
-                    "北部火山岩／安山岩邊坡": "北部七類岩性參數研究納入安山岩及火山角礫岩；適用於破碎風化岩坡初步篩選，仍需依工址修正。"
-                },
-                "中部": {
-                    "廬山北坡板岩深層變形": "片理控制轉為弱化岩體控制的深層變形；有鑽探、孔內影像、波速及監測資料，未提供可直接通用的 HB 數值。",
-                    "梨山地滑": "風化板岩區大型地滑，滑動深度約 15–60 m；降雨與地下水是重要誘因。",
-                    "明德水庫 2022 崩塌": "泥質砂岩、頁岩及多組不連續面控制；2025 研究分析降雨風化與崩塌機制。",
-                    "中部代表性岩坡地震反算": "以現地調查及室內試驗估計岩體強度，再反算地震係數；研究指出 GSI 是敏感參數。"
-                },
-                "南部": {
-                    "燕巢 2016 泥岩崩塌": "梅姬颱風引發約 8,700 m³ 崩塌；泥岩與陡傾反向砂岩層控制破壞。",
-                    "南部深層潛移邊坡": "2025 年研究以 PSI 監測南部潛在深層滑動坡；可作變形案例，不是 HB 強度參數回算案例。",
-                    "南部大型深層山崩地形": "台灣南部山區有砂岩、頁岩及厚層頁岩等不同地質區；應依地層與構造分區，不可混成單一參數。",
-                    "南部泥岩／砂頁岩弱岩坡": "需區分岩盤、強風化岩及土狀材料；遇水軟化時不宜直接套用一般完整岩體參數。"
-                },
-                "東部": {
-                    "蘇花公路 115.9k 板岩崩塌": "片岩 mi=10、D=0.7；崩塌區／崩積層／塊狀岩盤 GSI 假設 15／25／35。研究模型假設，非通用回算值。",
-                    "蘇花公路東澳段片岩": "鑽探、變形及單壓試驗資料用於岩盤參數折減；片岩節理發達、膠結差，應依岩心與現地分區。",
-                    "安通 2016 崩塌": "混雜岩層含火成岩塊、礫岩、泥岩及砂頁岩互層；局部地層強度約 5–10 MPa，屬研究區資料。",
-                    "太魯閣地震後破碎岩坡": "地震後岩體破碎、節理張開及落石問題突出；需以現地結構調查為主，不可直接沿用降雨型淺層滑動案例。"
-                }
-            }
-            case_names = list(case_library[hb_region].keys())
-            hb_case = st.selectbox("案例參考", case_names, key="hb_case_" + hb_region)
-            st.caption(case_library[hb_region][hb_case])
-            if hb_terrain == "平地／沖積區":
-                st.warning("多為土層環境；確認有連續岩盤後才使用 Hoek–Brown。")
-
-            st.divider()
-            st.markdown("**岩體現況判讀（這兩項會直接更新 GSI 建議值）**")
-            gsi_struct = st.selectbox("① 岩體結構／破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
-            gsi_cond = st.selectbox("② 不連續面表面品質", gsi_cond_options, index=2, key="gsi_surface_class")
-            _struct_code = gsi_struct[0]
-            _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
-            _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-            if _gsi_recommended is None:
-                st.error("目前組合不適用一般 GSI 判讀圖，請採片理／剪切帶專用評估；系統不會自行編造數值。")
-            else:
-                _rec_lo, _rec_hi = _gsi_recommended
-                _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
-                st.success(f"本次組合：{_struct_code} 類 × {gsi_cond.split('.')[0]} 級 → GSI 建議區間 {_rec_lo}–{_rec_hi}")
-                st.metric("GSI 建議代表值", _rec_mid)
-                st.caption("改變上面任一項，這裡的區間與代表值會立即更新；下方 GSI 輸入欄也會採用此組合的代表值。")
+    # GSI 現場判讀：只保留會直接影響 GSI 的兩項判讀；移除無效的區域／地形背景。
+    judge_col, visual_col = st.columns([0.42, 0.58], gap="large")
+    with judge_col:
+        st.markdown("**岩體現況判讀**")
+        gsi_struct = st.selectbox("① 岩體結構／破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
+        gsi_cond = st.selectbox("② 不連續面表面品質", gsi_cond_options, index=2, key="gsi_surface_class")
+        _struct_code = gsi_struct[0]
+        _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0], 2)
+        _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
+        if _gsi_recommended is None:
+            st.error("此組合不適用一般 GSI 判讀圖，請改採片理／剪切帶專用評估；系統不會自行編造數值。")
+        else:
+            _rec_lo, _rec_hi = _gsi_recommended
+            _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
+            st.markdown("**依目前兩項選擇得到的 GSI 初判**")
+            result_col1, result_col2 = st.columns(2)
+            result_col1.metric("建議區間", f"{_rec_lo}–{_rec_hi}")
+            result_col2.metric("建議代表值", str(_rec_mid))
+            st.caption("此值依岩體結構與不連續面表面品質交叉判讀；下方計算欄位會以此代表值作為該組合的初始 GSI，可再人工修正。")
 
         with visual_col:
             st.markdown("**GSI 判讀參考圖**")
