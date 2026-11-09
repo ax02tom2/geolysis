@@ -73,7 +73,11 @@ def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
         gravel=100-p4
         sand=p4-p200
         major='G' if gravel > sand else 'S'
-        if d10 is None or d30 is None or d60 is None:
+        grad_values=(d10,d30,d60)
+        supplied_grad=sum(v is not None for v in grad_values)
+        if supplied_grad not in (0,3):
+            raise ValueError('D10、D30、D60 必須同時提供；若沒有完整粒徑曲線，請三者全部留空')
+        if supplied_grad==0:
             cu=cc=None; well=None
         else:
             d10,d30,d60=(_finite('D10',d10),_finite('D30',d30),_finite('D60',d60))
