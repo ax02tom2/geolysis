@@ -222,7 +222,9 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
                 'dilatancy_applied':False,'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
             continue
         row_rod_length=row.get('Rod_Length_m',rod_length_m)
-        if row_rod_length is None or (isinstance(row_rod_length,str) and not row_rod_length.strip()):
+        if (row_rod_length is None or
+            (isinstance(row_rod_length,str) and not row_rod_length.strip()) or
+            (isinstance(row_rod_length,(int,float)) and math.isnan(float(row_rod_length)))):
             row_rod_length=rod_length_m
         row_rod_length=_finite('逐深度鑽桿長度',row_rod_length)
         r=spt_correct(row['N'],energy_ratio_pct,borehole_factor,sampler_factor,row_rod_length,
