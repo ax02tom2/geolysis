@@ -27,5 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install pytest
-      - name: Run test suite
-        run: python -m pytest -q
+      - name: Run geolysis module and web-app regression tests
+        run: >-
+          python -m pytest -q
+          tests/test_geolysis_engine.py
+          tests/test_streamlit_widget_keys.py
+          tests/test_web_scope.py
