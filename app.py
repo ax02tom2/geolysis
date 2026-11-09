@@ -223,6 +223,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 
         st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
         st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
+        # 舊版曾有「目前沒有可用資料」選項，將舊 session state 平順轉到案例參考模式。
+        if st.session_state.get("hb_ucs_source_mode") == "目前沒有可用資料":
+            st.session_state["hb_ucs_source_mode"] = "採用台灣岩性案例參考值"
         ucs_mode = st.radio("UCS 資料來源", [
             "已有實驗室 UCS 試驗值",
             "採用台灣岩性案例參考值",
@@ -259,6 +262,9 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             "安山岩（風化）｜台灣岩石工程性質彙整": (14.7, 34.3, 24.5,
                 "150–350 kgf/cm²，換算約 14.7–34.3 MPa；不可與未風化安山岩混用。",
                 "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+            "花崗岩｜台灣岩石工程性質彙整（下限資料）": (196.1, 300.0, 250.0,
+                "來源僅列 >2000 kgf/cm²（>196.1 MPa），沒有上限；250 MPa 是供初步情境分析的暫用代表值，300 MPa 僅作敏感度上限，不是來源實測上限。",
+                "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
             "玄武岩｜台灣岩石工程性質彙整": (68.6, 343.2, 205.9,
                 "700–3500 kgf/cm²，換算約 68.6–343.2 MPa；範圍很寬，應做敏感度分析。",
                 "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf")
@@ -267,7 +273,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         _case_by_rock = {
             "砂岩 Sandstone": _sandstone_cases,
             "安山岩 Andesite": [k for k in _ucs_case_data if "安山岩" in k],
-            "花崗岩 Granite": [],
+            "花崗岩 Granite": [k for k in _ucs_case_data if "花崗岩" in k],
             "頁岩 Shale": [],
             "泥岩／黏土岩 Mudstone / Claystone": [],
             "粉砂岩 Siltstone": [],
@@ -294,22 +300,28 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 sig_ci = 25.0
                 st.warning(f"目前選擇的岩性「{rock_preset}」沒有可直接對應的台灣 UCS 案例數值。請改選「依現場敲擊分級初估」，或輸入實驗室試驗值；系統不會拿其他岩性數值代替。")
             else:
+                _case_placeholder = "請選擇符合工址地層的案例"
+                _case_options = [_case_placeholder] + _available_ucs_cases
                 _case_key = f"hb_ucs_case_{rock_preset}"
-                _case_index = st.selectbox("選擇可參考的台灣岩性／試驗案例", _available_ucs_cases,
+                _case_index = st.selectbox("選擇可參考的台灣岩性／試驗案例", _case_options,
                     index=0, key=_case_key)
-                _ucs_low, _ucs_high, _ucs_mid, _ucs_note, _ucs_source = _ucs_case_data[_case_index]
-                _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
-                _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa" if _ucs_low != _ucs_high else f"{_ucs_low:g} MPa（單一案例）"
-                sig_ci = st.number_input("UCS 採用代表值 [MPa]（可直接調整）",
-                    min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=0.5,
-                    key=f"hb_ucs_case_value_{_case_index}")
-                ucs_valid = True
-                st.info(f"參考範圍：{_ucs_range_label}；採用值：{sig_ci:g} MPa。{_ucs_note}")
-                st.markdown(f"[查看案例／資料來源]({_ucs_source})")
-                if _ucs_low != _ucs_high:
-                    st.caption("敏感度分析會使用來源區間上下限；上方代表值則用於目前這次計算。")
+                if _case_index == _case_placeholder:
+                    sig_ci = 25.0
+                    st.warning("請依鑽探柱狀圖、岩性描述及風化程度選擇相符案例；未選定前不會將任意 UCS 值帶入計算。")
                 else:
-                    st.caption("這是單一案例數值，沒有可供推定的統計區間；敏感度分析暫以此值計算。")
+                    _ucs_low, _ucs_high, _ucs_mid, _ucs_note, _ucs_source = _ucs_case_data[_case_index]
+                    _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
+                    _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa" if _ucs_low != _ucs_high else f"{_ucs_low:g} MPa（單一案例）"
+                    sig_ci = st.number_input("UCS 採用代表值 [MPa]（可直接調整）",
+                        min_value=0.1, max_value=1000.0, value=float(_ucs_mid), step=0.5,
+                        key=f"hb_ucs_case_value_{_case_index}")
+                    ucs_valid = True
+                    st.info(f"參考範圍：{_ucs_range_label}；採用值：{sig_ci:g} MPa。{_ucs_note}")
+                    st.markdown(f"[查看案例／資料來源]({_ucs_source})")
+                    if _ucs_low != _ucs_high:
+                        st.caption("敏感度分析會使用來源區間上下限；上方代表值則用於目前這次計算。")
+                    else:
+                        st.caption("這是單一案例數值，沒有可供推定的統計區間；敏感度分析暫以此值計算。")
         else:
             isrm_grade = st.selectbox("依完整岩塊現場敲擊／刻劃反應選擇 ISRM 強度等級", [
                 "請選擇現場等級",
