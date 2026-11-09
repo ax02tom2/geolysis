@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -785,6 +785,40 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                 st.warning("2:1 應力擴散法僅供初估；USACE 2025 指出其在方形基礎且 z<1.5B 時可能低估垂直應力。正式設計優先採 Boussinesq 彈性解或分層分析。")
             else:
                 st.caption("Boussinesq 應力解假設均布矩形荷載作用於均質彈性半空間；仍需搭配正確分層參數與有效應力剖面。")
+
+            with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
+                st.caption("依 USACE 2025 第 7-18、7-19 節。Cv 應由固結試驗或現地試驗取得；此處以代表性壓縮層作一維估算。")
+                rt_a,rt_b,rt_c=st.columns(3)
+                with rt_a:
+                    cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
+                    drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
+                with rt_b:
+                    u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.9,value=90.0,step=1.0,key="m4c_u")
+                    elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
+                with rt_c:
+                    calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
+                    ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
+                    ep4=st.number_input("主固結完成時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.05,key="m4c_ep",disabled=not calc_secondary4)
+                try:
+                    representative_H4=sum(float(x["Thickness_m"]) for x in layer_rows) if layers_text4.strip() else Hc
+                    primary_total4=float(r["settlement_mm"])
+                    time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                        layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
+                        target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
+                        drainage=drainage4)
+                    st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
+                    st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
+                    if calc_secondary4:
+                        t1_years4=st.number_input("次壓縮起算時間 t1 [年]（通常取主固結完成時間）",min_value=0.001,max_value=100.0,value=max(0.01,time4['time_to_target_years']),step=0.1,key="m4c_t1")
+                        t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
+                        sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
+                            secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
+                            time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
+                        st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；上述主固結與次壓縮合計僅供此代表層估算。")
+                    if layers_text4.strip():
+                        st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
+                except Exception as time_exc:
+                    st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
             st.warning("本模組只估算一維主固結沉陷；尚未計算即時沉陷、次壓縮、固結時間速率（Cv／排水距離）、開挖回彈及差異沉陷。σ′0、σ′p、Cc、Cr、e0 必須由代表性室內固結試驗與地層應力分析取得。")
         except Exception as exc: st.error(f"黏土主固結估算失敗：{exc}")
     with st.expander("計算依據與文獻",expanded=False):
