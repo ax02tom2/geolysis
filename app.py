@@ -554,6 +554,8 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
         cs={"有內襯（1.00）":1.00,"無內襯／一般（1.10）":1.10,"無內襯／較高修正（1.20）":1.20,"無內襯／最高修正（1.30）":1.30}[cs_label]
         rod_len=st.number_input("鑽桿長度 [m]",0.5,60.0,8.0,0.5,key="m3_rod")
         st.caption("CR 依鑽桿長度自動採建議值；仍須依設備型式與採用規範核對。")
+        if rod_len>30:
+            st.warning("鑽桿長度超過 30 m；USACE EM 1110-1-1905（2025）表 4-6 的 CR 參考範圍為 10–30 m。本工具目前仍以 CR=1.00 延用計算，但此範圍屬表列範圍外推，請依實際設備與採用規範確認。")
     with c:
         sigma_v=st.number_input("有效覆土應力 σ'v [kPa]",1.0,2000.0,95.0,5.0,key="m3_sv")
         soil_behavior=st.selectbox("土層性質",["砂土／非凝聚性土壤","黏土／凝聚性土壤"],key="m3_soil_behavior")
