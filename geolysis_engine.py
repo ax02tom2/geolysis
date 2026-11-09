@@ -439,6 +439,85 @@ def consolidation_allowable_pressure(*, target_settlement_mm, footing_pressure_f
             'method':f'1-D primary consolidation; {stress_method} rectangular stress distribution'}
 
 
+
+def _terzaghi_time_factor_from_degree(degree_percent):
+    """Average 1-D consolidation degree U (%) to Terzaghi time factor Tv."""
+    U=_pct('平均固結度 U',degree_percent)/100.0
+    if U>=1.0: raise ValueError('平均固結度 U 必須小於 100%；理論上 100% 需無限時間')
+    if U<=0: return 0.0
+    lo,hi=0.0,10.0
+    for _ in range(90):
+        mid=(lo+hi)/2.0
+        u=1.0
+        for m in range(100):
+            odd=2*m+1
+            u-=8.0/(math.pi**2*odd**2)*math.exp(-(odd**2*math.pi**2*mid)/4.0)
+        if u<U: lo=mid
+        else: hi=mid
+    return (lo+hi)/2.0
+
+
+def _terzaghi_degree_from_time_factor(tv):
+    """Invert Terzaghi's one-dimensional average degree-of-consolidation series."""
+    tv=_finite('時間因子 Tv',tv)
+    if tv<0: raise ValueError('時間因子 Tv 不可為負')
+    if tv==0: return 0.0
+    if tv>=10: return 100.0
+    u=1.0
+    for m in range(100):
+        odd=2*m+1
+        u-=8.0/(math.pi**2*odd**2)*math.exp(-(odd**2*math.pi**2*tv)/4.0)
+    return min(100.0,max(0.0,u*100.0))
+
+
+def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
+                            cv_m2_per_day, target_degree_percent=90.0,
+                            elapsed_days=None, drainage='double'):
+    """Terzaghi 1-D consolidation time rate; Cv in m²/day, Hdr in metres."""
+    settlement=_finite('最終主固結沉陷',primary_settlement_mm)
+    H=_finite('壓縮層厚度',layer_thickness_m)
+    cv=_finite('固結係數 Cv',cv_m2_per_day)
+    Utarget=_pct('目標固結度',target_degree_percent)
+    if settlement<0 or H<=0 or cv<=0 or not 0<Utarget<100:
+        raise ValueError('主固結沉陷不可為負；壓縮層厚度、Cv 須大於 0；目標固結度須介於 0–100%')
+    if drainage=='double': Hdr=H/2.0
+    elif drainage=='single': Hdr=H
+    else: raise ValueError('排水條件須為 double（雙向）或 single（單向）')
+    tv_target=_terzaghi_time_factor_from_degree(Utarget)
+    target_days=tv_target*Hdr**2/cv
+    result={'target_degree_percent':Utarget,'time_factor_target':tv_target,
+            'drainage_path_m':Hdr,'time_to_target_days':target_days,
+            'time_to_target_years':target_days/365.25,
+            'ultimate_primary_settlement_mm':settlement}
+    if elapsed_days is not None:
+        elapsed=_finite('經過時間',elapsed_days)
+        if elapsed<0: raise ValueError('經過時間不可為負')
+        tv_elapsed=elapsed*cv/(Hdr**2)
+        Uelapsed=_terzaghi_degree_from_time_factor(tv_elapsed)
+        result.update({'elapsed_days':elapsed,'time_factor_elapsed':tv_elapsed,
+            'degree_at_elapsed_percent':Uelapsed,
+            'primary_settlement_at_elapsed_mm':settlement*Uelapsed/100.0})
+    return result
+
+
+def secondary_compression_settlement(*, layer_thickness_m,
+                                      secondary_compression_index,
+                                      void_ratio_at_primary_end,
+                                      time_start_days, time_end_days):
+    """Secondary compression after primary consolidation, USACE Eq. 7-47."""
+    H=_finite('次壓縮層厚度',layer_thickness_m)
+    Ca=_finite('次壓縮指數 Cα',secondary_compression_index)
+    ep=_finite('主固結完成時孔隙比 ep',void_ratio_at_primary_end)
+    t1=_finite('次壓縮起算時間 t1',time_start_days)
+    t2=_finite('計算終止時間 t2',time_end_days)
+    if H<=0 or Ca<0 or ep<=-1 or t1<=0 or t2<=t1:
+        raise ValueError('H 須大於 0、Cα 不可為負、ep 須大於 -1，且 t2 必須大於 t1>0')
+    settlement=Ca*H/(1.0+ep)*math.log10(t2/t1)
+    return {'secondary_settlement_m':settlement,
+            'secondary_settlement_mm':settlement*1000.0,
+            'time_ratio':t2/t1,
+            'method':'USACE EM 1110-1-1905 (2025) Eq. 7-47'}
+
 def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
                                       gross_pressure_kpa, initial_effective_stress_kpa,
                                       preconsolidation_stress_kpa, granular_layer_thickness_m,
