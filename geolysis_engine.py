@@ -7,7 +7,10 @@ import math
 
 
 def _finite(name, value):
-    v=float(value)
+    try:
+        v=float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} 必須為數值") from None
     if not math.isfinite(v): raise ValueError(f"{name} 必須為有限數值")
     return v
 
@@ -18,10 +21,21 @@ def _pct(name, v):
     return v
 
 
-def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
+def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=None, np_flag=False,
                            d10=None, d30=None, d60=None, organic=False,
                            ll_oven_dried=None, peat=False):
-    """USCS (ASTM D2487 logic) and AASHTO M 145 screening classification."""
+    """USCS (ASTM D2487 logic) and AASHTO M 145 screening classification.
+
+    Highly organic peat is identified visually and is not forced through
+    particle-size or Atterberg-limit calculations.
+    """
+    if peat:
+        return {
+            'USCS':'PT','AASHTO':'A-8','GI':0,'PI':None,'Cu':None,'Cc':None,
+            'gravel_pct':None,'sand_pct':None,'fines_pct':None,
+            'organic_note':'依現場辨識為泥炭／高度有機土；PT 與 A-8 屬視覺辨識分類，不以篩分析或液塑限數值判定。',
+            'A_line_PI':None,'peat':True
+        }
     p4,p10,p40,p200=(_pct(n,v) for n,v in [('P4',p4),('P10',p10),('P40',p40),('P200',p200)])
     ll=_finite('LL',ll)
     if ll < 0 or ll > 200: raise ValueError('LL 必須介於 0–200%')
@@ -48,7 +62,6 @@ def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
     else:
         organic_confirmed=False
         organic_note=''
-    # Plasticity chart A-line and borderline CL-ML zone.
     aline=0.73*(ll-20.0)
     above_a = pi >= aline and pi > 0
     if ll < 50:
@@ -65,47 +78,41 @@ def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
     elif organic and not organic_test_rejected:
         fine_class = ('OL' if ll < 50 else 'OH') + '（暫定）'
     cu=cc=None
-    if peat:
-        uscs='PT'
-    elif p200 >= 50:
-        uscs=fine_class
+    gravel=100-p4
+    sand=p4-p200
+    major='G' if gravel > sand else 'S'
+    grad_values=(d10,d30,d60)
+    supplied_grad=sum(v is not None for v in grad_values)
+    if supplied_grad not in (0,3):
+        raise ValueError('D10、D30、D60 必須同時提供；若沒有完整粒徑曲線，請三者全部留空')
+    if supplied_grad==0:
+        cu=cc=None; well=None
     else:
-        gravel=100-p4
-        sand=p4-p200
-        major='G' if gravel > sand else 'S'
-        grad_values=(d10,d30,d60)
-        supplied_grad=sum(v is not None for v in grad_values)
-        if supplied_grad not in (0,3):
-            raise ValueError('D10、D30、D60 必須同時提供；若沒有完整粒徑曲線，請三者全部留空')
-        if supplied_grad==0:
-            cu=cc=None; well=None
+        d10,d30,d60=(_finite('D10',d10),_finite('D30',d30),_finite('D60',d60))
+        if not (0<d10<=d30<=d60): raise ValueError('粒徑必須符合 0 < D10 ≤ D30 ≤ D60')
+        cu=d60/d10; cc=d30*d30/(d10*d60)
+        well=(cu>=4 if major=='G' else cu>=6) and 1<=cc<=3
+    if p200 >= 50:
+        uscs=fine_class
+    elif p200 < 5:
+        if well is None: uscs=major+'? (缺少 D10/D30/D60)'
+        else: uscs=major+('W' if well else 'P')
+    elif p200 > 12:
+        if fine_class=='CL-ML':
+            uscs=major+'C-'+major+'M'
         else:
-            d10,d30,d60=(_finite('D10',d10),_finite('D30',d30),_finite('D60',d60))
-            if not (0<d10<=d30<=d60): raise ValueError('粒徑必須符合 0 < D10 ≤ D30 ≤ D60')
-            cu=d60/d10; cc=d30*d30/(d10*d60)
-            well=(cu>=4 if major=='G' else cu>=6) and 1<=cc<=3
-        if p200 < 5:
-            if well is None: uscs=major+'? (缺少 D10/D30/D60)'
-            else: uscs=major+('W' if well else 'P')
-        elif p200 > 12:
-            if 4 <= pi <= 7 and above_a:
-                uscs=major+'C-'+major+'M'
-            else:
-                uscs=major+('C' if pi>7 and above_a else 'M')
+            uscs=major+('C' if fine_class in ('CL','CH','OL','OH') or '暫定' in fine_class else 'M')
+    else:
+        if well is None: uscs=major+'?-(C/M) (缺少級配資料)'
         else:
-            if well is None: uscs=major+'?-(C/M) (缺少級配資料)'
-            else:
-                fines_symbol='C' if (above_a and (pi>=4)) else 'M'
-                uscs=major+('W' if well else 'P')+'-'+major+fines_symbol
-    # AASHTO M 145 §3.2: round reported fractional limits to whole numbers
-    # before applying the classification boundaries (half-up, not Python bankers' rounding).
+            # ASTM D2487: 5–12% fines require a dual symbol. If fines plot
+            # in CL-ML, the second symbol is C (e.g. SP-SC).
+            fines_symbol='C' if fine_class in ('CL','CH','OL','OH','CL-ML') or '暫定' in fine_class else 'M'
+            uscs=major+('W' if well else 'P')+'-'+major+fines_symbol
     def _round_whole(x): return int(math.floor(float(x)+0.5))
     Fg=_round_whole(p200); P40g=_round_whole(p40); P10g=_round_whole(p10)
     LLg=_round_whole(ll); PIg=_round_whole(pi)
-    # Re-evaluate the AASHTO group using the rounded test values.
-    if peat:
-        aashto='A-8'
-    elif Fg <= 35:
+    if Fg <= 35:
         if Fg <= 10 and P40g >= 51 and np_flag:
             aashto='A-3'
         elif Fg <= 15 and P10g <= 50 and P40g <= 30 and PIg <= 6:
@@ -120,24 +127,16 @@ def classify_uscs_aashto(*, p4, p10, p40, p200, ll, pl=None, np_flag=False,
         elif LLg>40 and PIg<=10: aashto='A-5'
         elif LLg<=40: aashto='A-6'
         else: aashto='A-7-5' if PIg <= LLg-30 else 'A-7-6'
-    if aashto in ('A-1-a','A-1-b','A-3','A-8'):
-        gi=0.0
+    if aashto in ('A-1-a','A-1-b','A-3'):
+        gi=0
     else:
-        # Keep the signed partial terms: AASHTO's own A-4 example has a
-        # negative PI contribution that offsets part of the LL contribution.
         f1=(Fg-35)*(0.2+0.005*(LLg-40))
         f2=0.01*(Fg-15)*(PIg-10)
-        if aashto in ('A-2-6','A-2-7'):
-            raw_gi=f2
-        else:
-            raw_gi=f1+f2
-        # AASHTO M 145 §6.1.1: negative total GI is reported as zero;
-        # §6.1.2: report to nearest whole number. The standard does not cap GI at 20.
+        raw_gi=f2 if aashto in ('A-2-6','A-2-7') else f1+f2
         gi=max(0,int(math.floor(raw_gi+0.5)))
     return {'USCS':uscs,'AASHTO':aashto,'GI':int(gi),'PI':pi,'Cu':cu,'Cc':cc,
             'gravel_pct':100-p4,'sand_pct':p4-p200,'fines_pct':p200,
-            'organic_note':organic_note,'A_line_PI':aline,'peat':bool(peat)}
-
+            'organic_note':organic_note,'A_line_PI':aline,'peat':False}
 
 ROD_CORRECTION = [(3,0.75),(4,0.80),(6,0.85),(10,0.95),(float('inf'),1.00)]
 def rod_factor(length_m):
