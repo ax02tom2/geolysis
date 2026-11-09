@@ -164,9 +164,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 font=dict(size=9), xaxis_title=None, yaxis_title=None,
                 xaxis=dict(automargin=True), yaxis=dict(automargin=True)
             )
-            st.markdown("<div style='height:270px;display:flex;align-items:center;justify-content:center'>", unsafe_allow_html=True)
             st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
-            st.markdown("</div>", unsafe_allow_html=True)
         st.caption("兩圖使用相同欄寬並置中；文獻圖與自製示意圖採相同視覺高度。示意圖僅表達相對判讀方向，不取代原始 GSI 圖。文獻圖來源：Somodi et al. (2021), Applied Sciences 11(8), 3351。")
         with st.expander("案例來源", expanded=False):
             st.markdown("""
