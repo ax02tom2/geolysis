@@ -104,21 +104,21 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
             if not (0<d10<=d30<=d60): raise ValueError('粒徑必須符合 0 < D10 ≤ D30 ≤ D60')
             cu=d60/d10; cc=d30*d30/(d10*d60)
             well=(cu>=4 if major=='G' else cu>=6) and 1<=cc<=3
-    elif p200 < 5:
-        if well is None: uscs=major+'? (缺少 D10/D30/D60)'
-        else: uscs=major+('W' if well else 'P')
-    elif p200 > 12:
-        if fine_class_chart=='CL-ML':
-            uscs=major+'C-'+major+'M'
+        if p200 < 5:
+            if well is None: uscs=major+'? (缺少 D10/D30/D60)'
+            else: uscs=major+('W' if well else 'P')
+        elif p200 > 12:
+            if fine_class_chart=='CL-ML':
+                uscs=major+'C-'+major+'M'
+            else:
+                uscs=major+('C' if fine_class_chart in ('CL','CH') else 'M')
         else:
-            uscs=major+('C' if fine_class_chart in ('CL','CH') else 'M')
-    else:
-        if well is None: uscs=major+'?-(C/M) (缺少級配資料)'
-        else:
-            # ASTM D2487: 5–12% fines require a dual symbol. If fines plot
-            # in CL-ML, the second symbol is C (e.g. SP-SC).
-            fines_symbol='C' if fine_class_chart in ('CL','CH','CL-ML') else 'M'
-            uscs=major+('W' if well else 'P')+'-'+major+fines_symbol
+            if well is None: uscs=major+'?-(C/M) (缺少級配資料)'
+            else:
+                # ASTM D2487: 5–12% fines require a dual symbol. If fines plot
+                # in CL-ML, the second symbol is C (e.g. SP-SC).
+                fines_symbol='C' if fine_class_chart in ('CL','CH','CL-ML') else 'M'
+                uscs=major+('W' if well else 'P')+'-'+major+fines_symbol
     def _round_whole(x): return int(math.floor(float(x)+0.5))
     Fg=_round_whole(p200); P40g=_round_whole(p40); P10g=_round_whole(p10)
     LLg=_round_whole(ll); PIg=_round_whole(pi)
