@@ -118,21 +118,28 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             st.markdown("<div style='text-align:center;font-weight:600'>文獻原圖</div>", unsafe_allow_html=True)
             st.markdown("""
 <style>
-.gsi-lit-zoom-toggle { position:absolute; opacity:0; width:1px; height:1px; }
-.gsi-lit-zoom-label { display:flex; width:100%; min-height:285px; align-items:center; justify-content:center;
-  cursor:zoom-in; overflow:hidden; border-radius:8px; }
-.gsi-lit-zoom-label img { display:block; max-width:100%; max-height:280px; width:auto; height:auto;
-  object-fit:contain; transition:max-height .18s ease; }
-.gsi-lit-zoom-toggle:checked + .gsi-lit-zoom-label { cursor:zoom-out; min-height:72vh; align-items:flex-start; }
-.gsi-lit-zoom-toggle:checked + .gsi-lit-zoom-label img { max-height:72vh; }
+.gsi-lit-details { width:100%; }
+.gsi-lit-details summary { cursor:zoom-in; list-style:none; display:flex; justify-content:center;
+  align-items:center; min-height:285px; overflow:hidden; }
+.gsi-lit-details summary::-webkit-details-marker { display:none; }
+.gsi-lit-details summary img { max-width:100%; max-height:280px; width:auto; height:auto; object-fit:contain; }
+.gsi-lit-details[open] summary { cursor:zoom-out; min-height:0; }
+.gsi-lit-details[open] summary img { max-height:120px; opacity:.55; }
+.gsi-lit-expanded { display:flex; justify-content:center; align-items:center; width:100%; padding:8px 0; }
+.gsi-lit-expanded img { display:block; max-width:100%; max-height:72vh; width:auto; height:auto; object-fit:contain; }
 .gsi-lit-zoom-hint { text-align:center; font-size:.75rem; opacity:.72; margin-top:2px; }
 </style>
-<input class="gsi-lit-zoom-toggle" type="checkbox" id="gsi-lit-zoom-2026">
-<label class="gsi-lit-zoom-label" for="gsi-lit-zoom-2026">
-  <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
-       alt="Somodi et al. (2021), Figure 1">
-</label>
-<div class="gsi-lit-zoom-hint">點擊圖片放大，再點一次縮小（不會遮住左側判讀選項）</div>
+<details class="gsi-lit-details">
+  <summary title="點擊放大／縮小">
+    <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
+         alt="Somodi et al. (2021), Figure 1">
+  </summary>
+  <div class="gsi-lit-expanded">
+    <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
+         alt="Somodi et al. (2021), Figure 1 enlarged">
+  </div>
+</details>
+<div class="gsi-lit-zoom-hint">點擊圖片放大，再點一次縮小；放大時左側 GSI 選項仍可操作</div>
 <div class="gsi-lit-zoom-hint">Somodi et al. (2021), Figure 1</div>
 """, unsafe_allow_html=True)
         with fig_col2:
