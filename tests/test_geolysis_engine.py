@@ -628,3 +628,12 @@ def test_peat_returns_pt_a8_without_lab_values():
 def test_non_peat_classification_requires_particle_size_and_atterberg_inputs():
     with pytest.raises(ValueError,match="必須為數值"):
         classify_uscs_aashto()
+
+
+def test_fine_grained_uscs_does_not_require_or_report_grain_size_coefficients():
+    r=classify_uscs_aashto(
+        p4=100,p10=95,p40=90,p200=70,ll=25,pl=19,d10=.1
+    )
+    assert r["USCS"]=="CL-ML"
+    assert r["Cu"] is None
+    assert r["Cc"] is None
