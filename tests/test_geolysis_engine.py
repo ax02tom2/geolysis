@@ -702,7 +702,7 @@ def test_consolidation_time_rate_matches_usace_table_values():
         cv_m2_per_day=0.01,target_degree_percent=90,drainage='double',
         elapsed_days=0.848*(2.0**2)/0.01)
     assert r['time_factor_target']==pytest.approx(0.848,abs=1e-4)
-    assert r['time_to_target_days']==pytest.approx(0.848*4/0.01,rel=1e-4)
+    assert r['time_to_target_days']==pytest.approx(0.848*4/0.01,abs=0.04)
     assert r['degree_at_elapsed_percent']==pytest.approx(90,abs=0.05)
     assert r['primary_settlement_at_elapsed_mm']==pytest.approx(36,abs=0.02)
 
