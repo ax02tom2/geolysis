@@ -26,6 +26,11 @@ def test_classification_rejects_nonmonotonic_sieve():
         classify_uscs_aashto(p4=20,p10=40,p40=30,p200=10,ll=30,pl=20)
 
 
+def test_uscs_rejects_partial_diameter_curve_inputs():
+    with pytest.raises(ValueError,match='必須同時提供'):
+        classify_uscs_aashto(p4=40,p10=35,p40=20,p200=2,ll=25,pl=20,d10=.1,d30=.5)
+
+
 def test_spt_n60_and_n160_reference():
     r=spt_correct(20,60,1,1,12,100,'Liao & Whitman',1.7)
     assert r['N60']==pytest.approx(20)
