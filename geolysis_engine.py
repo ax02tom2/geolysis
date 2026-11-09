@@ -528,13 +528,15 @@ def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
         raise ValueError('需符合 0 < σ′exc ≤ σ′0 ≤ σ′p，且 σ′f ≥ σ′exc')
     denom=1.0+e0
     rebound=-Cr*H/denom*math.log10(s0/se)
+    e_exc=e0+Cr*math.log10(s0/se)
     if sf<=sp:
-        recompression=Cr*H/denom*math.log10(sf/se)
+        delta_e=Cr*math.log10(sf/se)
         regime='最終應力仍在先期固結壓力以下（再壓縮）'
     else:
-        recompression=(Cr*H/denom*math.log10(sp/se)
-                       +Cc*H/denom*math.log10(sf/sp))
+        delta_e=(Cr*math.log10(sp/se)+Cc*math.log10(sf/sp))
         regime='最終應力超過先期固結壓力（再壓縮＋主壓縮）'
+    # USACE Eq. 7-40 uses the void ratio at the post-excavation stress.
+    recompression=H*delta_e/(1.0+e_exc)
     net=rebound+recompression
     return {'rebound_mm':rebound*1000.0,
             'recompression_settlement_mm':recompression*1000.0,
