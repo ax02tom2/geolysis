@@ -566,7 +566,7 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
     a,b,c=st.columns(3)
     with a:
         n_measured=st.number_input("現場量測 N 值",0,200,18,1,key="m3_n")
-        er=st.selectbox("錘擊能量比 ER [%]",[45,60,70,80,85,90,100],index=3,key="m3_er")
+        er=st.number_input("錘擊能量比 ETR／ER [%]（依 ASTM D4633 實測或設備紀錄）",20.0,150.0,80.0,1.0,key="m3_er")
         cb_label=st.selectbox("鑽孔直徑（CB）",["65–115 mm（1.00）","150 mm（1.05）","200 mm（1.15）"],index=0,key="m3_cb_label")
         cb={"65–115 mm（1.00）":1.00,"150 mm（1.05）":1.05,"200 mm（1.15）":1.15}[cb_label]
     with b:
@@ -581,7 +581,7 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
         soil_behavior=st.selectbox("土層性質",["砂土／非凝聚性土壤","黏土／凝聚性土壤"],key="m3_soil_behavior")
         soil_behavior_code="cohesionless" if soil_behavior.startswith("砂土") else "cohesive"
         cn_method=st.selectbox("覆土壓力修正 CN",["Liao & Whitman","Seed & Idriss","Skempton","不修正"],key="m3_cnmethod",disabled=(soil_behavior_code=="cohesive"))
-        cn_cap=st.number_input("CN 上限（USACE 2025 Liao–Whitman 可至 2.0；Seed–Idriss 液化法自動不超過 1.7）",1.0,2.5,2.0,0.1,key="m3_cncap")
+        cn_cap=st.number_input("CN 上限（USACE 2025：最高 2.0；Seed–Idriss 液化法自動不超過 1.7）",1.0,2.0,2.0,0.1,key="m3_cncap")
         dilatancy_allowed=(soil_behavior_code=="cohesionless" and cn_method!="不修正")
         dilatancy=st.checkbox("飽和細砂／粉土位於地下水位以下，且 (N1)60 > 15：套用膨脹修正",value=False,key="m3_dilatancy",disabled=(not dilatancy_allowed))
         if not dilatancy_allowed: dilatancy=False
@@ -609,9 +609,9 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
             st.session_state['m3_current_n160']=current['N1_60_final']
         except Exception as exc: st.error(f"SPT 修正失敗：{exc}")
     st.markdown("**鑽孔逐深度資料（CSV）**")
-    st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Refusal（true/false）標記拒錘／部分貫入，另可加 Penetration_mm 記錄實際貫入量。每列共用上方設備修正係數，但依各深度有效覆土應力計算 CN；拒錘列會保留但不計算一般 N60。")
+    st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
     csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
-    default_csv="Depth_m,N,Effective_Stress_kPa\n5,12,50\n10,18,95\n15,25,140"
+    default_csv="Depth_m,N,Effective_Stress_kPa,Rod_Length_m\n5,12,50,6\n10,18,95,11\n15,25,140,16"
     csv_text=st.text_area("或貼上 CSV 內容",default_csv,height=100,key="m3_profile")
     try:
         prof=pd.read_csv(csv_file) if csv_file is not None else pd.read_csv(StringIO(csv_text))
