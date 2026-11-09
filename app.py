@@ -127,6 +127,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         case_names = list(case_library[hb_region].keys())
         hb_case = st.selectbox("案例參考", case_names, key="hb_case_" + hb_region)
         st.caption(case_library[hb_region][hb_case])
+        st.caption("判讀邏輯：區域、地形與案例目前用來提供地質案例參考及適用性提醒，不會直接改寫計算參數；真正會自動更新 GSI 建議值的是下方「岩體結構」與「不連續面表面品質」兩項選擇。")
         if hb_terrain == "平地／沖積區":
             st.warning("多為土層環境；確認有連續岩盤後才使用 Hoek–Brown。")
 
