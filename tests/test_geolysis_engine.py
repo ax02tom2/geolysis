@@ -756,3 +756,33 @@ def test_differential_settlement_rejects_invalid_spacing_or_negative_values():
         differential_settlement(settlement_a_mm=20,settlement_b_mm=10,spacing_m=0)
     with pytest.raises(ValueError):
         differential_settlement(settlement_a_mm=-1,settlement_b_mm=10,spacing_m=5)
+
+
+def test_excavation_rebound_and_recompression_returns_zero_when_reloaded_to_original_stress():
+    from geolysis_engine import excavation_rebound_recompression
+    r=excavation_rebound_recompression(layer_thickness_m=5,initial_void_ratio=.8,
+        compression_index=.3,recompression_index=.05,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
+        excavation_effective_stress_kpa=50,final_effective_stress_kpa=100)
+    assert r['rebound_mm']<0
+    assert r['recompression_settlement_mm']>0
+    assert r['net_settlement_mm']==pytest.approx(0,abs=1e-9)
+
+
+def test_excavation_rebound_recompression_crosses_preconsolidation_pressure():
+    from geolysis_engine import excavation_rebound_recompression
+    r=excavation_rebound_recompression(layer_thickness_m=5,initial_void_ratio=.8,
+        compression_index=.3,recompression_index=.05,
+        initial_effective_stress_kpa=100,preconsolidation_stress_kpa=150,
+        excavation_effective_stress_kpa=50,final_effective_stress_kpa=200)
+    assert r['regime'].endswith('主壓縮）')
+    assert r['net_settlement_mm']>0
+
+
+def test_excavation_rebound_recompression_rejects_inconsistent_stress_path():
+    from geolysis_engine import excavation_rebound_recompression
+    with pytest.raises(ValueError,match='σ′exc'):
+        excavation_rebound_recompression(layer_thickness_m=5,initial_void_ratio=.8,
+            compression_index=.3,recompression_index=.05,
+            initial_effective_stress_kpa=100,preconsolidation_stress_kpa=100,
+            excavation_effective_stress_kpa=120,final_effective_stress_kpa=150)
