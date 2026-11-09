@@ -694,3 +694,50 @@ def test_spt_cn_methods_match_reference_equations():
     assert lw['CN']==pytest.approx((101.3/50)**.5)
     assert seed['CN']==pytest.approx(min(1.7,(101.3/50)**.5))
     assert skempton['CN']==pytest.approx(2/(1+50/101.3))
+
+
+def test_consolidation_time_rate_matches_usace_table_values():
+    from geolysis_engine import consolidation_time_rate
+    r=consolidation_time_rate(primary_settlement_mm=40,layer_thickness_m=4,
+        cv_m2_per_day=0.01,target_degree_percent=90,drainage='double',
+        elapsed_days=0.848*(2.0**2)/0.01)
+    assert r['time_factor_target']==pytest.approx(0.848,abs=1e-4)
+    assert r['time_to_target_days']==pytest.approx(0.848*4/0.01,rel=1e-4)
+    assert r['degree_at_elapsed_percent']==pytest.approx(90,abs=0.05)
+    assert r['primary_settlement_at_elapsed_mm']==pytest.approx(36,abs=0.02)
+
+
+def test_consolidation_time_rate_single_drainage_takes_four_times_double():
+    from geolysis_engine import consolidation_time_rate
+    args=dict(primary_settlement_mm=25,layer_thickness_m=6,cv_m2_per_day=.02,
+        target_degree_percent=90)
+    double=consolidation_time_rate(**args,drainage='double')
+    single=consolidation_time_rate(**args,drainage='single')
+    assert single['time_to_target_days']==pytest.approx(4*double['time_to_target_days'])
+
+
+def test_consolidation_time_rate_rejects_100_percent_and_bad_cv():
+    from geolysis_engine import consolidation_time_rate
+    with pytest.raises(ValueError,match='小於 100'):
+        consolidation_time_rate(primary_settlement_mm=20,layer_thickness_m=3,
+            cv_m2_per_day=.01,target_degree_percent=100)
+    with pytest.raises(ValueError):
+        consolidation_time_rate(primary_settlement_mm=20,layer_thickness_m=3,
+            cv_m2_per_day=0,target_degree_percent=90)
+
+
+def test_secondary_compression_matches_usace_equation_7_47():
+    from geolysis_engine import secondary_compression_settlement
+    r=secondary_compression_settlement(layer_thickness_m=5,
+        secondary_compression_index=.02,void_ratio_at_primary_end=.8,
+        time_start_days=365.25,time_end_days=3652.5)
+    assert r['secondary_settlement_mm']==pytest.approx(
+        .02*5/1.8*math.log10(10)*1000)
+
+
+def test_secondary_compression_rejects_invalid_time_order():
+    from geolysis_engine import secondary_compression_settlement
+    with pytest.raises(ValueError,match='t2'):
+        secondary_compression_settlement(layer_thickness_m=5,
+            secondary_compression_index=.02,void_ratio_at_primary_end=.8,
+            time_start_days=3650,time_end_days=365)
