@@ -522,14 +522,24 @@ with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded
             d10=d30=d60=None
         if not peat and p200>=50:
             st.caption("目前 P200 ≥ 50%，屬細粒土；USCS 細粒土分類不使用 Cu／Cc，故不要求 D10/D30/D60。")
+    m2_input_signature=(float(p4),float(p10),float(p40),float(p200),float(ll),
+        None if pl is None else float(pl),bool(np_flag),
+        None if d10 is None else float(d10),None if d30 is None else float(d30),
+        None if d60 is None else float(d60),bool(organic),
+        bool(organic_test_done),float(ll_od),bool(peat))
     if st.button("執行土壤分類",key="m2_run"):
         st.session_state.pop('m2_result',None)
+        st.session_state.pop('m2_result_signature',None)
         try:
             result=classify_uscs_aashto(p4=p4,p10=p10,p40=p40,p200=p200,ll=ll,pl=pl,np_flag=np_flag,
                 d10=d10,d30=d30,d60=d60,organic=organic,ll_oven_dried=(ll_od if organic and organic_test_done else None),peat=peat)
             st.session_state['m2_result']=result
+            st.session_state['m2_result_signature']=m2_input_signature
         except Exception as exc: st.error(f"資料檢核未通過：{exc}")
     result=st.session_state.get('m2_result')
+    if result and st.session_state.get('m2_result_signature') != m2_input_signature:
+        st.warning("土壤分類輸入已變更；目前顯示的舊結果不再對應現有試驗值。請重新按「執行土壤分類」更新。")
+        result=None
     if result:
         r1,r2,r3=st.columns(3)
         r1.success(f"USCS：{result['USCS']}")
