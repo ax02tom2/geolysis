@@ -478,8 +478,10 @@ def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
     H=_finite('壓縮層厚度',layer_thickness_m)
     cv=_finite('固結係數 Cv',cv_m2_per_day)
     Utarget=_pct('目標固結度',target_degree_percent)
-    if settlement<0 or H<=0 or cv<=0 or not 0<Utarget<100:
-        raise ValueError('主固結沉陷不可為負；壓縮層厚度、Cv 須大於 0；目標固結度須介於 0–100%')
+    if not 0<Utarget<100:
+        raise ValueError('目標固結度 U 必須大於 0% 且小於 100%；理論上 100% 需無限時間')
+    if settlement<0 or H<=0 or cv<=0:
+        raise ValueError('主固結沉陷不可為負；壓縮層厚度與 Cv 須大於 0')
     if drainage=='double': Hdr=H/2.0
     elif drainage=='single': Hdr=H
     else: raise ValueError('排水條件須為 double（雙向）或 single（單向）')
