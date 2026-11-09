@@ -637,3 +637,20 @@ def test_fine_grained_uscs_does_not_require_or_report_grain_size_coefficients():
     assert r["USCS"]=="CL-ML"
     assert r["Cu"] is None
     assert r["Cc"] is None
+
+
+def test_coarse_soil_with_organic_fines_keeps_plasticity_chart_symbol_and_adds_note():
+    r=classify_uscs_aashto(
+        p4=60,p10=50,p40=25,p200=20,ll=25,pl=19,
+        d10=.1,d30=.3,d60=.8,organic=True,ll_oven_dried=15
+    )
+    assert r["USCS"]=="SC-SM"
+    assert "含有機細料" in r["organic_note"]
+
+
+def test_coarse_soil_with_organic_silty_fines_uses_silty_symbol():
+    r=classify_uscs_aashto(
+        p4=60,p10=50,p40=25,p200=20,ll=25,pl=22,
+        d10=.1,d30=.3,d60=.8,organic=True,ll_oven_dried=15
+    )
+    assert r["USCS"]=="SM"
