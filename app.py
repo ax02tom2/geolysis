@@ -130,17 +130,20 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         if hb_terrain == "平地／沖積區":
             st.warning("多為土層環境；確認有連續岩盤後才使用 Hoek–Brown。")
 
-        # 文獻圖與系統自製示意圖並排，維持相近視覺高度
-        fig_col1, fig_col2 = st.columns(2, gap="small")
+        # 文獻圖與系統自製示意圖：固定相同顯示高度，兩欄內容各自置中
+        fig_col1, fig_col2 = st.columns(2, gap="medium")
         with fig_col1:
-            st.markdown("**文獻圖 1｜GSI 判讀圖**")
-            st.image(
-                "https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png",
-                caption="Somodi et al. (2021), Figure 1",
-                width=320
-            )
+            st.markdown("<div style='text-align:center;font-weight:600;margin-bottom:0.35rem'>文獻圖 1｜GSI 判讀圖</div>", unsafe_allow_html=True)
+            st.markdown("""
+<div style="height:270px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden">
+  <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
+       alt="Somodi et al. (2021), Figure 1"
+       style="display:block;max-width:100%;max-height:245px;width:auto;height:auto;object-fit:contain;margin:auto">
+</div>
+<div style="text-align:center;font-size:0.78rem;color:var(--text-color);opacity:0.75">Somodi et al. (2021), Figure 1</div>
+""", unsafe_allow_html=True)
         with fig_col2:
-            st.markdown("**系統示意圖｜結構 × 節理面品質**")
+            st.markdown("<div style='text-align:center;font-weight:600;margin-bottom:0.35rem'>系統示意圖｜結構 × 節理面品質</div>", unsafe_allow_html=True)
             gsi_demo = go.Figure(data=go.Heatmap(
                 z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
                 x=["極佳","良好","普通","不良","極差"],
@@ -155,10 +158,16 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                 xgap=2, ygap=2,
                 hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"
             ))
-            gsi_demo.update_layout(height=245, margin=dict(l=4,r=4,t=4,b=4),
-                font=dict(size=9), xaxis_title=None, yaxis_title=None)
+            gsi_demo.update_layout(
+                height=270, width=520, autosize=True,
+                margin=dict(l=8,r=8,t=8,b=8),
+                font=dict(size=9), xaxis_title=None, yaxis_title=None,
+                xaxis=dict(automargin=True), yaxis=dict(automargin=True)
+            )
+            st.markdown("<div style='height:270px;display:flex;align-items:center;justify-content:center'>", unsafe_allow_html=True)
             st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
-        st.caption("示意圖僅表達相對判讀方向，不取代原始 GSI 圖。文獻圖來源：Somodi et al. (2021), Applied Sciences 11(8), 3351。")
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.caption("兩圖使用相同欄寬並置中；文獻圖與自製示意圖採相同視覺高度。示意圖僅表達相對判讀方向，不取代原始 GSI 圖。文獻圖來源：Somodi et al. (2021), Applied Sciences 11(8), 3351。")
         with st.expander("案例來源", expanded=False):
             st.markdown("""
 - [北部侯硐案例與七類岩性參數研究（國立臺灣科技大學，2022）](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)
@@ -177,10 +186,12 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
         _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
         if _gsi_recommended is None:
-            st.error("此組合不適用一般 GSI 判讀圖，請改用片理／剪切帶專用評估。")
+            st.error("目前選擇：此岩體結構 × 節理面品質組合不適用一般 GSI 判讀圖。請改用片理／剪切帶專用評估；系統不會自行編造 GSI 值。")
         else:
             _rec_lo, _rec_hi = _gsi_recommended
-            st.success(f"GSI 建議：{_rec_lo}–{_rec_hi}（中值 {int(round((_rec_lo + _rec_hi)/2))}）")
+            _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
+            st.success(f"目前判讀結果｜{_struct_code} 類岩體結構 × {gsi_cond.split('.')[0]} 級表面品質 → 建議 GSI {_rec_lo}–{_rec_hi}，預設代表值 {_rec_mid}")
+            st.info("選項一改變，上方建議區間與下方「GSI 代表值」就會更新；下方代表值會帶入 Hoek–Brown 計算，你也可以直接修改。")
 
     gsi_struct = st.session_state.get("gsi_structure_class", gsi_struct_options[1])
     gsi_cond = st.session_state.get("gsi_surface_class", gsi_cond_options[2])
