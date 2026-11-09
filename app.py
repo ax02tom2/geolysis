@@ -111,42 +111,42 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             result_col2.metric("建議代表值", str(_rec_mid))
             st.caption("此值依岩體結構與不連續面表面品質交叉判讀；下方計算欄位會以此代表值作為該組合的初始 GSI，可再人工修正。")
 
-        with visual_col:
-            st.markdown("**GSI 判讀參考圖**")
-            fig_col1, fig_col2 = st.columns(2, gap="small")
-            with fig_col1:
-                st.markdown("<div style='text-align:center;font-weight:600'>文獻原圖</div>", unsafe_allow_html=True)
-                st.markdown("""
+    with visual_col:
+        st.markdown("**GSI 判讀參考圖**")
+        fig_col1, fig_col2 = st.columns(2, gap="small")
+        with fig_col1:
+            st.markdown("<div style='text-align:center;font-weight:600'>文獻原圖</div>", unsafe_allow_html=True)
+            st.markdown("""
 <div style="height:285px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden">
   <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
-       alt="Somodi et al. (2021), Figure 1"
-       style="display:block;max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;margin:auto">
+   alt="Somodi et al. (2021), Figure 1"
+   style="display:block;max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;margin:auto">
 </div>
 <div style="text-align:center;font-size:0.75rem;opacity:0.75">Somodi et al. (2021), Figure 1</div>
 """, unsafe_allow_html=True)
-            with fig_col2:
-                st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
-                gsi_demo = go.Figure(data=go.Heatmap(
-                    z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
-                    x=["極佳","良好","普通","不良","極差"],
-                    y=["A 巨塊狀","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 剪切狀"],
-                    text=[["較高","較高","中高","中低","較低"],
-                          ["較高","中高","中高","中低","較低"],
-                          ["中高","中高","中等","較低","較低"],
-                          ["中高","中等","中等","較低","低"],
-                          ["中等","中等","較低","低","低"],
-                          ["中等","較低","較低","低","低"]],
-                    texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
-                    xgap=2, ygap=2,
-                    hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"
-                ))
-                gsi_demo.update_layout(height=285, margin=dict(l=4,r=4,t=8,b=8),
-                    font=dict(size=9), xaxis_title=None, yaxis_title=None,
-                    xaxis=dict(automargin=True), yaxis=dict(automargin=True))
-                st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
-            st.caption("文獻圖與系統示意圖並列；自製圖僅協助理解相對趨勢，不取代原始 GSI 判讀。")
-            with st.expander("案例來源與文獻", expanded=False):
-                st.markdown("""
+        with fig_col2:
+            st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
+            gsi_demo = go.Figure(data=go.Heatmap(
+                z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
+                x=["極佳","良好","普通","不良","極差"],
+                y=["A 巨塊狀","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 剪切狀"],
+                text=[["較高","較高","中高","中低","較低"],
+                      ["較高","中高","中高","中低","較低"],
+                      ["中高","中高","中等","較低","較低"],
+                      ["中高","中等","中等","較低","低"],
+                      ["中等","中等","較低","低","低"],
+                      ["中等","較低","較低","低","低"]],
+                texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
+                xgap=2, ygap=2,
+                hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"
+            ))
+            gsi_demo.update_layout(height=285, margin=dict(l=4,r=4,t=8,b=8),
+                font=dict(size=9), xaxis_title=None, yaxis_title=None,
+                xaxis=dict(automargin=True), yaxis=dict(automargin=True))
+            st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
+        st.caption("文獻圖與系統示意圖並列；自製圖僅協助理解相對趨勢，不取代原始 GSI 判讀。")
+        with st.expander("案例來源與文獻", expanded=False):
+            st.markdown("""
 - [北部侯硐案例與七類岩性參數研究（國立臺灣科技大學，2022）](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)
 - [國道 3 號汐止崩塌案例](https://doi.org/10.1016/j.sandf.2023.101316)
 - [北部南莊層隧道岩體參數案例](https://ws.thb.gov.tw/001/Upload/OldFile/resource/html/doc/%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B/%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)
@@ -154,7 +154,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 - [南部燕巢泥岩崩塌](https://doi.org/10.1007/s10346-019-01250-3)｜[南部深層潛移邊坡研究](https://doi.org/10.1007/s10346-024-02453-z)｜[台灣大型深層山崩地形研究](https://doi.org/10.1016/j.geomorph.2012.11.004)
 - [東部蘇花公路 115.9k 案例](https://doi.org/10.29974/JCSWC.201306_44(2).0001)｜[安通混雜岩層崩塌](https://doi.org/10.3390/w12020480)
 - [Somodi et al. (2021), GSI Figure 1](https://doi.org/10.3390/app11083351)
-                """)
+            """)
 
     _struct_code = gsi_struct[0]
     _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
