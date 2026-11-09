@@ -190,13 +190,6 @@ def test_aashto_gi_matches_published_a4_negative_example():
     assert r['GI']==0
 
 
-def test_aashto_gi_published_high_value_example_is_not_capped_at_20():
-    # AASHTO M 145 §6.4.2: F=80, LL=90, PI=50 -> GI=46.3 -> 46.
-    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=80,ll=90,pl=40)
-    assert r['AASHTO']=='A-7-5'
-    assert r['GI']==46
-
-
 def test_aashto_gi_a2_7_uses_pi_component_only():
     r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=30,ll=50,pl=20)
     assert r['AASHTO']=='A-2-7'
@@ -393,9 +386,11 @@ def test_burland_burbidge_reports_no_feasible_pressure_if_baseline_exceeds_targe
     assert r['qa_settlement_gross_kpa']==pytest.approx(0,abs=1e-6)
 
 
-def test_aashto_gi_is_capped_at_twenty():
-    r=classify_uscs_aashto(p4=100,p10=100,p40=100,p200=100,ll=200,pl=0)
-    assert r['GI']==20
+def test_aashto_gi_matches_published_m145_high_value_example_without_cap():
+    # AASHTO M 145 §6.4.2: F=80, LL=90, PI=50 -> GI=46.3 -> 46.
+    r=classify_uscs_aashto(p4=100,p10=100,p40=100,p200=80,ll=90,pl=40)
+    assert r['AASHTO']=='A-7-5'
+    assert r['GI']==46
 
 
 def test_aashto_rounds_limits_before_group_assignment():
