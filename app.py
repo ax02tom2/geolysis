@@ -809,12 +809,12 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                     st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
                     st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
                     if calc_secondary4:
-                        t1_years4=st.number_input("次壓縮起算時間 t1 [年]（通常取主固結完成時間）",min_value=0.001,max_value=100.0,value=max(0.01,time4['time_to_target_years']),step=0.1,key="m4c_t1")
+                        t1_years4=st.number_input("次壓縮起算時間 t1 [年]（通常取主固結完成時間）",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,time4['time_to_target_years'])),step=0.1,key="m4c_t1")
                         t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
                         sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
                             secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
                             time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
-                        st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；上述主固結與次壓縮合計僅供此代表層估算。")
+                        st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
                     if layers_text4.strip():
                         st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
                 except Exception as time_exc:
