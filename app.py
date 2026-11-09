@@ -809,7 +809,11 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                     st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
                     st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
                     if calc_secondary4:
-                        t1_years4=st.number_input("次壓縮起算時間 t1 [年]（通常取主固結完成時間）",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,time4['time_to_target_years'])),step=0.1,key="m4c_t1")
+                        t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                            layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
+                            target_degree_percent=99.4,drainage=drainage4)
+                        st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
+                        t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
                         t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
                         sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
                             secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
