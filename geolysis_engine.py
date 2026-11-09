@@ -201,6 +201,9 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         seen.add(depth)
         clean={**row,'Depth_m':depth,'N':_finite('N',row['N']),
                'Effective_Stress_kPa':_finite('Effective_Stress_kPa',row['Effective_Stress_kPa'])}
+        # Refusal rows skip correction, but must still pass source-data validation.
+        if clean['N']<0 or clean['Effective_Stress_kPa']<=0:
+            raise ValueError('逐深度資料的 N 不可為負值，Effective_Stress_kPa 必須大於 0')
         flag=row.get('Refusal',False)
         is_refusal=(flag is True or str(flag).strip().lower() in ('1','1.0','true','yes','y','refusal','拒錘','部分貫入'))
         if is_refusal:
