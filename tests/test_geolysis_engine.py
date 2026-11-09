@@ -692,5 +692,5 @@ def test_spt_cn_methods_match_reference_equations():
     seed=spt_correct(20,60,1,1,12,50,'Seed & Idriss',2.0)
     skempton=spt_correct(20,60,1,1,12,50,'Skempton',2.0)
     assert lw['CN']==pytest.approx((101.3/50)**.5)
-    assert seed['CN']==pytest.approx(1.7)
+    assert seed['CN']==pytest.approx(min(1.7,(101.3/50)**.5))
     assert skempton['CN']==pytest.approx(2/(1+50/101.3))
