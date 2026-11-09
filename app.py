@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -819,7 +819,28 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                         st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
                 except Exception as time_exc:
                     st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-            st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率與次壓縮可於上方選填區估算；本版尚未整合開挖回彈至主計算流程。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
+
+            with st.expander("開挖回彈與基礎再壓縮（選填）",expanded=False):
+                st.caption("依 USACE 2025 第 7-15 節／表 7-10，以 Cr、Cc 理想化 e-log-p 路徑估算；σ′exc 與 σ′f 應由開挖及載重後有效應力分析取得。")
+                re_a,re_b=st.columns(2)
+                with re_a:
+                    sigma_exc4=st.number_input("開挖／降水後有效應力 σ′exc [kPa]",min_value=0.1,max_value=5000.0,value=float(max(0.1,sig0*0.6)),step=5.0,key="m4c_sigma_exc")
+                with re_b:
+                    sigma_final4=st.number_input("基礎載重後最終有效應力 σ′f [kPa]",min_value=0.1,max_value=10000.0,value=float(max(0.1,sig0*1.2)),step=5.0,key="m4c_sigma_final")
+                try:
+                    rebound4=excavation_rebound_recompression(layer_thickness_m=Hc,
+                        initial_void_ratio=e0,compression_index=Cc,recompression_index=Cr,
+                        initial_effective_stress_kpa=sig0,preconsolidation_stress_kpa=sigp,
+                        excavation_effective_stress_kpa=sigma_exc4,
+                        final_effective_stress_kpa=sigma_final4)
+                    st.write(f"開挖回彈（隆起）≈ **{abs(rebound4['rebound_mm']):.2f} mm**；基礎再壓縮沉陷≈ **{rebound4['recompression_settlement_mm']:.2f} mm**。")
+                    st.metric("回彈後淨垂直位移（正值為沉陷）",f"{rebound4['net_settlement_mm']:.2f} mm")
+                    st.caption(rebound4['regime']+"；"+rebound4['limitations'])
+                    if layers_text4.strip():
+                        st.warning("目前此回彈／再壓縮面板使用上方單層代表參數 H、e0、Cc、Cr；若地層為多層，需逐層輸入開挖後與載重後有效應力，不可直接代表整個多層剖面。")
+                except Exception as rebound_exc:
+                    st.error(f"開挖回彈／再壓縮估算失敗：{rebound_exc}")
+            st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
         except Exception as exc: st.error(f"黏土主固結估算失敗：{exc}")
 
     with st.expander("差異沉陷／角變量檢核（兩位置比較）",expanded=False):
