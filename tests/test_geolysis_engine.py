@@ -361,7 +361,8 @@ def test_hoek_brown_general_mode_requires_explicit_confinement():
 
 
 def test_uscs_low_plasticity_below_four_is_ml_even_if_above_a_line():
-    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=60,ll=25,pl=22)
+    # LL=20 gives A-line PI=0; PI=3 is above the A-line but below the PI=4 boundary.
+    r=classify_uscs_aashto(p4=100,p10=90,p40=80,p200=60,ll=20,pl=17)
     assert r['USCS']=='ML'
 
 
@@ -545,3 +546,71 @@ def test_bearing_rejects_unknown_terzaghi_failure_mode():
     with pytest.raises(ValueError):
         bearing_capacity(theory='Terzaghi',c_kpa=10,phi_deg=30,gamma_moist=18,
             gamma_sub=9,B=2,L=3,Df=1,water_depth=5,failure_mode='unknown')
+
+
+@pytest.mark.parametrize(("p4","p10","p40","p200","ll","pl","np_flag","expected"), [
+    (80,50,30,15,25,20,False,"A-1-a"),
+    (90,70,50,25,25,20,False,"A-1-b"),
+    (100,95,51,10,0,None,True,"A-3"),
+    (100,90,80,35,40,30,False,"A-2-4"),
+    (100,90,80,35,41,31,False,"A-2-5"),
+    (100,90,80,35,40,29,False,"A-2-6"),
+    (100,90,80,35,41,30,False,"A-2-7"),
+    (100,90,80,36,40,30,False,"A-4"),
+    (100,90,80,36,41,31,False,"A-5"),
+    (100,90,80,36,40,29,False,"A-6"),
+    (100,90,80,36,60,30,False,"A-7-5"),
+    (100,90,80,36,60,29,False,"A-7-6"),
+])
+def test_aashto_all_group_and_subgroup_boundaries(
+    p4,p10,p40,p200,ll,pl,np_flag,expected
+):
+    r=classify_uscs_aashto(
+        p4=p4,p10=p10,p40=p40,p200=p200,ll=ll,pl=pl,np_flag=np_flag
+    )
+    assert r["AASHTO"]==expected
+
+
+def test_uscs_fines_boundary_at_five_and_twelve_percent():
+    args=dict(p4=60,p10=50,p40=25,ll=25,pl=19,d10=.1,d30=.3,d60=.8)
+    clean=classify_uscs_aashto(**args,p200=4.99)
+    at_five=classify_uscs_aashto(**args,p200=5.0)
+    at_twelve=classify_uscs_aashto(**args,p200=12.0)
+    above_twelve=classify_uscs_aashto(**args,p200=12.01)
+    assert clean["USCS"]=="SW"
+    assert at_five["USCS"]=="SW-SC"
+    assert at_twelve["USCS"]=="SW-SC"
+    assert above_twelve["USCS"]=="SC-SM"
+
+
+@pytest.mark.parametrize(("pi","expected"), [(3.99,"ML"),(4.0,"CL-ML"),(7.0,"CL-ML"),(7.01,"CL")])
+def test_uscs_plasticity_chart_pi_transition_boundaries(pi,expected):
+    r=classify_uscs_aashto(
+        p4=100,p10=95,p40=90,p200=70,ll=25,pl=25-pi
+    )
+    assert r["USCS"]==expected
+
+
+def test_uscs_ll_exactly_fifty_uses_high_plasticity_symbol():
+    r=classify_uscs_aashto(p4=100,p10=95,p40=90,p200=70,ll=50,pl=28)
+    assert r["USCS"]=="CH"
+
+
+def test_organic_soil_requires_strictly_less_than_seventy_five_percent_drying_ratio():
+    r=classify_uscs_aashto(
+        p4=100,p10=98,p40=90,p200=70,ll=40,pl=20,
+        organic=True,ll_oven_dried=30
+    )
+    assert r["USCS"]=="CL"
+    assert "未達" in r["organic_note"]
+
+
+def test_uscs_rejects_nonpositive_or_nonmonotonic_particle_diameters():
+    base=dict(p4=40,p10=35,p40=20,p200=2,ll=25,pl=20)
+    for curve in (
+        dict(d10=0,d30=.3,d60=.8),
+        dict(d10=.3,d30=.2,d60=.8),
+        dict(d10=.1,d30=.3,d60=.2),
+    ):
+        with pytest.raises(ValueError):
+            classify_uscs_aashto(**base,**curve)
