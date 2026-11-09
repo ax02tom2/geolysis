@@ -91,84 +91,101 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         "F": [None,None,(15,20),(10,15),(5,10)]
     }
 
-    with st.expander("現場判讀", expanded=True):
-        region_col, terrain_col = st.columns(2)
-        with region_col:
-            hb_region = st.selectbox("區域", ["北部", "中部", "南部", "東部"], key="hb_region")
-        with terrain_col:
-            hb_terrain = st.selectbox("地形", ["山區／陡坡", "丘陵／台地", "平地／沖積區"], key="hb_terrain")
+    with st.expander("現場判讀與 GSI 初判", expanded=True):
+        # 左側集中所有現場選項與即時 GSI 結果；右側放判讀參考圖，避免圖文切斷操作流程。
+        judge_col, visual_col = st.columns([0.42, 0.58], gap="large")
+        with judge_col:
+            st.markdown("**工址背景**")
+            region_col, terrain_col = st.columns(2)
+            with region_col:
+                hb_region = st.selectbox("區域", ["北部", "中部", "南部", "東部"], key="hb_region")
+            with terrain_col:
+                hb_terrain = st.selectbox("地形", ["山區／陡坡", "丘陵／台地", "平地／沖積區"], key="hb_terrain")
 
-        case_library = {
-            "北部": {
-                "侯硐多節理風化岩坡": "砂岩／頁岩等破碎風化岩坡；博士研究以實際崩塌回算 GSI 20–30、D 0.8–0.9。另整理北部七類岩性參數組合，適用於陡峭破碎風化岩坡初篩。",
-                "國道 3 號汐止山崩": "砂岩、頁岩及砂頁岩互層的大型順向坡崩塌；文獻提供等效 c、φ、E，不是 Hoek–Brown 直接回算值。",
-                "北部南莊層砂岩": "公路隧道工程案例：完整岩心 UCS 5.022 MPa、mi 7.752；岩體 GSI 估 40–55。屬特定隧道岩層，不可視為北部砂岩通用值。",
-                "北部火山岩／安山岩邊坡": "北部七類岩性參數研究納入安山岩及火山角礫岩；適用於破碎風化岩坡初步篩選，仍需依工址修正。"
-            },
-            "中部": {
-                "廬山北坡板岩深層變形": "片理控制轉為弱化岩體控制的深層變形；有鑽探、孔內影像、波速及監測資料，未提供可直接通用的 HB 數值。",
-                "梨山地滑": "風化板岩區大型地滑，滑動深度約 15–60 m；降雨與地下水是重要誘因。",
-                "明德水庫 2022 崩塌": "泥質砂岩、頁岩及多組不連續面控制；2025 研究分析降雨風化與崩塌機制。",
-                "中部代表性岩坡地震反算": "以現地調查及室內試驗估計岩體強度，再反算地震係數；研究指出 GSI 是敏感參數。"
-            },
-            "南部": {
-                "燕巢 2016 泥岩崩塌": "梅姬颱風引發約 8,700 m³ 崩塌；泥岩與陡傾反向砂岩層控制破壞。",
-                "南部深層潛移邊坡": "2025 年研究以 PSI 監測南部潛在深層滑動坡；可作變形案例，不是 HB 強度參數回算案例。",
-                "南部大型深層山崩地形": "台灣南部山區有砂岩、頁岩及厚層頁岩等不同地質區；應依地層與構造分區，不可混成單一參數。",
-                "南部泥岩／砂頁岩弱岩坡": "需區分岩盤、強風化岩及土狀材料；遇水軟化時不宜直接套用一般完整岩體參數。"
-            },
-            "東部": {
-                "蘇花公路 115.9k 板岩崩塌": "片岩 mi=10、D=0.7；崩塌區／崩積層／塊狀岩盤 GSI 假設 15／25／35。研究模型假設，非通用回算值。",
-                "蘇花公路東澳段片岩": "鑽探、變形及單壓試驗資料用於岩盤參數折減；片岩節理發達、膠結差，應依岩心與現地分區。",
-                "安通 2016 崩塌": "混雜岩層含火成岩塊、礫岩、泥岩及砂頁岩互層；局部地層強度約 5–10 MPa，屬研究區資料。",
-                "太魯閣地震後破碎岩坡": "地震後岩體破碎、節理張開及落石問題突出；需以現地結構調查為主，不可直接沿用降雨型淺層滑動案例。"
+            case_library = {
+                "北部": {
+                    "侯硐多節理風化岩坡": "砂岩／頁岩等破碎風化岩坡；博士研究以實際崩塌回算 GSI 20–30、D 0.8–0.9。另整理北部七類岩性參數組合，適用於陡峭破碎風化岩坡初篩。",
+                    "國道 3 號汐止山崩": "砂岩、頁岩及砂頁岩互層的大型順向坡崩塌；文獻提供等效 c、φ、E，不是 Hoek–Brown 直接回算值。",
+                    "北部南莊層砂岩": "公路隧道工程案例：完整岩心 UCS 5.022 MPa、mi 7.752；岩體 GSI 估 40–55。屬特定隧道岩層，不可視為北部砂岩通用值。",
+                    "北部火山岩／安山岩邊坡": "北部七類岩性參數研究納入安山岩及火山角礫岩；適用於破碎風化岩坡初步篩選，仍需依工址修正。"
+                },
+                "中部": {
+                    "廬山北坡板岩深層變形": "片理控制轉為弱化岩體控制的深層變形；有鑽探、孔內影像、波速及監測資料，未提供可直接通用的 HB 數值。",
+                    "梨山地滑": "風化板岩區大型地滑，滑動深度約 15–60 m；降雨與地下水是重要誘因。",
+                    "明德水庫 2022 崩塌": "泥質砂岩、頁岩及多組不連續面控制；2025 研究分析降雨風化與崩塌機制。",
+                    "中部代表性岩坡地震反算": "以現地調查及室內試驗估計岩體強度，再反算地震係數；研究指出 GSI 是敏感參數。"
+                },
+                "南部": {
+                    "燕巢 2016 泥岩崩塌": "梅姬颱風引發約 8,700 m³ 崩塌；泥岩與陡傾反向砂岩層控制破壞。",
+                    "南部深層潛移邊坡": "2025 年研究以 PSI 監測南部潛在深層滑動坡；可作變形案例，不是 HB 強度參數回算案例。",
+                    "南部大型深層山崩地形": "台灣南部山區有砂岩、頁岩及厚層頁岩等不同地質區；應依地層與構造分區，不可混成單一參數。",
+                    "南部泥岩／砂頁岩弱岩坡": "需區分岩盤、強風化岩及土狀材料；遇水軟化時不宜直接套用一般完整岩體參數。"
+                },
+                "東部": {
+                    "蘇花公路 115.9k 板岩崩塌": "片岩 mi=10、D=0.7；崩塌區／崩積層／塊狀岩盤 GSI 假設 15／25／35。研究模型假設，非通用回算值。",
+                    "蘇花公路東澳段片岩": "鑽探、變形及單壓試驗資料用於岩盤參數折減；片岩節理發達、膠結差，應依岩心與現地分區。",
+                    "安通 2016 崩塌": "混雜岩層含火成岩塊、礫岩、泥岩及砂頁岩互層；局部地層強度約 5–10 MPa，屬研究區資料。",
+                    "太魯閣地震後破碎岩坡": "地震後岩體破碎、節理張開及落石問題突出；需以現地結構調查為主，不可直接沿用降雨型淺層滑動案例。"
+                }
             }
-        }
-        case_names = list(case_library[hb_region].keys())
-        hb_case = st.selectbox("案例參考", case_names, key="hb_case_" + hb_region)
-        st.caption(case_library[hb_region][hb_case])
-        st.caption("判讀邏輯：區域、地形與案例目前用來提供地質案例參考及適用性提醒，不會直接改寫計算參數；真正會自動更新 GSI 建議值的是下方「岩體結構」與「不連續面表面品質」兩項選擇。")
-        if hb_terrain == "平地／沖積區":
-            st.warning("多為土層環境；確認有連續岩盤後才使用 Hoek–Brown。")
+            case_names = list(case_library[hb_region].keys())
+            hb_case = st.selectbox("案例參考", case_names, key="hb_case_" + hb_region)
+            st.caption(case_library[hb_region][hb_case])
+            if hb_terrain == "平地／沖積區":
+                st.warning("多為土層環境；確認有連續岩盤後才使用 Hoek–Brown。")
 
-        # 文獻圖與系統自製示意圖：固定相同顯示高度，兩欄內容各自置中
-        fig_col1, fig_col2 = st.columns(2, gap="medium")
-        with fig_col1:
-            st.markdown("<div style='text-align:center;font-weight:600;margin-bottom:0.35rem'>文獻圖 1｜GSI 判讀圖</div>", unsafe_allow_html=True)
-            st.markdown("""
-<div style="height:270px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            st.divider()
+            st.markdown("**岩體現況判讀（這兩項會直接更新 GSI 建議值）**")
+            gsi_struct = st.selectbox("① 岩體結構／破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
+            gsi_cond = st.selectbox("② 不連續面表面品質", gsi_cond_options, index=2, key="gsi_surface_class")
+            _struct_code = gsi_struct[0]
+            _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
+            _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
+            if _gsi_recommended is None:
+                st.error("目前組合不適用一般 GSI 判讀圖，請採片理／剪切帶專用評估；系統不會自行編造數值。")
+            else:
+                _rec_lo, _rec_hi = _gsi_recommended
+                _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
+                st.success(f"本次組合：{_struct_code} 類 × {gsi_cond.split('.')[0]} 級 → GSI 建議區間 {_rec_lo}–{_rec_hi}")
+                st.metric("GSI 建議代表值", _rec_mid)
+                st.caption("改變上面任一項，這裡的區間與代表值會立即更新；下方 GSI 輸入欄也會採用此組合的代表值。")
+
+        with visual_col:
+            st.markdown("**GSI 判讀參考圖**")
+            fig_col1, fig_col2 = st.columns(2, gap="small")
+            with fig_col1:
+                st.markdown("<div style='text-align:center;font-weight:600'>文獻原圖</div>", unsafe_allow_html=True)
+                st.markdown("""
+<div style="height:285px;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden">
   <img src="https://www.mdpi.com/applsci/applsci-11-03351/article_deploy/html/images/applsci-11-03351-g001.png"
        alt="Somodi et al. (2021), Figure 1"
-       style="display:block;max-width:100%;max-height:245px;width:auto;height:auto;object-fit:contain;margin:auto">
+       style="display:block;max-width:100%;max-height:260px;width:auto;height:auto;object-fit:contain;margin:auto">
 </div>
-<div style="text-align:center;font-size:0.78rem;color:var(--text-color);opacity:0.75">Somodi et al. (2021), Figure 1</div>
+<div style="text-align:center;font-size:0.75rem;opacity:0.75">Somodi et al. (2021), Figure 1</div>
 """, unsafe_allow_html=True)
-        with fig_col2:
-            st.markdown("<div style='text-align:center;font-weight:600;margin-bottom:0.35rem'>系統示意圖｜結構 × 節理面品質</div>", unsafe_allow_html=True)
-            gsi_demo = go.Figure(data=go.Heatmap(
-                z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
-                x=["極佳","良好","普通","不良","極差"],
-                y=["A 巨塊狀","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 剪切狀"],
-                text=[["較高","較高","中高","中低","較低"],
-                      ["較高","中高","中高","中低","較低"],
-                      ["中高","中高","中等","較低","較低"],
-                      ["中高","中等","中等","較低","低"],
-                      ["中等","中等","較低","低","低"],
-                      ["中等","較低","較低","低","低"]],
-                texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
-                xgap=2, ygap=2,
-                hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"
-            ))
-            gsi_demo.update_layout(
-                height=270, width=520, autosize=True,
-                margin=dict(l=8,r=8,t=8,b=8),
-                font=dict(size=9), xaxis_title=None, yaxis_title=None,
-                xaxis=dict(automargin=True), yaxis=dict(automargin=True)
-            )
-            st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
-        st.caption("兩圖使用相同欄寬並置中；文獻圖與自製示意圖採相同視覺高度。示意圖僅表達相對判讀方向，不取代原始 GSI 圖。文獻圖來源：Somodi et al. (2021), Applied Sciences 11(8), 3351。")
-        with st.expander("案例來源", expanded=False):
-            st.markdown("""
+            with fig_col2:
+                st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
+                gsi_demo = go.Figure(data=go.Heatmap(
+                    z=[[5,4,3,2,1],[4,4,3,2,1],[4,3,2,1,1],[3,2,2,1,0],[2,2,1,0,0],[2,1,1,0,0]],
+                    x=["極佳","良好","普通","不良","極差"],
+                    y=["A 巨塊狀","B 塊狀","C 極塊狀","D 擾動／層狀","E 解體狀","F 剪切狀"],
+                    text=[["較高","較高","中高","中低","較低"],
+                          ["較高","中高","中高","中低","較低"],
+                          ["中高","中高","中等","較低","較低"],
+                          ["中高","中等","中等","較低","低"],
+                          ["中等","中等","較低","低","低"],
+                          ["中等","較低","較低","低","低"]],
+                    texttemplate="%{text}", colorscale="RdYlGn", showscale=False,
+                    xgap=2, ygap=2,
+                    hovertemplate="節理面品質：%{x}<br>岩體結構：%{y}<br>相對判讀：%{text}<extra></extra>"
+                ))
+                gsi_demo.update_layout(height=285, margin=dict(l=4,r=4,t=8,b=8),
+                    font=dict(size=9), xaxis_title=None, yaxis_title=None,
+                    xaxis=dict(automargin=True), yaxis=dict(automargin=True))
+                st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
+            st.caption("文獻圖與系統示意圖並列；自製圖僅協助理解相對趨勢，不取代原始 GSI 判讀。")
+            with st.expander("案例來源與文獻", expanded=False):
+                st.markdown("""
 - [北部侯硐案例與七類岩性參數研究（國立臺灣科技大學，2022）](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)
 - [國道 3 號汐止崩塌案例](https://doi.org/10.1016/j.sandf.2023.101316)
 - [北部南莊層隧道岩體參數案例](https://ws.thb.gov.tw/001/Upload/OldFile/resource/html/doc/%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B/%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)
@@ -176,24 +193,8 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
 - [南部燕巢泥岩崩塌](https://doi.org/10.1007/s10346-019-01250-3)｜[南部深層潛移邊坡研究](https://doi.org/10.1007/s10346-024-02453-z)｜[台灣大型深層山崩地形研究](https://doi.org/10.1016/j.geomorph.2012.11.004)
 - [東部蘇花公路 115.9k 案例](https://doi.org/10.29974/JCSWC.201306_44(2).0001)｜[安通混雜岩層崩塌](https://doi.org/10.3390/w12020480)
 - [Somodi et al. (2021), GSI Figure 1](https://doi.org/10.3390/app11083351)
-            """)
-        st.markdown("**岩體結構**")
-        gsi_struct = st.selectbox("岩體破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
-        st.markdown("**不連續面表面品質**")
-        gsi_cond = st.selectbox("節理面風化／粗糙程度", gsi_cond_options, index=2, key="gsi_surface_class")
-        _struct_code = gsi_struct[0]
-        _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
-        _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-        if _gsi_recommended is None:
-            st.error("目前選擇：此岩體結構 × 節理面品質組合不適用一般 GSI 判讀圖。請改用片理／剪切帶專用評估；系統不會自行編造 GSI 值。")
-        else:
-            _rec_lo, _rec_hi = _gsi_recommended
-            _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
-            st.success(f"目前判讀結果｜{_struct_code} 類岩體結構 × {gsi_cond.split('.')[0]} 級表面品質 → 建議 GSI {_rec_lo}–{_rec_hi}，預設代表值 {_rec_mid}")
-            st.info("選項一改變，上方建議區間與下方「GSI 代表值」就會更新；下方代表值會帶入 Hoek–Brown 計算，你也可以直接修改。")
+                """)
 
-    gsi_struct = st.session_state.get("gsi_structure_class", gsi_struct_options[1])
-    gsi_cond = st.session_state.get("gsi_surface_class", gsi_cond_options[2])
     _struct_code = gsi_struct[0]
     _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
     _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
@@ -212,8 +213,10 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
     with hb_col1:
         st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
         default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
-        gsi = default_gsi_val
-        gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0, max_value=100, value=default_gsi_val, step=1, key=f"gsi_representative_value_{_struct_code}_{_cond_code}")
+        gsi_key = f"gsi_representative_value_{_struct_code}_{_cond_code}"
+        if gsi_key not in st.session_state:
+            st.session_state[gsi_key] = int(default_gsi_val)
+        gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0, max_value=100, step=1, key=gsi_key)
         if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
             st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
         
