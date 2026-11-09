@@ -614,3 +614,17 @@ def test_uscs_rejects_nonpositive_or_nonmonotonic_particle_diameters():
     ):
         with pytest.raises(ValueError):
             classify_uscs_aashto(**base,**curve)
+
+
+def test_peat_returns_pt_a8_without_lab_values():
+    r=classify_uscs_aashto(peat=True)
+    assert r["USCS"]=="PT"
+    assert r["AASHTO"]=="A-8"
+    assert r["GI"]==0
+    assert r["PI"] is None
+    assert r["gravel_pct"] is None
+
+
+def test_non_peat_classification_requires_particle_size_and_atterberg_inputs():
+    with pytest.raises(ValueError,match="必須為數值"):
+        classify_uscs_aashto()
