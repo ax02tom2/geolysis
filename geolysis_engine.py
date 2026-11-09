@@ -73,10 +73,16 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
             fine_class = 'ML'
     else:
         fine_class = 'CH' if above_a else 'MH'
-    if organic_confirmed:
-        fine_class = 'OL' if ll < 50 else 'OH'
+    fine_class_chart=fine_class
+    if p200 >= 50:
+        if organic_confirmed:
+            fine_class = 'OL' if ll < 50 else 'OH'
+        elif organic and not organic_test_rejected:
+            fine_class = ('OL' if ll < 50 else 'OH') + '（暫定）'
+    elif organic_confirmed:
+        organic_note += ' 粗粒土含有機細料；粗粒土符號仍依細料塑性圖判定，組名須加註「含有機細料」。'
     elif organic and not organic_test_rejected:
-        fine_class = ('OL' if ll < 50 else 'OH') + '（暫定）'
+        organic_note += ' 粗粒土疑似含有機細料；符號暫依細料塑性圖判定，須補烘乾比值試驗並加註有機細料。'
     cu=cc=None
     gravel=100-p4
     sand=p4-p200
@@ -102,16 +108,16 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
         if well is None: uscs=major+'? (缺少 D10/D30/D60)'
         else: uscs=major+('W' if well else 'P')
     elif p200 > 12:
-        if fine_class=='CL-ML':
+        if fine_class_chart=='CL-ML':
             uscs=major+'C-'+major+'M'
         else:
-            uscs=major+('C' if fine_class in ('CL','CH','OL','OH') or '暫定' in fine_class else 'M')
+            uscs=major+('C' if fine_class_chart in ('CL','CH') else 'M')
     else:
         if well is None: uscs=major+'?-(C/M) (缺少級配資料)'
         else:
             # ASTM D2487: 5–12% fines require a dual symbol. If fines plot
             # in CL-ML, the second symbol is C (e.g. SP-SC).
-            fines_symbol='C' if fine_class in ('CL','CH','OL','OH','CL-ML') or '暫定' in fine_class else 'M'
+            fines_symbol='C' if fine_class_chart in ('CL','CH','CL-ML') else 'M'
             uscs=major+('W' if well else 'P')+'-'+major+fines_symbol
     def _round_whole(x): return int(math.floor(float(x)+0.5))
     Fg=_round_whole(p200); P40g=_round_whole(p40); P10g=_round_whole(p10)
