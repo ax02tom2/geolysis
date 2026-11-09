@@ -81,19 +81,23 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
     gravel=100-p4
     sand=p4-p200
     major='G' if gravel > sand else 'S'
-    grad_values=(d10,d30,d60)
-    supplied_grad=sum(v is not None for v in grad_values)
-    if supplied_grad not in (0,3):
-        raise ValueError('D10、D30、D60 必須同時提供；若沒有完整粒徑曲線，請三者全部留空')
-    if supplied_grad==0:
-        cu=cc=None; well=None
-    else:
-        d10,d30,d60=(_finite('D10',d10),_finite('D30',d30),_finite('D60',d60))
-        if not (0<d10<=d30<=d60): raise ValueError('粒徑必須符合 0 < D10 ≤ D30 ≤ D60')
-        cu=d60/d10; cc=d30*d30/(d10*d60)
-        well=(cu>=4 if major=='G' else cu>=6) and 1<=cc<=3
     if p200 >= 50:
+        # D10/D30/D60 are not classification criteria for fine-grained soils.
+        cu=cc=None
+        well=None
         uscs=fine_class
+    else:
+        grad_values=(d10,d30,d60)
+        supplied_grad=sum(v is not None for v in grad_values)
+        if supplied_grad not in (0,3):
+            raise ValueError('D10、D30、D60 必須同時提供；若沒有完整粒徑曲線，請三者全部留空')
+        if supplied_grad==0:
+            cu=cc=None; well=None
+        else:
+            d10,d30,d60=(_finite('D10',d10),_finite('D30',d30),_finite('D60',d60))
+            if not (0<d10<=d30<=d60): raise ValueError('粒徑必須符合 0 < D10 ≤ D30 ≤ D60')
+            cu=d60/d10; cc=d30*d30/(d10*d60)
+            well=(cu>=4 if major=='G' else cu>=6) and 1<=cc<=3
     elif p200 < 5:
         if well is None: uscs=major+'? (缺少 D10/D30/D60)'
         else: uscs=major+('W' if well else 'P')
