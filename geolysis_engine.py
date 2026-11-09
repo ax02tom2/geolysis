@@ -168,7 +168,7 @@ def spt_correct(n, energy_ratio_pct, borehole_factor, sampler_factor, rod_length
     """
     n=_finite('N',n); er=_finite('能量比',energy_ratio_pct); sv=_finite("有效覆土應力",effective_stress_kpa)
     cb_in=_finite('CB',borehole_factor); cs=_finite('CS',sampler_factor); cap=_finite('CN上限',cn_cap)
-    if n<0 or er<=0 or sv<=0 or cb_in<=0 or cs<=0 or cap<1: raise ValueError('SPT 輸入值超出合理範圍')
+    if n<0 or er<=0 or er>150 or sv<=0 or cb_in<=0 or cs<=0 or not 1<=cap<=2.0: raise ValueError('SPT 輸入值超出合理範圍；能量比須 ≤150%，CN 上限須介於 1.0–2.0')
     if soil_behavior not in ('cohesionless','cohesive'): raise ValueError('未知土壤行為類型')
     if apply_dilatancy and (soil_behavior!='cohesionless' or cn_method=='不修正'):
         raise ValueError('膨脹修正僅能用於已完成覆土修正的飽和細砂／粉土')
@@ -221,10 +221,14 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
                 'N1_60_final':None,'soil_behavior':soil_behavior,
                 'dilatancy_applied':False,'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
             continue
-        r=spt_correct(row['N'],energy_ratio_pct,borehole_factor,sampler_factor,rod_length_m,
+        row_rod_length=row.get('Rod_Length_m',rod_length_m)
+        if row_rod_length is None or (isinstance(row_rod_length,str) and not row_rod_length.strip()):
+            row_rod_length=rod_length_m
+        row_rod_length=_finite('逐深度鑽桿長度',row_rod_length)
+        r=spt_correct(row['N'],energy_ratio_pct,borehole_factor,sampler_factor,row_rod_length,
                       row['Effective_Stress_kPa'],cn_method,cn_cap,
                       soil_behavior=soil_behavior,apply_dilatancy=apply_dilatancy)
-        out.append({**clean,**r,'Correction_status':'已完成一般 N 值修正'})
+        out.append({**clean,'Rod_Length_m':row_rod_length,**r,'Correction_status':'已完成一般 N 值修正'})
     out.sort(key=lambda x:x['Depth_m'])
     return out
 
