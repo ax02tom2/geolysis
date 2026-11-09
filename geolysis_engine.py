@@ -504,6 +504,23 @@ def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
 
 
 
+
+def immediate_elastic_settlement(*, net_pressure_kpa, footing_width_m,
+                                 soil_modulus_mpa, poisson_ratio=0.5,
+                                 influence_factor=0.82):
+    """Simplified elastic half-space immediate settlement, q B (1-v²) Ip / Es."""
+    q=_finite('即時沉陷淨接觸壓力',net_pressure_kpa)
+    B=_finite('基礎短邊',footing_width_m)
+    Es=_finite('土壤彈性模數 Es',soil_modulus_mpa)
+    nu=_finite('蒲松比',poisson_ratio)
+    Ip=_finite('沉陷影響係數 Ip',influence_factor)
+    if q<0 or B<=0 or Es<=0 or not -0.99<nu<=0.5 or Ip<=0:
+        raise ValueError('q 不可為負；B、Es、Ip 須大於 0；蒲松比須介於 -0.99 至 0.5')
+    settlement=q*B*(1.0-nu**2)*Ip/Es
+    return {'immediate_settlement_mm':settlement,
+            'method':'簡化彈性半空間法：δi = qnet·B·(1−ν²)·Ip/Es',
+            'limitations':'均質、線彈性半空間近似；未計入分層、基礎埋深、剛柔性差異與應力依存剛度。Es 應採工作應變範圍代表值；不可與已包含即時變形的經驗法重複加總。'}
+
 def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
                                      compression_index, recompression_index,
                                      initial_effective_stress_kpa,
