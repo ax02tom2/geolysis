@@ -642,7 +642,7 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
         with b:
             q4=st.number_input("目前基礎底總接觸壓力 q [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
             target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
-            qcap4=st.number_input("模組五 qu,gross／FS 上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4_bb_qcap')
+            qcap4=st.number_input("模組五 qa,gross（總容許承載力）上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4_bb_qcap')
             sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
             sigp4=st.number_input("先期固結壓力 σ′p [kPa]（正常固結時採 σ′0）",1.0,5000.0,100.0,5.0,key='m4_bb_sigp')
         with c:
@@ -678,7 +678,7 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
             q4_used=min(q4,qcap4) if qcap4>0 else q4
             max_q4=min(5000.0,qcap4) if qcap4>0 else 5000.0
             if qcap4>0 and q4>qcap4:
-                st.warning(f"目前輸入 q={q4:.1f} kPa 高於模組五 qu,gross/FS={qcap4:.1f} kPa；沉陷估算改以後者計算。")
+                st.warning(f"目前輸入 q={q4:.1f} kPa 高於模組五 qa,gross={qcap4:.1f} kPa；沉陷估算改以後者計算。")
             r=burland_burbidge_2025_settlement(gross_pressure_kpa=q4_used,**bb_args)
             qa_bb=burland_burbidge_2025_allowable_pressure(target_settlement_mm=target_bb4,max_pressure_kpa=max_q4,**bb_args)
             st.metric("沉陷＋承載力控制容許總接觸壓力",f"{qa_bb['qa_settlement_gross_kpa']:.1f} kPa")
@@ -688,11 +688,11 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
             st.caption(r['method'])
             st.warning(r['limitations'])
             if qa_bb['pressure_search_limit_reached'] and qcap4>0 and qcap4<=5000:
-                st.caption("容許壓力受模組五輸入的 qu,gross／FS 上限控制；在該上限內，預估沉陷仍未超過目標值。")
+                st.caption("容許壓力受模組五輸入的 qa,gross 上限控制；在該上限內，預估沉陷仍未超過目標值。")
             elif qa_bb['pressure_search_limit_reached']:
                 st.warning("5,000 kPa 搜尋上限內仍未達容許沉陷量，結果受搜尋上限控制，請檢查輸入。")
             if qa_bb['no_feasible_pressure']: st.error("即使不增加基礎接觸壓力，公式中的初始應力沉陷項仍已超過容許沉陷量；目前沒有可行的正接觸壓力解，請檢查 σ′0、N60、目標沉陷與方法適用性。")
-            st.info("本結果已可選擇套用模組五 qu,gross／FS 作承載力上限；若未輸入該值，結果僅受沉陷控制。請確認模組五使用相同基礎尺寸、埋深、地下水與地層條件。")
+            st.info("本結果已可選擇套用模組五 qa,gross 作承載力上限；若未輸入該值，結果僅受沉陷控制。請確認模組五使用相同基礎尺寸、埋深、地下水與地層條件。")
         except Exception as exc: st.error(f"Burland–Burbidge 沉陷估算失敗：{exc}")
     elif method4.startswith('砂土：'):
         st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
