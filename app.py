@@ -512,12 +512,16 @@ with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded
         organic_test_done=st.checkbox("已完成烘乾前後 LL 比值試驗",value=False,disabled=(not organic or peat),key='m2_org_test_done')
         ll_od=st.number_input("烘乾後 LL [%]（有機土確認用）",0.0,200.0,25.0,1.0,key="m2_llod",disabled=(not organic or not organic_test_done or peat))
     with c:
-        use_grad=st.checkbox("輸入粒徑曲線 D10/D30/D60（粗粒土級配判定）",value=True,key="m2_use_grad",disabled=peat)
-        if use_grad and not peat:
+        coarse_soil=(p200<50) and not peat
+        use_grad=st.checkbox("輸入粒徑曲線 D10/D30/D60（僅粗粒土級配判定）",value=True,key="m2_use_grad",disabled=not coarse_soil)
+        if use_grad and coarse_soil:
             d10=st.number_input("D10 [mm]",min_value=0.0001,value=0.15,format="%.4f",key="m2_d10")
             d30=st.number_input("D30 [mm]",min_value=0.0001,value=0.60,format="%.4f",key="m2_d30")
             d60=st.number_input("D60 [mm]",min_value=0.0001,value=1.80,format="%.4f",key="m2_d60")
-        else: d10=d30=d60=None
+        else:
+            d10=d30=d60=None
+        if not peat and p200>=50:
+            st.caption("目前 P200 ≥ 50%，屬細粒土；USCS 細粒土分類不使用 Cu／Cc，故不要求 D10/D30/D60。")
     if st.button("執行土壤分類",key="m2_run"):
         st.session_state.pop('m2_result',None)
         try:
