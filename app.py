@@ -985,7 +985,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             {'項目':'單位重項 0.5γBNγ','承載力因子':result5['Ngamma'],'形狀係數':result5['sg'],'深度係數':result5['dg'],'傾斜係數':result5['ig'],'貢獻(kPa)':result5['term_gamma']}])
         st.dataframe(factors,hide_index=True,use_container_width=True)
         q_label5="基礎底總覆土壓力 q₀（不排水總應力）" if result5['phi_used']==0 else "基礎底有效覆土壓力 q′₀（排水有效應力）"
-        st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ Nγ 項有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
+        st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
         st.caption(f"供模組四比較：qa,gross（以淨承載力除 FS 後加回覆土）= {result5['qa_gross']:.1f} kPa；qa,net = {result5['qa_net']:.1f} kPa。砂土／礫土模組四採總壓力，使用前者；黏土主固結模組採淨壓力，使用後者。")
         st.caption(f"另依 USACE EM 1110-1-1905 式 5-23，以總極限承載力直接除 FS 的總壓力值為 {result5['qa_gross_direct_FS']:.1f} kPa；兩種 FS 定義不同，不可混用，須與設計規範及載重定義一致。")
         if theory5=='Terzaghi': st.caption(f"Terzaghi {result5['failure_mode']}：採用 c = {result5['c_used']:.2f} kPa、ϕ = {result5['phi_used']:.2f}°；承載力因子依 USACE 表列值線性插值。")
