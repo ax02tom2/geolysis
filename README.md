@@ -48,7 +48,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 - **Meyerhof SPT 容許承載力（歷史比較法）**：輸入為 N60 時，換算至指定能量比 n 的 N 值採 Nn = N60 × 60/n；55% 與 70% 能量分別使用 USACE EM 1110-1-1905（1992）§4-4 的係數組。這是舊版經驗法，2025 版手冊已不再作為本專案的主要預設方法。
 - **Bishop 簡化法**：孔隙水壓項使用切片底面水平寬度 b，即 (W − u·b)tanφ；滑弧方向採一致正向慣例，避免鏡像坡面因角度符號而被拒絕。
 - **Meyerhof 小摩擦角係數**：0°<φ≤10° 依 USACE EM 1110-1-1905（1992）Table 4-3 在 0° 與 10° 之間線性插值；大於 10° 才使用相應完整式。
-- **Hansen／Vesic 深度係數**：依 USACE EM 1110-1-1905（1992）Tables 4-5／4-6，以實際基礎寬度 B 計算 k=D/B；形狀係數仍使用有效尺寸 B′、W′。
+- **承載力深度係數**：依 USACE EM 1110-1-1905（1992）Tables 4-3、4-5、4-6，Meyerhof、Hansen、Vesic 的深度比均使用實際基礎寬度 B（k=D/B），不因偏心而改用 B′；形狀係數則依各表使用有效尺寸 B′、W′。Meyerhof 的 0°<φ≤10°形狀與深度係數依 Table 4-3 線性插值。
 - **Rankine developed earth pressure**：依 USACE EM 1110-1-1905（2025）Eqs. 5-31 至 5-35。手冊式 5-34／5-35 明確採 ±2c′d 項；本專案依該手冊原式，不替換成其他教材可能使用的 2c′d√K 表達式。
 - **Burland–Burbidge**：依 USACE EM 1110-1-1905（2025）§7-13，q 使用 gross 或 gross-equivalent bearing pressure；ZI=1.43B^0.7（英制單位）、Ic=0.35/N̄60^1.4（tsf⁻¹）。這些常數與 gross 壓力處理已與原文核對。
 - **多層地盤**：依 USACE 2025 §5-5a(1)–(2)，近基礎剪力區弱層與強上層覆蓋弱下層的 punch-through 分開處理；2V:1H 穿刺式僅在手冊指定深度範圍內使用，超出範圍會提示未檢核層位。
