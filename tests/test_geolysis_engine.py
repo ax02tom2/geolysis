@@ -497,6 +497,16 @@ def test_hansen_vesic_allow_zero_base_adhesion_for_smooth_footing():
     assert v['ic']==0
 
 
+
+def test_bearing_distinguishes_net_safety_factor_conversion_from_usace_gross_fs():
+    r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
+        gamma_sub=9,B=2,L=3,Df=1.5,water_depth=5,fs=3)
+    assert r['qa_gross']==pytest.approx(r['qa_net']+r['q_surcharge'])
+    assert r['qa_gross_direct_FS']==pytest.approx(r['qu_gross']/3)
+    assert r['qa_gross_direct_FS']==pytest.approx(r['qu_gross_over_FS'])
+    assert r['qa_gross']!=pytest.approx(r['qa_gross_direct_FS'])
+
+
 def test_bearing_returns_gross_ultimate_over_fs_for_burland_cap():
     r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
         gamma_sub=9,B=2,L=3,Df=1.5,water_depth=5,fs=3)
