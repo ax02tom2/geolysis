@@ -151,7 +151,12 @@ def render_module_5(expanded=False):
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
-                st.write(f"bc={slope_result['base_factor_c']:.3f}；bq={slope_result['base_factor_q']:.3f}；gc={slope_result['ground_factor_c']:.3f}；gq={slope_result['ground_factor_q']:.3f}")
+                st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
+                st.write(f"基底係數：bc={slope_result['base_factor_c']:.3f}、bq={slope_result['base_factor_q']:.3f}、bγ={slope_result['base_factor_gamma']:.3f}；地表係數：gc={slope_result['ground_factor_c']:.3f}、gq={slope_result['ground_factor_q']:.3f}、gγ={slope_result['ground_factor_gamma']:.3f}")
+                if phi5>0:
+                    st.caption(f"排水 Nγ 項有效單位重 γ′={slope_result['gamma_effective']:.2f} kN/m³；{slope_result['gamma_effective_method']}，修正係數={slope_result['gamma_effective_2025_factor']:.3f}。")
+                else:
+                    st.caption("ϕ=0 不排水分析不使用 Nγ 單位重項；地表坡角修正僅作用於凝聚力項。")
                 st.caption(slope_result["limitations"])
             elif slope_result:
                 st.warning("輸入已變更，請重新執行斜坡／基底傾斜計算。")
