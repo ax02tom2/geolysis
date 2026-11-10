@@ -296,3 +296,42 @@ def test_aashto_a7_subgroup_boundary_uses_pi_equal_to_ll_minus_thirty_as_a7_5():
         ll=60, pl=30,
     )
     assert result["AASHTO"] == "A-7-5"
+
+
+@pytest.mark.parametrize(
+    ("rod_length_m", "expected_factor"),
+    [(2.99, 0.75), (3.0, 0.80), (4.0, 0.85),
+     (6.0, 0.95), (10.0, 1.00), (30.0, 1.00)],
+)
+def test_spt_rod_length_factor_boundaries_match_usace_2025_table_4_6(
+    rod_length_m, expected_factor
+):
+    # USACE EM 1110-1-1905 (2025), Table 4-6.
+    from geolysis_engine import rod_factor
+
+    assert rod_factor(rod_length_m) == pytest.approx(expected_factor)
+
+
+def test_spt_dilatancy_correction_matches_usace_2025_equation_4_7():
+    # USACE EM 1110-1-1905 (2025), Eq. 4-7:
+    # apply only after CN normalization and only when (N1)60 > 15.
+    result = spt_correct(
+        20, 60, 1.0, 1.0, 10.0, 101.3,
+        "Liao & Whitman", 2.0,
+        soil_behavior="cohesionless", apply_dilatancy=True,
+    )
+    assert result["N1_60"] == pytest.approx(20.0)
+    assert result["N1_60_final"] == pytest.approx(17.5)
+    assert result["dilatancy_applied"] is True
+
+
+def test_spt_dilatancy_correction_does_not_change_values_at_or_below_fifteen():
+    # Eq. 4-7 is only applied when the normalized N-value exceeds 15 bpf.
+    result = spt_correct(
+        15, 60, 1.0, 1.0, 10.0, 101.3,
+        "Liao & Whitman", 2.0,
+        soil_behavior="cohesionless", apply_dilatancy=True,
+    )
+    assert result["N1_60"] == pytest.approx(15.0)
+    assert result["N1_60_final"] == pytest.approx(15.0)
+    assert result["dilatancy_applied"] is False
