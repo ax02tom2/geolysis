@@ -1,15 +1,15 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated main code commit: af77d21db1246d4fd4de9c23cd318a91e4cce0d5
+Validated main code commit: 4ba81989ff3e465f3dc0165aa1851d8012f9a23e
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 234 passed
-GitHub Actions validation run: 42786697259 (success; includes USACE 2025 bearing load-inclination, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
+Latest verified automated suite: 238 passed
+GitHub Actions validation run: 42787292516 (success; includes USACE 2025 bearing load-inclination, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 46 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 49 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
 Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
@@ -18,3 +18,4 @@ Continuous footing: strip-limit shape factors implemented across Terzaghi, Meyer
 Appendix B-4: two groundwater/dewatering cases confirm undrained resistance is unchanged by the groundwater rise; uplift-adjusted applied-pressure demand qeq remains outside the capacity-only engine.
 Appendix B-6: added groundwater-in-shear-zone Eq. 5-19 factor and layered punch-through validation; verified 0.828125 groundwater ratio, 6.890625 spread ratio and upper-layer control.
 Layered continuous footing: profile-level helper now forwards the strip footing type to each layer and permits L/B to be non-finite; one regression test added. Published reference benchmark count remains 46.
+USACE 2025 in-situ bearing: added SPT/CPT/PMT drained/undrained engine method and Module 5 panel; Appendix B-7 SPT/CPT/PMT worked-example benchmarks pass. In-situ path is vertical/centered and level-base/ground only; no seismic or integrated demand-side qeq check yet.
