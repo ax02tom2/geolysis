@@ -446,3 +446,153 @@ def test_usace_2025_table_5_4_undrained_load_inclination_uses_h_over_v():
     )
     assert result["term_q"] == pytest.approx(result["q_surcharge"] * result["Nq"])
     assert result["term_gamma"] == pytest.approx(0.0)
+
+def test_usace_2025_appendix_b1_undrained_isolated_footing():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-1,
+    # Table B-1a/b (printed pp. 296-298).
+    # Published case: B=L=7 ft, Df=2 ft, gamma=0.120 kcf,
+    # su=0.5 ksf, q0=0.24 ksf, Nc=5.14, sc=1.20, dc=1.06.
+    # The manual rounds dc to 1.06 before reporting qult=3.51 ksf.
+    # This test retains full precision in the engine and allows for that
+    # intermediate rounding in the published worked example.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 7.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.120 * kcf_to_kn_m3
+    su = 0.5 * ksf_to_kpa
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=su,
+        phi_deg=0.0,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=width,
+        Df=embedment,
+        water_depth=5.0,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=su,
+        phi_deg=0.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    expected_dc = 1.0 + 0.2 * (2.0 / 7.0)
+    expected_q0 = 0.24 * ksf_to_kpa
+    expected_qult = (1.2 * expected_dc * 0.5 * 5.14 + 0.24) * ksf_to_kpa
+
+    assert result["Nc"] == pytest.approx(5.14)
+    assert result["sc"] == pytest.approx(1.20)
+    assert result["dc"] == pytest.approx(expected_dc)
+    assert result["q_surcharge"] == pytest.approx(expected_q0, abs=0.01)
+    assert result["load_factor_c_2025"] == pytest.approx(1.0)
+    assert result["load_factor_q_2025"] == pytest.approx(1.0)
+    assert result["load_factor_gamma_2025"] is None
+    assert result["term_gamma"] == pytest.approx(0.0)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(
+        expected_qult / ksf_to_kpa, abs=1e-8
+    )
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(3.50, abs=0.01)
+    assert result["qa_gross_direct_FS"] / ksf_to_kpa == pytest.approx(
+        (expected_qult / 3.0) / ksf_to_kpa, abs=1e-8
+    )
+
+def test_usace_2025_appendix_b3a_drained_isolated_footing():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-3,
+    # Table B-3a (printed pp. 303-306).
+    # Published rounded result: qult=32.15 ksf. The engine retains full
+    # precision in N, Nq, Ngamma and correction factors, so its exact
+    # equation result is checked separately from the rounded table value.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 7.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.135 * kcf_to_kn_m3
+    water_depth = 13.0 * ft_to_m
+    phi = 34.0
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=0.0,
+        phi_deg=phi,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=width,
+        Df=embedment,
+        water_depth=water_depth,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=0.0,
+        phi_deg=phi,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    phi_rad = math.radians(phi)
+    flow_n = math.tan(math.radians(45.0) + phi_rad / 2.0) ** 2
+    nq = flow_n * math.exp(math.pi * math.tan(phi_rad))
+    ngamma = (nq - 1.0) * math.tan(1.4 * phi_rad)
+    q0 = 0.27 * ksf_to_kpa
+    sq = 1.0 + 0.1 * flow_n
+    dq = 1.0 + 0.1 * math.sqrt(flow_n) * (2.0 / 7.0)
+    sg = sq
+    dgamma = dq
+    expected_qult_kpa = (
+        q0 * nq * sq * dq
+        + 0.5 * width * gamma * ngamma * sg * dgamma
+    )
+
+    assert result["Nq"] == pytest.approx(nq, rel=1e-12)
+    assert result["Ngamma"] == pytest.approx(ngamma, rel=1e-12)
+    assert result["sq"] == pytest.approx(sq, rel=1e-12)
+    assert result["dq"] == pytest.approx(dq, rel=1e-12)
+    assert result["sg"] == pytest.approx(sg, rel=1e-12)
+    assert result["dg"] == pytest.approx(dgamma, rel=1e-12)
+    assert result["gamma_effective_2025_factor"] == pytest.approx(1.0)
+    assert result["qu_gross"] == pytest.approx(expected_qult_kpa, rel=1e-8)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.33, abs=0.01)
+    # The manual reports 32.15 ksf after rounding its intermediate values.
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.15, abs=0.20)
+
+def test_usace_2025_appendix_b3b_undrained_punch_through():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-3,
+    # Table B-3b (printed pp. 307-309).
+    # Published USACE result: weak-layer qult,2=3.54 ksf,
+    # strong-layer thickness Hs=6 ft, spread ratio=3.45,
+    # punch-through capacity=12.21 ksf (rounded).
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    weak_qult = 3.54 * ksf_to_kpa
+    strong_qult = 32.15 * ksf_to_kpa
+    width = 7.0 * ft_to_m
+    thickness = 6.0 * ft_to_m
+
+    result = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=strong_qult,
+        q_ult_weak_kpa=weak_qult,
+        strong_layer_thickness_m=thickness,
+        footing_width_m=width,
+        footing_length_m=width,
+        footing_type="isolated",
+    )
+
+    expected_spread = ((7.0 + 6.0) * (7.0 + 6.0)) / (7.0 * 7.0)
+    expected_punch_kpa = expected_spread * weak_qult
+    assert result["load_spread_factor"] == pytest.approx(expected_spread)
+    assert result["punching_capacity_kpa"] == pytest.approx(expected_punch_kpa)
+    assert result["qult_kpa"] == pytest.approx(expected_punch_kpa)
+    assert result["qult_kpa"] / ksf_to_kpa == pytest.approx(12.21, abs=0.02)
+    assert result["controlling_mode"] == "強上層穿刺至弱下層控制"
+
