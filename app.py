@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -1170,13 +1170,27 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
             slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
         slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
+        auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
+        slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
         if st.button("計算基底滑動安全係數",key="m5x_slide_run"):
             try:
+                if auto_earth5:
+                    earth=developed_rankine_sliding_earth_pressures(
+                        effective_unit_weight_kn_m3=slide_gamma5,footing_depth_m=df5,
+                        footing_length_m=L5,friction_angle_deg=slide_phi5,
+                        cohesion_kpa=slide_c5,fs_sliding=slide_req5)
+                    active_used=earth["active_force_kN"]
+                    passive_used=earth["passive_force_kN"]
+                    st.session_state["m5x_slide_earth_result"]=earth
+                else:
+                    active_used=slide_pa5
+                    passive_used=slide_pp5
+                    st.session_state["m5x_slide_earth_result"]=None
                 slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
                     uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
                     friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
-                    adhesion_ratio=slide_ar5,active_force_kN=slide_pa5,
-                    passive_force_kN=slide_pp5,fs_required=slide_req5)
+                    adhesion_ratio=slide_ar5,active_force_kN=active_used,
+                    passive_force_kN=passive_used,fs_required=slide_req5)
                 st.session_state["m5x_slide_result"]=slide
                 st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5)
             except Exception as exc:
@@ -1187,6 +1201,10 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                 delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
             st.caption(slide["limitations"])
+            earth_result=st.session_state.get("m5x_slide_earth_result")
+            if earth_result:
+                st.write(f"developed φd={earth_result['developed_phi_deg']:.2f}°；Ka,d={earth_result['Ka_developed']:.3f}；Kp,d={earth_result['Kp_developed']:.3f}；Pa,d={earth_result['active_force_kN']:.1f} kN；Pp,d={earth_result['passive_force_kN']:.1f} kN")
+                st.caption(earth_result["limitations"])
 
     with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
         st.caption("輸入同一圓弧滑動面的切片資料。底角正值代表朝滑動方向下降；各片 c′、φ′及孔隙水壓應使用該片底面平均值。")
