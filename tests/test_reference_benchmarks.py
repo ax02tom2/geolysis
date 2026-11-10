@@ -424,3 +424,25 @@ def test_usace_2025_table_5_3_load_inclination_uses_atan_h_over_v_not_legacy_bet
         0.5 * result["B_effective"] * result["gamma_effective"] * result["Ngamma"]
         * result["sg"] * result["dg"] * ig
     )
+
+
+def test_usace_2025_table_5_4_undrained_load_inclination_uses_h_over_v():
+    # USACE EM 1110-1-1905 (2025), Table 5-4:
+    # Meyerhof ic = 1 - 1.3 H/V; surcharge-term correction factors are unity.
+    base = bearing_capacity(
+        theory="Meyerhof", c_kpa=80, phi_deg=0,
+        gamma_moist=18, gamma_sub=9, B=2, L=4, Df=1,
+        water_depth=5, load_angle=25.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=80, phi_deg=0,
+        horizontal_load=300, vertical_load=1000,
+    )
+    ic = 1.0 - 1.3 * 0.3
+    assert result["load_factor_c_2025"] == pytest.approx(ic)
+    assert result["load_factor_q_2025"] == pytest.approx(1.0)
+    assert result["term_c"] == pytest.approx(
+        80 * result["Nc"] * result["sc"] * result["dc"] * ic
+    )
+    assert result["term_q"] == pytest.approx(result["q_surcharge"] * result["Nq"])
+    assert result["term_gamma"] == pytest.approx(0.0)
