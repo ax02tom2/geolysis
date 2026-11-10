@@ -1,7 +1,7 @@
 """classification calculation functions."""
 from __future__ import annotations
 import math
-from ._common import _finite
+from ._common import _finite, _pct
 
 def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=None, np_flag=False,
                            d10=None, d30=None, d60=None, organic=False,
