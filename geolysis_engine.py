@@ -357,9 +357,9 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
             ig=(1-beta/phi_deg)**2 if beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
     else: # Hansen shape/depth, shared by Vesic
         sc=1+(Nq/Nc)*br if phi_deg>0 else 1+0.2*br
-        # Hansen uses sin(phi); Vesic uses tan(phi) in the surcharge
-        # shape factor. Keep the two classical formulations distinct.
-        sq=1+br*(tanp if 'vesic' in th else sinp)
+        # USACE 1992 Tables 4-5 and 4-6: both Hansen and Vesic use
+        # 1 + (B'/W') tan(phi) for the surcharge shape factor.
+        sq=1+br*tanp
         sg=max(0.6,1-0.4*br)
         ratio=Df/Be
         ang=ratio if ratio<=1 else math.atan(ratio)
