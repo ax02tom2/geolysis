@@ -416,6 +416,22 @@ def test_aashto_rounds_limits_before_group_assignment():
     assert b['AASHTO']=='A-6'
 
 
+
+def test_meyerhof_depth_factor_applies_to_all_three_terms_per_usace_table_5_2():
+    # USACE EM 1110-1-1905 (2025), Table 5-2:
+    # d_c=1+0.2*sqrt(N)*Df/B, d_q=d_gamma=1+0.1*sqrt(N)*Df/B.
+    args=dict(theory='Meyerhof',c_kpa=10,phi_deg=30,gamma_moist=18,
+        gamma_sub=9,B=2,L=3,Df=1.5,water_depth=5,fs=3)
+    r=bearing_capacity(**args)
+    N=math.tan(math.radians(45+30/2))**2
+    expected_dq=1+0.1*math.sqrt(N)*1.5/2
+    expected_dc=1+0.2*math.sqrt(N)*1.5/2
+    assert r['dq']==pytest.approx(expected_dq)
+    assert r['dg']==pytest.approx(expected_dq)
+    assert r['dc']==pytest.approx(expected_dc)
+    assert r['dg']>1.0
+
+
 def test_classical_bearing_factor_values_at_phi_30():
     args=dict(c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
         B=2,L=3,Df=1.5,water_depth=5,fs=3)
