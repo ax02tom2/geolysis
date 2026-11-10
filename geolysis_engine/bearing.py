@@ -444,8 +444,9 @@ def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_
     if gamma_top<=0 or gamma_sub_top<=0: raise ValueError('上層單位重須為正')
     B=_finite('基礎寬度',footing_width_m); L=_finite('基礎長度',footing_length_m)
     Df=_finite('基礎埋深',footing_depth_m); Dw=_finite('地下水深度',water_depth_m)
-    if B<=0 or L<B or Df<0 or Dw<0: raise ValueError('基礎尺寸或深度不合理')
+    if B<=0 or L<=0 or (footing_type=='isolated' and L<B) or Df<0 or Dw<0: raise ValueError('基礎尺寸或深度不合理')
     if footing_type not in ('isolated','continuous'): raise ValueError('基礎型式不支援')
+    if footing_type=='continuous' and eccentricity_L_m>0: raise ValueError('連續條形基礎不支援沿條形長度方向的偏心距')
     results=[]; cumulative=0.0
     for i,layer in enumerate(layers,1):
         for k in ('thickness_m','c_kpa','phi_deg','gamma_below_kn_m3'):
@@ -457,7 +458,7 @@ def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_
         gb=_finite(f'第{i}層剪力區單位重',layer['gamma_below_kn_m3'])
         r=bearing_capacity(theory='Meyerhof',c_kpa=c,phi_deg=phi,
             gamma_moist=gamma_top,gamma_sub=gamma_sub_top,gamma_below=gb,
-            B=B,L=L,Df=Df,water_depth=Dw,fs=fs,
+            B=B,L=L,Df=Df,water_depth=Dw,fs=fs,footing_type=footing_type,
             eccentricity_B=eccentricity_B_m,eccentricity_L=eccentricity_L_m)
         results.append({'layer':i,'thickness_m':thickness,'top_depth_m':cumulative,
             'c_kpa':c,'phi_deg':phi,'gamma_below_kn_m3':gb,'qult_kpa':r['qu_gross']})

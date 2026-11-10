@@ -17,6 +17,7 @@ from geolysis_engine import (
     bearing_capacity,
     bearing_capacity_slope_base_corrections,
     layered_bearing_capacity_punching,
+    layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure,
     foundation_sliding_factor_of_safety,
     bishop_simplified_factor_of_safety,
@@ -788,4 +789,39 @@ def test_usace_2025_appendix_b6b_punch_through_does_not_control():
     assert result["punching_capacity_kpa"] / ksf_to_kpa == pytest.approx(20.12, abs=0.03)
     assert result["qult_kpa"] == pytest.approx(upper_qult)
     assert result["controlling_mode"] == "上層一般承載力控制"
+
+def test_layered_profile_passes_continuous_footing_type_to_each_layer():
+    # Regression: the profile-level helper must use the strip limit for every
+    # layer, and must not require a finite L/B ratio for a continuous footing.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 2.0 * ft_to_m
+    result = layered_bearing_capacity_profile(
+        layers=[
+            {
+                "thickness_m": 2.0 * ft_to_m,
+                "c_kpa": 0.5 * ksf_to_kpa,
+                "phi_deg": 0.0,
+                "gamma_moist_kn_m3": 0.120 * kcf_to_kn_m3,
+                "gamma_sub_kn_m3": 9.0,
+                "gamma_below_kn_m3": 0.120 * kcf_to_kn_m3,
+            },
+            {
+                "thickness_m": 4.0 * ft_to_m,
+                "c_kpa": 0.8 * ksf_to_kpa,
+                "phi_deg": 0.0,
+                "gamma_below_kn_m3": 0.120 * kcf_to_kn_m3,
+            },
+        ],
+        footing_width_m=width,
+        footing_length_m=1.0 * ft_to_m,
+        footing_depth_m=2.0 * ft_to_m,
+        water_depth_m=5.0,
+        footing_type="continuous",
+    )
+    expected_top_qult = (1.2 * 0.5 * 5.14 + 0.24) * ksf_to_kpa
+    assert result["qult_kpa"] == pytest.approx(expected_top_qult, rel=1e-8)
+    assert result["controlling_layer"] == 1
+    assert result["controlling_mode"] == "上層一般承載力"
 
