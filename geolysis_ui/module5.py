@@ -130,6 +130,8 @@ def render_module_5(expanded=False):
                 ground_ang5=st.number_input("鄰接地表坡角 αg [°]",0.0,44.0,0.0,1.0,key="m5x_ground_angle")
             with sc3:
                 slope_dist5=st.number_input("基礎有效邊至坡頂距離 dg [m]",0.0,100.0,0.0,0.5,key="m5x_slope_distance")
+            slope_fs5=st.number_input("鄰接坡體整體穩定 FS（須 > 1.3）",0.0,10.0,0.0,0.05,key="m5x_slope_fs",disabled=(ground_ang5<=0))
+            st.caption("USACE 2025 表 5-3 註 b：鄰接坡體地表坡角修正係數以坡體整體穩定 FS > 1.3 為前提。請先完成獨立整體穩定檢核；未達或未提供 FS 時，系統會停止坡角修正。")
             if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run"):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
@@ -139,12 +141,13 @@ def render_module_5(expanded=False):
                     slope_result=bearing_capacity_slope_base_corrections(
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
                         base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
-                        slope_distance_m=slope_dist5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5))
+                        slope_distance_m=slope_dist5,
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
+            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
