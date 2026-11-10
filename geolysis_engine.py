@@ -904,3 +904,183 @@ def consolidation_allowable_pressure_layers(*, layers, footing_width_m, footing_
     return {'qa_primary_consolidation_kpa':lo,'search_limit_reached':at_limit['settlement_mm']<=target,
             'settlement_mm':final['settlement_mm'],'layer_results':final['layer_results'],
             'method':final['method']}
+
+def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
+        base_inclination_deg=0.0, ground_inclination_deg=0.0,
+        slope_distance_m=0.0):
+    """Apply USACE EM 1110-1-1905 (2025) Table 5-3/5-4 base and ground
+    inclination factors to a previously calculated Meyerhof-based result.
+    Ground slope is assumed to fall away from the footing. The adjacent-slope
+    global stability check is separate and mandatory.
+    """
+    c=_finite('c／Su',c_kpa); phi=_finite('phi',phi_deg)
+    ab=_finite('基底傾角',base_inclination_deg)
+    ag=_finite('地表坡角',ground_inclination_deg)
+    dg=_finite('基礎至坡頂距離',slope_distance_m)
+    if c<0 or not 0<=phi<=50 or not 0<=ab<60 or not 0<=ag<45 or dg<0:
+        raise ValueError('斜坡／基底輸入超出適用範圍：0≤基底角<60°、0≤地表坡角<45°、距離不可為負')
+    B=base_result['B_effective']; L=base_result['L_effective']
+    Nc=base_result['Nc']; q=base_result['q_surcharge']
+    if phi>0:
+        tp=math.tan(math.radians(phi))
+        bq=max(0.0,1-(ab/57.0)*tp)**2
+        bgamma=bq
+        bc=bq-(1-bq)/(Nc*tp) if tp>0 else 1.0
+        if bc<0: raise ValueError('基底傾角使凝聚力修正係數小於零；此幾何不適用本方法')
+        gq0=(1-math.tan(math.radians(ag)))**2
+        gc0=gq0-(1-gq0)/(Nc*tp)
+        ggamma0=gq0
+        if min(gq0,gc0,ggamma0)<0:
+            raise ValueError('地表坡角使地表傾斜修正係數小於零；請改用專用斜坡承載力分析')
+        # USACE Table 5-3: drained factors recover linearly over 5B.
+        recovery=min(1.0,dg/(5.0*B))
+        gq=min(1.0,gq0+(1-gq0)*recovery)
+        gc=min(1.0,gc0+(1-gc0)*recovery)
+        ggamma=min(1.0,ggamma0+(1-ggamma0)*recovery)
+    else:
+        # USACE Table 5-4 undrained corrections.
+        bq=bgamma=1.0
+        bc=max(0.0,1-ab/147.3)
+        gq=ggamma=1.0
+        gc0=max(0.0,1-ag/147.3)
+        gc=min(1.0,gc0+(1-gc0)*min(1.0,dg/(2.0*B)))
+    # The USACE figure defines surcharge on a sloping surface as q0=γDf cos(ag).
+    q_slope=q*math.cos(math.radians(ag))
+    tc=base_result['term_c']*bc*gc
+    tq=q_slope*base_result['Nq']*base_result['sq']*base_result['dq']*base_result['iq']*bq*gq
+    tg=base_result['term_gamma']*bgamma*ggamma
+    qu=tc+tq+tg
+    qnet=qu-q_slope
+    fs=base_result['FS']
+    qa_net=qnet/fs
+    qa_gross=qa_net+q_slope
+    return {**base_result,'base_factor_c':bc,'base_factor_q':bq,'base_factor_gamma':bgamma,
+        'ground_factor_c':gc,'ground_factor_q':gq,'ground_factor_gamma':ggamma,
+        'ground_surcharge_kpa':q_slope,'term_c':tc,'term_q':tq,'term_gamma':tg,
+        'qu_gross':qu,'qu_net':qnet,'qa_net':qa_net,'qa_gross':qa_gross,
+        'qa_gross_direct_FS':qu/fs,
+        'limitations':base_result['limitations']+'；已套用 USACE 2025 表 5-3／5-4 基底與地表傾斜係數。地表坡體整體穩定仍須另行驗算。'}
+
+
+def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
+        strong_layer_thickness_m, footing_width_m, footing_length_m,
+        footing_type='isolated'):
+    """USACE EM 1110-1-1905 (2025) Eqs. 5-17/5-18, 2V:1H load spreading.
+    Input q_ult values are gross ultimate pressures for each homogeneous layer.
+    """
+    q1=_finite('上層極限承載力',q_ult_strong_kpa)
+    q2=_finite('下層極限承載力',q_ult_weak_kpa)
+    hs=_finite('上層厚度',strong_layer_thickness_m)
+    B=_finite('基礎寬度',footing_width_m)
+    L=_finite('基礎長度',footing_length_m)
+    if min(q1,q2,hs,B,L)<=0 or L<B:
+        raise ValueError('兩層極限承載力、厚度及基礎尺寸必須為正，且 L≥B')
+    if footing_type not in ('isolated','continuous'):
+        raise ValueError('基礎型式須為 isolated 或 continuous')
+    if footing_type=='isolated':
+        spread=((B+hs)*(L+hs))/(B*L)
+    else:
+        spread=(B+hs)/B
+    q_punch=spread*q2
+    q=min(q1,q_punch)
+    mode='上層一般承載力控制' if q1<=q_punch else '強上層穿刺至弱下層控制'
+    return {'qult_kpa':q,'qult_strong_kpa':q1,'qult_weak_kpa':q2,
+        'load_spread_factor':spread,'punching_capacity_kpa':q_punch,
+        'controlling_mode':mode,'strong_layer_thickness_m':hs,
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-17/5-18; 2V:1H',
+        'limitations':'適用強上層覆蓋弱下層的簡化穿刺檢核；弱層需位於相應承載力剪力區範圍（方／矩形約 0.5B–2B，條形約 1B–4B）。兩層 q_ult 須採相同載重、排水條件及修正係數體系；不取代多層有限元素或完整破壞機制分析。'}
+
+
+def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_kN,
+        footing_area_m2, kh, kv=0.0):
+    """Pseudo-static foundation inertia load envelope, not a seismic bearing
+    resistance equation. Returns equivalent actions for use with static
+    bearing/sliding checks; soil inertia, cyclic strength degradation,
+    liquefaction and seismic settlement are not included.
+    """
+    V=_finite('靜態垂直力',vertical_load_kN); H=_finite('靜態水平力',horizontal_load_kN)
+    A=_finite('基礎面積',footing_area_m2); khv=_finite('水平地震係數 kh',kh)
+    kvv=_finite('垂直地震係數 kv',kv)
+    if V<=0 or A<=0 or H<0 or not 0<=khv<=1 or not -0.5<=kvv<=0.5:
+        raise ValueError('地震分析輸入超出範圍：V、面積須正，H≥0，0≤kh≤1，-0.5≤kv≤0.5')
+    cases=[]
+    for sign in (-1,1):
+        ve=V*(1+sign*kvv)
+        he=H+khv*V
+        cases.append({'vertical_load_kN':ve,'horizontal_load_kN':he,
+            'average_contact_pressure_kpa':ve/A,
+            'load_angle_deg':math.degrees(math.atan2(he,ve)),
+            'vertical_sign':'向下增加' if sign==1 else '向下減少'})
+    return {'cases':cases,'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
+        'governing_horizontal_load_kN':max(x['horizontal_load_kN'] for x in cases),
+        'method':'Pseudo-static inertial action envelope (kh·V, kv·V)',
+        'limitations':'僅將結構／基礎慣性作用轉為等效靜力載重包絡；不得視為完整地震承載力公式。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
+
+
+def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
+        horizontal_load_kN, area_m2, friction_angle_deg, cohesion_kpa=0.0,
+        adhesion_ratio=0.0, active_force_kN=0.0, passive_force_kN=0.0,
+        fs_required=2.0):
+    """USACE EM 1110-1-1905 (2025) Eq. 5-28/5-29 drained interface sliding.
+    Active/passive forces must be independently established using developed
+    strengths; passive resistance is capped at the driving force.
+    """
+    V=_finite('垂直力',vertical_load_kN); U=_finite('揚壓力',uplift_kN)
+    H=_finite('水平力',horizontal_load_kN); A=_finite('基底面積',area_m2)
+    phi=_finite('基底摩擦角',friction_angle_deg); c=_finite('基底黏著強度',cohesion_kpa)
+    ar=_finite('黏著折減比',adhesion_ratio); Pa=_finite('主動土壓力',active_force_kN)
+    Pp=_finite('被動土壓力',passive_force_kN); req=_finite('要求安全係數',fs_required)
+    if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<=1:
+        raise ValueError('基底滑動輸入值不合理')
+    drive=H+Pa
+    passive_used=min(Pp,drive)
+    net_drive=drive-passive_used
+    resistance=(V-U)*math.tan(math.radians(phi))+ar*c*A
+    fs=math.inf if net_drive==0 else resistance/net_drive
+    return {'resisting_force_kN':resistance,'driving_force_kN':net_drive,
+        'passive_resistance_used_kN':passive_used,'passive_resistance_capped':Pp>drive,
+        'FS_sliding':fs,'FS_required':req,'passes':fs>=req,
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-28/5-29',
+        'limitations':'被動土壓與主動土壓須以 developed strength（φd、cd）另行計算後輸入；被動抗力不可大於 H+Pa。此函式未自行估算側向土壓、差異水壓、地震載重或結構接觸面破壞。'}
+
+
+def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations=500):
+    """Bishop simplified circular limit-equilibrium method.
+    Each slice: width_m, weight_kN, base_angle_deg, cohesion_kpa,
+    friction_angle_deg, pore_pressure_kpa. Base length is width/cos(alpha).
+    """
+    if not slices or len(slices)<3:
+        raise ValueError('Bishop 至少需要 3 個切片')
+    tol=_finite('收斂容許差',tolerance)
+    if tol<=0 or max_iterations<10:
+        raise ValueError('迭代設定不合理')
+    clean=[]
+    for i,row in enumerate(slices,1):
+        b=_finite(f'第{i}片寬度',row.get('width_m'))
+        W=_finite(f'第{i}片重量',row.get('weight_kN'))
+        alpha=_finite(f'第{i}片底面角',row.get('base_angle_deg'))
+        c=_finite(f'第{i}片凝聚力',row.get('cohesion_kpa'))
+        phi=_finite(f'第{i}片摩擦角',row.get('friction_angle_deg'))
+        u=_finite(f'第{i}片孔隙水壓',row.get('pore_pressure_kpa',0.0))
+        if b<=0 or W<=0 or not -45<alpha<45 or c<0 or not 0<=phi<=50 or u<0:
+            raise ValueError(f'第{i}片資料不合理（寬度、重量須正；底角需介於 ±45°；強度及孔壓不可負）')
+        clean.append((b,W,math.radians(alpha),c,math.radians(phi),u))
+    driving=sum(W*math.sin(alpha) for _,W,alpha,_,_,_ in clean)
+    if driving<=0: raise ValueError('滑動面沒有正向總驅動力；請確認切片底角方向及重量')
+    F=1.5
+    for it in range(1,int(max_iterations)+1):
+        numerator=0.0
+        for b,W,alpha,c,phi,u in clean:
+            m=math.cos(alpha)+math.sin(alpha)*math.tan(phi)/F
+            if m<=0: raise ValueError('Bishop 中間係數非正，幾何或參數不適用')
+            base_len=b/math.cos(alpha)
+            numerator+=(c*b+(W-u*base_len)*math.tan(phi))/m
+        newF=numerator/driving
+        if not math.isfinite(newF) or newF<=0: raise ValueError('Bishop 迭代未得到有效安全係數')
+        if abs(newF-F)<=tol:
+            return {'FS':newF,'iterations':it,'converged':True,
+                'method':'Bishop simplified (circular slip surface; vertical interslice forces neglected)',
+                'slice_count':len(clean),
+                'limitations':'需由使用者提供同一圓弧滑動面之正確切片幾何、重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
+        F=0.5*F+0.5*newF
+    raise ValueError('Bishop 迭代未收斂；請檢查切片幾何、孔壓與強度資料')
