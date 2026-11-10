@@ -1170,3 +1170,28 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
     return {**best,'evaluated_surfaces':evaluated,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
         'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
+
+
+def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
+        effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
+        residual_excess_pore_pressure_ratio, shape_depth_inclination_factor=1.0):
+    """USACE EM 1110-1-1905 (2025) Eqs. 9-3/9-4 for sand-like soil with
+    earthquake-induced excess pore pressure affecting the full shear zone.
+    The surcharge term is omitted as specified for potential punching failure.
+    """
+    gamma=_finite('剪力區有效單位重',effective_unit_weight_kn_m3)
+    B=_finite('有效基礎寬度',effective_width_m)
+    Ng=_finite('Nγ',bearing_factor_ngamma)
+    ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
+    corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
+    if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or not 0<corr<=1:
+        raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數須在 (0,1]')
+    if footing_type not in ('strip','spread'):
+        raise ValueError('基礎型式須為 strip 或 spread')
+    coeff=0.5 if footing_type=='strip' else 0.4
+    q=coeff*(1-ru)*gamma*B*Ng*corr
+    return {'qu_seismic_kpa':q,'ru':ru,'pore_pressure_resistance_factor':1-ru,
+        'base_coefficient':coeff,'gamma_effective_kn_m3':gamma,'B_effective_m':B,
+        'Ngamma':Ng,'other_correction_product':corr,
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012)',
+        'limitations':'適用砂狀土且地震超額孔隙水壓影響完整承載力剪力區之情境；依手冊移除覆土 Nq 項，並以 (1−ru) 折減 Nγ 項。ru 應依 FSliq／孔壓評估取得，不可任意假設。若土層可液化、邊際液化或顯著強度損失，USACE 原則上不建議使用淺基礎；此式是補充評估，不代表可接受液化場址。未含分層穿刺、側向擴展與地震沉陷。'}
