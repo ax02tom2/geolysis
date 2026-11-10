@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import math
+import logging
 from io import StringIO
 from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+
+logging.basicConfig(level=logging.ERROR)
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -1202,6 +1205,8 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         if slide and st.session_state.get("m5x_slide_signature")==slide_sig:
             st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                 delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
+            if slide.get("passive_balance_controls"):
+                st.warning("被動土壓力已完全抵銷外部驅動力；顯示 ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
             st.caption(slide["limitations"])
             earth_result=st.session_state.get("m5x_slide_earth_result")
             if earth_result:
@@ -1237,7 +1242,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_auto_phi")
         with bb:
             bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
-            bishop_gw5=st.number_input("地下水位高程（輸入 -100＝無地下水）", -100.0,1000.0,-100.0,0.5,key="m5x_auto_gw")
+            bishop_has_gw5=st.checkbox("納入地下水位",value=False,key="m5x_auto_has_gw")
+            bishop_gw5=(st.number_input("地下水位高程 [m]",-1000.0,1000.0,0.0,0.5,key="m5x_auto_gw")
+                        if bishop_has_gw5 else None)
         with bc:
             center_x_min5=st.number_input("圓心 x 最小值 [m]",-100.0,1000.0,3.0,0.5,key="m5x_cxmin")
             center_x_max5=st.number_input("圓心 x 最大值 [m]",-100.0,1000.0,7.0,0.5,key="m5x_cxmax")
@@ -1257,9 +1264,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                     center_x_values=[center_x_min5+(center_x_max5-center_x_min5)*i/8 for i in range(9)],
                     center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                     radius_values=radii,slice_count=slices_auto5,
-                    groundwater_elevation=(None if bishop_gw5==-100.0 else bishop_gw5))
+                    groundwater_elevation=bishop_gw5)
                 st.session_state["m5x_auto_bishop_result"]=search
-                st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+                st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
             except Exception as exc:
                 st.error(f"圓弧搜尋失敗：{exc}")
         auto_bishop=st.session_state.get("m5x_auto_bishop_result")
@@ -1267,6 +1274,8 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         if auto_bishop and st.session_state.get("m5x_auto_bishop_signature")==auto_sig:
             st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
             st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
+            if auto_bishop.get("search_boundary_warning"):
+                st.warning(auto_bishop["search_boundary_warning"])
             st.caption(auto_bishop["limitations"])
 
 
