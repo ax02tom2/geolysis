@@ -236,7 +236,8 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
 
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
-        slope_distance_m=0.0, adjacent_slope_fs=None):
+        slope_distance_m=0.0, adjacent_slope_fs=None,
+        horizontal_load=0.0, vertical_load=1.0):
     """Apply USACE EM 1110-1-1905 (2025) Tables 5-2 to 5-4.
 
     The base calculation must be a Meyerhof result. Drained shape/depth factors
@@ -244,6 +245,9 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     before applying the Table 5-3 inclination factors.
     """
     c=_finite('c／Su',c_kpa); phi=_finite('phi',phi_deg)
+    H=_finite('水平載重 H',horizontal_load); V=_finite('垂直載重 V',vertical_load)
+    if H<0 or V<=0: raise ValueError('USACE 2025 載重傾斜修正需 H≥0 且 V>0')
+    beta_2025=math.degrees(math.atan2(H,V))
     ab=_finite('基底傾角',base_inclination_deg)
     ag=_finite('地表坡角',ground_inclination_deg)
     dg=_finite('基礎至坡頂距離',slope_distance_m)
@@ -295,13 +299,17 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         gq=min(1.0,gq0+(1-gq0)*recovery)
         gc=min(1.0,gc0+(1-gc0)*recovery)
         ggamma=min(1.0,ggamma0+(1-ggamma0)*recovery)
-        tc=base_result['c_used']*Nc*sc*dc*base_result['ic']*bc*gc
-        tq=q*math.cos(math.radians(ag))*Nq*sq*dq*base_result['iq']*bq*gq
+        # USACE 2025 Table 5-3 defines beta = atan(H/V); do not reuse
+        # the legacy Meyerhof beta entered in the classic calculation path.
+        i_2025=(1.0-beta_2025/90.0)**2
+        ig_2025=(1.0-beta_2025/phi)**2 if beta_2025<phi else 0.0
+        tc=base_result['c_used']*Nc*sc*dc*i_2025*bc*gc
+        tq=q*math.cos(math.radians(ag))*Nq*sq*dq*i_2025*bq*gq
         # USACE 2025 Eq. 5-19 groundwater correction for drained gamma term.
         gamma_t=base_result['gamma_below_total']
         gamma_corr=min(0.45+0.55*(max(base_result['water_depth']-Df,0.0)/base_result['B_original']),1.0)
         gamma_eff_2025=gamma_t*gamma_corr
-        tg=0.5*B*gamma_eff_2025*Ng*sg*dg_factor*base_result['ig']*bgamma*ggamma
+        tg=0.5*B*gamma_eff_2025*Ng*sg*dg_factor*ig_2025*bgamma*ggamma
     else:
         # USACE Table 5-4 undrained corrections.
         flow_n=None
@@ -321,7 +329,7 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     fs=base_result['FS']
     qa_net=qnet/fs
     qa_gross=qa_net+q_slope
-    return {**base_result,'N_flow':flow_n,'sc':sc,'sq':sq,'sg':sg,
+    return {**base_result,'N_flow':flow_n,'load_inclination_beta_2025_deg':(beta_2025 if phi>0 else None),'load_factor_c_2025':(i_2025 if phi>0 else None),'load_factor_q_2025':(i_2025 if phi>0 else None),'load_factor_gamma_2025':(ig_2025 if phi>0 else None),'sc':sc,'sq':sq,'sg':sg,
         'gamma_effective':(gamma_eff_2025 if phi>0 else base_result['gamma_effective']),
         'gamma_effective_2025_factor':(gamma_corr if phi>0 else None),
         'gamma_effective_method':('USACE EM 1110-1-1905 (2025), Eq. 5-19' if phi>0 else 'undrained total-stress analysis; gamma term not used'),
