@@ -435,7 +435,7 @@ def render_module_5(expanded=False):
                 st.metric("目前基礎 B × L",f"{B5:.2f} × {L5:.2f} m")
                 st.metric("目前埋深 Df",f"{df5:.2f} m")
                 st.caption(f"Dw={dw5:.2f} m；γ={gamma5:.2f} kN/m³；γ′={gsub5:.2f} kN/m³")
-            unsupported_insitu5=(H5>0 or beta5>0 or eB5>0 or eL5>0)
+            unsupported_insitu5=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if unsupported_insitu5:
                 st.warning("目前輸入含水平載重、載重傾角或偏心；原位試驗承載力此版僅支援垂直置中載重，已停用計算按鈕，避免忽略修正係數。斜坡地表／傾斜基底也尚未納入此路徑。")
             if st.button("計算原位試驗承載力",key="m5x_insitu_run",disabled=unsupported_insitu5):
@@ -447,13 +447,13 @@ def render_module_5(expanded=False):
                         B=B5,L=L5,Df=df5,gamma_moist=gamma5,gamma_sub=gsub5,
                         water_depth=dw5,fs=fs5,footing_type=insitu_footing5)
                     sig=(insitu_type5,insitu_drainage5,insitu_footing5,insitu_values5,
-                         B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5)
+                         B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
                     store_result_state(st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu,sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"原位試驗承載力計算失敗：{exc}")
             insitu_sig=(insitu_type5,insitu_drainage5,insitu_footing5,insitu_values5,
-                        B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5)
+                        B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
             insitu_result,insitu_current=read_result_state(
                 st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu_sig)
             if insitu_result and insitu_current:
