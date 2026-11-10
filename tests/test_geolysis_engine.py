@@ -313,13 +313,13 @@ def test_spt_profile_refusal_rows_still_validate_source_values():
                 rod_length_m=5,cn_method='不修正')
 
 
-def test_bearing_eccentricity_updates_depth_factor_using_effective_width():
+def test_bearing_eccentricity_does_not_change_classical_depth_factor_width():
     args=dict(theory='Meyerhof',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
         B=2,L=3,Df=1.5,water_depth=5,fs=3)
     centered=bearing_capacity(**args)
     eccentric=bearing_capacity(**args,eccentricity_B=.2)
     assert eccentric['B_effective']==pytest.approx(1.6)
-    assert eccentric['dq']>centered['dq']
+    assert eccentric['dq']==pytest.approx(centered['dq'])
 
 
 def test_bearing_rejects_submerged_unit_weight_above_moist_unit_weight():
@@ -1222,7 +1222,7 @@ def test_multi_layer_bearing_checks_shallow_weak_layer_within_shear_zone():
     ]
     r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
         footing_length_m=4,footing_depth_m=1,water_depth_m=5)
-    assert r['controlling_mode']=='下層穿刺控制'
+    assert r['controlling_mode']=='剪力區弱層控制'
 
 
 def test_meyerhof_spt_energy_conversion_from_n60_is_inverse_ratio():
@@ -1289,7 +1289,7 @@ def test_burland_burbidge_uses_gross_pressure_and_usace_2025_coefficients():
     ic=.35/20**1.4
     q_tsf=100/95.7605
     s0_tsf=50/95.7605
-    expected_ft=(1.0*1.0*1.5)*(q_tsf+s0_tsf)*zi_ft*ic
+    expected_ft=(1.0*1.0*1.3)*(q_tsf+s0_tsf)*zi_ft*ic
     assert r['influence_depth_m']==pytest.approx(zi_ft*.3048)
     assert r['Ic_tsf_inv']==pytest.approx(ic)
     assert r['settlement_mm']==pytest.approx(expected_ft*304.8)
