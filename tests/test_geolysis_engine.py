@@ -4,7 +4,8 @@ from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     usace_meyerhof_settlement_allowable, bearing_capacity,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety,
-    bishop_simplified_factor_of_safety)
+    bishop_simplified_factor_of_safety, bishop_circular_search,
+    seismic_bearing_capacity_residual_pore_pressure)
 
 
 def test_uscs_clean_well_graded_gravel():
@@ -1136,3 +1137,24 @@ def test_bishop_circular_search_rejects_invalid_ground_profile():
         bishop_circular_search(ground_profile=[(0,0),(0,1)],cohesion_kpa=10,
             friction_angle_deg=25,unit_weight_kn_m3=18,
             center_x_values=[1],center_y_values=[2],radius_values=[3])
+
+
+def test_usace_seismic_bearing_capacity_eq_9_3_and_9_4():
+    strip=seismic_bearing_capacity_residual_pore_pressure(
+        footing_type='strip',effective_unit_weight_kn_m3=10,
+        effective_width_m=2,bearing_factor_ngamma=20,
+        residual_excess_pore_pressure_ratio=.4)
+    spread=seismic_bearing_capacity_residual_pore_pressure(
+        footing_type='spread',effective_unit_weight_kn_m3=10,
+        effective_width_m=2,bearing_factor_ngamma=20,
+        residual_excess_pore_pressure_ratio=.4)
+    assert strip['qu_seismic_kpa']==pytest.approx(.5*.6*10*2*20)
+    assert spread['qu_seismic_kpa']==pytest.approx(.4*.6*10*2*20)
+
+
+def test_usace_seismic_bearing_capacity_rejects_ru_equal_one():
+    with pytest.raises(ValueError):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type='spread',effective_unit_weight_kn_m3=10,
+            effective_width_m=2,bearing_factor_ngamma=20,
+            residual_excess_pore_pressure_ratio=1.0)
