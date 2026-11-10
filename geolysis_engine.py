@@ -362,13 +362,12 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         ratio=Df/Be
         ang=ratio if ratio<=1 else math.atan(ratio)
         dq=1+2*tanp*(1-sinp)**2*ang
-        # Brinch-Hansen depth factor for drained soil; for phi=0, the
-        # Vesic/AASHTO-FHWA branch conservatively omits depth correction
-        # (USACE EM 1110-1-1905, Table 5-4, note b).
+        # Classical Hansen (1970) / Vesic (1973) depth factors:
+        # phi=0 uses dc=1+0.4k for both theories (USACE 1992 Tables 4-5/4-6).
+        # The 2025 AASHTO/FHWA Vesic-based design family conservatively
+        # omits phi=0 depth correction; that is a different factor system.
         if phi_deg>0:
             dc=dq-(1-dq)/(Nc*tanp)
-        elif 'vesic' in th:
-            dc=1.0
         else:
             dc=1+0.4*ang
         dg=1.0
@@ -383,11 +382,13 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         if 'vesic' in th:
             # Vesic's m uses the aspect ratio perpendicular to the
             # horizontal-load direction: parallel B -> L/B; parallel L -> B/L.
-            m=(2+Le/Be)/(1+Le/Be) if load_direction=='parallel_B' else (2+Be/Le)/(1+Be/Le)
+            # Classical Vesic (USACE 1992 Table 4-6): use B'/L' when
+            # H is parallel to B, and L'/B' when H is parallel to L.
+            m=(2+Be/Le)/(1+Be/Le) if load_direction=='parallel_B' else (2+Le/Be)/(1+Le/Be)
             if phi_deg>0:
-                # AASHTO/FHWA Vesic-based beta uses soil cohesion c,
-                # not the footing-interface adhesion ca.
-                denom=V+A*c/math.tan(ph)
+                # Classical Vesic (USACE 1992 Table 4-6) uses footing
+                # interface adhesion ca, consistent with the Hansen branch.
+                denom=V+A*ca/math.tan(ph)
                 hratio=H/denom
                 if hratio>=1.0: raise ValueError('水平載重已達或超過 Vesic 公式可用抗力；請核對 H、V、基礎面積及土體 c')
                 iq=(1-hratio)**m; ig=(1-hratio)**(m+1)
@@ -396,7 +397,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 # Undrained Table 5-4: q-term factors remain unity;
                 # Vesic inclination acts on the undrained cohesion term.
                 iq=ig=1.0
-                ic=1.0-m*H/(A*c*Nc) if c>0 else (1.0 if H==0 else 0.0)
+                ic=1.0-m*H/(A*ca*Nc) if ca>0 else (1.0 if H==0 else 0.0)
                 if ic<=0:
                     raise ValueError('Vesic 不排水水平載重傾斜係數已≤0；請核對 H、土體不排水強度 c、基礎面積及方向')
         else:
