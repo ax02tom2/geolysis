@@ -151,6 +151,10 @@ def render_module_4(expanded=False):
                     st.caption("Boussinesq 應力解假設均布矩形荷載作用於均質彈性半空間；仍需搭配正確分層參數與有效應力剖面。")
     
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
+                    if layers_text4.strip():
+                        st.warning("目前輸入的是多層壓縮土。USACE EM 1110-1-1905（2025）表 7-11 要求逐一判定各壓縮層的 Cv，並依各層排水邊界計算 Hdr；不能把所有層厚加總後套用單一 Cv 與排水條件。因此本版不提供多層情況的時間速率及次壓縮數值，避免產生具誤導性的結果。")
+                        st.caption("請先以單一、均質且排水條件一致的壓縮層使用下方時間估算；多層分析需補齊每層 Cv、排水路徑、次壓縮指數 Cα 與主固結完成時孔隙比後，才能逐層計算並在共同經過時間下整合。")
+                    else:
                     st.caption("依 USACE 2025 第 7-18、7-19 節。Cv 應由固結試驗或現地試驗取得；此處以代表性壓縮層作一維估算。")
                     rt_a,rt_b,rt_c=st.columns(3)
                     with rt_a:
@@ -183,12 +187,10 @@ def render_module_4(expanded=False):
                                 secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
                                 time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
                             st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
-                        if layers_text4.strip():
-                            st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
                     except Exception as time_exc:
                         st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-    
-    
+        
+        
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
