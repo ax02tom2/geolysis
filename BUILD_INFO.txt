@@ -1,3 +1,6 @@
-Build: geolysis Web V4 Hoek-Brown input hotfix
-Date: 2026-11-05 Asia/Taipei (UTC+08:00)
-Scope: restore the missing GSI / mi / UCS / D / application-scale input UI removed during web/core-photo separation.
+Build: geolysis Web — engineering regression and documentation pass
+Date: 2026-11-10 Asia/Taipei (UTC+08:00)
+Validated baseline: 198df909fd4ecf53d80bb1bce4457ac37483f86b
+Python CI: 3.11
+Latest verified automated suite: 141 passed
+Scope: five engineering modules; Streamlit Web application only.
