@@ -927,3 +927,12 @@ def test_undrained_hansen_and_vesic_keep_surcharge_and_unit_weight_factors_unity
         assert r['ig']==pytest.approx(1.0)
         assert r['term_q']==pytest.approx(r['q_surcharge'])
         assert r['term_gamma']==pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("theory",["Terzaghi","Meyerhof","Hansen","Vesic"])
+def test_undrained_bearing_uses_total_surcharge_below_groundwater(theory):
+    r=bearing_capacity(theory=theory,c_kpa=50,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=3,Df=3,water_depth=1)
+    expected=18*1+(9+9.81)*(3-1)
+    assert r['q_surcharge']==pytest.approx(expected)
+    assert r['term_q']==pytest.approx(expected)
