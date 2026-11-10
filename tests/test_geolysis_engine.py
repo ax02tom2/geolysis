@@ -4,7 +4,7 @@ from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     usace_meyerhof_settlement_allowable, bearing_capacity,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety,
-    bishop_simplified_factor_of_safety, bishop_circular_search,
+    bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure)
 
 
@@ -1158,3 +1158,24 @@ def test_usace_seismic_bearing_capacity_rejects_ru_equal_one():
             footing_type='spread',effective_unit_weight_kn_m3=10,
             effective_width_m=2,bearing_factor_ngamma=20,
             residual_excess_pore_pressure_ratio=1.0)
+
+
+def test_multi_layer_bearing_profile_checks_weak_layer_punching():
+    layers=[
+        {'thickness_m':1.0,'c_kpa':100,'phi_deg':30,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18},
+        {'thickness_m':2.0,'c_kpa':10,'phi_deg':20,'gamma_below_kn_m3':18},
+        {'thickness_m':3.0,'c_kpa':80,'phi_deg':30,'gamma_below_kn_m3':19},
+    ]
+    r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
+        footing_length_m=4,footing_depth_m=1,water_depth_m=5)
+    assert len(r['layers'])==3
+    assert r['controlling_mode']=='下層穿刺控制'
+    assert r['qult_kpa']<r['layers'][0]['qult_kpa']
+    assert r['controlling_layer']==2
+
+
+def test_multi_layer_bearing_profile_requires_multiple_layers():
+    with pytest.raises(ValueError):
+        layered_bearing_capacity_profile(layers=[
+            {'thickness_m':1,'c_kpa':10,'phi_deg':20,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18}],
+            footing_width_m=2,footing_length_m=4,footing_depth_m=1,water_depth_m=5)
