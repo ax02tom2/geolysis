@@ -1197,3 +1197,28 @@ def test_developed_rankine_earth_pressure_rejects_bad_fs():
         developed_rankine_sliding_earth_pressures(effective_unit_weight_kn_m3=9,
             footing_depth_m=2,footing_length_m=3,friction_angle_deg=30,
             cohesion_kpa=10,fs_sliding=1)
+
+
+def test_slope_base_correction_rejects_inapplicable_steep_base_angle():
+    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=40,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
+    with pytest.raises(ValueError,match='適用範圍'):
+        bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+            phi_deg=40,base_inclination_deg=59,ground_inclination_deg=0)
+
+
+def test_seismic_pore_pressure_capacity_accepts_shape_depth_factor_above_one():
+    r=seismic_bearing_capacity_residual_pore_pressure(footing_type='spread',
+        effective_unit_weight_kn_m3=10,effective_width_m=2,bearing_factor_ngamma=20,
+        residual_excess_pore_pressure_ratio=.2,shape_depth_inclination_factor=1.4)
+    assert r['qu_seismic_kpa']==pytest.approx(.4*.8*10*2*20*1.4)
+
+
+def test_multi_layer_bearing_checks_shallow_weak_layer_within_shear_zone():
+    layers=[
+        {'thickness_m':.3,'c_kpa':100,'phi_deg':30,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18},
+        {'thickness_m':2,'c_kpa':5,'phi_deg':15,'gamma_below_kn_m3':18},
+    ]
+    r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
+        footing_length_m=4,footing_depth_m=1,water_depth_m=5)
+    assert r['controlling_mode']=='下層穿刺控制'
