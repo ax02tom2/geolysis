@@ -1,7 +1,7 @@
-Build: geolysis Web — engineering regression and Streamlit AppTest pass
+Build: geolysis Web — expanded Module 5 engineering checks
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated application/test commit: b9a326aeebd2d0080aee9db3f52b17ad93b3bdbf
+Validated baseline: 69ae2f96abfd4a20f43922dd4b9b1d717784b211
 Python CI: 3.11
-Latest verified automated suite: 142 passed
+Latest verified automated suite at baseline: 156 passed
 Runtime smoke: Streamlit AppTest loaded app.py without uncaught exception
 Scope: five engineering modules; Streamlit Web application only.
