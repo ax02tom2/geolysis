@@ -1300,7 +1300,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 logging.exception("Unhandled application calculation error")
                 st.error(f"圓弧搜尋失敗：{exc}")
         auto_bishop=st.session_state.get("m5x_auto_bishop_result")
-        auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+        auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
         if auto_bishop and st.session_state.get("m5x_auto_bishop_signature")==auto_sig:
             st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
             st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
