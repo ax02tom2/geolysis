@@ -1234,6 +1234,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.warning("被動土壓力已完全抵銷外部驅動力；顯示 ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
             if slide.get("passive_balance_controls"):
                 st.warning("被動土壓力已完全抵銷外部驅動力；顯示 FS = ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
+            st.caption("依 USACE EM 1110-1-1905（2025）式 5-28 至 5-30：基底界面抗力使用界面 δ′、c_a/c′（或 c_a/s_u）；牆前／牆後主動與被動土壓力則另以 developed φ_d、c_d 計算。兩者分屬不同剪力區，並非混用安全係數。")
             st.caption(slide["limitations"])
             earth_result=st.session_state.get("m5x_slide_earth_result")
             if earth_result:
