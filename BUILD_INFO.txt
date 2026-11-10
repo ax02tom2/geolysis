@@ -1,7 +1,11 @@
-Build: geolysis Web — expanded Module 5 engineering checks
+Build: geolysis Web — engineering review corrections
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated commit: 147418d4c79f962d3f7312874eec63c3b1535ed4
+Validated commit: 0c6cf6d8554c0c6315ec95c4fbef62e4cf790d9e
 Python CI: 3.11
-Latest verified automated suite: 163 passed
+Streamlit: 1.67.0
+Pandas: 3.1.1
+Plotly: 7.1.0
+Latest verified automated suite: 173 passed
+GitHub Actions run: 42756065019 (success)
 Runtime smoke: Streamlit AppTest loaded app.py without uncaught exception
 Scope: five engineering modules; Streamlit Web application only.

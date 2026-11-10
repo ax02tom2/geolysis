@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import math
+import logging
 from io import StringIO
 from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+
+logging.basicConfig(level=logging.ERROR)
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -140,7 +143,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
   </div>
 </details>
 <div class="gsi-lit-zoom-hint">點擊圖片放大，再點一次縮小；放大時左側 GSI 選項仍可操作</div>
-<div class="gsi-lit-zoom-hint">Somodi et al. (2021), Figure 1</div>
+<div class="gsi-lit-zoom-hint"><a href="https://doi.org/10.3390/app11083351" target="_blank" rel="noopener">Somodi et al. (2021), Figure 1 — DOI 原文</a>；開放授權 CC BY 4.0，使用時保留作者與來源標示</div>
 """, unsafe_allow_html=True)
         with fig_col2:
             st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
@@ -394,7 +397,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
         gamma_default = 23.0
         gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=gamma_default, step=0.5, key="geolysis_gamma_general")
         h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
-            value=20.0, step=1.0, key="geolysis_number_input_line_377")
+            value=20.0, step=1.0, key="hb_analysis_height_m")
         sigma3_general = None
         if "一般淺層" in app_type:
             sigma3_general = st.number_input("自訂有效圍壓上限 σ3_max [MPa]", min_value=0.001, max_value=250.0, value=1.0, step=0.1, key="hb_sigma3_general")
@@ -416,6 +419,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
             application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,
             sigma3_custom_mpa=sigma3_general)
     except Exception as exc:
+        logging.exception("Unhandled application calculation error")
         hb_error=str(exc)
         st.error(f"Hoek–Brown 參數計算未完成：{hb_error}。請檢查 GSI、UCS、擾動因子與 σ3,max 適用範圍。")
     if hb_current is not None:
@@ -465,6 +469,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
                         f"D {d_range_low:g}–{d_range_high:g}。"
                         "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
                 except Exception as exc:
+                    logging.exception("Unhandled application calculation error")
                     st.warning(f"參數區間敏感度計算未完成：{exc}；請檢查區間端點是否超出模型適用範圍。")
 
     with st.expander("📈 展開檢視：Hoek-Brown 非線性破壞包絡線 vs. 等效莫耳－庫倫直線圖", expanded=False):
@@ -535,7 +540,9 @@ with st.expander("🌱 模組二：土壤分類系統 (USCS & AASHTO)", expanded
                 d10=d10,d30=d30,d60=d60,organic=organic,ll_oven_dried=(ll_od if organic and organic_test_done else None),peat=peat)
             st.session_state['m2_result']=result
             st.session_state['m2_result_signature']=m2_input_signature
-        except Exception as exc: st.error(f"資料檢核未通過：{exc}")
+        except Exception as exc:
+            logging.exception("Unhandled application calculation error")
+            st.error(f"資料檢核未通過：{exc}")
     result=st.session_state.get('m2_result')
     if result and st.session_state.get('m2_result_signature') != m2_input_signature:
         st.warning("土壤分類輸入已變更；目前顯示的舊結果不再對應現有試驗值。請重新按「執行土壤分類」更新。")
@@ -583,6 +590,7 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
         soil_behavior_code="cohesionless" if soil_behavior.startswith("砂土") else "cohesive"
         cn_method=st.selectbox("覆土壓力修正 CN",["Liao & Whitman","Seed & Idriss","Skempton","不修正"],key="m3_cnmethod",disabled=(soil_behavior_code=="cohesive"))
         cn_cap=st.number_input("CN 上限（USACE 2025：最高 2.0；Seed–Idriss 液化法自動不超過 1.7）",1.0,2.0,2.0,0.1,key="m3_cncap")
+        st.caption("Liao & Whitman 與 Seed & Idriss 的 CN 基本式均為 √(Pa/σ′v)；兩者在本工具的差別是 Seed & Idriss 液化評估慣例另將 CN 上限限制為 1.7。選擇方法時請依分析目的與採用文獻，不代表兩者是不同的基本公式。")
         dilatancy_allowed=(soil_behavior_code=="cohesionless" and cn_method!="不修正")
         dilatancy=st.checkbox("飽和細砂／粉土位於地下水位以下，且 (N1)60 > 15：套用膨脹修正",value=False,key="m3_dilatancy",disabled=(not dilatancy_allowed))
         if not dilatancy_allowed: dilatancy=False
@@ -608,7 +616,9 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
             st.dataframe(pd.DataFrame([{'修正係數':'CE','值':current['CE']},{'修正係數':'CB','值':current['CB']},{'修正係數':'CS','值':current['CS']},{'修正係數':'CR','值':current['CR']},{'修正係數':'CN','值':current['CN']}]),hide_index=True,use_container_width=True)
             st.session_state['m3_current_n60']=current['N60']
             st.session_state['m3_current_n160']=current['N1_60_final']
-        except Exception as exc: st.error(f"SPT 修正失敗：{exc}")
+        except Exception as exc:
+            logging.exception("Unhandled application calculation error")
+            st.error(f"SPT 修正失敗：{exc}")
     st.markdown("**鑽孔逐深度資料（CSV）**")
     st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
     csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
@@ -640,7 +650,9 @@ with st.expander("🔨 模組三：SPT 標準貫入試驗全修正", expanded=ex
             st.download_button('下載修正後 SPT CSV',out.to_csv(index=False).encode('utf-8-sig'),'SPT_corrected.csv','text/csv',key='m3_download')
             st.session_state['m3_profile_result']=out
         else: st.info('請提供 Depth_m、N、Effective_Stress_kPa 三欄；未提供完整欄位前不執行剖面計算。')
-    except Exception as exc: st.error(f"逐深度資料檢核失敗：{exc}")
+    except Exception as exc:
+        logging.exception("Unhandled application calculation error")
+        st.error(f"逐深度資料檢核失敗：{exc}")
     st.caption("依 USACE EM 1110-1-1905（2025）：CN 僅建議用於非凝聚性土壤；黏土不作覆土修正，黏土類 CB 採 1.0。一般淺基礎設計可採 CN≤2.0；液化評估常見文獻上限 1.7，應依分析目的選擇。")
     st.info("飽和細砂／粉土的膨脹修正必須在覆土修正後進行，僅適用於地下水位以下且 (N1)60 > 15；粗砂不適用。")
     with st.expander("SPT 修正依據與文獻",expanded=False):
@@ -714,7 +726,9 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                 st.warning("5,000 kPa 搜尋上限內仍未達容許沉陷量，結果受搜尋上限控制，請檢查輸入。")
             if qa_bb['no_feasible_pressure']: st.error("即使不增加基礎接觸壓力，公式中的初始應力沉陷項仍已超過容許沉陷量；目前沒有可行的正接觸壓力解，請檢查 σ′0、N60、目標沉陷與方法適用性。")
             st.info("本結果已可選擇套用模組五 qa,gross 作承載力上限；若未輸入該值，結果僅受沉陷控制。請確認模組五使用相同基礎尺寸、埋深、地下水與地層條件。")
-        except Exception as exc: st.error(f"Burland–Burbidge 沉陷估算失敗：{exc}")
+        except Exception as exc:
+            logging.exception("Unhandled application calculation error")
+            st.error(f"Burland–Burbidge 沉陷估算失敗：{exc}")
     elif method4.startswith('砂土：'):
         st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
         a,b,c=st.columns(3)
@@ -733,7 +747,9 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
             st.write(f"1 inch 沉陷基準：{r['qa_1in_kPa']:.1f} kPa ｜ 埋深係數 Kd = {r['Kd']:.3f} ｜ 寬度 = {r['width_ft']:.2f} ft")
             st.caption(r['method'])
             st.warning(r['limitations'])
-        except Exception as exc: st.error(f"砂土容許承載力估算失敗：{exc}")
+        except Exception as exc:
+            logging.exception("Unhandled application calculation error")
+            st.error(f"砂土容許承載力估算失敗：{exc}")
         st.info("此法是砂土 SPT 經驗法，不適用於黏土固結沉陷；採用時須確認 N 值代表基礎影響深度範圍，且不可重複作地下水修正。")
     else:
         st.caption("以 e–log σ′ 一維主固結理論計算；可選用 Boussinesq 矩形均布荷載中心點應力解，或 2:1 簡化法。亦可輸入多層 CSV，逐層計算後加總主固結沉陷。")
@@ -870,7 +886,9 @@ with st.expander("📏 模組四：容許承載力與沉陷控制", expanded=exp
                 except Exception as rebound_exc:
                     st.error(f"開挖回彈／再壓縮估算失敗：{rebound_exc}")
             st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
-        except Exception as exc: st.error(f"黏土主固結估算失敗：{exc}")
+        except Exception as exc:
+            logging.exception("Unhandled application calculation error")
+            st.error(f"黏土主固結估算失敗：{exc}")
 
     with st.expander("差異沉陷／角變量檢核（兩位置比較）",expanded=False):
         st.caption("將兩個位置各自計算得到的總沉陷量填入；本工具計算沉陷差與角變量，不擅自判定通過／不通過，容許值須依結構型式及適用規範選定。")
@@ -969,7 +987,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5)
                 st.session_state['m5_result']=result5
                 st.session_state['m5_result_signature']=m5_input_signature
-            except Exception as exc: st.error(f"承載力計算失敗：{exc}")
+            except Exception as exc:
+                logging.exception("Unhandled application calculation error")
+                st.error(f"承載力計算失敗：{exc}")
     result5=st.session_state.get('m5_result')
     if result5 and st.session_state.get('m5_result_signature') != m5_input_signature:
         st.warning("模組五輸入參數已變更；目前顯示的舊結果不再對應現有輸入。請重新按「計算極限承載力」更新結果。")
@@ -1024,6 +1044,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_slope_result"]=slope_result
                 st.session_state["m5x_slope_signature"]=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"斜坡／基底傾斜計算失敗：{exc}")
         slope_result=st.session_state.get("m5x_slope_result")
         slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
@@ -1061,6 +1082,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_layer_result"]=layered
                 st.session_state["m5x_layer_signature"]=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"多層承載力計算失敗：{exc}")
         layered=st.session_state.get("m5x_layer_result")
         layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
@@ -1091,12 +1113,15 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_multi_layer_result"]=mr
                 st.session_state["m5x_multi_layer_signature"]=multi_layer_csv5
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"多層地盤分析失敗：{exc}")
         mr=st.session_state.get("m5x_multi_layer_result")
         if mr and st.session_state.get("m5x_multi_layer_signature")==multi_layer_csv5:
             st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
             st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
             st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
+            if mr.get("warning"):
+                st.warning(mr["warning"])
             st.caption(mr["limitations"])
 
     with st.expander("④ 地震等效靜力載重包絡（偽靜力）",expanded=False):
@@ -1115,6 +1140,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_seismic_result"]=seismic
                 st.session_state["m5x_seismic_signature"]=(V5,H5,area5,kh5,kv5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"地震等效載重計算失敗：{exc}")
         seismic=st.session_state.get("m5x_seismic_result")
         if seismic and st.session_state.get("m5x_seismic_signature")== (V5,H5,area5,kh5,kv5):
@@ -1146,6 +1172,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_seismic_capacity_result"]=sr
                 st.session_state["m5x_seismic_capacity_signature"]=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"地震孔壓折減承載力計算失敗：{exc}")
         sr=st.session_state.get("m5x_seismic_capacity_result")
         sr_sig=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
@@ -1196,12 +1223,18 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_slide_result"]=slide
                 st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"基底滑動計算失敗：{exc}")
         slide=st.session_state.get("m5x_slide_result")
         slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
         if slide and st.session_state.get("m5x_slide_signature")==slide_sig:
             st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                 delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
+            if slide.get("passive_balance_controls"):
+                st.warning("被動土壓力已完全抵銷外部驅動力；顯示 ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
+            if slide.get("passive_balance_controls"):
+                st.warning("被動土壓力已完全抵銷外部驅動力；顯示 FS = ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
+            st.caption("依 USACE EM 1110-1-1905（2025）式 5-28 至 5-30：基底界面抗力使用界面 δ′、c_a/c′（或 c_a/s_u）；牆前／牆後主動與被動土壓力則另以 developed φ_d、c_d 計算。兩者分屬不同剪力區，並非混用安全係數。")
             st.caption(slide["limitations"])
             earth_result=st.session_state.get("m5x_slide_earth_result")
             if earth_result:
@@ -1220,6 +1253,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                 st.session_state["m5x_bishop_result"]=bishop
                 st.session_state["m5x_bishop_signature"]=bishop_csv
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"Bishop 整體穩定計算失敗：{exc}")
         bishop=st.session_state.get("m5x_bishop_result")
         if bishop and st.session_state.get("m5x_bishop_signature")==bishop_csv:
@@ -1237,7 +1271,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_auto_phi")
         with bb:
             bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
-            bishop_gw5=st.number_input("地下水位高程（輸入 -100＝無地下水）", -100.0,1000.0,-100.0,0.5,key="m5x_auto_gw")
+            bishop_has_gw5=st.checkbox("納入地下水位",value=False,key="m5x_auto_has_gw")
+            bishop_gw5=(st.number_input("地下水位高程 [m]",-1000.0,1000.0,0.0,0.5,key="m5x_auto_gw")
+                        if bishop_has_gw5 else None)
         with bc:
             center_x_min5=st.number_input("圓心 x 最小值 [m]",-100.0,1000.0,3.0,0.5,key="m5x_cxmin")
             center_x_max5=st.number_input("圓心 x 最大值 [m]",-100.0,1000.0,7.0,0.5,key="m5x_cxmax")
@@ -1257,16 +1293,19 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                     center_x_values=[center_x_min5+(center_x_max5-center_x_min5)*i/8 for i in range(9)],
                     center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                     radius_values=radii,slice_count=slices_auto5,
-                    groundwater_elevation=(None if bishop_gw5==-100.0 else bishop_gw5))
+                    groundwater_elevation=bishop_gw5)
                 st.session_state["m5x_auto_bishop_result"]=search
-                st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+                st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
             except Exception as exc:
+                logging.exception("Unhandled application calculation error")
                 st.error(f"圓弧搜尋失敗：{exc}")
         auto_bishop=st.session_state.get("m5x_auto_bishop_result")
-        auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+        auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
         if auto_bishop and st.session_state.get("m5x_auto_bishop_signature")==auto_sig:
             st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
             st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
+            if auto_bishop.get("search_boundary_warning"):
+                st.warning(auto_bishop["search_boundary_warning"])
             st.caption(auto_bishop["limitations"])
 
 

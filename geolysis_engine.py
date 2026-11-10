@@ -245,7 +245,7 @@ def usace_meyerhof_settlement_allowable(*, n60, width_m, embedment_m, settlement
     if N<=0 or B<=0 or D<0 or s<=0: raise ValueError('輸入值不合理')
     if energy_percent not in (55,70): raise ValueError('此 USACE 係數表僅支援約 55% 或 70% 能量；請選擇相符能量或使用 N60=60% 對應之經核定方法')
     # EM 1110-1-1905 factors, q in ksf, Nn is N corrected to stated energy.
-    n_n=N*(energy_percent/60.0)
+    n_n=N*(60.0/energy_percent)
     Bft=B/0.3048; Dft=D/0.3048
     kd=min(1+0.33*Dft/Bft,1.33)
     if mat:
@@ -349,10 +349,21 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 raise ValueError('Meyerhof 不排水載重傾斜係數已≤0；請降低載重傾角或改用有依據的分析方法')
             iq=ig=1.0
         else:
-            sq=1+0.1*kp*br; sg=sq
-            dc=1+0.2*math.sqrt(kp)*Df/Be
-            dq=1+0.1*math.sqrt(kp)*Df/Be
-            dg=1+0.1*math.sqrt(kp)*Df/Be
+            if phi_deg<=10.0:
+                # EM 1110-1-1905 (1992), Table 4-3: interpolate Meyerhof
+                # shape/depth factors linearly from phi=0 to phi=10 degrees.
+                kp10=math.tan(math.radians(45)+math.radians(10)/2)**2
+                sq=sg=1.0+0.1*kp10*br*(phi_deg/10.0)
+                dc0=min(1.0+0.2*Df/B,1.5)
+                dc10=1.0+0.2*math.sqrt(kp10)*Df/B
+                dq10=1.0+0.1*math.sqrt(kp10)*Df/B
+                dc=dc0+(dc10-dc0)*(phi_deg/10.0)
+                dq=dg=1.0+(dq10-1.0)*(phi_deg/10.0)
+            else:
+                sq=1+0.1*kp*br; sg=sq
+                dc=1+0.2*math.sqrt(kp)*Df/B
+                dq=1+0.1*math.sqrt(kp)*Df/B
+                dg=1+0.1*math.sqrt(kp)*Df/B
             ic=iq=(1-beta/90.0)**2
             ig=(1-beta/phi_deg)**2 if beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
     else: # Hansen shape/depth, shared by Vesic
@@ -361,7 +372,9 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         # 1 + (B'/W') tan(phi) for the surcharge shape factor.
         sq=1+br*tanp
         sg=max(0.6,1-0.4*br)
-        ratio=Df/Be
+        # USACE EM 1110-1-1905 (1992), Tables 4-5/4-6 define
+        # k=D/B using the actual footing width, not eccentric effective B'.
+        ratio=Df/B
         ang=ratio if ratio<=1 else math.atan(ratio)
         dq=1+2*tanp*(1-sinp)**2*ang
         # Classical Hansen (1970) / Vesic (1973) depth factors:
@@ -1039,9 +1052,11 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
     passive_used=min(Pp,drive)
     net_drive=drive-passive_used
     resistance=(V-U)*math.tan(math.radians(phi))+ar*c*A
-    fs=math.inf if net_drive==0 else resistance/net_drive
+    passive_balance=(net_drive<=1e-12 and passive_used>0)
+    fs=math.inf if net_drive<=1e-12 else resistance/net_drive
     return {'resisting_force_kN':resistance,'driving_force_kN':net_drive,
         'passive_resistance_used_kN':passive_used,'passive_resistance_capped':Pp>drive,
+        'passive_balance_controls':passive_balance,
         'FS_sliding':fs,'FS_required':req,'passes':fs>=req,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-28/5-29',
         'limitations':'被動土壓與主動土壓須以 developed strength（φd、cd）另行計算後輸入；被動抗力不可大於 H+Pa。此函式未自行估算側向土壓、差異水壓、地震載重或結構接觸面破壞。'}
@@ -1069,7 +1084,11 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             raise ValueError(f'第{i}片資料不合理（寬度、重量須正；底角需介於 ±45°；強度及孔壓不可負）')
         clean.append((b,W,math.radians(alpha),c,math.radians(phi),u))
     driving=sum(W*math.sin(alpha) for _,W,alpha,_,_,_ in clean)
-    if driving<=0: raise ValueError('滑動面沒有正向總驅動力；請確認切片底角方向及重量')
+    # Normalize the sign convention so mirrored left/right slopes are equivalent.
+    if driving < 0:
+        clean=[(b,W,-alpha,c,phi,u) for b,W,alpha,c,phi,u in clean]
+        driving=-driving
+    if driving<=1e-12: raise ValueError('滑動面沒有正向總驅動力；請確認切片底角方向及重量')
     F=1.5
     for it in range(1,int(max_iterations)+1):
         numerator=0.0
@@ -1077,7 +1096,7 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             m=math.cos(alpha)+math.sin(alpha)*math.tan(phi)/F
             if m<=0: raise ValueError('Bishop 中間係數非正，幾何或參數不適用')
             base_len=b/math.cos(alpha)
-            numerator+=(c*b+(W-u*base_len)*math.tan(phi))/m
+            numerator+=(c*b+(W-u*b)*math.tan(phi))/m
         newF=numerator/driving
         if not math.isfinite(newF) or newF<=0: raise ValueError('Bishop 迭代未得到有效安全係數')
         if abs(newF-F)<=tol:
@@ -1117,7 +1136,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
             if x0<=x<=x1:
                 return y0+(y1-y0)*(x-x0)/(x1-x0)
         return None
-    best=None; evaluated=0
+    best=None; evaluated=0; failure_reasons={}
     for cx in xs:
         for cy in ys:
             for radius in rs:
@@ -1161,7 +1180,9 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                 if len(slices)<5: continue
                 try:
                     result=bishop_simplified_factor_of_safety(slices=slices)
-                except ValueError:
+                except ValueError as exc:
+                    reason=str(exc)
+                    failure_reasons[reason]=failure_reasons.get(reason,0)+1
                     continue
                 evaluated+=1
                 candidate={**result,'center_x_m':cx,'center_elevation_m':cy,
@@ -1169,8 +1190,18 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                 if best is None or candidate['FS']<best['FS']:
                     best=candidate
     if best is None:
-        raise ValueError('搜尋範圍內未找到有效圓弧滑動面；請擴大圓心／半徑範圍並檢查地表剖面')
+        detail='；'.join(f'{reason}（{count} 次）' for reason,count in
+                        sorted(failure_reasons.items(),key=lambda x:x[1],reverse=True)[:3])
+        suffix=f'；主要失敗原因：{detail}' if detail else '；候選圓弧未形成有效地表交點或切片幾何'
+        raise ValueError('搜尋範圍內未找到有效圓弧滑動面'+suffix+'；請擴大圓心／半徑範圍並檢查地表剖面')
+    boundary=[]
+    if best['center_x_m'] in (min(xs),max(xs)): boundary.append('圓心 x')
+    if best['center_elevation_m'] in (min(ys),max(ys)): boundary.append('圓心高程')
+    if best['radius_m'] in (min(rs),max(rs)): boundary.append('半徑')
+    boundary_warning=('最低 FS 落在搜尋網格邊界（'+ '、'.join(boundary) +'），請擴大搜尋範圍並加密網格。'
+                      if boundary else None)
     return {**best,'evaluated_surfaces':evaluated,
+        'search_boundary_warning':boundary_warning,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
         'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
@@ -1240,21 +1271,39 @@ def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_
     B_eff=max(1e-9,B-2*eccentricity_B_m); L_eff=max(1e-9,L-2*eccentricity_L_m)
     candidates=[{'mode':'上層一般承載力','controlling_layer':1,
         'capacity_kpa':results[0]['qult_kpa'],'spread_factor':1.0}]
-    lower_bound=0.0
+    # USACE 2025 §5-5a(1)-(2): weak strata within the near shear zone
+    # (approximately 0.5B for isolated footings) are checked directly;
+    # punch-through is checked from 0.5B to 2B (or 1B to 4B for strips).
+    lower_punch_depth=(0.5*B if footing_type=='isolated' else 1.0*B)
     upper_bound=(2.0*B if footing_type=='isolated' else 4.0*B)
-    for item in results[1:]:
+    unchecked_deep_layers=[]
+    for idx,item in enumerate(results[1:],start=1):
         Hs=item['top_depth_m']
-        if lower_bound<=Hs<=upper_bound and item['qult_kpa']<results[0]['qult_kpa']:
-            spread=((B_eff+Hs)*(L_eff+Hs)/(B_eff*L_eff)
+        cover_capacity=min(x['qult_kpa'] for x in results[:idx])
+        if item['qult_kpa']>=cover_capacity:
+            continue
+        if Hs<lower_punch_depth:
+            candidates.append({'mode':'剪力區弱層控制','controlling_layer':item['layer'],
+                'capacity_kpa':item['qult_kpa'],'spread_factor':1.0,
+                'underlying_layer_qult_kpa':item['qult_kpa'],
+                'weak_layer_top_depth_m':Hs})
+        elif Hs<=upper_bound:
+            spread=((B_eff+Hs)*(L_eff+Hs)/(B*L)
                     if footing_type=='isolated' else (B_eff+Hs)/B_eff)
             candidates.append({'mode':'下層穿刺控制','controlling_layer':item['layer'],
-                'capacity_kpa':spread*item['qult_kpa'],'spread_factor':spread,
+                'capacity_kpa':min(cover_capacity,spread*item['qult_kpa']),
+                'spread_factor':spread,'cover_capacity_kpa':cover_capacity,
                 'underlying_layer_qult_kpa':item['qult_kpa'],'strong_cover_thickness_m':Hs})
+        else:
+            unchecked_deep_layers.append(item['layer'])
     control=min(candidates,key=lambda x:x['capacity_kpa'])
+    warning=('以下層位超出 USACE 穿刺檢核深度範圍，未套用 2V:1H 穿刺式：'
+             +', '.join(map(str,unchecked_deep_layers))+'。' if unchecked_deep_layers else None)
     return {'qult_kpa':control['capacity_kpa'],'controlling_mode':control['mode'],
         'controlling_layer':control['controlling_layer'],'layers':results,
-        'candidates':candidates,'method':'USACE EM 1110-1-1905 (2025), 2V:1H layered punch-through, Eqs. 5-17/5-18',
-        'limitations':'以 Meyerhof-based 單層承載力分別計算各層，再對規定影響深度內較弱下層進行 2V:1H 穿刺檢核；假設水平分層、各層參數均質且基礎載重／排水條件一致。未涵蓋斜交層面、軟弱夾層側向擠出、任意破壞面與有限元素分析。'}
+        'candidates':candidates,'unchecked_deep_layers':unchecked_deep_layers,
+        'warning':warning,'method':'USACE EM 1110-1-1905 (2025), §5-5a(1)-(2), Eqs. 5-17/5-18',
+        'limitations':'以 Meyerhof-based 單層承載力分別計算各層；近基礎剪力區內弱層直接作控制候選，規定深度範圍內強上層覆蓋弱下層才採 2V:1H 穿刺檢核。多層上覆土以其中最低承載力作保守上覆層控制值。假設水平分層、各層參數均質且基礎載重／排水條件一致。未涵蓋斜交層面、軟弱夾層側向擠出、任意破壞面與有限元素分析。'}
 
 
 def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,

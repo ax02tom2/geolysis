@@ -41,7 +41,22 @@ streamlit run app.py
 
 Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件僅保留 Web 介面實際使用的 Streamlit、Pandas 與 Plotly；工程計算由專案內的 `geolysis_engine.py` 執行。
 
+## 審查修正與公式追溯
+
+本專案將計算公式與其採用的文獻版本分開標示；不同文獻若採用不同係數，不會混合成單一「通用公式」。
+
+- **Meyerhof SPT 容許承載力（歷史比較法）**：輸入為 N60 時，換算至指定能量比 n 的 N 值採 Nn = N60 × 60/n；55% 與 70% 能量分別使用 USACE EM 1110-1-1905（1992）§4-4 的係數組。這是舊版經驗法，2025 版手冊已不再作為本專案的主要預設方法。
+- **Bishop 簡化法**：孔隙水壓項使用切片底面水平寬度 b，即 (W − u·b)tanφ；滑弧方向採一致正向慣例，避免鏡像坡面因角度符號而被拒絕。
+- **Meyerhof 小摩擦角係數**：0°<φ≤10° 依 USACE EM 1110-1-1905（1992）Table 4-3 在 0° 與 10° 之間線性插值；大於 10° 才使用相應完整式。
+- **承載力深度係數**：依 USACE EM 1110-1-1905（1992）Tables 4-3、4-5、4-6，Meyerhof 經典 drained 分支依 Table 4-3 使用 D/B，且 0°<φ≤10°形狀與深度係數線性插值；Hansen、Vesic 依 Tables 4-5／4-6 使用 D/B。Meyerhof undrained 分支則依 2025 Table 5-4 使用 Df/B′。各分支依其採用版本，不跨表混用。
+- **Rankine developed earth pressure**：依 USACE EM 1110-1-1905（2025）Eqs. 5-31 至 5-35。手冊式 5-34／5-35 明確採 ±2c′d 項；本專案依該手冊原式，不替換成其他教材可能使用的 2c′d√K 表達式。
+- **Burland–Burbidge**：依 USACE EM 1110-1-1905（2025）§7-13，q 使用 gross 或 gross-equivalent bearing pressure；ZI=1.43B^0.7（英制單位）、Ic=0.35/N̄60^1.4（tsf⁻¹）。這些常數與 gross 壓力處理已與原文核對。
+- **多層地盤**：依 USACE 2025 §5-5a(1)–(2)，近基礎剪力區弱層與強上層覆蓋弱下層的 punch-through 分開處理；2V:1H 穿刺式僅在手冊指定深度範圍內使用，超出範圍會提示未檢核層位。
+- **SPT 覆土修正 CN**：Liao & Whitman 與 Seed & Idriss 使用相同基本平方根式；Seed & Idriss 液化評估慣例另採 CN≤1.7。Hoek–Brown 變形模數採 Hoek（2002）公式版本，與 Hoek–Diederichs（2006）不同，請勿混稱。
+
 ## 自動化驗證
+
+CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
 GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測試、元件 key 檢查、Web 範圍檢查與 Streamlit AppTest 頁面載入 smoke test。最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 

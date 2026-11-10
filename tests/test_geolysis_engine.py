@@ -1,7 +1,7 @@
 import math
 import pytest
 from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
-    usace_meyerhof_settlement_allowable, bearing_capacity,
+    usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, bearing_capacity,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
@@ -313,13 +313,13 @@ def test_spt_profile_refusal_rows_still_validate_source_values():
                 rod_length_m=5,cn_method='不修正')
 
 
-def test_bearing_eccentricity_updates_depth_factor_using_effective_width():
+def test_bearing_eccentricity_does_not_change_classical_depth_factor_width():
     args=dict(theory='Meyerhof',c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
         B=2,L=3,Df=1.5,water_depth=5,fs=3)
     centered=bearing_capacity(**args)
     eccentric=bearing_capacity(**args,eccentricity_B=.2)
     assert eccentric['B_effective']==pytest.approx(1.6)
-    assert eccentric['dq']>centered['dq']
+    assert eccentric['dq']==pytest.approx(centered['dq'])
 
 
 def test_bearing_rejects_submerged_unit_weight_above_moist_unit_weight():
@@ -954,7 +954,8 @@ def test_meyerhof_drained_unit_weight_shape_factor_is_not_suppressed_below_ten_d
     r=bearing_capacity(theory='Meyerhof',c_kpa=0,phi_deg=phi,
         gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
     kp=math.tan(math.radians(45+phi/2))**2
-    expected=1+0.1*kp*(2/6)
+    kp10=math.tan(math.radians(50))**2
+    expected=1+0.1*kp10*(2/6)*(phi/10)
     assert r['sq']==pytest.approx(expected)
     assert r['sg']==pytest.approx(expected)
 
@@ -1221,4 +1222,125 @@ def test_multi_layer_bearing_checks_shallow_weak_layer_within_shear_zone():
     ]
     r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
         footing_length_m=4,footing_depth_m=1,water_depth_m=5)
-    assert r['controlling_mode']=='下層穿刺控制'
+    assert r['controlling_mode']=='剪力區弱層控制'
+
+
+def test_meyerhof_spt_energy_conversion_from_n60_is_inverse_ratio():
+    r70=usace_meyerhof_settlement_allowable(n60=20,width_m=1.0,
+        embedment_m=0.5,settlement_mm=25.4,energy_percent=70)
+    r55=usace_meyerhof_settlement_allowable(n60=20,width_m=1.0,
+        embedment_m=0.5,settlement_mm=25.4,energy_percent=55)
+    assert r70['N_energy_adjusted']==pytest.approx(20*60/70)
+    assert r55['N_energy_adjusted']==pytest.approx(20*60/55)
+
+
+def test_bishop_pore_pressure_uses_horizontal_slice_width():
+    slices=[
+        {'width_m':2,'weight_kN':100+10*i,'base_angle_deg':10+3*i,
+         'cohesion_kpa':5,'friction_angle_deg':30,'pore_pressure_kpa':20}
+        for i in range(8)]
+    r=bishop_simplified_factor_of_safety(slices=slices)
+    assert r['FS']==pytest.approx(1.1898,abs=1e-4)
+
+
+def test_bishop_mirrored_slopes_have_same_factor_of_safety():
+    left=bishop_circular_search(
+        ground_profile=[(0,0),(10,0),(20,10),(30,10)],
+        cohesion_kpa=10,friction_angle_deg=25,unit_weight_kn_m3=18,
+        center_x_values=[10,12,14,16,18,20],center_y_values=[14,16,18,20,22],
+        radius_values=[10,12,14,16,18])
+    right=bishop_circular_search(
+        ground_profile=[(0,10),(10,10),(20,0),(30,0)],
+        cohesion_kpa=10,friction_angle_deg=25,unit_weight_kn_m3=18,
+        center_x_values=[10,12,14,16,18,20],center_y_values=[14,16,18,20,22],
+        radius_values=[10,12,14,16,18])
+    assert right['FS']==pytest.approx(left['FS'],rel=1e-6)
+    assert right['evaluated_surfaces']>0
+
+
+def test_usace_developed_rankine_pressure_matches_em_5_34_and_5_35():
+    gamma,Df,L,phi,c,fs=9.0,2.0,3.0,30.0,10.0,2.0
+    r=developed_rankine_sliding_earth_pressures(
+        effective_unit_weight_kn_m3=gamma,footing_depth_m=Df,
+        footing_length_m=L,friction_angle_deg=phi,cohesion_kpa=c,
+        fs_sliding=fs)
+    phi_d=math.atan(math.tan(math.radians(phi))/fs)
+    cd=c/fs
+    sin_d=math.sin(phi_d)
+    ka=(1-sin_d)/(1+sin_d)
+    kp=1/ka
+    # USACE EM 1110-1-1905 (2025), Eqs. 5-34 and 5-35 explicitly
+    # use +/- 2 c'_d, not the alternate classical 2 c'_d sqrt(K) form.
+    expected_pa=max(0,(.5*gamma*Df*ka-2*cd)*Df*L)
+    expected_pp=(.5*gamma*Df*kp+2*cd)*Df*L
+    assert r['active_force_kN']==pytest.approx(expected_pa)
+    assert r['passive_force_kN']==pytest.approx(expected_pp)
+
+
+def test_burland_burbidge_uses_gross_pressure_and_usace_2025_coefficients():
+    r=burland_burbidge_2025_settlement(
+        n60_average=20,width_m=2,length_m=2,gross_pressure_kpa=100,
+        initial_effective_stress_kpa=50,preconsolidation_stress_kpa=50,
+        granular_layer_thickness_m=20,years=3,load_type='static')
+    # USACE EM 1110-1-1905 (2025) Eqs. 7-27 to 7-29:
+    # ZI=1.43 B^0.7 (ft), Ic=0.35/N60^1.4 (tsf^-1), q is gross.
+    b_ft=2/0.3048
+    zi_ft=1.43*b_ft**0.7
+    ic=.35/20**1.4
+    q_tsf=100/95.7605
+    s0_tsf=50/95.7605
+    expected_ft=(1.0*1.0*1.3)*(q_tsf+s0_tsf)*zi_ft*ic
+    assert r['influence_depth_m']==pytest.approx(zi_ft*.3048)
+    assert r['Ic_tsf_inv']==pytest.approx(ic)
+    assert r['settlement_mm']==pytest.approx(expected_ft*304.8)
+
+
+@pytest.mark.parametrize("theory",["Hansen","Vesic"])
+def test_classical_depth_factor_uses_actual_footing_width_with_eccentricity(theory):
+    r=bearing_capacity(theory=theory,c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=4,L=8,Df=2,water_depth=5,
+        eccentricity_B=0.5,eccentricity_L=0.5)
+    Be=3.0
+    if theory=="Meyerhof":
+        kp=math.tan(math.radians(60))**2
+        expected=1+0.2*math.sqrt(kp)*2/4
+    else:
+        ratio=2/4
+        ang=ratio
+        dq=1+2*math.tan(math.radians(30))*(1-math.sin(math.radians(30)))**2*ang
+        expected=dq-(1-dq)/(r['Nc']*math.tan(math.radians(30)))
+    assert r['dc']==pytest.approx(expected)
+    assert r['B_effective']==pytest.approx(Be)
+
+
+def test_meyerhof_shape_and_depth_factors_interpolate_below_ten_degrees():
+    phi=5.0; B=2.0; L=6.0; Df=1.0
+    r=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=phi,
+        gamma_moist=18,gamma_sub=9,B=B,L=L,Df=Df,water_depth=5)
+    kp10=math.tan(math.radians(50))**2
+    expected_s=1+0.1*kp10*(B/L)*(phi/10)
+    expected_dq=1+0.1*math.sqrt(kp10)*(Df/B)*(phi/10)
+    assert r['sq']==pytest.approx(expected_s)
+    assert r['sg']==pytest.approx(expected_s)
+    assert r['dq']==pytest.approx(expected_dq)
+    assert r['dg']==pytest.approx(expected_dq)
+
+
+def test_layered_bearing_checks_each_weak_layer_in_three_layer_profile():
+    layers=[
+        {'thickness_m':1.0,'c_kpa':100,'phi_deg':32,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18},
+        {'thickness_m':1.0,'c_kpa':120,'phi_deg':35,'gamma_below_kn_m3':18},
+        {'thickness_m':2.0,'c_kpa':5,'phi_deg':15,'gamma_below_kn_m3':18},
+    ]
+    r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
+        footing_length_m=4,footing_depth_m=1,water_depth_m=5)
+    assert r['layers'][2]['layer']==3
+    assert any(x['controlling_layer']==3 for x in r['candidates'])
+
+
+def test_meyerhof_undrained_depth_factor_uses_effective_width_per_usace_2025():
+    r=bearing_capacity(theory="Meyerhof",c_kpa=100,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1.5,water_depth=5,
+        eccentricity_B=0.2)
+    assert r["B_effective"]==pytest.approx(1.6)
+    assert r["dc"]==pytest.approx(1+0.2*1.5/1.6)
