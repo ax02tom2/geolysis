@@ -1255,3 +1255,40 @@ def test_bishop_mirrored_slopes_have_same_factor_of_safety():
         radius_values=[10,12,14,16,18])
     assert right['FS']==pytest.approx(left['FS'],rel=1e-6)
     assert right['evaluated_surfaces']>0
+
+
+def test_usace_developed_rankine_pressure_matches_em_5_34_and_5_35():
+    gamma,Df,L,phi,c,fs=9.0,2.0,3.0,30.0,10.0,2.0
+    r=developed_rankine_sliding_earth_pressures(
+        effective_unit_weight_kn_m3=gamma,footing_depth_m=Df,
+        footing_length_m=L,friction_angle_deg=phi,cohesion_kpa=c,
+        fs_sliding=fs)
+    phi_d=math.atan(math.tan(math.radians(phi))/fs)
+    cd=c/fs
+    sin_d=math.sin(phi_d)
+    ka=(1-sin_d)/(1+sin_d)
+    kp=1/ka
+    # USACE EM 1110-1-1905 (2025), Eqs. 5-34 and 5-35 explicitly
+    # use +/- 2 c'_d, not the alternate classical 2 c'_d sqrt(K) form.
+    expected_pa=max(0,(.5*gamma*Df*ka-2*cd)*Df*L)
+    expected_pp=(.5*gamma*Df*kp+2*cd)*Df*L
+    assert r['active_force_kN']==pytest.approx(expected_pa)
+    assert r['passive_force_kN']==pytest.approx(expected_pp)
+
+
+def test_burland_burbidge_uses_gross_pressure_and_usace_2025_coefficients():
+    r=burland_burbidge_2025_settlement(
+        n60_average=20,width_m=2,length_m=2,gross_pressure_kpa=100,
+        initial_effective_stress_kpa=50,preconsolidation_stress_kpa=50,
+        granular_layer_thickness_m=20,years=3,load_type='static')
+    # USACE EM 1110-1-1905 (2025) Eqs. 7-27 to 7-29:
+    # ZI=1.43 B^0.7 (ft), Ic=0.35/N60^1.4 (tsf^-1), q is gross.
+    b_ft=2/0.3048
+    zi_ft=1.43*b_ft**0.7
+    ic=.35/20**1.4
+    q_tsf=100/95.7605
+    s0_tsf=50/95.7605
+    expected_ft=(1.0*1.0*1.5)*(q_tsf+s0_tsf)*zi_ft*ic
+    assert r['influence_depth_m']==pytest.approx(zi_ft*.3048)
+    assert r['Ic_tsf_inv']==pytest.approx(ic)
+    assert r['settlement_mm']==pytest.approx(expected_ft*304.8)
