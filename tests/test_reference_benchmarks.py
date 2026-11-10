@@ -504,3 +504,65 @@ def test_usace_2025_appendix_b1_undrained_isolated_footing():
         (expected_qult / 3.0) / ksf_to_kpa, abs=1e-8
     )
 
+def test_usace_2025_appendix_b3a_drained_isolated_footing():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-3,
+    # Table B-3a (printed pp. 303-306).
+    # Published rounded result: qult=32.15 ksf. The engine retains full
+    # precision in N, Nq, Ngamma and correction factors, so its exact
+    # equation result is checked separately from the rounded table value.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 7.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.135 * kcf_to_kn_m3
+    water_depth = 13.0 * ft_to_m
+    phi = 34.0
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=0.0,
+        phi_deg=phi,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=width,
+        Df=embedment,
+        water_depth=water_depth,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=0.0,
+        phi_deg=phi,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    phi_rad = math.radians(phi)
+    flow_n = math.tan(math.radians(45.0) + phi_rad / 2.0) ** 2
+    nq = flow_n * math.exp(math.pi * math.tan(phi_rad))
+    ngamma = (nq - 1.0) * math.tan(1.4 * phi_rad)
+    q0 = 0.27 * ksf_to_kpa
+    sq = 1.0 + 0.1 * flow_n
+    dq = 1.0 + 0.1 * math.sqrt(flow_n) * (2.0 / 7.0)
+    sg = sq
+    dgamma = dq
+    expected_qult_kpa = (
+        q0 * nq * sq * dq
+        + 0.5 * width * gamma * ngamma * sg * dgamma
+    )
+
+    assert result["Nq"] == pytest.approx(nq, rel=1e-12)
+    assert result["Ngamma"] == pytest.approx(ngamma, rel=1e-12)
+    assert result["sq"] == pytest.approx(sq, rel=1e-12)
+    assert result["dq"] == pytest.approx(dq, rel=1e-12)
+    assert result["sg"] == pytest.approx(sg, rel=1e-12)
+    assert result["dg"] == pytest.approx(dgamma, rel=1e-12)
+    assert result["gamma_effective_2025_factor"] == pytest.approx(1.0)
+    assert result["qu_gross"] == pytest.approx(expected_qult_kpa, rel=1e-12)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.33, abs=0.01)
+    # The manual reports 32.15 ksf after rounding its intermediate values.
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.15, abs=0.20)
+
