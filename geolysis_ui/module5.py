@@ -178,12 +178,13 @@ def render_module_5(expanded=False):
             with lc:
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
                 footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
+            if footing_kind5=="continuous": st.caption("連續條形基礎按 L/B→∞ 的 strip 極限計算形狀係數；不採用目前 L 欄位的有限長寬比。")
             if st.button("計算多層穿刺承載力",key="m5x_layer_run"):
                 try:
-                    top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,
+                    top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,footing_type=footing_kind5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
                         B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5)
-                    low=bearing_capacity(theory="Meyerhof",c_kpa=c_low5,phi_deg=phi_low5,
+                    low=bearing_capacity(theory="Meyerhof",c_kpa=c_low5,phi_deg=phi_low5,footing_type=footing_kind5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
                         B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5)
                     layered=layered_bearing_capacity_punching(
