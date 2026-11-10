@@ -411,7 +411,13 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 # Undrained q-term factors are unity; retain Hansen's
                 # classical undrained cohesion inclination expression.
                 iq=ig=1.0
-                ic=(0.5+0.5*math.sqrt(max(0.0,1.0-H/(A*ca))) if ca>0 else (1.0 if H==0 else 0.0))
+                if ca>0:
+                    h_adhesion_ratio=H/(A*ca)
+                    if h_adhesion_ratio>1.0:
+                        raise ValueError('Hansen 不排水水平載重已超過基底黏著抗力 ca·A；請核對 H、ca 及有效基礎面積')
+                    ic=0.5+0.5*math.sqrt(1.0-h_adhesion_ratio)
+                else:
+                    ic=1.0 if H==0 else 0.0
     # Surcharge at footing base: drained analyses use effective stress;
     # undrained (phi=0) analyses use total stress, per USACE Table 5-1.
     # gamma_sub is submerged unit weight, so gamma_sat = gamma_sub + gamma_w.
