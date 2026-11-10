@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -1091,7 +1091,36 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         seismic=st.session_state.get("m5x_seismic_result")
         if seismic and st.session_state.get("m5x_seismic_signature")== (V5,H5,area5,kh5,kv5):
             st.dataframe(pd.DataFrame(seismic["cases"]),hide_index=True,use_container_width=True)
+
             st.caption(seismic["limitations"])
+        st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
+        st.caption("僅適用砂狀土且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。")
+        ss1,ss2,ss3=st.columns(3)
+        with ss1:
+            ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
+            seismic_footing5=st.selectbox("基礎型式",["spread","strip"],format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",key="m5x_seismic_footing")
+        with ss2:
+            ngamma_seismic5=st.number_input("承載力因子 Nγ",0.0,2000.0,20.0,0.5,key="m5x_seismic_ng")
+            gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]",1.0,25.0,9.5,0.5,key="m5x_seismic_gamma")
+        with ss3:
+            corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積",0.01,1.0,1.0,0.01,key="m5x_seismic_corr")
+        if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
+            try:
+                sr=seismic_bearing_capacity_residual_pore_pressure(
+                    footing_type=seismic_footing5,effective_unit_weight_kn_m3=gamma_seismic5,
+                    effective_width_m=(B5-2*eB5),bearing_factor_ngamma=ngamma_seismic5,
+                    residual_excess_pore_pressure_ratio=ru5,
+                    shape_depth_inclination_factor=corr_seismic5)
+                st.session_state["m5x_seismic_capacity_result"]=sr
+                st.session_state["m5x_seismic_capacity_signature"]=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
+            except Exception as exc:
+                st.error(f"地震孔壓折減承載力計算失敗：{exc}")
+        sr=st.session_state.get("m5x_seismic_capacity_result")
+        sr_sig=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
+        if sr and st.session_state.get("m5x_seismic_capacity_signature")==sr_sig:
+            st.metric("地震孔壓折減後極限承載力",f"{sr['qu_seismic_kpa']:.1f} kPa")
+            st.caption(sr["limitations"])
+
 
     with st.expander("⑤ 基礎底面滑動安全係數",expanded=False):
         st.caption("依 USACE 2025 式 5-28／5-29。基底摩擦、黏著、揚壓力分別輸入；主動／被動土壓需先以 developed strength 另行計算。")
