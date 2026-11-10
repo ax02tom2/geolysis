@@ -410,8 +410,13 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 # classical undrained cohesion inclination expression.
                 iq=ig=1.0
                 ic=(0.5+0.5*math.sqrt(max(0.0,1.0-H/(A*ca))) if ca>0 else (1.0 if H==0 else 0.0))
-    # Effective surcharge at foundation base and gamma in N-gamma term.
-    q=gamma*min(Df,Dw)+gsub*max(0.0,Df-Dw)
+    # Surcharge at footing base: drained analyses use effective stress;
+    # undrained (phi=0) analyses use total stress, per USACE Table 5-1.
+    # gamma_sub is submerged unit weight, so gamma_sat = gamma_sub + gamma_w.
+    if phi_use == 0:
+        q=gamma*min(Df,Dw)+(gsub+9.81)*max(0.0,Df-Dw)
+    else:
+        q=gamma*min(Df,Dw)+gsub*max(0.0,Df-Dw)
     if Dw<=Df: gamma_eff=gsub
     elif Dw<Df+Be: gamma_eff=gsub+(gamma-gsub)*(Dw-Df)/Be
     else: gamma_eff=gamma
