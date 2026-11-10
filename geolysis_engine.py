@@ -266,17 +266,19 @@ def usace_meyerhof_settlement_allowable(*, n60, width_m, embedment_m, settlement
 
 
 def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df,
-                     water_depth, fs=3.0, load_angle=0.0, horizontal_load=None,
+                     water_depth, gamma_below=None, fs=3.0, load_angle=0.0, horizontal_load=None,
                      vertical_load=None, area=None, failure_mode='general', load_direction='parallel_B', adhesion_ratio=0.6, eccentricity_B=0.0, eccentricity_L=0.0):
     """Shallow footing ultimate bearing capacity using consistent theory families.
     Strip/rectangular footing; level base/ground only. Base/ground slope and seismic
     effects intentionally excluded rather than approximated with wrong factors.
     """
-    vals={'c':c_kpa,'phi':phi_deg,'gamma':gamma_moist,'gamma_sub':gamma_sub,'B':B,'L':L,'Df':Df,'Dw':water_depth,'FS':fs,'beta':load_angle,'eB':eccentricity_B,'eL':eccentricity_L}
+    if gamma_below is None:
+        gamma_below=gamma_moist
+    vals={'c':c_kpa,'phi':phi_deg,'gamma':gamma_moist,'gamma_sub':gamma_sub,'gamma_below':gamma_below,'B':B,'L':L,'Df':Df,'Dw':water_depth,'FS':fs,'beta':load_angle,'eB':eccentricity_B,'eL':eccentricity_L}
     v={k:_finite(k,x) for k,x in vals.items()}
-    c,phi_deg,gamma,gsub,B,L,Df,Dw,FS,beta,eB,eL=[v[k] for k in ('c','phi','gamma','gamma_sub','B','L','Df','Dw','FS','beta','eB','eL')]
-    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gsub>gamma or B<=0 or L<B or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90:
-        raise ValueError('承載力輸入值不合理；需 γ′≤γ、矩形基礎 L≥B、FS>1，且 ϕ≤50°')
+    c,phi_deg,gamma,gsub,gbelow,B,L,Df,Dw,FS,beta,eB,eL=[v[k] for k in ('c','phi','gamma','gamma_sub','gamma_below','B','L','Df','Dw','FS','beta','eB','eL')]
+    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gbelow<=0 or gsub>gbelow or B<=0 or L<B or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90:
+        raise ValueError('承載力輸入值不合理；需 γ′≤基礎底下總單位重、矩形基礎 L≥B、FS>1，且 ϕ≤50°')
     if eB<0 or eL<0: raise ValueError('偏心距不可為負值；請輸入偏心距絕對值')
     Be=B-2*eB; Le=L-2*eL
     if Be<=0 or Le<=0 or Le<Be: raise ValueError('有效基礎尺寸必須為正，且有效長邊 L′ ≥ 有效短邊 B′')
@@ -378,7 +380,6 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         ar=_finite('基底黏著比',adhesion_ratio)
         if H<0 or V<=0 or A<=0 or not 0<=ar<=1: raise ValueError('水平載重需≥0、垂直載重及面積需>0，基底黏著比須在 [0,1]')
         ca=c*ar
-        theta_load=math.degrees(math.atan2(H,V))
         if 'vesic' in th:
             # Vesic's m uses the aspect ratio perpendicular to the
             # horizontal-load direction: parallel B -> L/B; parallel L -> B/L.
@@ -406,7 +407,9 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 hratio=H/denom
                 if hratio>=1.0: raise ValueError('水平載重已達或超過 Hansen 公式可用抗力；請核對 H、V、基底面積及 ca/c')
                 iq=(1-0.5*hratio)**5
-                ig=(1-(0.7-theta_load/450.0)*hratio)**5
+                # Level ground is assumed; Hansen's 0.7 coefficient is
+                # reduced only by ground slope beta, which is not modeled here.
+                ig=(1-0.7*hratio)**5
                 ic=iq-(1-iq)/(Nq-1)
             else:
                 # Undrained q-term factors are unity; retain Hansen's
@@ -428,9 +431,15 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         q=gamma*min(Df,Dw)+(gsub+9.81)*max(0.0,Df-Dw)
     else:
         q=gamma*min(Df,Dw)+gsub*max(0.0,Df-Dw)
+    # Classical groundwater correction over the shear-zone depth
+    # H = B' tan(45 + phi/2), consistent with USACE 1992 Example 4-5.
+    # gamma_below is the total unit weight beneath the footing; gamma_sub
+    # is its submerged/effective unit weight.
+    shear_zone_depth=Be*math.tan(math.radians(45+phi_use/2))
     if Dw<=Df: gamma_eff=gsub
-    elif Dw<Df+Be: gamma_eff=gsub+(gamma-gsub)*(Dw-Df)/Be
-    else: gamma_eff=gamma
+    elif Dw<Df+shear_zone_depth:
+        gamma_eff=gsub+(gbelow-gsub)*(Dw-Df)/shear_zone_depth
+    else: gamma_eff=gbelow
     tc=c_use*Nc*sc*dc*ic
     tq=q*Nq*sq*dq*iq
     tg=0.5*gamma_eff*Be*Ng*sg*dg*ig
@@ -440,7 +449,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     qallow_gross=qallow_net+q
     return {'theory':theory,'Nc':Nc,'Nq':Nq,'Ngamma':Ng,'sc':sc,'sq':sq,'sg':sg,
             'dc':dc,'dq':dq,'dg':dg,'ic':ic,'iq':iq,'ig':ig,'q_surcharge':q,
-            'gamma_effective':gamma_eff,'term_c':tc,'term_q':tq,'term_gamma':tg,
+            'gamma_effective':gamma_eff,'gamma_below_total':gbelow,'shear_zone_depth':shear_zone_depth,'term_c':tc,'term_q':tq,'term_gamma':tg,
             'qu_gross':qu,'qu_net':qnet,'qu_gross_over_FS':qu/FS,'qa_gross_direct_FS':qu/FS,'qa_net':qallow_net,'qa_gross':qallow_gross,
             'FS':FS,'B_effective':Be,'L_effective':Le,'eccentricity_B':eB,'eccentricity_L':eL,'c_used':c_use,'phi_used':phi_use,'failure_mode':failure_mode,'adhesion_ratio':adhesion_ratio,'limitations':'水平基底、水平地表、淺基礎靜力分析；未含斜坡地表、基底傾斜、地震及分層地盤。偏心載重以 B′=B−2eB、L′=L−2eL 有效尺寸處理；Terzaghi 模式不接受偏心距。水平力僅納入 Hansen／Vesic 承載力傾斜係數，未計算基底滑動安全係數、被動土壓或整體穩定；本模組亦不取代沉陷檢核。'}
 
