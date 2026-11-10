@@ -494,7 +494,9 @@ def test_hansen_vesic_allow_zero_base_adhesion_for_smooth_footing():
     h=bearing_capacity(theory='Hansen',**base)
     v=bearing_capacity(theory='Vesic',**base)
     assert h['ic']==0
-    assert v['ic']==0
+    # Vesic uses soil cohesion c in the undrained inclination factor;
+    # ca=0 only removes Hansen's interface-adhesion contribution.
+    assert v['ic']>0
 
 
 
@@ -902,3 +904,26 @@ def test_meyerhof_undrained_rejects_nonpositive_inclination_factor():
         bearing_capacity(theory='Meyerhof',c_kpa=50,phi_deg=0,
             gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=10,
             load_angle=40)
+
+
+def test_vesic_surcharge_shape_factor_uses_tan_phi_not_sin_phi():
+    r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
+    assert r['sq']==pytest.approx(1+(2/6)*math.tan(math.radians(30)))
+
+
+def test_hansen_surcharge_shape_factor_retains_sin_phi():
+    r=bearing_capacity(theory='Hansen',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
+    assert r['sq']==pytest.approx(1+(2/6)*math.sin(math.radians(30)))
+
+
+def test_undrained_hansen_and_vesic_keep_surcharge_and_unit_weight_factors_unity():
+    common=dict(c_kpa=50,phi_deg=0,gamma_moist=18,gamma_sub=9,
+        B=2,L=6,Df=3,water_depth=10,horizontal_load=100,vertical_load=1000)
+    for theory in ('Hansen','Vesic'):
+        r=bearing_capacity(theory=theory,**common)
+        assert r['iq']==pytest.approx(1.0)
+        assert r['ig']==pytest.approx(1.0)
+        assert r['term_q']==pytest.approx(r['q_surcharge'])
+        assert r['term_gamma']==pytest.approx(0.0)
