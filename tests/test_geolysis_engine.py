@@ -943,3 +943,19 @@ def test_vesic_undrained_rejects_nonpositive_inclination_factor():
         bearing_capacity(theory='Vesic',c_kpa=5,phi_deg=0,
             gamma_moist=18,gamma_sub=9,B=2,L=3,Df=1,water_depth=5,
             horizontal_load=1000,vertical_load=1000)
+
+
+def test_meyerhof_drained_unit_weight_shape_factor_is_not_suppressed_below_ten_degrees():
+    phi=5.0
+    r=bearing_capacity(theory='Meyerhof',c_kpa=0,phi_deg=phi,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
+    kp=math.tan(math.radians(45+phi/2))**2
+    expected=1+0.1*kp*(2/6)
+    assert r['sq']==pytest.approx(expected)
+    assert r['sg']==pytest.approx(expected)
+
+
+def test_drained_bearing_surcharge_uses_effective_unit_weight_below_water_table():
+    r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=3,Df=3,water_depth=1)
+    assert r['q_surcharge']==pytest.approx(18*1+9*(3-1))
