@@ -63,3 +63,18 @@ GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測
 ## 工程使用限制
 
 本系統提供工程計算與分類輔助，不取代現地調查、試驗資料、地層模型、規範選用與工程師審查。使用者應確認輸入參數、單位、排水條件、載重組合、地下水位及公式適用範圍。所有結果都應保留輸入資料、公式方法與適用限制供專業人員審查。
+
+
+## 程式結構（重構第一階段）
+
+計算引擎已拆分為領域模組，並保留原有匯入介面：
+
+- `geolysis_engine.classification`：USCS／AASHTO 土壤分類
+- `geolysis_engine.spt`：SPT 修正與深度剖面
+- `geolysis_engine.bearing`：承載力與斜坡、分層、地震修正
+- `geolysis_engine.settlement`：固結、即時、次壓縮與差異沉陷
+- `geolysis_engine.rock`：Hoek–Brown 岩體參數
+- `geolysis_engine.stability`：基礎滑動與 Bishop 整體穩定
+- `geolysis_engine._common`：共用數值驗證
+
+既有程式仍可使用 `from geolysis_engine import bearing_capacity` 等匯入方式，不必一次修改全部呼叫端。Streamlit UI 的頁面拆分將在下一階段進行，避免同時改動介面執行流程與計算模組。
