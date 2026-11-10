@@ -237,6 +237,6 @@ def test_drained_sliding_matches_usace_equation_5_29():
     )
     resistance = (1000 - 100) * math.tan(math.radians(30)) + 0.5 * 10 * 10
     driving = 100 + 20 - 30
-    assert result["resistance_kN"] == pytest.approx(resistance)
-    assert result["driving_kN"] == pytest.approx(driving)
+    assert result["resisting_force_kN"] == pytest.approx(resistance)
+    assert result["driving_force_kN"] == pytest.approx(driving)
     assert result["FS_sliding"] == pytest.approx(resistance / driving)
