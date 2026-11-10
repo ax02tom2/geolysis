@@ -945,7 +945,8 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
     with excol: eL5=st.number_input("長邊方向偏心距 eL [m]",0.0,max(0.001,eL_max5),0.0,0.01,key='m5_eL',disabled=eL_disabled5)
     if theory5=='Terzaghi': st.caption("Terzaghi 本頁不支援偏心荷載；切換至 Terzaghi 時偏心距會重設為 0。")
     load_dir5=st.selectbox("水平力方向（Vesic 公式）",['parallel_B','parallel_L'],format_func=lambda x:'平行短邊 B' if x=='parallel_B' else '平行長邊 L',disabled=(theory5!='Vesic'),key='m5_load_dir')
-    adhesion5=st.number_input("基底黏著係數 ca/c（Hansen／Vesic）",0.0,1.0,0.6,0.1,key='m5_adhesion')
+    adhesion5=st.number_input("Hansen 基底黏著係數 ca/c（Vesic 使用土體 c）",0.0,1.0,0.6,0.1,key='m5_adhesion',disabled=(theory5!='Hansen'))
+    st.caption("Hansen 水平力修正使用基底界面黏著 ca；Vesic 修正依土體凝聚力 c。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
     hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi)) if use_hb5 else ()
     m5_input_signature=(theory5,src5,float(c5),float(phi5),float(gamma5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
     if st.button("計算極限承載力",key='m5_run'):
