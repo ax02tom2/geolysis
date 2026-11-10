@@ -1295,7 +1295,7 @@ def test_burland_burbidge_uses_gross_pressure_and_usace_2025_coefficients():
     assert r['settlement_mm']==pytest.approx(expected_ft*304.8)
 
 
-@pytest.mark.parametrize("theory",["Meyerhof","Hansen","Vesic"])
+@pytest.mark.parametrize("theory",["Hansen","Vesic"])
 def test_classical_depth_factor_uses_actual_footing_width_with_eccentricity(theory):
     r=bearing_capacity(theory=theory,c_kpa=10,phi_deg=30,
         gamma_moist=18,gamma_sub=9,B=4,L=8,Df=2,water_depth=5,
@@ -1336,3 +1336,11 @@ def test_layered_bearing_checks_each_weak_layer_in_three_layer_profile():
         footing_length_m=4,footing_depth_m=1,water_depth_m=5)
     assert r['layers'][2]['layer']==3
     assert any(x['controlling_layer']==3 for x in r['candidates'])
+
+
+def test_meyerhof_undrained_depth_factor_uses_effective_width_per_usace_2025():
+    r=bearing_capacity(theory="Meyerhof",c_kpa=100,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1.5,water_depth=5,
+        eccentricity_B=0.2)
+    assert r["B_effective"]==pytest.approx(1.6)
+    assert r["dc"]==pytest.approx(1+0.2*1.5/1.6)
