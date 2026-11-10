@@ -1,7 +1,7 @@
 import math
 import pytest
 from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
-    usace_meyerhof_settlement_allowable, bearing_capacity,
+    usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, bearing_capacity,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
