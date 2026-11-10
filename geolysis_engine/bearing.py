@@ -34,7 +34,7 @@ def usace_meyerhof_settlement_allowable(*, n60, width_m, embedment_m, settlement
 
 def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df,
                      water_depth, gamma_below=None, fs=3.0, load_angle=0.0, horizontal_load=None,
-                     vertical_load=None, area=None, failure_mode='general', load_direction='parallel_B', adhesion_ratio=0.6, eccentricity_B=0.0, eccentricity_L=0.0):
+                     vertical_load=None, area=None, failure_mode='general', load_direction='parallel_B', adhesion_ratio=0.6, eccentricity_B=0.0, eccentricity_L=0.0, footing_type='isolated'):
     """Shallow footing ultimate bearing capacity using consistent theory families.
     Strip/rectangular footing; level base/ground only. Base/ground slope and seismic
     effects intentionally excluded rather than approximated with wrong factors.
@@ -44,9 +44,10 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     vals={'c':c_kpa,'phi':phi_deg,'gamma':gamma_moist,'gamma_sub':gamma_sub,'gamma_below':gamma_below,'B':B,'L':L,'Df':Df,'Dw':water_depth,'FS':fs,'beta':load_angle,'eB':eccentricity_B,'eL':eccentricity_L}
     v={k:_finite(k,x) for k,x in vals.items()}
     c,phi_deg,gamma,gsub,gbelow,B,L,Df,Dw,FS,beta,eB,eL=[v[k] for k in ('c','phi','gamma','gamma_sub','gamma_below','B','L','Df','Dw','FS','beta','eB','eL')]
-    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gbelow<=0 or gsub>gbelow or B<=0 or L<B or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90:
+    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gbelow<=0 or gsub>gbelow or B<=0 or L<B or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90 or footing_type not in ('isolated','continuous'):
         raise ValueError('承載力輸入值不合理；需 γ′≤基礎底下總單位重、矩形基礎 L≥B、FS>1，且 ϕ≤50°')
     if eB<0 or eL<0: raise ValueError('偏心距不可為負值；請輸入偏心距絕對值')
+    if footing_type=='continuous' and eL>0: raise ValueError('連續條形基礎不支援沿條形長度方向的偏心距；請改用獨立／矩形基礎模型或專用分析')
     Be=B-2*eB; Le=L-2*eL
     if Be<=0 or Le<=0 or Le<Be: raise ValueError('有效基礎尺寸必須為正，且有效長邊 L′ ≥ 有效短邊 B′')
     th=theory.lower()
@@ -90,7 +91,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         if 'vesic' in th: Ng=2*(Nq+1)*tanp
         elif 'hansen' in th: Ng=1.5*(Nq-1)*tanp
         else: Ng=(Nq-1)*math.tan(1.4*ph)
-    br=Be/Le
+    br=0.0 if footing_type=='continuous' else Be/Le
     if 'terzaghi' in th:
         if horizontal_load is not None and float(horizontal_load)>0:
             raise ValueError('Terzaghi 原始公式不套用水平載重傾斜修正；請改用 Hansen/Vesic/Meyerhof')
@@ -232,7 +233,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
             'dc':dc,'dq':dq,'dg':dg,'ic':ic,'iq':iq,'ig':ig,'q_surcharge':q,
             'gamma_effective':gamma_eff,'gamma_below_total':gbelow,'shear_zone_depth':shear_zone_depth,'term_c':tc,'term_q':tq,'term_gamma':tg,
             'qu_gross':qu,'qu_net':qnet,'qu_gross_over_FS':qu/FS,'qa_gross_direct_FS':qu/FS,'qa_net':qallow_net,'qa_gross':qallow_gross,
-            'FS':FS,'B_effective':Be,'L_effective':Le,'eccentricity_B':eB,'eccentricity_L':eL,'c_used':c_use,'phi_used':phi_use,'failure_mode':failure_mode,'adhesion_ratio':adhesion_ratio,'limitations':'水平基底、水平地表、淺基礎靜力分析；未含斜坡地表、基底傾斜、地震及分層地盤。偏心載重以 B′=B−2eB、L′=L−2eL 有效尺寸處理；Terzaghi 模式不接受偏心距。水平力僅納入 Hansen／Vesic 承載力傾斜係數，未計算基底滑動安全係數、被動土壓或整體穩定；本模組亦不取代沉陷檢核。'}
+            'FS':FS,'B_effective':Be,'L_effective':Le,'footing_type':footing_type,'eccentricity_B':eB,'eccentricity_L':eL,'c_used':c_use,'phi_used':phi_use,'failure_mode':failure_mode,'adhesion_ratio':adhesion_ratio,'limitations':'水平基底、水平地表、淺基礎靜力分析；未含斜坡地表、基底傾斜、地震及分層地盤。偏心載重以 B′=B−2eB、L′=L−2eL 有效尺寸處理；Terzaghi 模式不接受偏心距。水平力僅納入 Hansen／Vesic 承載力傾斜係數，未計算基底滑動安全係數、被動土壓或整體穩定；本模組亦不取代沉陷檢核。'}
 
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
@@ -267,6 +268,7 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     if ag > 0 and fs_slope <= 1.3:
         raise ValueError('鄰接坡體整體穩定 FS 必須大於 1.3，否則不可套用 USACE 表 5-3 的地表坡角修正係數')
     B=base_result['B_effective']; L=base_result['L_effective']
+    shape_ratio=0.0 if base_result.get('footing_type')=='continuous' else B/L
     Df=base_result.get('Df')
     if Df is None or B<=0 or L<=0:
         raise ValueError('基礎結果缺少有效尺寸或埋深，無法套用 USACE 2025 修正')
@@ -276,9 +278,9 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         tp=math.tan(math.radians(phi))
         flow_n=math.tan(math.radians(45.0+phi/2.0))**2
         # USACE 2025 Table 5-2: use effective footing dimensions B' and L'.
-        sq=1.0+0.1*flow_n*B/L
-        sc=1.0+0.2*flow_n*B/L
-        sg=1.0+0.1*flow_n*B/L
+        sq=1.0+0.1*flow_n*shape_ratio
+        sc=1.0+0.2*flow_n*shape_ratio
+        sg=1.0+0.1*flow_n*shape_ratio
         dq=1.0+0.1*math.sqrt(flow_n)*Df/B
         dc=1.0+0.2*math.sqrt(flow_n)*Df/B
         dg_factor=1.0+0.1*math.sqrt(flow_n)*Df/B
