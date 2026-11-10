@@ -1275,6 +1275,6 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
 - **斜坡地表／傾斜基底**：USACE [EM 1110-1-1905（2025）](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)，Table 5-3、5-4、Eqs. 5-21／5-22。
 - **多層穿刺承載力**：同手冊 Eqs. 5-17／5-18、Figure 5-6；採 2V:1H 應力擴散。
 - **地震承載力**：同手冊 Chapter 9 §9-10、Eqs. 9-3／9-4（Day, 2012）；另參考 [Fishman, Richards & Yao (2003), Inclination Factors for Seismic Bearing Capacity](https://doi.org/10.1061/(ASCE)1090-0241(2003)129:9(861))。
-- **基底滑動**：USACE 2025 Eqs. 5-28／5-29、§5-6；主動／被動土壓須使用 developed strength。
+- **基底滑動**：USACE 2025 Eqs. 5-28／5-30、§5-6；可使用 Eqs. 5-31 至 5-35 依 developed strength 估算 Rankine 主動／被動土壓，或手動輸入已折減土壓。
 - **整體穩定**：USACE [EM 1110-2-1902, Slope Stability](https://www.publications.usace.army.mil/Portals/76/Publications/EngineerManuals/EM_1110-2-1902.pdf)；本頁採 Bishop simplified，另提供圓弧搜尋。Bishop 以外仍應以 Spencer／Morgenstern–Price 交叉檢核。
         """)
