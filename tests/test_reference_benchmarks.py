@@ -642,3 +642,21 @@ def test_usace_2025_appendix_b2_undrained_continuous_footing():
     assert result["qu_gross"] == pytest.approx(expected_qult, rel=1e-8)
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(3.32, abs=0.01)
 
+@pytest.mark.parametrize("theory", ["Terzaghi", "Meyerhof", "Hansen", "Vesic"])
+def test_continuous_footing_uses_strip_limit_shape_factors_for_all_theories(theory):
+    result = bearing_capacity(
+        theory=theory,
+        c_kpa=10.0,
+        phi_deg=30.0,
+        gamma_moist=18.0,
+        gamma_sub=9.0,
+        B=2.0,
+        L=2.0,
+        Df=1.0,
+        water_depth=5.0,
+        footing_type="continuous",
+    )
+    assert result["sc"] == pytest.approx(1.0)
+    assert result["sq"] == pytest.approx(1.0)
+    assert result["sg"] == pytest.approx(1.0)
+
