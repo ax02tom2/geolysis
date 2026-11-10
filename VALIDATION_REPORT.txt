@@ -1,12 +1,13 @@
 Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
-Validation branch: review-fixes-2026-11
-Validated commit: 0c6cf6d8554c0c6315ec95c4fbef62e4cf790d9e
+Branch: main
+Merged source commit: c5565e0618657f96198a123ba01a0e1ad61d94f0
+Validation run: 42756150028 (PR validation of identical source tree; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42756065019
+- Run ID: 42756150028
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -33,10 +34,10 @@ B. Items checked against primary references
 1. Burland–Burbidge: §7-13, Eqs. 7-27 to 7-31 confirm gross or gross-equivalent q, Zi = 1.43 B^0.7 (ft), and Ic = 0.35/N̄60^1.4 (tsf^-1). No calculation change was warranted.
 2. Hansen surcharge shape factor: USACE EM 1110-1-1905 (1992), Table 4-5 uses sq = 1 + (B'/W')tanφ. Retained; documentation now identifies this exact source version.
 3. Depth factors: classical Hansen and Vesic branches use k = D/B per 1992 Tables 4-5 and 4-6. Classical drained Meyerhof follows 1992 Table 4-3; the undrained Meyerhof branch follows 2025 Table 5-4 and uses effective width B'. Regression cases cover eccentric footing dimensions.
-4. Sliding: USACE 2025 Eqs. 5-28 to 5-35 confirm developed soil strengths apply to active/passive earth pressures, while base interface resistance uses interface δ' and adhesion ratios. The UI now explains the separate shear zones and warns when passive pressure fully balances the driving force (FS displayed as infinity).
+4. Sliding: USACE 2025 Eqs. 5-28 to 5-35 confirm developed soil strengths apply to active/passive earth pressures, while base interface resistance uses interface δ' and adhesion ratios. The UI explains the separate shear zones and warns when passive pressure fully balances the driving force (FS displayed as infinity).
 5. Multilayer bearing: weak layers in the near shear zone are evaluated separately; strong-over-weak punch-through is checked within the manual's depth ranges (0.5B–2B for isolated footings; 1B–4B for continuous footings). Every lower layer in the supported profile is evaluated. Isolated-footing spread factor uses the USACE Eq. 5-17 denominator B·L. Out-of-range deeper layers are identified rather than silently treated as checked.
 6. Meyerhof small-phi factors: 0°<φ≤10° now linearly interpolates between 0° and 10° values per 1992 Table 4-3.
-7. SPT CN: UI now explains that Liao–Whitman and Seed–Idriss share the basic square-root equation while the Seed–Idriss liquefaction convention caps CN at 1.7. Hoek–Brown Em version is documented as Hoek (2002).
+7. SPT CN: UI explains that Liao–Whitman and Seed–Idriss share the basic square-root equation while the Seed–Idriss liquefaction convention caps CN at 1.7. Hoek–Brown Em version is documented as Hoek (2002).
 
 C. Application and repository quality corrections
 - Bishop groundwater level: replaced the -100 m sentinel with an explicit groundwater checkbox and optional elevation input.
@@ -47,8 +48,8 @@ C. Application and repository quality corrections
 - Removed the obsolete core-log parser test that referenced a module absent from this web repository.
 - Pinned direct UI dependencies to the versions used by CI.
 
-Items intentionally not included in this calculation-correction change set:
-- Large-scale refactor of app.py into Streamlit pages and geolysis_engine.py into a package. This changes module boundaries and UI execution flow; it should be a separate refactor with its own staged regression cycle after the formula corrections are merged.
+Items intentionally left as a separate follow-up:
+- Refactor app.py into Streamlit pages and geolysis_engine.py into a package, plus extract the repeated result/signature session-state logic. This is a behavior-preserving structural refactor; it is deliberately not mixed with formula corrections.
 - Repository description/topics and an open-source LICENSE. No license was chosen on behalf of the repository owner; adding one requires the owner's decision.
 
 Module 5 engineering extensions remain:
