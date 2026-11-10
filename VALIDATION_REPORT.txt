@@ -2,73 +2,71 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Merged source commit: c5565e0618657f96198a123ba01a0e1ad61d94f0
-Validation run: 42756150028 (PR validation of identical source tree; success)
+Validated main code commit: b631f44d4b27e23ed4756cb2721ebd8e843090fd
+Validation run: 42761022578 (PR validation of identical source tree; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42756150028
+- Run ID: 42761022578
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
 - Pandas: 3.1.1 (pinned)
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
-- Compile: app.py and geolysis_engine.py passed
-- Regression and Streamlit AppTest suite: 173 passed
-- Streamlit AppTest: app.py loaded without an uncaught exception
+- Compile: app.py, geolysis_engine package and geolysis_ui package passed
+- Engineering, package-boundary, UI state and web-app regression tests: 180 passed
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
-Review findings and dispositions
+Engineering review corrections previously merged:
+- Meyerhof SPT energy conversion Nn = N60 × 60/n; regression cases for 55% and 70% energy.
+- Bishop simplified pore-pressure term uses u × b, where b is horizontal slice width.
+- Bishop circular search normalizes mirrored-slope direction and reports failed candidate reasons and search-boundary warnings.
+- Meyerhof/Hansen/Vesic depth factors, small-phi interpolation and layered weak-stratum checks aligned with their source-specific USACE manual tables/equations.
+- Developed Rankine pressures retained according to USACE 2025 Eqs. 5-34/5-35 (±2c'd); regression tests lock the cited source convention.
+- Burland–Burbidge gross-pressure treatment and coefficients verified against USACE 2025 §7-13.
+- Sliding distinguishes base-interface resistance from developed strengths for active/passive earth pressure.
+- Bishop groundwater input changed from a sentinel value to an explicit enabled/disabled input.
+- GSI figure source DOI and CC BY 4.0 attribution added.
+- Semantic widget key, broad exception logging, dependency pinning and repository cleanup completed.
 
-A. Confirmed calculation errors corrected
-1. Meyerhof SPT energy conversion: Nn = N60 × 60/n; added 55% and 70% energy regression cases.
-2. Bishop simplified method: pore-pressure term now uses u × b, where b is horizontal slice width; added a numerical benchmark.
-3. Bishop circular search: normalizes the sign convention so horizontally mirrored slopes are both searchable; aggregates principal failure reasons and warns when the minimum-FS solution lies on the search-grid boundary.
-4. Added explicit USACE equation regression tests for developed Rankine earth pressures and Burland–Burbidge constants/gross-pressure treatment.
+C4 modularization — three staged phases merged into main
 
-A2 disposition — no formula change:
-USACE EM 1110-1-1905 (2025), Eqs. 5-34 and 5-35 explicitly use ±2c'd, not ±2c'd√K. The implementation follows the cited manual and a regression test locks that exact source convention.
+Phase 1 — calculation engine package:
+- Replaced the monolithic geolysis_engine.py module with geolysis_engine package.
+- Domain modules: classification.py, spt.py, bearing.py, settlement.py, rock.py, stability.py; shared numeric validation in _common.py.
+- geolysis_engine/__init__.py preserves historical imports (e.g. from geolysis_engine import bearing_capacity).
+- Preserved ROD_CORRECTION constant and rod_factor behavior.
+- Added package compatibility tests.
+- Validation: 176 passed (Actions run 42760557990).
 
-B. Items checked against primary references
-1. Burland–Burbidge: §7-13, Eqs. 7-27 to 7-31 confirm gross or gross-equivalent q, Zi = 1.43 B^0.7 (ft), and Ic = 0.35/N̄60^1.4 (tsf^-1). No calculation change was warranted.
-2. Hansen surcharge shape factor: USACE EM 1110-1-1905 (1992), Table 4-5 uses sq = 1 + (B'/W')tanφ. Retained; documentation now identifies this exact source version.
-3. Depth factors: classical Hansen and Vesic branches use k = D/B per 1992 Tables 4-5 and 4-6. Classical drained Meyerhof follows 1992 Table 4-3; the undrained Meyerhof branch follows 2025 Table 5-4 and uses effective width B'. Regression cases cover eccentric footing dimensions.
-4. Sliding: USACE 2025 Eqs. 5-28 to 5-35 confirm developed soil strengths apply to active/passive earth pressures, while base interface resistance uses interface δ' and adhesion ratios. The UI explains the separate shear zones and warns when passive pressure fully balances the driving force (FS displayed as infinity).
-5. Multilayer bearing: weak layers in the near shear zone are evaluated separately; strong-over-weak punch-through is checked within the manual's depth ranges (0.5B–2B for isolated footings; 1B–4B for continuous footings). Every lower layer in the supported profile is evaluated. Isolated-footing spread factor uses the USACE Eq. 5-17 denominator B·L. Out-of-range deeper layers are identified rather than silently treated as checked.
-6. Meyerhof small-phi factors: 0°<φ≤10° now linearly interpolates between 0° and 10° values per 1992 Table 4-3.
-7. SPT CN: UI explains that Liao–Whitman and Seed–Idriss share the basic square-root equation while the Seed–Idriss liquefaction convention caps CN at 1.7. Hoek–Brown Em version is documented as Hoek (2002).
+Phase 2 — Streamlit UI render modules:
+- app.py is now the page orchestrator for config, title, sidebar and render calls.
+- Module 1–5 UI code moved into geolysis_ui/module1.py through module5.py.
+- Existing single-page layout, sidebar module selection, expander collapse behavior, widget keys and session-state names preserved.
+- Did not convert to Streamlit multipage navigation because that would alter the established single-page workflow.
+- Static widget-key and web-scope tests now inspect all UI modules.
+- Validation: 177 passed (Actions run 42760760772).
 
-C. Application and repository quality corrections
-- Bishop groundwater level: replaced the -100 m sentinel with an explicit groundwater checkbox and optional elevation input.
-- GSI reference figure: added DOI and CC BY 4.0 attribution link; the image itself remains externally hosted, so the UI still depends on the publisher image endpoint.
-- Replaced the line-number-derived widget key with a semantic key.
-- Added logging.exception() to broad application exception handlers.
-- Added .gitignore rules for Python, Streamlit secrets, editor files and build artifacts.
-- Removed the obsolete core-log parser test that referenced a module absent from this web repository.
-- Pinned direct UI dependencies to the versions used by CI.
+Phase 3 — shared result/signature state:
+- Added geolysis_ui/state.py helpers to clear cached results, store results with exact input signatures and detect stale results.
+- Applied to soil classification and Module 5 main, slope/base, layered, seismic, sliding and Bishop result flows.
+- Preserved existing session-state key names and stale-result warning behavior.
+- Added focused helper tests.
+- Validation: 180 passed (Actions run 42761022578).
 
-Items intentionally left as a separate follow-up:
-- Refactor app.py into Streamlit pages and geolysis_engine.py into a package, plus extract the repeated result/signature session-state logic. This is a behavior-preserving structural refactor; it is deliberately not mixed with formula corrections.
-- Repository description/topics and an open-source LICENSE. No license was chosen on behalf of the repository owner; adding one requires the owner's decision.
-
-Module 5 engineering extensions remain:
-1. Sloping ground and inclined footing base corrections.
-2. Multi-layer bearing and 2V:1H punching checks.
-3. Pseudo-static seismic load envelope and residual pore-pressure reduction.
-4. Foundation sliding with developed active/passive pressure.
-5. Bishop simplified slice calculation and homogeneous-soil circular search.
-
-Explicit engineering limits:
-- Ground/base inclination factors are the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
+Engineering extensions and explicit limitations:
+- Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
 - Layered bearing is a simplified horizontal-layer 2V:1H screening model; not arbitrary inclined interfaces or full numerical failure mechanisms.
 - Seismic checks do not replace full site-specific liquefaction, cyclic strength-loss, residual-strength profiles, seismic settlement, lateral-spreading or time-history analysis.
 - Sliding Rankine auto mode assumes uniform backfill and level backfill surface. Complex wall friction, sloping ground, layered backfill and hydraulic pressure require separate evaluation.
 - Bishop automatic search is limited to homogeneous soil, circular slip surfaces and horizontal groundwater; no layered soil, non-circular surfaces, surcharge, seismic or 3D effects. Refine search grids and cross-check with Spencer/Morgenstern-Price for design.
 - Manual Bishop slice mode requires user-supplied geometry and material values for one consistent circular slip surface.
 
-Not verified by this CI run:
+Not verified by these CI runs:
 - Streamlit Community Cloud deployment, hosted configuration or real browser/device interaction.
 - Site-specific geotechnical correctness without project-specific investigation, laboratory data and professional review.
+- The C4 refactor preserves UI and calculation logic under automated tests; it is not a new engineering validation of the underlying formulas.
 
 This report records automated software checks and source-based regression checks only; it is not a design certification or independent professional review.
