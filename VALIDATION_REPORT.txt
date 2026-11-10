@@ -73,7 +73,7 @@ Engineering baseline cross-check and USACE 2025 applicability corrections — PR
 - Sliding load cases are explicit: minimum FS 2.0 for static and 1.1 only for combinations including earthquake loads, per Table 2-1 note 2. The same load case is applied to the sliding check and developed Rankine calculation.
 - Module 5 now displays the shape, depth, base, ground and groundwater correction factors used in the slope/base result.
 - Updated README formula-version and applicability notes. GitHub Actions explicitly includes the independent benchmark test file.
-- Validation: 196 passed in Actions run 42765165981 before the added Bishop reference case; the updated suite is being revalidated in PR #6.
+- Validation: 196 passed in Actions run 42765165981 before the added Bishop reference case; Validation: 197 passed in GitHub Actions run 42765656858 after aligning the Bishop reference assertion tolerance with the solver's documented iterative convergence.
 
 Engineering extensions and explicit limitations:
 - Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
