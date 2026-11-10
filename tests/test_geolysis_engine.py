@@ -1222,3 +1222,36 @@ def test_multi_layer_bearing_checks_shallow_weak_layer_within_shear_zone():
     r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
         footing_length_m=4,footing_depth_m=1,water_depth_m=5)
     assert r['controlling_mode']=='下層穿刺控制'
+
+
+def test_meyerhof_spt_energy_conversion_from_n60_is_inverse_ratio():
+    r70=usace_meyerhof_settlement_allowable(n60=20,width_m=1.0,
+        embedment_m=0.5,settlement_mm=25.4,energy_percent=70)
+    r55=usace_meyerhof_settlement_allowable(n60=20,width_m=1.0,
+        embedment_m=0.5,settlement_mm=25.4,energy_percent=55)
+    assert r70['N_energy_adjusted']==pytest.approx(20*60/70)
+    assert r55['N_energy_adjusted']==pytest.approx(20*60/55)
+
+
+def test_bishop_pore_pressure_uses_horizontal_slice_width():
+    slices=[
+        {'width_m':2,'weight_kN':100+10*i,'base_angle_deg':10+3*i,
+         'cohesion_kpa':5,'friction_angle_deg':30,'pore_pressure_kpa':20}
+        for i in range(8)]
+    r=bishop_simplified_factor_of_safety(slices=slices)
+    assert r['FS']==pytest.approx(1.1898,abs=1e-4)
+
+
+def test_bishop_mirrored_slopes_have_same_factor_of_safety():
+    left=bishop_circular_search(
+        ground_profile=[(0,0),(10,0),(20,10),(30,10)],
+        cohesion_kpa=10,friction_angle_deg=25,unit_weight_kn_m3=18,
+        center_x_values=[10,12,14,16,18,20],center_y_values=[14,16,18,20,22],
+        radius_values=[10,12,14,16,18])
+    right=bishop_circular_search(
+        ground_profile=[(0,10),(10,10),(20,0),(30,0)],
+        cohesion_kpa=10,friction_angle_deg=25,unit_weight_kn_m3=18,
+        center_x_values=[10,12,14,16,18,20],center_y_values=[14,16,18,20,22],
+        radius_values=[10,12,14,16,18])
+    assert right['FS']==pytest.approx(left['FS'],rel=1e-6)
+    assert right['evaluated_surfaces']>0
