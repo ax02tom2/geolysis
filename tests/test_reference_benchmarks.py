@@ -257,3 +257,42 @@ def test_bishop_simplified_matches_independent_usace_appendix_f_iteration():
     result = bishop_simplified_factor_of_safety(slices=slices)
     assert result["converged"]
     assert result["FS"] == pytest.approx(2.3295012105169772, abs=1e-8)
+
+
+def test_uscs_five_and_twelve_percent_fines_require_dual_symbols():
+    # ASTM D2487: coarse-grained soils with 5–12% fines use dual symbols.
+    # Sand is poorly graded (Cu=10, Cc=0.9); fines plot as CL.
+    for fines in (5.0, 12.0):
+        result = classify_uscs_aashto(
+            p4=80, p10=70, p40=60, p200=fines,
+            ll=35, pl=20, d10=0.1, d30=0.3, d60=1.0,
+        )
+        assert result["USCS"] == "SP-SC"
+
+
+def test_uscs_more_than_twelve_percent_fines_uses_single_fines_symbol():
+    # ASTM D2487: >12% fines changes the coarse-soil symbol to SC.
+    result = classify_uscs_aashto(
+        p4=80, p10=70, p40=60, p200=12.01,
+        ll=35, pl=20, d10=0.1, d30=0.3, d60=1.0,
+    )
+    assert result["USCS"] == "SC"
+
+
+def test_uscs_cl_ml_borderline_fines_use_dual_symbol_in_coarse_soil():
+    # ASTM D2487: CL-ML fines in coarse-grained soil require GC-GM / SC-SM.
+    # LL=25 gives A-line PI=3.65; PI=6 lies in the borderline CL-ML zone.
+    result = classify_uscs_aashto(
+        p4=80, p10=70, p40=60, p200=13,
+        ll=25, pl=19, d10=0.1, d30=0.3, d60=1.0,
+    )
+    assert result["USCS"] == "SC-SM"
+
+
+def test_aashto_a7_subgroup_boundary_uses_pi_equal_to_ll_minus_thirty_as_a7_5():
+    # AASHTO M 145: A-7-5 when PI <= LL-30; A-7-6 when PI > LL-30.
+    result = classify_uscs_aashto(
+        p4=90, p10=80, p40=70, p200=40,
+        ll=60, pl=30,
+    )
+    assert result["AASHTO"] == "A-7-5"
