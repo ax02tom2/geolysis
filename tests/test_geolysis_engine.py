@@ -498,6 +498,30 @@ def test_hansen_vesic_allow_zero_base_adhesion_for_smooth_footing():
 
 
 
+
+def test_vesic_undrained_depth_factor_is_conservatively_omitted():
+    args=dict(theory='Vesic',c_kpa=50,phi_deg=0,gamma_moist=18,
+        gamma_sub=9,B=2,L=6,Df=3,water_depth=10,fs=3)
+    r=bearing_capacity(**args)
+    assert r['Nc']==pytest.approx(5.14)
+    assert r['Nq']==pytest.approx(1.0)
+    assert r['Ngamma']==pytest.approx(0.0)
+    assert r['dc']==pytest.approx(1.0)
+
+def test_vesic_horizontal_load_direction_uses_perpendicular_aspect_ratio():
+    base=dict(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
+        gamma_sub=9,B=2,L=6,Df=1,water_depth=5,fs=3,
+        horizontal_load=100,vertical_load=1000)
+    rb=bearing_capacity(**base,load_direction='parallel_B')
+    rl=bearing_capacity(**base,load_direction='parallel_L')
+    m_parallel_b=(2+6/2)/(1+6/2)
+    m_parallel_l=(2+2/6)/(1+2/6)
+    hratio=100/(1000+2*6*0.6*10/math.tan(math.radians(30)))
+    assert rb['iq']==pytest.approx((1-hratio)**m_parallel_b)
+    assert rl['iq']==pytest.approx((1-hratio)**m_parallel_l)
+    assert rb['iq']!=pytest.approx(rl['iq'])
+
+
 def test_bearing_distinguishes_net_safety_factor_conversion_from_usace_gross_fs():
     r=bearing_capacity(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
         gamma_sub=9,B=2,L=3,Df=1.5,water_depth=5,fs=3)
