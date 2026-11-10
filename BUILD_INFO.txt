@@ -5,9 +5,9 @@ Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 196 passed
-GitHub Actions validation run: 42765165981 (success; PR source tree matches merged main code)
+Latest verified automated suite: 197 passed
+GitHub Actions validation run: 42765656858 (success; includes Bishop Appendix F benchmark)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 13 independent reference benchmarks.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 14 independent reference benchmarks including Bishop Appendix F.
 Scope: five engineering modules; Streamlit Web application only.
