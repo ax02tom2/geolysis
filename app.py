@@ -977,7 +977,8 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             {'項目':'覆土項 qNq','承載力因子':result5['Nq'],'形狀係數':result5['sq'],'深度係數':result5['dq'],'傾斜係數':result5['iq'],'貢獻(kPa)':result5['term_q']},
             {'項目':'單位重項 0.5γBNγ','承載力因子':result5['Ngamma'],'形狀係數':result5['sg'],'深度係數':result5['dg'],'傾斜係數':result5['ig'],'貢獻(kPa)':result5['term_gamma']}])
         st.dataframe(factors,hide_index=True,use_container_width=True)
-        st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ 基礎底有效覆土壓力 q = {result5['q_surcharge']:.2f} kPa ｜ Nγ 項有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
+        q_label5="基礎底總覆土壓力 q₀（不排水總應力）" if result5['phi_used']==0 else "基礎底有效覆土壓力 q′₀（排水有效應力）"
+        st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ Nγ 項有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
         st.caption(f"供模組四比較：qa,gross（以淨承載力除 FS 後加回覆土）= {result5['qa_gross']:.1f} kPa；qa,net = {result5['qa_net']:.1f} kPa。砂土／礫土模組四採總壓力，使用前者；黏土主固結模組採淨壓力，使用後者。")
         st.caption(f"另依 USACE EM 1110-1-1905 式 5-23，以總極限承載力直接除 FS 的總壓力值為 {result5['qa_gross_direct_FS']:.1f} kPa；兩種 FS 定義不同，不可混用，須與設計規範及載重定義一致。")
         if theory5=='Terzaghi': st.caption(f"Terzaghi {result5['failure_mode']}：採用 c = {result5['c_used']:.2f} kPa、ϕ = {result5['phi_used']:.2f}°；承載力因子依 USACE 表列值線性插值。")
@@ -985,5 +986,6 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             st.warning(f"本次使用模組一等效 Mohr–Coulomb 參數；其 c′、ϕ′係在 σ3,max={sig3_max:.3f} MPa 範圍內擬合，須確認與淺基礎破壞應力範圍相符。若不相符，請改用試驗參數或重新設定模組一圍壓範圍。")
         st.warning(result5['limitations'])
     st.caption("Hoek–Brown 岩體等效 c′、ϕ′僅應用於適當岩體尺度與破壞模式；不可不加判斷地當作一般土壤參數。SPT 推估 ϕ 亦僅為經驗參考，不取代三軸／直剪試驗。")
+    st.caption("另提醒：USACE 2025 §5-5e(3) 引述 FHWA 建議 AASHTO/Vesic-based 方法不要同時套用形狀與載重傾斜修正，以免過度保守；本頁 Vesic 為經典理論比較，並非完整 AASHTO/FHWA 設計程序。")
     with st.expander("理論公式與文獻來源",expanded=False):
         st.markdown("- [USACE EM 1110-1-1905（2025）：淺基礎承載力設計（現行手冊）](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)\n- [USACE EM 1110-1-1905（1992）：經典承載力因子表](https://www.publications.usace.army.mil/Portals/76/Publications/EngineerManuals/EM_1110-1-1905.pdf)\n- [FHWA GEC No. 6：Shallow Foundations](https://www.fhwa.dot.gov/engineering/geotech/pubs/010943.pdf)\n- [geolysis 開源套件公式文件](https://docs.geolysis.io/en/latest/formulas/ultimate-bearing-capacity/)")
