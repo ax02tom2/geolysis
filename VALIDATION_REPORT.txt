@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: e01cde254574d3ec6292ddb6ee09a90c41a14762
-Validation run: 42769696972 (PR validation of identical source tree before squash merge; success)
+Validated main code commit: dde936d0fdf92d3877cd6810566da990e460aa01
+Validation run: 42772021817 (PR validation of identical source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 209 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 212 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -96,6 +96,17 @@ USCS/AASHTO and SPT correction boundary benchmarks — PR #8
 - PR #8 merged to main at e01cde254574d3ec6292ddb6ee09a90c41a14762.
 - GitHub Actions run 42769696972: success; Python 3.11 compile passed; full suite 209 passed in 2.02 s.
 - The validated PR source tree is identical to the merged main code tree; the merge commit itself is recorded above.
+
+
+
+AASHTO M 145 published Group Index example cross-check — PR #9
+
+- Added independent M 145 §6.4.2 example: F=80, LL=90, PI=50 gives GI=46.3, reported as 46 (no upper cap).
+- Added §6.4.3 negative GI example, which must be reported as zero.
+- Added §6.4.4 A-2-7 example, verifying that only the PI term is used and GI=3.
+- PR #9 merged to main at dde936d0fdf92d3877cd6810566da990e460aa01.
+- GitHub Actions run 42772021817: success; Python 3.11 compile passed; full suite 212 passed in 1.62 s.
+- The validated PR source tree is identical to the merged main code tree; docs-only updates are recorded separately.
 
 Engineering extensions and explicit limitations:
 - Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
