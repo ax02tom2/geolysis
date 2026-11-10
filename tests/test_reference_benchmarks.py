@@ -494,7 +494,8 @@ def test_usace_2025_appendix_b1_undrained_isolated_footing():
     assert result["q_surcharge"] == pytest.approx(expected_q0, abs=0.01)
     assert result["load_factor_c_2025"] == pytest.approx(1.0)
     assert result["load_factor_q_2025"] == pytest.approx(1.0)
-    assert result["load_factor_gamma_2025"] == pytest.approx(1.0)
+    assert result["load_factor_gamma_2025"] is None
+    assert result["term_gamma"] == pytest.approx(0.0)
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(
         expected_qult / ksf_to_kpa, abs=1e-8
     )
