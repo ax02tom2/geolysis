@@ -1022,3 +1022,95 @@ def test_usace_1992_example_4_5b_reproduces_meyerhof_hansen_vesic_capacities():
         kwargs={'load_angle':math.degrees(math.atan2(2,10))} if theory=='Meyerhof' else {}
         r=bearing_capacity(theory=theory,**args,**kwargs)
         assert r['qu_gross']/ksf_to_kpa==pytest.approx(qu_ksf,abs=0.015)
+
+
+def test_usace_slope_base_corrections_recover_level_ground_and_flat_base():
+    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
+    r=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+        phi_deg=30,base_inclination_deg=0,ground_inclination_deg=0,slope_distance_m=0)
+    assert r['base_factor_c']==pytest.approx(1)
+    assert r['base_factor_q']==pytest.approx(1)
+    assert r['ground_factor_c']==pytest.approx(1)
+    assert r['ground_factor_q']==pytest.approx(1)
+    assert r['qu_gross']==pytest.approx(base['qu_gross'])
+
+
+def test_usace_slope_correction_reduces_capacity_and_recovers_with_distance():
+    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
+    near=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=0)
+    far=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=20)
+    assert near['qu_gross']<far['qu_gross']<base['qu_gross']
+
+
+def test_layered_bearing_capacity_uses_usace_punching_equation():
+    r=layered_bearing_capacity_punching(q_ult_strong_kpa=1000,
+        q_ult_weak_kpa=100,strong_layer_thickness_m=1,
+        footing_width_m=2,footing_length_m=3)
+    assert r['load_spread_factor']==pytest.approx((3*4)/(2*3))
+    assert r['punching_capacity_kpa']==pytest.approx(200)
+    assert r['qult_kpa']==pytest.approx(200)
+    assert '穿刺' in r['controlling_mode']
+
+
+def test_layered_bearing_capacity_rejects_invalid_geometry():
+    with pytest.raises(ValueError):
+        layered_bearing_capacity_punching(q_ult_strong_kpa=100,
+            q_ult_weak_kpa=50,strong_layer_thickness_m=1,
+            footing_width_m=3,footing_length_m=2)
+
+
+def test_seismic_pseudostatic_envelope_applies_kh_and_kv_both_signs():
+    r=seismic_bearing_capacity_pseudostatic(vertical_load_kN=1000,
+        horizontal_load_kN=100,footing_area_m2=10,kh=.2,kv=.1)
+    assert r['cases'][0]['vertical_load_kN']==pytest.approx(900)
+    assert r['cases'][1]['vertical_load_kN']==pytest.approx(1100)
+    assert r['governing_horizontal_load_kN']==pytest.approx(300)
+
+
+def test_seismic_pseudostatic_rejects_out_of_range_coefficients():
+    with pytest.raises(ValueError):
+        seismic_bearing_capacity_pseudostatic(vertical_load_kN=1000,
+            horizontal_load_kN=0,footing_area_m2=10,kh=1.1)
+
+
+def test_foundation_sliding_matches_usace_equation_5_28():
+    r=foundation_sliding_factor_of_safety(vertical_load_kN=1000,
+        uplift_kN=100,horizontal_load_kN=100,area_m2=10,
+        friction_angle_deg=30,cohesion_kpa=5,adhesion_ratio=.5)
+    expected=(900*math.tan(math.radians(30))+25*10)/100
+    assert r['FS_sliding']==pytest.approx(expected)
+    assert r['passes'] is (expected>=2)
+
+
+def test_foundation_sliding_caps_passive_resistance_at_driving_force():
+    r=foundation_sliding_factor_of_safety(vertical_load_kN=1000,
+        uplift_kN=0,horizontal_load_kN=100,area_m2=10,
+        friction_angle_deg=30,passive_force_kN=500)
+    assert r['driving_force_kN']==pytest.approx(0)
+    assert r['FS_sliding']==math.inf
+    assert r['passive_resistance_capped']
+
+
+def test_bishop_simplified_converges_for_symmetric_three_slice_case():
+    slices=[
+        {'width_m':1,'weight_kN':100,'base_angle_deg':10,'cohesion_kpa':10,'friction_angle_deg':25,'pore_pressure_kpa':0},
+        {'width_m':1,'weight_kN':120,'base_angle_deg':20,'cohesion_kpa':10,'friction_angle_deg':25,'pore_pressure_kpa':0},
+        {'width_m':1,'weight_kN':100,'base_angle_deg':10,'cohesion_kpa':10,'friction_angle_deg':25,'pore_pressure_kpa':0},
+    ]
+    r=bishop_simplified_factor_of_safety(slices=slices)
+    assert r['converged']
+    assert r['iterations']>1
+    assert r['FS']>0
+
+
+def test_bishop_simplified_rejects_insufficient_slices_and_bad_pore_pressure():
+    with pytest.raises(ValueError):
+        bishop_simplified_factor_of_safety(slices=[])
+    with pytest.raises(ValueError):
+        bishop_simplified_factor_of_safety(slices=[
+            {'width_m':1,'weight_kN':100,'base_angle_deg':5,'cohesion_kpa':5,'friction_angle_deg':20,'pore_pressure_kpa':-1}
+            for _ in range(3)])
