@@ -15,6 +15,9 @@ from geolysis_engine import (
     hoek_brown_parameters,
     bearing_capacity,
     bearing_capacity_slope_base_corrections,
+    layered_bearing_capacity_punching,
+    seismic_bearing_capacity_residual_pore_pressure,
+    foundation_sliding_factor_of_safety,
 )
 
 
@@ -184,3 +187,56 @@ def test_slope_correction_accepts_case_insensitive_meyerhof_alias():
         base_result=base, c_kpa=10, phi_deg=30,
     )
     assert result["theory"] == "meyerhof"
+
+
+def test_layered_bearing_punching_matches_usace_equations_5_17_and_5_18():
+    isolated = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=300, q_ult_weak_kpa=100,
+        strong_layer_thickness_m=1, footing_width_m=2,
+        footing_length_m=4, footing_type="isolated",
+    )
+    continuous = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=300, q_ult_weak_kpa=100,
+        strong_layer_thickness_m=1, footing_width_m=2,
+        footing_length_m=4, footing_type="continuous",
+    )
+    assert isolated["load_spread_factor"] == pytest.approx((3 * 5) / (2 * 4))
+    assert isolated["punching_capacity_kpa"] == pytest.approx(187.5)
+    assert isolated["qult_kpa"] == pytest.approx(187.5)
+    assert continuous["load_spread_factor"] == pytest.approx(3 / 2)
+    assert continuous["punching_capacity_kpa"] == pytest.approx(150.0)
+    assert continuous["qult_kpa"] == pytest.approx(150.0)
+
+
+def test_residual_pore_pressure_bearing_reduction_matches_usace_equations_9_3_and_9_4():
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=18,
+        effective_width_m=2,
+        bearing_factor_ngamma=20,
+        residual_excess_pore_pressure_ratio=0.25,
+        shape_depth_inclination_factor=0.8,
+    )
+    expected = 0.4 * (1 - 0.25) * 18 * 2 * 20 * 0.8
+    assert result["qu_seismic_kpa"] == pytest.approx(expected)
+    assert result["pore_pressure_resistance_factor"] == pytest.approx(0.75)
+
+
+def test_drained_sliding_matches_usace_equation_5_29():
+    result = foundation_sliding_factor_of_safety(
+        vertical_load_kN=1000,
+        uplift_kN=100,
+        horizontal_load_kN=100,
+        area_m2=10,
+        friction_angle_deg=30,
+        cohesion_kpa=10,
+        adhesion_ratio=0.5,
+        active_force_kN=20,
+        passive_force_kN=30,
+        fs_required=2.0,
+    )
+    resistance = (1000 - 100) * math.tan(math.radians(30)) + 0.5 * 10 * 10
+    driving = 100 + 20 - 30
+    assert result["resistance_kN"] == pytest.approx(resistance)
+    assert result["driving_kN"] == pytest.approx(driving)
+    assert result["FS_sliding"] == pytest.approx(resistance / driving)
