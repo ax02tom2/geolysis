@@ -446,3 +446,60 @@ def test_usace_2025_table_5_4_undrained_load_inclination_uses_h_over_v():
     )
     assert result["term_q"] == pytest.approx(result["q_surcharge"] * result["Nq"])
     assert result["term_gamma"] == pytest.approx(0.0)
+
+def test_usace_2025_appendix_b1_undrained_isolated_footing():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-1,
+    # Table B-1a/b (printed pp. 296-298).
+    # Published case: B=L=7 ft, Df=2 ft, gamma=0.120 kcf,
+    # su=0.5 ksf, q0=0.24 ksf, Nc=5.14, sc=1.20, dc=1.06.
+    # The manual rounds dc to 1.06 before reporting qult=3.51 ksf.
+    # This test retains full precision in the engine and allows for that
+    # intermediate rounding in the published worked example.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 7.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.120 * kcf_to_kn_m3
+    su = 0.5 * ksf_to_kpa
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=su,
+        phi_deg=0.0,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=width,
+        Df=embedment,
+        water_depth=5.0,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=su,
+        phi_deg=0.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    expected_dc = 1.0 + 0.2 * (2.0 / 7.0)
+    expected_q0 = 0.24 * ksf_to_kpa
+    expected_qult = (1.2 * expected_dc * 0.5 * 5.14 + 0.24) * ksf_to_kpa
+
+    assert result["Nc"] == pytest.approx(5.14)
+    assert result["sc"] == pytest.approx(1.20)
+    assert result["dc"] == pytest.approx(expected_dc)
+    assert result["q_surcharge"] == pytest.approx(expected_q0, abs=0.01)
+    assert result["load_factor_c_2025"] == pytest.approx(1.0)
+    assert result["load_factor_q_2025"] == pytest.approx(1.0)
+    assert result["load_factor_gamma_2025"] == pytest.approx(1.0)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(
+        expected_qult / ksf_to_kpa, abs=1e-8
+    )
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(3.50, abs=0.01)
+    assert result["qa_gross_direct_FS"] / ksf_to_kpa == pytest.approx(
+        (expected_qult / 3.0) / ksf_to_kpa, abs=1e-8
+    )
+
