@@ -311,25 +311,29 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         gamma_eff_2025=gamma_t*gamma_corr
         tg=0.5*B*gamma_eff_2025*Ng*sg*dg_factor*ig_2025*bgamma*ggamma
     else:
-        # USACE Table 5-4 undrained corrections.
+        # USACE Table 5-4 undrained corrections. The surcharge-term
+        # factors (sq, dq, iq, bq, gq) are unity; Meyerhof ic=1-1.3 H/V.
         flow_n=None
-        sc=base_result['sc']; sq=base_result['sq']; sg=base_result['sg']
-        dc=base_result['dc']; dq=base_result['dq']; dg_factor=base_result['dg']
+        sc=base_result['sc']; sq=sg=1.0
+        dc=base_result['dc']; dq=dg_factor=1.0
         bq=bgamma=1.0
         bc=max(0.0,1-ab/147.3)
         gq=ggamma=1.0
         gc0=max(0.0,1-ag/147.3)
         gc=min(1.0,gc0+(1-gc0)*min(1.0,dg/(2.0*B)))
-        tc=base_result['term_c']*bc*gc
-        tq=q*math.cos(math.radians(ag))*Nq*sq*dq*base_result['iq']*bq*gq
-        tg=base_result['term_gamma']*bgamma*ggamma
+        ic_2025=1.0-1.3*(H/V)
+        if ic_2025<=0:
+            raise ValueError('USACE 2025 不排水 Meyerhof 載重傾斜係數 ic≤0；請降低 H/V 或採用有依據的專用分析')
+        tc=base_result['c_used']*Nc*sc*dc*ic_2025*bc*gc
+        tq=q*math.cos(math.radians(ag))*Nq
+        tg=0.0
     q_slope=q*math.cos(math.radians(ag))
     qu=tc+tq+tg
     qnet=qu-q_slope
     fs=base_result['FS']
     qa_net=qnet/fs
     qa_gross=qa_net+q_slope
-    return {**base_result,'N_flow':flow_n,'load_inclination_beta_2025_deg':(beta_2025 if phi>0 else None),'load_factor_c_2025':(i_2025 if phi>0 else None),'load_factor_q_2025':(i_2025 if phi>0 else None),'load_factor_gamma_2025':(ig_2025 if phi>0 else None),'sc':sc,'sq':sq,'sg':sg,
+    return {**base_result,'N_flow':flow_n,'load_inclination_beta_2025_deg':(beta_2025 if phi>0 else None),'load_factor_c_2025':(i_2025 if phi>0 else ic_2025),'load_factor_q_2025':(i_2025 if phi>0 else 1.0),'load_factor_gamma_2025':(ig_2025 if phi>0 else None),'sc':sc,'sq':sq,'sg':sg,
         'gamma_effective':(gamma_eff_2025 if phi>0 else base_result['gamma_effective']),
         'gamma_effective_2025_factor':(gamma_corr if phi>0 else None),
         'gamma_effective_method':('USACE EM 1110-1-1905 (2025), Eq. 5-19' if phi>0 else 'undrained total-stress analysis; gamma term not used'),
