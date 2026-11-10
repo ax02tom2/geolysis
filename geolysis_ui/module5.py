@@ -457,7 +457,8 @@ def render_module_5(expanded=False):
             insitu_result,insitu_current=read_result_state(
                 st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu_sig)
             if insitu_result and insitu_current:
-                st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
+                mean_unit5="blows/ft" if insitu_type5=="SPT" else "kPa"
+                st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
                 r1,r2,r3=st.columns(3)
                 r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
                 r2.metric("容許承載力 qa,gross",f"{insitu_result['qa_gross_direct_FS']:.1f} kPa")
