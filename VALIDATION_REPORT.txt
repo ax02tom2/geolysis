@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 4ba81989ff3e465f3dc0165aa1851d8012f9a23e
-Latest validation run: 42787292516 (PR #17 source tree before squash merge; success)
+Validated main code commit: 2ca48151a8006e539c834eaf9c918ed51838b583
+Latest validation run: 42787544017 (PR #18 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 238 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 239 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -217,4 +217,14 @@ USACE 2025 in-situ SPT/CPT/PMT bearing-capacity method — PR #17
 - Scope limitations remain explicit: this path does not yet apply seismic corrections, combine with layered punch-through checks, or calculate structural column/foundation demand qeq and the resulting actual design FS. It reports ultimate and allowable resistance only.
 - PR #17 merged to main at 4ba81989ff3e465f3dc0165aa1851d8012f9a23e.
 - GitHub Actions run 42787292516: success; Python 3.11 compile passed; full suite 238 passed in 1.60 s.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
+
+
+USACE Appendix B-5 undrained PMT benchmark — PR #18
+
+- Added a published undrained PMT bearing-capacity case from USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-5 / Tables B-5b and B-5e (printed pp. 317–321).
+- Verified PMT net limit pressure pne=15.8 ksf, undrained Table 5-5 k=0.70, sc=1.20, dc=1.0625 and q0=0.3125 ksf. Full-precision engine result is approximately 14.41 ksf; the manual reports 14.38 ksf after rounding dc to 1.06.
+- PR #18 merged to main at 2ca48151a8006e539c834eaf9c918ed51838b583.
+- GitHub Actions run 42787544017: success; Python 3.11 compile passed; full suite 239 passed in 1.31 s.
+- Published reference benchmark count is now 50. The in-situ method supports SPT/CPT/PMT drained and undrained Table 5-5 factors, but PMT-based punch-through is not automatically combined with a weak underlying layer; assess that mechanism separately.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
