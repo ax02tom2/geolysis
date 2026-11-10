@@ -1084,3 +1084,89 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
                 'limitations':'需由使用者提供同一圓弧滑動面之正確切片幾何、重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
         F=0.5*F+0.5*newF
     raise ValueError('Bishop 迭代未收斂；請檢查切片幾何、孔壓與強度資料')
+
+
+def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
+        unit_weight_kn_m3, center_x_values, center_y_values, radius_values,
+        slice_count=20, groundwater_elevation=None, gamma_water=9.81):
+    """Grid-search circular slip surfaces and evaluate each with Bishop simplified.
+    Coordinates use metres and elevations (positive upward); uniform soil only.
+    Ground profile is a sorted list of (x, elevation) pairs.
+    """
+    if len(ground_profile)<3:
+        raise ValueError('地表剖面至少需要 3 個 (x, elevation) 點')
+    profile=sorted([(_finite('地表 x',p[0]),_finite('地表高程',p[1])) for p in ground_profile])
+    if len({p[0] for p in profile})!=len(profile):
+        raise ValueError('地表剖面 x 座標不可重複')
+    c=_finite('土壤凝聚力',cohesion_kpa); phi=_finite('土壤摩擦角',friction_angle_deg)
+    gamma=_finite('土壤單位重',unit_weight_kn_m3); gw=_finite('水單位重',gamma_water)
+    if c<0 or not 0<=phi<=50 or gamma<=0 or gw<=0 or int(slice_count)<5:
+        raise ValueError('土壤強度、單位重或切片數不合理')
+    xs=[_finite('圓心 x',x) for x in center_x_values]
+    ys=[_finite('圓心 y',y) for y in center_y_values]
+    rs=[_finite('滑動圓半徑',r) for r in radius_values]
+    if not xs or not ys or not rs or any(r<=0 for r in rs):
+        raise ValueError('圓心搜尋範圍與半徑列表不可為空，半徑須大於 0')
+    gw_elev=None if groundwater_elevation is None else _finite('地下水位高程',groundwater_elevation)
+    def ground_y(x):
+        for k in range(len(profile)-1):
+            x0,y0=profile[k]; x1,y1=profile[k+1]
+            if x0<=x<=x1:
+                return y0+(y1-y0)*(x-x0)/(x1-x0)
+        return None
+    best=None; evaluated=0
+    for cx in xs:
+        for cy in ys:
+            for radius in rs:
+                xa=max(profile[0][0],cx-radius)
+                xb=min(profile[-1][0],cx+radius)
+                if xb-xa<=0: continue
+                nscan=max(200,int(slice_count)*10)
+                scan=[xa+(xb-xa)*i/nscan for i in range(nscan+1)]
+                valid=[]
+                for x in scan:
+                    gy=ground_y(x)
+                    rad=radius*radius-(x-cx)**2
+                    by=cy-math.sqrt(max(0.0,rad))
+                    valid.append(gy is not None and gy>by+1e-6)
+                runs=[]; start=None
+                for i,ok in enumerate(valid):
+                    if ok and start is None: start=i
+                    if start is not None and (not ok or i==len(valid)-1):
+                        end=i-1 if not ok else i
+                        if end>start: runs.append((start,end))
+                        start=None
+                if not runs: continue
+                i0,i1=max(runs,key=lambda z:scan[z[1]]-scan[z[0]])
+                x0,x1=scan[i0],scan[i1]
+                if x1-x0<(profile[-1][0]-profile[0][0])*0.03: continue
+                width=(x1-x0)/int(slice_count)
+                slices=[]
+                for j in range(int(slice_count)):
+                    xl=x0+j*width; xr=xl+width; xm=(xl+xr)/2
+                    yl=cy-math.sqrt(max(0.0,radius**2-(xl-cx)**2))
+                    yr=cy-math.sqrt(max(0.0,radius**2-(xr-cx)**2))
+                    ym=cy-math.sqrt(max(0.0,radius**2-(xm-cx)**2))
+                    gl=ground_y(xl); gr=ground_y(xr); gm=ground_y(xm)
+                    height=max(0.0,gm-ym)
+                    if height<=0: continue
+                    alpha=math.degrees(math.atan2(yr-yl,width))
+                    pore=0.0 if gw_elev is None else gw*max(0.0,gw_elev-ym)
+                    slices.append({'width_m':width,'weight_kN':gamma*height*width,
+                        'base_angle_deg':alpha,'cohesion_kpa':c,
+                        'friction_angle_deg':phi,'pore_pressure_kpa':pore})
+                if len(slices)<5: continue
+                try:
+                    result=bishop_simplified_factor_of_safety(slices=slices)
+                except ValueError:
+                    continue
+                evaluated+=1
+                candidate={**result,'center_x_m':cx,'center_elevation_m':cy,
+                    'radius_m':radius,'entry_x_m':x0,'exit_x_m':x1}
+                if best is None or candidate['FS']<best['FS']:
+                    best=candidate
+    if best is None:
+        raise ValueError('搜尋範圍內未找到有效圓弧滑動面；請擴大圓心／半徑範圍並檢查地表剖面')
+    return {**best,'evaluated_surfaces':evaluated,
+        'method':'Grid-search circular slip surfaces + Bishop simplified',
+        'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
