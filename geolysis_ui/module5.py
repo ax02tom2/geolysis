@@ -303,6 +303,7 @@ def render_module_5(expanded=False):
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。")
+            st.caption("注意：選擇「含地震荷載」只切換最低 FS，不會自動產生 kh／kv 或地震慣性力；請先將地震組合下的 H、V 及主動／被動土壓作用納入輸入值。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
             slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
