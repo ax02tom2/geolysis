@@ -335,3 +335,36 @@ def test_spt_dilatancy_correction_does_not_change_values_at_or_below_fifteen():
     assert result["N1_60"] == pytest.approx(15.0)
     assert result["N1_60_final"] == pytest.approx(15.0)
     assert result["dilatancy_applied"] is False
+
+
+def test_aashto_m145_example_6_4_2_group_index_has_no_upper_cap():
+    # AASHTO M 145-91 (2021), §6.4.2:
+    # F=80, LL=90, PI=50 -> GI=46.3, reported as 46.
+    result = classify_uscs_aashto(
+        p4=95, p10=90, p40=85, p200=80,
+        ll=90, pl=40,
+    )
+    assert result["AASHTO"] == "A-7-5"
+    assert result["GI"] == 46
+
+
+def test_aashto_m145_example_6_4_3_negative_group_index_is_reported_as_zero():
+    # AASHTO M 145-91 (2021), §6.4.3:
+    # F=60, LL=25, PI=1 -> raw GI=-1.0, reported as 0.
+    result = classify_uscs_aashto(
+        p4=95, p10=90, p40=80, p200=60,
+        ll=25, pl=24,
+    )
+    assert result["AASHTO"] == "A-4"
+    assert result["GI"] == 0
+
+
+def test_aashto_m145_example_6_4_4_a2_7_uses_only_pi_group_index_term():
+    # AASHTO M 145-91 (2021), §6.4.4:
+    # F=30, LL=50, PI=30 -> A-2-7, GI=0.01(30-15)(30-10)=3.
+    result = classify_uscs_aashto(
+        p4=90, p10=80, p40=70, p200=30,
+        ll=50, pl=20,
+    )
+    assert result["AASHTO"] == "A-2-7"
+    assert result["GI"] == 3
