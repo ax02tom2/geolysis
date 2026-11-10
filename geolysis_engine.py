@@ -923,7 +923,10 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     Nc=base_result['Nc']; q=base_result['q_surcharge']
     if phi>0:
         tp=math.tan(math.radians(phi))
-        bq=max(0.0,1-(ab/57.0)*tp)**2
+        base_term=1-(ab/57.0)*tp
+        if base_term<0:
+            raise ValueError('基底傾角超出此修正公式的適用範圍；請降低 αb 或改用專用分析')
+        bq=base_term**2
         bgamma=bq
         bc=bq-(1-bq)/(Nc*tp) if tp>0 else 1.0
         if bc<0: raise ValueError('基底傾角使凝聚力修正係數小於零；此幾何不適用本方法')
@@ -1184,7 +1187,7 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     Ng=_finite('Nγ',bearing_factor_ngamma)
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
-    if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or not 0<corr<=1:
+    if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
         raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數須在 (0,1]')
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
@@ -1237,7 +1240,7 @@ def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_
     B_eff=max(1e-9,B-2*eccentricity_B_m); L_eff=max(1e-9,L-2*eccentricity_L_m)
     candidates=[{'mode':'上層一般承載力','controlling_layer':1,
         'capacity_kpa':results[0]['qult_kpa'],'spread_factor':1.0}]
-    lower_bound=(0.5*B if footing_type=='isolated' else 1.0*B)
+    lower_bound=0.0
     upper_bound=(2.0*B if footing_type=='isolated' else 4.0*B)
     for item in results[1:]:
         Hs=item['top_depth_m']
