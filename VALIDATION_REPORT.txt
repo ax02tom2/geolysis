@@ -2,12 +2,12 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: b631f44d4b27e23ed4756cb2721ebd8e843090fd
-Validation run: 42761022578 (PR validation of identical source tree; success)
+Validated main code commit: 6b975eaa2540cfa8104e5274fd33c0a9165129d8
+Validation run: 42765165981 (PR validation of identical source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42761022578
+- Run ID: 42765165981
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state and web-app regression tests: 180 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 196 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -55,6 +55,25 @@ Phase 3 — shared result/signature state:
 - Preserved existing session-state key names and stale-result warning behavior.
 - Added focused helper tests.
 - Validation: 180 passed (Actions run 42761022578).
+
+Engineering baseline cross-check and USACE 2025 applicability corrections — PR #5
+
+- Added 13 independent reference benchmark tests in tests/test_reference_benchmarks.py, covering:
+  - SPT correction equations and rod-length correction.
+  - Boussinesq center influence factor (USACE 2025 Table 6-2).
+  - 2:1 vertical stress distribution (USACE 2025 Eq. 6-12).
+  - Burland–Burbidge settlement equations (USACE 2025 Eqs. 7-27 to 7-34).
+  - AASHTO M 145 Group Index.
+  - Hoek et al. (2002) high-UCS deformation-modulus branch.
+  - USACE 2025 Meyerhof-based slope/base factors, effective-width depth factors, groundwater Eq. 5-19, layered punching Eqs. 5-17/5-18, seismic pore-pressure Eqs. 9-3/9-4, and drained sliding Eq. 5-29.
+- Added applicability tests for adjacent-slope FS and static/seismic sliding minimums.
+- Adjacent ground-slope correction now requires an independently checked global slope FS > 1.3, per USACE 2025 Table 5-3 note (b).
+- Drained slope/base correction rebuilds Meyerhof-based shape/depth factors using effective B′/L′ and Df/B′ per Table 5-2, then applies Table 5-3 inclination factors.
+- Drained Nγ effective unit weight is recalculated using USACE 2025 Eq. 5-19; the legacy shear-zone interpolation is not carried into this 2025 correction path.
+- Sliding load cases are explicit: minimum FS 2.0 for static and 1.1 only for combinations including earthquake loads, per Table 2-1 note 2. The same load case is applied to the sliding check and developed Rankine calculation.
+- Module 5 now displays the shape, depth, base, ground and groundwater correction factors used in the slope/base result.
+- Updated README formula-version and applicability notes. GitHub Actions explicitly includes the independent benchmark test file.
+- Validation: 196 passed in Actions run 42765165981; Python 3.11 compile and Streamlit AppTest passed.
 
 Engineering extensions and explicit limitations:
 - Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
