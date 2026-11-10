@@ -862,3 +862,43 @@ def test_immediate_elastic_settlement_rejects_invalid_modulus_and_poisson_ratio(
     with pytest.raises(ValueError):
         immediate_elastic_settlement(net_pressure_kpa=100,footing_width_m=2,
             soil_modulus_mpa=10,poisson_ratio=.6)
+
+
+def test_meyerhof_undrained_uses_usace_table_5_4_factors():
+    base=dict(theory='Meyerhof',c_kpa=50,phi_deg=0,gamma_moist=18,
+        gamma_sub=9,B=2,L=6,Df=3,water_depth=10,fs=3)
+    r=bearing_capacity(**base)
+    assert r['Nc']==pytest.approx(5.14)
+    assert r['sc']==pytest.approx(1+0.2*2/6)
+    assert r['dc']==pytest.approx(1.3)
+    assert r['dq']==pytest.approx(1.0)
+    assert r['dg']==pytest.approx(1.0)
+    assert r['sq']==pytest.approx(1.0)
+    assert r['sg']==pytest.approx(1.0)
+    assert r['iq']==pytest.approx(1.0)
+    assert r['ig']==pytest.approx(1.0)
+    assert r['term_q']==pytest.approx(r['q_surcharge'])
+    assert r['term_gamma']==pytest.approx(0.0)
+
+
+def test_meyerhof_undrained_depth_factor_is_capped_at_1_5():
+    r=bearing_capacity(theory='Meyerhof',c_kpa=50,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=20,water_depth=30)
+    assert r['dc']==pytest.approx(1.5)
+
+
+def test_meyerhof_undrained_load_inclination_uses_usace_horizontal_to_vertical_ratio():
+    beta=10.0
+    r=bearing_capacity(theory='Meyerhof',c_kpa=50,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=10,
+        load_angle=beta)
+    assert r['ic']==pytest.approx(1-1.3*math.tan(math.radians(beta)))
+    assert r['iq']==pytest.approx(1.0)
+    assert r['ig']==pytest.approx(1.0)
+
+
+def test_meyerhof_undrained_rejects_nonpositive_inclination_factor():
+    with pytest.raises(ValueError,match='傾斜係數'):
+        bearing_capacity(theory='Meyerhof',c_kpa=50,phi_deg=0,
+            gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=10,
+            load_angle=40)
