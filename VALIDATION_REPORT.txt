@@ -2,32 +2,33 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Current validation baseline before documentation refresh: 69ae2f96abfd4a20f43922dd4b9b1d717784b211
+Latest validated commit: 147418d4c79f962d3f7312874eec63c3b1535ed4
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42737585222
+- Run ID: 42738157132
 - Conclusion: success
 - Python: 3.11
 - Dependency installation: passed
 - Compile: app.py and geolysis_engine.py passed
-- Regression and Streamlit AppTest suite: 156 passed
+- Regression and Streamlit AppTest suite: 163 passed
 - Streamlit AppTest: app.py loaded without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
-Implemented Module 5 extensions in the current working tree:
-1. USACE 2025 Table 5-3/5-4 ground-slope and base-inclination factors (Meyerhof-based correction family).
-2. USACE 2025 Eqs. 5-17/5-18 strong-over-weak two-layer punching check using 2V:1H spread.
-3. Pseudo-static foundation action envelope (kh/kv) and USACE 2025 Eqs. 9-3/9-4 residual excess pore-pressure reduction of the Nγ term.
-4. USACE 2025 Eqs. 5-28/5-29 base sliding factor of safety with interface friction/adhesion and user-supplied developed active/passive forces.
-5. Bishop simplified method for user-provided slices and grid-search circular slip surfaces for homogeneous soil with a horizontal groundwater level.
+Module 5 engineering extensions implemented and regression-tested:
+1. Sloping ground and inclined footing base: USACE EM 1110-1-1905 (2025) Table 5-3/5-4 Meyerhof-based factors; invalid steep base angles are rejected.
+2. Multi-layer bearing: horizontal multilayer profile and strong-over-weak 2V:1H punching checks, USACE Eqs. 5-17/5-18.
+3. Seismic bearing: pseudo-static kh/kv action envelope and residual excess pore-pressure reduction of the Nγ term, USACE Eqs. 9-3/9-4.
+4. Foundation sliding: drained/undrained interface resistance, uplift and developed active/passive force handling, USACE Eqs. 5-28/5-30; optional Rankine developed earth pressure per Eqs. 5-31 to 5-35.
+5. Global stability: Bishop simplified slice calculation and grid-search circular slip surfaces for homogeneous soil.
 
-Engineering limits remain explicit:
-- Ground/base inclination factors are the USACE Meyerhof-based family, not a full AASHTO/FHWA implementation.
-- Layered bearing covers strong-over-weak 2V:1H punching; not arbitrary multilayer failure mechanisms.
-- Seismic checks do not replace full site-specific liquefaction, cyclic strength-loss, residual-strength, seismic settlement, lateral-spreading or time-history analysis. The USACE residual-pore-pressure equations are for sand-like soil where excess pore pressure affects the full bearing shear zone.
-- Bishop search is limited to homogeneous soil and circular slip surfaces; it does not automatically handle stratified soils, non-circular surfaces, surcharge, seismic loading or 3D effects. Refine the search grid and cross-check with Spencer/Morgenstern-Price for design.
-- Active/passive earth pressures for sliding must be calculated separately using developed strengths and then supplied.
+Explicit engineering limits:
+- Ground/base inclination factors are the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
+- Layered bearing is a simplified horizontal-layer 2V:1H punching model; not arbitrary inclined interfaces or full numerical failure mechanisms.
+- Seismic checks do not replace full site-specific liquefaction, cyclic strength-loss, residual-strength profiles, seismic settlement, lateral-spreading or time-history analysis. USACE residual-pore-pressure equations are for sand-like soil where excess pore pressure affects the full bearing shear zone; liquefiable or materially strength-loss-prone sites require separate suitability evaluation.
+- Sliding Rankine auto mode assumes uniform backfill and level backfill surface. Complex wall friction, sloping ground, layered backfill and hydraulic pressure require separate evaluation.
+- Bishop automatic search is limited to homogeneous soil, circular slip surfaces and horizontal groundwater; no layered soil, non-circular surfaces, surcharge, seismic or 3D effects. Refine search grids and cross-check with Spencer/Morgenstern-Price for design.
+- Manual Bishop slice mode requires user-supplied geometry and material values for one consistent circular slip surface.
 
 Not verified by this CI run:
 - Streamlit Community Cloud deployment, hosted configuration or real browser/device interaction.
