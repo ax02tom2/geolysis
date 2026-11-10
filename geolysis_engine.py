@@ -1195,3 +1195,60 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         'Ngamma':Ng,'other_correction_product':corr,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012)',
         'limitations':'適用砂狀土且地震超額孔隙水壓影響完整承載力剪力區之情境；依手冊移除覆土 Nq 項，並以 (1−ru) 折減 Nγ 項。ru 應依 FSliq／孔壓評估取得，不可任意假設。若土層可液化、邊際液化或顯著強度損失，USACE 原則上不建議使用淺基礎；此式是補充評估，不代表可接受液化場址。未含分層穿刺、側向擴展與地震沉陷。'}
+
+
+def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_m,
+        footing_depth_m, water_depth_m, fs=3.0, footing_type='isolated',
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0):
+    """Evaluate a layered profile by checking each weaker underlying stratum
+    for 2V:1H punching through the overlying cover, per USACE 2025 Eqs. 5-17/5-18.
+    Each layer has thickness_m, c_kpa, phi_deg, gamma_below_kn_m3.
+    The top layer also supplies gamma_moist_kn_m3 and gamma_sub_kn_m3.
+    """
+    if not isinstance(layers,(list,tuple)) or len(layers)<2:
+        raise ValueError('至少輸入兩層土壤')
+    top=layers[0]
+    required=('thickness_m','c_kpa','phi_deg','gamma_moist_kn_m3','gamma_sub_kn_m3','gamma_below_kn_m3')
+    for k in required:
+        if k not in top: raise ValueError(f'第 1 層缺少 {k}')
+    gamma_top=_finite('上層天然單位重',top['gamma_moist_kn_m3'])
+    gamma_sub_top=_finite('上層浮／飽和單位重',top['gamma_sub_kn_m3'])
+    if gamma_top<=0 or gamma_sub_top<=0: raise ValueError('上層單位重須為正')
+    B=_finite('基礎寬度',footing_width_m); L=_finite('基礎長度',footing_length_m)
+    Df=_finite('基礎埋深',footing_depth_m); Dw=_finite('地下水深度',water_depth_m)
+    if B<=0 or L<B or Df<0 or Dw<0: raise ValueError('基礎尺寸或深度不合理')
+    if footing_type not in ('isolated','continuous'): raise ValueError('基礎型式不支援')
+    results=[]; cumulative=0.0
+    for i,layer in enumerate(layers,1):
+        for k in ('thickness_m','c_kpa','phi_deg','gamma_below_kn_m3'):
+            if k not in layer: raise ValueError(f'第 {i} 層缺少 {k}')
+        thickness=_finite(f'第{i}層厚度',layer['thickness_m'])
+        if thickness<=0: raise ValueError('各層厚度須大於零')
+        c=_finite(f'第{i}層 c／Su',layer['c_kpa'])
+        phi=_finite(f'第{i}層 φ',layer['phi_deg'])
+        gb=_finite(f'第{i}層剪力區單位重',layer['gamma_below_kn_m3'])
+        r=bearing_capacity(theory='Meyerhof',c_kpa=c,phi_deg=phi,
+            gamma_moist=gamma_top,gamma_sub=gamma_sub_top,gamma_below=gb,
+            B=B,L=L,Df=Df,water_depth=Dw,fs=fs,
+            eccentricity_B=eccentricity_B_m,eccentricity_L=eccentricity_L_m)
+        results.append({'layer':i,'thickness_m':thickness,'top_depth_m':cumulative,
+            'c_kpa':c,'phi_deg':phi,'gamma_below_kn_m3':gb,'qult_kpa':r['qu_gross']})
+        cumulative+=thickness
+    B_eff=max(1e-9,B-2*eccentricity_B_m); L_eff=max(1e-9,L-2*eccentricity_L_m)
+    candidates=[{'mode':'上層一般承載力','controlling_layer':1,
+        'capacity_kpa':results[0]['qult_kpa'],'spread_factor':1.0}]
+    lower_bound=(0.5*B if footing_type=='isolated' else 1.0*B)
+    upper_bound=(2.0*B if footing_type=='isolated' else 4.0*B)
+    for item in results[1:]:
+        Hs=item['top_depth_m']
+        if lower_bound<=Hs<=upper_bound and item['qult_kpa']<results[0]['qult_kpa']:
+            spread=((B_eff+Hs)*(L_eff+Hs)/(B_eff*L_eff)
+                    if footing_type=='isolated' else (B_eff+Hs)/B_eff)
+            candidates.append({'mode':'下層穿刺控制','controlling_layer':item['layer'],
+                'capacity_kpa':spread*item['qult_kpa'],'spread_factor':spread,
+                'underlying_layer_qult_kpa':item['qult_kpa'],'strong_cover_thickness_m':Hs})
+    control=min(candidates,key=lambda x:x['capacity_kpa'])
+    return {'qult_kpa':control['capacity_kpa'],'controlling_mode':control['mode'],
+        'controlling_layer':control['controlling_layer'],'layers':results,
+        'candidates':candidates,'method':'USACE EM 1110-1-1905 (2025), 2V:1H layered punch-through, Eqs. 5-17/5-18',
+        'limitations':'以 Meyerhof-based 單層承載力分別計算各層，再對規定影響深度內較弱下層進行 2V:1H 穿刺檢核；假設水平分層、各層參數均質且基礎載重／排水條件一致。未涵蓋斜交層面、軟弱夾層側向擠出、任意破壞面與有限元素分析。'}
