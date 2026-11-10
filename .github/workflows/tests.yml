@@ -35,3 +35,4 @@ jobs:
           tests/test_geolysis_engine.py
           tests/test_streamlit_widget_keys.py
           tests/test_web_scope.py
+          tests/test_streamlit_apptest.py
