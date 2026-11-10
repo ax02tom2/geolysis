@@ -3,7 +3,7 @@ import pytest
 from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     usace_meyerhof_settlement_allowable, bearing_capacity,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
-    seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety,
+    seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure)
 
@@ -1179,3 +1179,21 @@ def test_multi_layer_bearing_profile_requires_multiple_layers():
         layered_bearing_capacity_profile(layers=[
             {'thickness_m':1,'c_kpa':10,'phi_deg':20,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18}],
             footing_width_m=2,footing_length_m=4,footing_depth_m=1,water_depth_m=5)
+
+
+def test_developed_rankine_earth_pressure_uses_developed_strengths():
+    r=developed_rankine_sliding_earth_pressures(effective_unit_weight_kn_m3=9,
+        footing_depth_m=2,footing_length_m=3,friction_angle_deg=30,
+        cohesion_kpa=10,fs_sliding=2)
+    phi_d=math.degrees(math.atan(math.tan(math.radians(30))/2))
+    assert r['developed_phi_deg']==pytest.approx(phi_d)
+    assert r['developed_cohesion_kpa']==pytest.approx(5)
+    assert r['active_force_kN']>=0
+    assert r['passive_force_kN']>0
+
+
+def test_developed_rankine_earth_pressure_rejects_bad_fs():
+    with pytest.raises(ValueError):
+        developed_rankine_sliding_earth_pressures(effective_unit_weight_kn_m3=9,
+            footing_depth_m=2,footing_length_m=3,friction_angle_deg=30,
+            cohesion_kpa=10,fs_sliding=1)
