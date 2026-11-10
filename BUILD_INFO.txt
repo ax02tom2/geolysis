@@ -1,11 +1,11 @@
 Build: geolysis Web — engineering review corrections
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated commit: 0c6cf6d8554c0c6315ec95c4fbef62e4cf790d9e
+Merged main commit: c5565e0618657f96198a123ba01a0e1ad61d94f0
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
 Latest verified automated suite: 173 passed
-GitHub Actions run: 42756065019 (success)
+GitHub Actions PR validation run: 42756150028 (success; same source tree as merged main)
 Runtime smoke: Streamlit AppTest loaded app.py without uncaught exception
 Scope: five engineering modules; Streamlit Web application only.
