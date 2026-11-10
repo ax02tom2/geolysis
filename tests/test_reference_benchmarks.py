@@ -18,6 +18,7 @@ from geolysis_engine import (
     layered_bearing_capacity_punching,
     seismic_bearing_capacity_residual_pore_pressure,
     foundation_sliding_factor_of_safety,
+    bishop_simplified_factor_of_safety,
 )
 
 
@@ -240,3 +241,19 @@ def test_drained_sliding_matches_usace_equation_5_29():
     assert result["resisting_force_kN"] == pytest.approx(resistance)
     assert result["driving_force_kN"] == pytest.approx(driving)
     assert result["FS_sliding"] == pytest.approx(resistance / driving)
+
+
+def test_bishop_simplified_matches_independent_usace_appendix_f_iteration():
+    # USACE EM 1110-2-1902 (2003), Appendix F, Eqs. F-1/F-2.
+    # Independently iterated reference result for this three-slice dry case.
+    slices = [
+        {"width_m": 1, "weight_kN": 100, "base_angle_deg": 10,
+         "cohesion_kpa": 10, "friction_angle_deg": 25, "pore_pressure_kpa": 0},
+        {"width_m": 1, "weight_kN": 120, "base_angle_deg": 20,
+         "cohesion_kpa": 10, "friction_angle_deg": 25, "pore_pressure_kpa": 0},
+        {"width_m": 1, "weight_kN": 100, "base_angle_deg": 10,
+         "cohesion_kpa": 10, "friction_angle_deg": 25, "pore_pressure_kpa": 0},
+    ]
+    result = bishop_simplified_factor_of_safety(slices=slices)
+    assert result["converged"]
+    assert result["FS"] == pytest.approx(2.3295012105169772, abs=1e-9)
