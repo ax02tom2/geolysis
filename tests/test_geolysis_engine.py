@@ -489,26 +489,24 @@ def test_clay_consolidation_rejects_invalid_stress_factor_and_void_ratio():
 
 def test_hansen_vesic_allow_zero_base_adhesion_for_smooth_footing():
     base=dict(c_kpa=20,phi_deg=0,gamma_moist=18,gamma_sub=9,
-        B=2,L=3,Df=1,water_depth=5,fs=3,horizontal_load=100,
+        B=2,L=3,Df=1,water_depth=5,fs=3,horizontal_load=0,
         vertical_load=1000,adhesion_ratio=0)
     h=bearing_capacity(theory='Hansen',**base)
     v=bearing_capacity(theory='Vesic',**base)
-    assert h['ic']==0
-    # Vesic uses soil cohesion c in the undrained inclination factor;
-    # ca=0 only removes Hansen's interface-adhesion contribution.
-    assert v['ic']>0
+    assert h['ic']==pytest.approx(1.0)
+    assert v['ic']==pytest.approx(1.0)
 
 
 
 
-def test_vesic_undrained_depth_factor_is_conservatively_omitted():
+def test_vesic_undrained_classical_depth_factor_matches_hansen_table_4_6():
     args=dict(theory='Vesic',c_kpa=50,phi_deg=0,gamma_moist=18,
         gamma_sub=9,B=2,L=6,Df=3,water_depth=10,fs=3)
     r=bearing_capacity(**args)
     assert r['Nc']==pytest.approx(5.14)
     assert r['Nq']==pytest.approx(1.0)
     assert r['Ngamma']==pytest.approx(0.0)
-    assert r['dc']==pytest.approx(1.0)
+    assert r['dc']==pytest.approx(1+0.4*math.atan(3/2))
 
 def test_vesic_horizontal_load_direction_uses_perpendicular_aspect_ratio():
     base=dict(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
@@ -516,9 +514,9 @@ def test_vesic_horizontal_load_direction_uses_perpendicular_aspect_ratio():
         horizontal_load=100,vertical_load=1000)
     rb=bearing_capacity(**base,load_direction='parallel_B')
     rl=bearing_capacity(**base,load_direction='parallel_L')
-    m_parallel_b=(2+6/2)/(1+6/2)
-    m_parallel_l=(2+2/6)/(1+2/6)
-    hratio=100/(1000+2*6*10/math.tan(math.radians(30)))
+    m_parallel_b=(2+2/6)/(1+2/6)
+    m_parallel_l=(2+6/2)/(1+6/2)
+    hratio=100/(1000+2*6*0.6*10/math.tan(math.radians(30)))
     assert rb['iq']==pytest.approx((1-hratio)**m_parallel_b)
     assert rl['iq']==pytest.approx((1-hratio)**m_parallel_l)
     assert rb['iq']!=pytest.approx(rl['iq'])
@@ -966,3 +964,11 @@ def test_hansen_undrained_rejects_horizontal_load_beyond_interface_adhesion():
         bearing_capacity(theory='Hansen',c_kpa=10,phi_deg=0,
             gamma_moist=18,gamma_sub=9,B=2,L=3,Df=1,water_depth=5,
             horizontal_load=1000,vertical_load=1000,adhesion_ratio=0.5)
+
+
+@pytest.mark.parametrize("theory",["Hansen","Vesic"])
+def test_classical_undrained_horizontal_load_requires_nonzero_base_adhesion(theory):
+    with pytest.raises(ValueError):
+        bearing_capacity(theory=theory,c_kpa=20,phi_deg=0,
+            gamma_moist=18,gamma_sub=9,B=2,L=3,Df=1,water_depth=5,
+            horizontal_load=100,vertical_load=1000,adhesion_ratio=0)
