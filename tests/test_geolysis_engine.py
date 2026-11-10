@@ -432,6 +432,15 @@ def test_meyerhof_depth_factor_applies_to_all_three_terms_per_usace_table_5_2():
     assert r['dg']>1.0
 
 
+
+def test_meyerhof_zero_embedment_has_unit_depth_factors():
+    r=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=3,Df=0,water_depth=5)
+    assert r['dc']==pytest.approx(1.0)
+    assert r['dq']==pytest.approx(1.0)
+    assert r['dg']==pytest.approx(1.0)
+
+
 def test_classical_bearing_factor_values_at_phi_30():
     args=dict(c_kpa=10,phi_deg=30,gamma_moist=18,gamma_sub=9,
         B=2,L=3,Df=1.5,water_depth=5,fs=3)
