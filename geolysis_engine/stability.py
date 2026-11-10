@@ -6,7 +6,7 @@ from ._common import _finite
 def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, area_m2, friction_angle_deg, cohesion_kpa=0.0,
         adhesion_ratio=0.0, active_force_kN=0.0, passive_force_kN=0.0,
-        fs_required=2.0):
+        fs_required=2.0, load_case='static'):
     """USACE EM 1110-1-1905 (2025) Eq. 5-28/5-29 drained interface sliding.
     Active/passive forces must be independently established using developed
     strengths; passive resistance is capped at the driving force.
@@ -16,8 +16,11 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
     phi=_finite('基底摩擦角',friction_angle_deg); c=_finite('基底黏著強度',cohesion_kpa)
     ar=_finite('黏著折減比',adhesion_ratio); Pa=_finite('主動土壓力',active_force_kN)
     Pp=_finite('被動土壓力',passive_force_kN); req=_finite('要求安全係數',fs_required)
-    if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<=1:
-        raise ValueError('基底滑動輸入值不合理')
+    minimum_fs = 2.0 if load_case == 'static' else 1.1 if load_case == 'seismic' else None
+    if minimum_fs is None:
+        raise ValueError('滑動荷載組合須為 static 或 seismic')
+    if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<minimum_fs:
+        raise ValueError(f'基底滑動輸入值不合理；{load_case} 荷載組合的 USACE 2025 要求 FS 不得低於 {minimum_fs:.1f}')
     drive=H+Pa
     passive_used=min(Pp,drive)
     net_drive=drive-passive_used
@@ -27,7 +30,8 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
     return {'resisting_force_kN':resistance,'driving_force_kN':net_drive,
         'passive_resistance_used_kN':passive_used,'passive_resistance_capped':Pp>drive,
         'passive_balance_controls':passive_balance,
-        'FS_sliding':fs,'FS_required':req,'passes':fs>=req,
+        'FS_sliding':fs,'FS_required':req,'FS_minimum_required':minimum_fs,
+        'load_case':load_case,'passes':fs>=req,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-28/5-29',
         'limitations':'被動土壓與主動土壓須以 developed strength（φd、cd）另行計算後輸入；被動抗力不可大於 H+Pa。此函式未自行估算側向土壓、差異水壓、地震載重或結構接觸面破壞。'}
 
@@ -175,7 +179,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
 
 def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
         footing_depth_m, footing_length_m, friction_angle_deg,
-        cohesion_kpa, fs_sliding=2.0):
+        cohesion_kpa, fs_sliding=2.0, load_case='static'):
     """USACE EM 1110-1-1905 (2025) Eqs. 5-31 to 5-35, Rankine earth
     pressure coefficients with developed soil strengths for sliding.
     """
@@ -185,8 +189,11 @@ def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
     phi=_finite('回填土摩擦角',friction_angle_deg)
     c=_finite('回填土凝聚力',cohesion_kpa)
     fs=_finite('滑動設計安全係數',fs_sliding)
-    if gamma<=0 or Df<0 or L<=0 or not 0<=phi<50 or c<0 or fs<=1:
-        raise ValueError('主動／被動土壓輸入不合理')
+    minimum_fs = 2.0 if load_case == 'static' else 1.1 if load_case == 'seismic' else None
+    if minimum_fs is None:
+        raise ValueError('滑動荷載組合須為 static 或 seismic')
+    if gamma<=0 or Df<0 or L<=0 or not 0<=phi<50 or c<0 or fs<minimum_fs:
+        raise ValueError(f'主動／被動土壓輸入不合理；{load_case} 荷載組合的 USACE 2025 滑動 FS 不得低於 {minimum_fs:.1f}')
     phi_d=math.degrees(math.atan(math.tan(math.radians(phi))/fs))
     c_d=c/fs
     sin_d=math.sin(math.radians(phi_d))
@@ -197,5 +204,6 @@ def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
     return {'developed_phi_deg':phi_d,'developed_cohesion_kpa':c_d,
         'Ka_developed':Ka,'Kp_developed':Kp,
         'active_force_kN':Pa,'passive_force_kN':Pp,
+        'load_case':load_case,'FS_minimum_required':minimum_fs,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-31 to 5-35; Rankine',
         'limitations':'假設均質回填土、垂直牆背／水平地表且可採 Rankine 壓力係數；側摩擦、斜坡地表、分層土、施工擾動及水壓需另行處理。被動抗力在 FS 計算中仍會受 driving force cap 限制。'}

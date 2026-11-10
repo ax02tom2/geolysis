@@ -130,6 +130,8 @@ def render_module_5(expanded=False):
                 ground_ang5=st.number_input("鄰接地表坡角 αg [°]",0.0,44.0,0.0,1.0,key="m5x_ground_angle")
             with sc3:
                 slope_dist5=st.number_input("基礎有效邊至坡頂距離 dg [m]",0.0,100.0,0.0,0.5,key="m5x_slope_distance")
+            slope_fs5=st.number_input("鄰接坡體整體穩定 FS（須 > 1.3）",0.0,10.0,0.0,0.05,key="m5x_slope_fs",disabled=(ground_ang5<=0))
+            st.caption("USACE 2025 表 5-3 註 b：鄰接坡體地表坡角修正係數以坡體整體穩定 FS > 1.3 為前提。請先完成獨立整體穩定檢核；未達或未提供 FS 時，系統會停止坡角修正。")
             if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run"):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
@@ -139,16 +141,22 @@ def render_module_5(expanded=False):
                     slope_result=bearing_capacity_slope_base_corrections(
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
                         base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
-                        slope_distance_m=slope_dist5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5))
+                        slope_distance_m=slope_dist5,
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
+            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
-                st.write(f"bc={slope_result['base_factor_c']:.3f}；bq={slope_result['base_factor_q']:.3f}；gc={slope_result['ground_factor_c']:.3f}；gq={slope_result['ground_factor_q']:.3f}")
+                st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
+                st.write(f"基底係數：bc={slope_result['base_factor_c']:.3f}、bq={slope_result['base_factor_q']:.3f}、bγ={slope_result['base_factor_gamma']:.3f}；地表係數：gc={slope_result['ground_factor_c']:.3f}、gq={slope_result['ground_factor_q']:.3f}、gγ={slope_result['ground_factor_gamma']:.3f}")
+                if phi5>0:
+                    st.caption(f"排水 Nγ 項有效單位重 γ′={slope_result['gamma_effective']:.2f} kN/m³；{slope_result['gamma_effective_method']}，修正係數={slope_result['gamma_effective_2025_factor']:.3f}。")
+                else:
+                    st.caption("ϕ=0 不排水分析不使用 Nγ 單位重項；Table 5-4 地表傾斜係數修正凝聚力項，覆土項另依 q₀=γDf cosαg 計算。")
                 st.caption(slope_result["limitations"])
             elif slope_result:
                 st.warning("輸入已變更，請重新執行斜坡／基底傾斜計算。")
@@ -290,7 +298,11 @@ def render_module_5(expanded=False):
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
                 slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
                 slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
-            slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
+            slide_case5=st.selectbox("荷載組合",["常時／靜力","含地震荷載"],index=0,key="m5x_slide_case")
+            slide_load_case5="seismic" if slide_case5=="含地震荷載" else "static"
+            slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
+            slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
+            st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
             slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
@@ -301,7 +313,8 @@ def render_module_5(expanded=False):
                         earth=developed_rankine_sliding_earth_pressures(
                             effective_unit_weight_kn_m3=slide_gamma5,footing_depth_m=df5,
                             footing_length_m=L5,friction_angle_deg=slide_backfill_phi5,
-                            cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5)
+                            cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5,
+                            load_case=slide_load_case5)
                         active_used=earth["active_force_kN"]
                         passive_used=earth["passive_force_kN"]
                         st.session_state["m5x_slide_earth_result"]=earth
@@ -313,12 +326,13 @@ def render_module_5(expanded=False):
                         uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
                         friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                         adhesion_ratio=slide_ar5,active_force_kN=active_used,
-                        passive_force_kN=passive_used,fs_required=slide_req5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                        passive_force_kN=passive_used,fs_required=slide_req5,
+                        load_case=slide_load_case5)
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
