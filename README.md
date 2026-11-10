@@ -32,7 +32,7 @@ GitHub Actions 會在推送至 main、Pull Request 及手動觸發時執行：
 - Streamlit 數字輸入元件 key 唯一性檢查
 - Web 版功能範圍檢查
 
-最近一次完整 CI：**141 passed**（2026-11-10，Python 3.11）。這代表自動化測試通過，不等同於已在 Streamlit Cloud 完成部署或瀏覽器端驗收。
+最近一次完整 CI：**142 passed**（2026-11-10，Python 3.11），包含 Streamlit AppTest 頁面載入 smoke test。這代表自動化測試通過，不等同於已在 Streamlit Cloud 完成部署或真實瀏覽器端驗收。
 
 ## 工程使用限制
 
