@@ -1,12 +1,21 @@
-geolysis Web 版 V4
+geolysis 大地工程分析系統｜Web 版
 
-本版只保留五個大地工程網頁分析模組。
-岩心照片、AI 判釋、採取率影像初估及 RQD 已移至獨立 Windows 單機版。
+本專案包含五個大地工程分析模組：
+1. Hoek–Brown 岩體參數
+2. USCS／AASHTO 土壤分類
+3. SPT 全修正
+4. 沉陷與容許壓力
+5. Terzaghi／Meyerhof／Hansen／Vesic 極限承載力
+
+岩心照片、AI 判釋、採取率影像初估及 RQD 影像估算不在本 Web 專案內，請使用獨立 Windows 單機工具。
+
+已驗證環境：Python 3.11
 
 啟動：
-1. 安裝 Python 3.11 或更新的正式版本。
-2. 建立並啟用虛擬環境。
-3. pip install -r requirements.txt
-4. streamlit run app.py
+1. 建立並啟用 Python 虛擬環境。
+2. python -m pip install -r requirements.txt
+3. streamlit run app.py
 
-請只將本資料夾內容部署到 Web 專案；岩心單機版請使用另一個 ZIP。
+Streamlit Cloud 部署時，選擇專案根目錄的 app.py。
+最近一次自動化驗證：141 passed（2026-11-10）。
+GitHub Actions 通過不代表 Streamlit Cloud 已完成線上操作驗收。
