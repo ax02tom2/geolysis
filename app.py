@@ -1164,9 +1164,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         with sb:
             slide_area5=st.number_input("基底接觸面積 A [m²]",0.1,5000.0,float(max(0.1,B5*L5)),0.1,key="m5x_slide_area")
             slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_phi")
-            slide_c5=st.number_input("基底黏著強度 ca [kPa]",0.0,100000.0,0.0,1.0,key="m5x_slide_c")
+            slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key="m5x_slide_c")
         with sc:
-            slide_ar5=st.number_input("黏著折減比",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
+            slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
             slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
             slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
         slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
