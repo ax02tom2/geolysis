@@ -2,12 +2,12 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 6b975eaa2540cfa8104e5274fd33c0a9165129d8
-Validation run: 42765165981 (PR validation of identical source tree before squash merge; success)
+Validated main code commit: 5b717775cd482789252ab09074efc61853831716
+Validation run: 42765852730 (PR validation of identical source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42765165981
+- Run ID: 42765852730
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 196 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 197 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -74,6 +74,17 @@ Engineering baseline cross-check and USACE 2025 applicability corrections — PR
 - Module 5 now displays the shape, depth, base, ground and groundwater correction factors used in the slope/base result.
 - Updated README formula-version and applicability notes. GitHub Actions explicitly includes the independent benchmark test file.
 - Validation: 196 passed in Actions run 42765165981 before the added Bishop reference case; Validation: 197 passed in GitHub Actions run 42765656858 after aligning the Bishop reference assertion tolerance with the solver's documented iterative convergence.
+
+Independent engineering reference benchmark update — PR #6
+
+- Added an independent Simplified Bishop numerical benchmark based on USACE EM 1110-2-1902 (2003), Appendix F, Eqs. F-1/F-2.
+- The expected factor of safety is independently iterated; assertion tolerance is aligned to the solver's documented convergence precision.
+- The complete suite now contains 197 passing tests, including 14 reference benchmark cases.
+- The latest validated source tree was tested in GitHub Actions run 42765852730 before squash merge; the merged main commit is 5b717775cd482789252ab09074efc61853831716.
+
+Additional user-interface / scope clarification:
+- Module 5 explicitly states that choosing a seismic sliding load case changes the minimum required FS only; it does not generate seismic inertia forces. The user must include seismic effects in H, V and active/passive earth-pressure inputs.
+- Sliding helper docstrings and README state the same limitation to prevent the load-case selector being mistaken for a seismic force generator.
 
 Engineering extensions and explicit limitations:
 - Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
