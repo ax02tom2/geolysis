@@ -340,7 +340,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
             # USACE EM 1110-1-1905 (2025), Table 5-4: undrained
             # q-term factors are all unity; Meyerhof dc is capped at 1.5.
             sq=sg=1.0
-            dc=min(1+0.2*Df/B,1.5)
+            dc=min(1+0.2*Df/Be,1.5)
             dq=dg=1.0
             # Table 5-4 undrained Meyerhof inclination: ic=1-1.3 H/V.
             # beta is the entered load angle, so H/V=tan(beta).
