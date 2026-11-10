@@ -329,8 +329,10 @@ def test_bearing_groundwater_gamma_adjustment_uses_effective_width():
         B=2,L=3,Df=1.5,water_depth=2.5,fs=3)
     centered=bearing_capacity(**args)
     eccentric=bearing_capacity(**args,eccentricity_B=.2)
-    assert centered['gamma_effective']==pytest.approx(13.5)
-    assert eccentric['gamma_effective']==pytest.approx(9+9*(1.0/1.6))
+    h_center=2*math.tan(math.radians(45+30/2))
+    h_ecc=1.6*math.tan(math.radians(45+30/2))
+    assert centered['gamma_effective']==pytest.approx(9+9*(1.0/h_center))
+    assert eccentric['gamma_effective']==pytest.approx(9+9*(1.0/h_ecc))
 
 
 def test_hoek_brown_2002_slope_parameters_and_gsi_sensitivity():
@@ -989,3 +991,34 @@ def test_vesic_drained_inclination_uses_base_adhesion_ratio():
     low=bearing_capacity(**args,adhesion_ratio=.3)
     high=bearing_capacity(**args,adhesion_ratio=.9)
     assert low['iq']<high['iq']
+
+
+def test_groundwater_shear_zone_uses_below_footing_total_unit_weight():
+    r=bearing_capacity(theory='Vesic',c_kpa=0,phi_deg=30,
+        gamma_moist=18,gamma_below=20,gamma_sub=10,
+        B=2,L=4,Df=1,water_depth=2)
+    h=2*math.tan(math.radians(60))
+    assert r['shear_zone_depth']==pytest.approx(h)
+    assert r['gamma_effective']==pytest.approx(10+(20-10)*(1/h))
+
+
+def test_groundwater_below_shear_zone_uses_full_below_footing_unit_weight():
+    r=bearing_capacity(theory='Meyerhof',c_kpa=0,phi_deg=30,
+        gamma_moist=18,gamma_below=20,gamma_sub=10,
+        B=2,L=4,Df=1,water_depth=10)
+    assert r['gamma_effective']==pytest.approx(20)
+
+
+def test_usace_1992_example_4_5b_reproduces_meyerhof_hansen_vesic_capacities():
+    # USACE EM 1110-1-1905 (1992), Example 4-5(b), converted from ft/ksf/pcf.
+    ft=0.3048
+    ksf_to_kpa=47.88025898
+    args=dict(c_kpa=0,phi_deg=30,gamma_moist=120*0.15708746385,
+        gamma_below=130*0.15708746385,gamma_sub=67.5*0.15708746385,
+        B=3*ft,L=6*ft,Df=2*ft,water_depth=3*ft,
+        horizontal_load=2*4.4482216153,vertical_load=10*4.4482216153)
+    expected={'Meyerhof':5.25,'Hansen':4.69,'Vesic':5.86}
+    for theory,qu_ksf in expected.items():
+        kwargs={'load_angle':math.degrees(math.atan2(2,10))} if theory=='Meyerhof' else {}
+        r=bearing_capacity(theory=theory,**args,**kwargs)
+        assert r['qu_gross']/ksf_to_kpa==pytest.approx(qu_ksf,abs=0.015)
