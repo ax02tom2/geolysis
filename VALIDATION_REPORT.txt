@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: b7756ea49239f192678fe2d0e3f8147e657bfda1
-Latest validation run: 42785906701 (PR #13 source tree before squash merge; success)
+Validated main code commit: a2b109563d3a1a6175c93b5761ad629ec0d1cf57
+Latest validation run: 42786115343 (PR #14 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 229 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 231 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -173,3 +173,14 @@ Continuous strip-footing shape-factor correction — PR #13
 - PR #13 merged to main at b7756ea49239f192678fe2d0e3f8147e657bfda1.
 - GitHub Actions run 42785906701: success; Python 3.11 compile passed; full suite 229 passed in 1.17 s.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and not a separate calculation-code change.
+
+
+USACE Appendix B-4 groundwater/dewatering resistance benchmark — PR #14
+
+- Added two independent cases from USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-4 / Tables B-4a, B-4b and B-4c (printed pp. 311–314).
+- Checked both the construction-dewatering water level (12 ft below grade) and the long-term water level (6 ft below grade) for the undrained 7 ft × 7 ft footing, Df=2 ft, su=0.85 ksf and γ=0.113 kcf.
+- The engine reproduces the unchanged undrained resistance for both cases: full-precision qult≈5.768 ksf, versus 5.78 ksf in the manual after intermediate rounding; q0≈0.226 ksf.
+- Important scope boundary: Appendix B-4's groundwater rise changes the applied-pressure demand qeq through footing buoyancy (reported 1.81 to 1.43 ksf). The current bearing-capacity engine calculates resistance and allowable resistance; it does not calculate column/foundation demand, foundation self-weight or uplift-adjusted qeq. Those must be checked separately; the new tests do not claim to validate that demand calculation.
+- PR #14 merged to main at a2b109563d3a1a6175c93b5761ad629ec0d1cf57.
+- GitHub Actions run 42786115343: success; Python 3.11 compile passed; full suite 231 passed in 1.45 s.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
