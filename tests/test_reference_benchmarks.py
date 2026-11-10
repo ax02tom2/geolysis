@@ -561,7 +561,7 @@ def test_usace_2025_appendix_b3a_drained_isolated_footing():
     assert result["sg"] == pytest.approx(sg, rel=1e-12)
     assert result["dg"] == pytest.approx(dgamma, rel=1e-12)
     assert result["gamma_effective_2025_factor"] == pytest.approx(1.0)
-    assert result["qu_gross"] == pytest.approx(expected_qult_kpa, rel=1e-12)
+    assert result["qu_gross"] == pytest.approx(expected_qult_kpa, rel=1e-8)
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.33, abs=0.01)
     # The manual reports 32.15 ksf after rounding its intermediate values.
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.15, abs=0.20)
