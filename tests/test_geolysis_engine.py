@@ -912,10 +912,10 @@ def test_vesic_surcharge_shape_factor_uses_tan_phi_not_sin_phi():
     assert r['sq']==pytest.approx(1+(2/6)*math.tan(math.radians(30)))
 
 
-def test_hansen_surcharge_shape_factor_retains_sin_phi():
+def test_hansen_surcharge_shape_factor_uses_tan_phi_per_usace_table_4_5():
     r=bearing_capacity(theory='Hansen',c_kpa=10,phi_deg=30,
         gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
-    assert r['sq']==pytest.approx(1+(2/6)*math.sin(math.radians(30)))
+    assert r['sq']==pytest.approx(1+(2/6)*math.tan(math.radians(30)))
 
 
 def test_undrained_hansen_and_vesic_keep_surcharge_and_unit_weight_factors_unity():
