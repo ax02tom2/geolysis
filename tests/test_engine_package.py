@@ -1,7 +1,7 @@
 """Package boundary and legacy-import compatibility checks."""
 import geolysis_engine
 from geolysis_engine import (
-    bearing_capacity, bishop_circular_search, classify_uscs_aashto,
+    ROD_CORRECTION, bearing_capacity, bishop_circular_search, classify_uscs_aashto,
     consolidation_time_rate, hoek_brown_parameters, spt_correct,
 )
 from geolysis_engine.bearing import layered_bearing_capacity_profile
@@ -19,6 +19,7 @@ def test_legacy_public_imports_remain_available():
     assert callable(consolidation_time_rate)
     assert callable(hoek_brown_parameters)
     assert callable(spt_correct)
+    assert ROD_CORRECTION[0] == (3, 0.75)
 
 
 def test_domain_modules_export_the_same_function_objects():
