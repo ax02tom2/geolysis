@@ -1099,9 +1099,13 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         with ss1:
             ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
             seismic_footing5=st.selectbox("基礎型式",["spread","strip"],format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",key="m5x_seismic_footing")
+        seismic_reference5=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
+            gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
+            B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,
+            eccentricity_B=eB5,eccentricity_L=eL5)
         with ss2:
-            ngamma_seismic5=st.number_input("承載力因子 Nγ",0.0,2000.0,20.0,0.5,key="m5x_seismic_ng")
-            gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]",1.0,25.0,9.5,0.5,key="m5x_seismic_gamma")
+            ngamma_seismic5=st.number_input("承載力因子 Nγ（依目前 φ 與 Meyerhof 自動帶入）",0.0,2000.0,float(seismic_reference5["Ngamma"]),0.5,key="m5x_seismic_ng")
+            gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]（依地下水計算自動帶入）",1.0,25.0,float(max(1.0,min(25.0,seismic_reference5["gamma_effective"]))),0.5,key="m5x_seismic_gamma")
         with ss3:
             corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積",0.01,1.0,1.0,0.01,key="m5x_seismic_corr")
         if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
@@ -1185,7 +1189,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_auto_phi")
         with bb:
             bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
-            bishop_gw5=st.number_input("地下水位高程（留空＝無地下水）", -100.0,1000.0,0.0,0.5,key="m5x_auto_gw")
+            bishop_gw5=st.number_input("地下水位高程（輸入 -100＝無地下水）", -100.0,1000.0,-100.0,0.5,key="m5x_auto_gw")
         with bc:
             center_x_min5=st.number_input("圓心 x 最小值 [m]",-100.0,1000.0,3.0,0.5,key="m5x_cxmin")
             center_x_max5=st.number_input("圓心 x 最大值 [m]",-100.0,1000.0,7.0,0.5,key="m5x_cxmax")
