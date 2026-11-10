@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: d91ba4bcd78ccd5702aacc85ff4423703f7ea28f
-Latest validation run: 42783002026 (PR #11 source tree before squash merge; success)
+Validated main code commit: e3ab127ebe386a8cbf8ba1b320359639ae1e1aee
+Latest validation run: 42785493512 (PR #12 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 221 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 224 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -148,3 +148,16 @@ Module 5 bearing-capacity load-inclination correction — PR #11
 - PR #11 merged to main at d91ba4bcd78ccd5702aacc85ff4423703f7ea28f.
 - GitHub Actions run 42783002026: success; Python 3.11 compile passed; full suite 221 passed in 1.49 s, including both new reference cases.
 - The validated PR source tree is identical to the merged main code tree. The documentation-only updates are not separate calculation-code changes.
+
+
+USACE 2025 Appendix B worked-example bearing-capacity cross-check — PR #12
+
+- Retrieved and transcribed the USACE EM 1110-1-1905 (31 Jul 2025) Appendix B worked examples and compared the existing Module 5 engine paths with the published calculations.
+- Example B-1 / Tables B-1a and B-1b: undrained 7 ft × 7 ft isolated footing on clay, Df=2 ft, su=0.5 ksf, q0=0.24 ksf. The engine reproduces Nc=5.14, sc=1.20, dc=1+0.2(2/7), and the unrounded equation result (~3.50 ksf). The manual reports 3.51 ksf after rounding dc to 1.06 before the final calculation.
+- Example B-3a / Table B-3a: drained 7 ft × 7 ft footing on sand, φ′=34°, Df=2 ft, groundwater depth=13 ft, γ=0.135 kcf. The engine reproduces the USACE Meyerhof factor family, the Eq. 5-19 groundwater factor (=1.0), and the full-precision equation result (~32.33 ksf). The manual reports 32.15 ksf after rounding N, Nq, Nγ and correction factors at intermediate steps; the test explicitly distinguishes full-precision computation from the rounded published table.
+- Example B-3b / Table B-3b: validated the 2V:1H isolated-footing punch-through ratio using Hs=6 ft, B=L=7 ft, weak-layer qult=3.54 ksf; the engine reproduces the spread ratio ((7+6)(7+6))/(7×7) and rounded punch-through capacity of 12.21 ksf.
+- Added three independent benchmark tests covering the above published worked examples. This supplements the earlier generic equation-level tests rather than replacing them.
+- Source: USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Examples B-1 and B-3, Tables B-1a/B-1b/B-3a/B-3b (printed pages 295–309).
+- PR #12 merged to main at e3ab127ebe386a8cbf8ba1b320359639ae1e1aee.
+- GitHub Actions run 42785493512: success; Python 3.11 compile passed; full suite 224 passed in 1.29 s, including the three new Appendix B worked-example benchmarks.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
