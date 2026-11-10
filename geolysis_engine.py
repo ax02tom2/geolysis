@@ -1252,3 +1252,31 @@ def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_
         'controlling_layer':control['controlling_layer'],'layers':results,
         'candidates':candidates,'method':'USACE EM 1110-1-1905 (2025), 2V:1H layered punch-through, Eqs. 5-17/5-18',
         'limitations':'以 Meyerhof-based 單層承載力分別計算各層，再對規定影響深度內較弱下層進行 2V:1H 穿刺檢核；假設水平分層、各層參數均質且基礎載重／排水條件一致。未涵蓋斜交層面、軟弱夾層側向擠出、任意破壞面與有限元素分析。'}
+
+
+def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
+        footing_depth_m, footing_length_m, friction_angle_deg,
+        cohesion_kpa, fs_sliding=2.0):
+    """USACE EM 1110-1-1905 (2025) Eqs. 5-31 to 5-35, Rankine earth
+    pressure coefficients with developed soil strengths for sliding.
+    """
+    gamma=_finite('回填土有效單位重',effective_unit_weight_kn_m3)
+    Df=_finite('基礎埋深',footing_depth_m)
+    L=_finite('基礎長度',footing_length_m)
+    phi=_finite('回填土摩擦角',friction_angle_deg)
+    c=_finite('回填土凝聚力',cohesion_kpa)
+    fs=_finite('滑動設計安全係數',fs_sliding)
+    if gamma<=0 or Df<0 or L<=0 or not 0<=phi<50 or c<0 or fs<=1:
+        raise ValueError('主動／被動土壓輸入不合理')
+    phi_d=math.degrees(math.atan(math.tan(math.radians(phi))/fs))
+    c_d=c/fs
+    sin_d=math.sin(math.radians(phi_d))
+    Ka=(1-sin_d)/(1+sin_d)
+    Kp=1/Ka
+    Pa=max(0.0,(0.5*gamma*Df*Ka-2*c_d)*Df*L)
+    Pp=(0.5*gamma*Df*Kp+2*c_d)*Df*L
+    return {'developed_phi_deg':phi_d,'developed_cohesion_kpa':c_d,
+        'Ka_developed':Ka,'Kp_developed':Kp,
+        'active_force_kN':Pa,'passive_force_kN':Pp,
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-31 to 5-35; Rankine',
+        'limitations':'假設均質回填土、垂直牆背／水平地表且可採 Rankine 壓力係數；側摩擦、斜坡地表、分層土、施工擾動及水壓需另行處理。被動抗力在 FS 計算中仍會受 driving force cap 限制。'}
