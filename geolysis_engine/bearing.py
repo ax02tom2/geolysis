@@ -228,7 +228,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     qallow_net=qnet/FS
     qallow_gross=qallow_net+q
     return {'theory':theory,'Nc':Nc,'Nq':Nq,'Ngamma':Ng,'sc':sc,'sq':sq,'sg':sg,
-            'B_original':B,'L_original':L,'Df':Df,
+            'B_original':B,'L_original':L,'Df':Df,'water_depth':Dw,
             'dc':dc,'dq':dq,'dg':dg,'ic':ic,'iq':iq,'ig':ig,'q_surcharge':q,
             'gamma_effective':gamma_eff,'gamma_below_total':gbelow,'shear_zone_depth':shear_zone_depth,'term_c':tc,'term_q':tq,'term_gamma':tg,
             'qu_gross':qu,'qu_net':qnet,'qu_gross_over_FS':qu/FS,'qa_gross_direct_FS':qu/FS,'qa_net':qallow_net,'qa_gross':qallow_gross,
@@ -297,7 +297,11 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         ggamma=min(1.0,ggamma0+(1-ggamma0)*recovery)
         tc=base_result['c_used']*Nc*sc*dc*base_result['ic']*bc*gc
         tq=q*math.cos(math.radians(ag))*Nq*sq*dq*base_result['iq']*bq*gq
-        tg=0.5*B*base_result['gamma_effective']*Ng*sg*dg_factor*base_result['ig']*bgamma*ggamma
+        # USACE 2025 Eq. 5-19 groundwater correction for drained gamma term.
+        gamma_t=base_result['gamma_below_total']
+        gamma_corr=min(0.45+0.55*(max(base_result['water_depth']-Df,0.0)/base_result['B_original']),1.0)
+        gamma_eff_2025=gamma_t*gamma_corr
+        tg=0.5*B*gamma_eff_2025*Ng*sg*dg_factor*base_result['ig']*bgamma*ggamma
     else:
         # USACE Table 5-4 undrained corrections.
         flow_n=None
@@ -318,6 +322,9 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     qa_net=qnet/fs
     qa_gross=qa_net+q_slope
     return {**base_result,'N_flow':flow_n,'sc':sc,'sq':sq,'sg':sg,
+        'gamma_effective':(gamma_eff_2025 if phi>0 else base_result['gamma_effective']),
+        'gamma_effective_2025_factor':(gamma_corr if phi>0 else None),
+        'gamma_effective_method':('USACE EM 1110-1-1905 (2025), Eq. 5-19' if phi>0 else 'undrained total-stress analysis; gamma term not used'),
         'dc':dc,'dq':dq,'dg':dg_factor,
         'base_factor_c':bc,'base_factor_q':bq,'base_factor_gamma':bgamma,
         'ground_factor_c':gc,'ground_factor_q':gq,'ground_factor_gamma':ggamma,
