@@ -1117,3 +1117,22 @@ def test_bishop_simplified_rejects_insufficient_slices_and_bad_pore_pressure():
         bishop_simplified_factor_of_safety(slices=[
             {'width_m':1,'weight_kN':100,'base_angle_deg':5,'cohesion_kpa':5,'friction_angle_deg':20,'pore_pressure_kpa':-1}
             for _ in range(3)])
+
+
+def test_bishop_circular_search_finds_a_valid_critical_surface():
+    profile=[(0,10),(5,8),(10,0),(20,0)]
+    r=bishop_circular_search(ground_profile=profile,cohesion_kpa=10,
+        friction_angle_deg=25,unit_weight_kn_m3=18,
+        center_x_values=[3,5],center_y_values=[8,10,12],
+        radius_values=[8,10,12,15],slice_count=20)
+    assert r['converged']
+    assert r['evaluated_surfaces']>0
+    assert r['radius_m']>0
+    assert r['FS']>0
+
+
+def test_bishop_circular_search_rejects_invalid_ground_profile():
+    with pytest.raises(ValueError):
+        bishop_circular_search(ground_profile=[(0,0),(0,1)],cohesion_kpa=10,
+            friction_angle_deg=25,unit_weight_kn_m3=18,
+            center_x_values=[1],center_y_values=[2],radius_values=[3])
