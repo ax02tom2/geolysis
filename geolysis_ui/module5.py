@@ -122,7 +122,7 @@ def render_module_5(expanded=False):
         st.caption("以下功能分別計算，不與原本水平地表靜力承載力混為一談。各項結果需依實際地層、地下水、荷載組合及採用規範審查。")
     
         with st.expander("① 斜坡地表／② 傾斜基底承載力修正",expanded=False):
-            st.caption("依 USACE EM 1110-1-1905（2025）表 5-3／5-4 的 Meyerhof-based 修正係數；地表坡面假設由基礎向外下降。坡體整體穩定仍須另外通過檢核。")
+            st.caption("依 USACE EM 1110-1-1905（2025）表 5-3／5-4 的 Meyerhof-based 修正係數；排水載重傾斜角 β 由本頁 H/V 自動計算，不沿用經典理論的手動 β；地表坡面假設由基礎向外下降。坡體整體穩定仍須另外通過檢核。")
             sc1,sc2,sc3=st.columns(3)
             with sc1:
                 base_ang5=st.number_input("基底／剪力鍵等效傾角 αb [°]",0.0,59.0,0.0,1.0,key="m5x_base_angle")
@@ -142,16 +142,21 @@ def render_module_5(expanded=False):
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
                         base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
                         slope_distance_m=slope_dist5,
-                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
+                        horizontal_load=H5,vertical_load=V5)
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
+            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
+                if phi5>0:
+                    st.write(f"載重傾斜角 β=atan(H/V)={slope_result['load_inclination_beta_2025_deg']:.2f}°；載重係數 ic=iq={slope_result['load_factor_c_2025']:.3f}、iγ={slope_result['load_factor_gamma_2025']:.3f}")
+                else:
+                    st.write(f"不排水載重比 H/V={H5/V5:.3f}；USACE 2025 Table 5-4 凝聚力項 ic={slope_result['load_factor_c_2025']:.3f}，覆土項 iq=1.000；Nγ 項不使用。")
                 st.write(f"基底係數：bc={slope_result['base_factor_c']:.3f}、bq={slope_result['base_factor_q']:.3f}、bγ={slope_result['base_factor_gamma']:.3f}；地表係數：gc={slope_result['ground_factor_c']:.3f}、gq={slope_result['ground_factor_q']:.3f}、gγ={slope_result['ground_factor_gamma']:.3f}")
                 if phi5>0:
                     st.caption(f"排水 Nγ 項有效單位重 γ′={slope_result['gamma_effective']:.2f} kN/m³；{slope_result['gamma_effective_method']}，修正係數={slope_result['gamma_effective_2025_factor']:.3f}。")
