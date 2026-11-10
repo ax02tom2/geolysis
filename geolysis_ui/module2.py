@@ -1,6 +1,7 @@
 """Streamlit UI for engineering module 2."""
 import streamlit as st
 import logging
+from .state import clear_result_state, read_result_state, store_result_state
 import pandas as pd
 from geolysis_engine import classify_uscs_aashto
 
@@ -45,18 +46,16 @@ def render_module_2(expanded=False):
             None if d60 is None else float(d60),bool(organic),
             bool(organic_test_done),float(ll_od),bool(peat))
         if st.button("執行土壤分類",key="m2_run"):
-            st.session_state.pop('m2_result',None)
-            st.session_state.pop('m2_result_signature',None)
+            clear_result_state(st.session_state, 'm2_result', 'm2_result_signature')
             try:
                 result=classify_uscs_aashto(p4=p4,p10=p10,p40=p40,p200=p200,ll=ll,pl=pl,np_flag=np_flag,
                     d10=d10,d30=d30,d60=d60,organic=organic,ll_oven_dried=(ll_od if organic and organic_test_done else None),peat=peat)
-                st.session_state['m2_result']=result
-                st.session_state['m2_result_signature']=m2_input_signature
+                store_result_state(st.session_state, 'm2_result', 'm2_result_signature', result, m2_input_signature)
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
                 st.error(f"資料檢核未通過：{exc}")
-        result=st.session_state.get('m2_result')
-        if result and st.session_state.get('m2_result_signature') != m2_input_signature:
+        result, result_is_current = read_result_state(st.session_state, 'm2_result', 'm2_result_signature', m2_input_signature)
+        if result and not result_is_current:
             st.warning("土壤分類輸入已變更；目前顯示的舊結果不再對應現有試驗值。請重新按「執行土壤分類」更新。")
             result=None
         if result:

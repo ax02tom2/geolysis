@@ -1,6 +1,7 @@
 """Streamlit UI for engineering module 5."""
 import streamlit as st
 import logging
+from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
@@ -76,8 +77,7 @@ def render_module_5(expanded=False):
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi)) if use_hb5 else ()
         m5_input_signature=(theory5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
         if st.button("計算極限承載力",key='m5_run'):
-            st.session_state.pop('m5_result',None)
-            st.session_state.pop('m5_result_signature',None)
+            clear_result_state(st.session_state, 'm5_result', 'm5_result_signature')
             if use_hb5 and (hb_current is None or phi_hb_deg>50):
                 st.error("模組一參數無效或等效 ϕ′ 超出 50°；已停止模組五計算，避免以無效／截斷值產生錯誤承載力。")
             else:
@@ -85,13 +85,12 @@ def render_module_5(expanded=False):
                     if abs(math.degrees(math.atan2(H5,V5))-beta5)>2.0 and H5>0 and theory5=='Meyerhof':
                         st.warning("載重傾角 β 與 H/V 計算角度差異超過 2°；H/V 為 Hansen/Vesic 計算依據，請核對輸入。")
                     result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5)
-                    st.session_state['m5_result']=result5
-                    st.session_state['m5_result_signature']=m5_input_signature
+                    store_result_state(st.session_state, 'm5_result', 'm5_result_signature', result5, m5_input_signature)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"承載力計算失敗：{exc}")
-        result5=st.session_state.get('m5_result')
-        if result5 and st.session_state.get('m5_result_signature') != m5_input_signature:
+        result5, result5_is_current = read_result_state(st.session_state, 'm5_result', 'm5_result_signature', m5_input_signature)
+        if result5 and not result5_is_current:
             st.warning("模組五輸入參數已變更；目前顯示的舊結果不再對應現有輸入。請重新按「計算極限承載力」更新結果。")
             result5=None
         if result5:
@@ -141,14 +140,13 @@ def render_module_5(expanded=False):
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
                         base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
                         slope_distance_m=slope_dist5)
-                    st.session_state["m5x_slope_result"]=slope_result
-                    st.session_state["m5x_slope_signature"]=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_result=st.session_state.get("m5x_slope_result")
             slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
-            if slope_result and st.session_state.get("m5x_slope_signature")==slope_sig:
+            slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
+            if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"bc={slope_result['base_factor_c']:.3f}；bq={slope_result['base_factor_q']:.3f}；gc={slope_result['ground_factor_c']:.3f}；gq={slope_result['ground_factor_q']:.3f}")
                 st.caption(slope_result["limitations"])
@@ -179,14 +177,13 @@ def render_module_5(expanded=False):
                         q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
                         strong_layer_thickness_m=strong_h5,footing_width_m=B5,
                         footing_length_m=L5,footing_type=footing_kind5)
-                    st.session_state["m5x_layer_result"]=layered
-                    st.session_state["m5x_layer_signature"]=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
+                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layered=st.session_state.get("m5x_layer_result")
             layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
-            if layered and st.session_state.get("m5x_layer_signature")==layer_sig:
+            layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
+            if layered and layer_is_current:
                 st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
                 st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
                 st.caption(layered["limitations"])
@@ -210,13 +207,12 @@ def render_module_5(expanded=False):
                     mr=layered_bearing_capacity_profile(layers=layer_rows,
                         footing_width_m=B5,footing_length_m=L5,footing_depth_m=df5,
                         water_depth_m=dw5,fs=fs5,eccentricity_B_m=eB5,eccentricity_L_m=eL5)
-                    st.session_state["m5x_multi_layer_result"]=mr
-                    st.session_state["m5x_multi_layer_signature"]=multi_layer_csv5
+                    store_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", mr, multi_layer_csv5)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層地盤分析失敗：{exc}")
-            mr=st.session_state.get("m5x_multi_layer_result")
-            if mr and st.session_state.get("m5x_multi_layer_signature")==multi_layer_csv5:
+            mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_csv5)
+            if mr and mr_is_current:
                 st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
                 st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
                 st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
@@ -237,13 +233,12 @@ def render_module_5(expanded=False):
                 try:
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
                         horizontal_load_kN=H5,footing_area_m2=area5,kh=kh5,kv=kv5)
-                    st.session_state["m5x_seismic_result"]=seismic
-                    st.session_state["m5x_seismic_signature"]=(V5,H5,area5,kh5,kv5)
+                    store_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", seismic, (V5,H5,area5,kh5,kv5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震等效載重計算失敗：{exc}")
-            seismic=st.session_state.get("m5x_seismic_result")
-            if seismic and st.session_state.get("m5x_seismic_signature")== (V5,H5,area5,kh5,kv5):
+            seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5))
+            if seismic and seismic_is_current:
                 st.dataframe(pd.DataFrame(seismic["cases"]),hide_index=True,use_container_width=True)
     
                 st.caption(seismic["limitations"])
@@ -269,14 +264,13 @@ def render_module_5(expanded=False):
                         effective_width_m=(B5-2*eB5),bearing_factor_ngamma=ngamma_seismic5,
                         residual_excess_pore_pressure_ratio=ru5,
                         shape_depth_inclination_factor=corr_seismic5)
-                    st.session_state["m5x_seismic_capacity_result"]=sr
-                    st.session_state["m5x_seismic_capacity_signature"]=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
+                    store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr, (ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr=st.session_state.get("m5x_seismic_capacity_result")
             sr_sig=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
-            if sr and st.session_state.get("m5x_seismic_capacity_signature")==sr_sig:
+            sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
+            if sr and sr_is_current:
                 st.metric("地震孔壓折減後極限承載力",f"{sr['qu_seismic_kpa']:.1f} kPa")
                 st.caption(sr["limitations"])
     
@@ -320,14 +314,13 @@ def render_module_5(expanded=False):
                         friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                         adhesion_ratio=slide_ar5,active_force_kN=active_used,
                         passive_force_kN=passive_used,fs_required=slide_req5)
-                    st.session_state["m5x_slide_result"]=slide
-                    st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide=st.session_state.get("m5x_slide_result")
             slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
-            if slide and st.session_state.get("m5x_slide_signature")==slide_sig:
+            slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
+            if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                     delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
                 if slide.get("passive_balance_controls"):
@@ -350,13 +343,12 @@ def render_module_5(expanded=False):
                 try:
                     slices=pd.read_csv(StringIO(bishop_csv)).to_dict("records")
                     bishop=bishop_simplified_factor_of_safety(slices=slices)
-                    st.session_state["m5x_bishop_result"]=bishop
-                    st.session_state["m5x_bishop_signature"]=bishop_csv
+                    store_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop, bishop_csv)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"Bishop 整體穩定計算失敗：{exc}")
-            bishop=st.session_state.get("m5x_bishop_result")
-            if bishop and st.session_state.get("m5x_bishop_signature")==bishop_csv:
+            bishop, bishop_is_current = read_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop_csv)
+            if bishop and bishop_is_current:
                 st.metric("Bishop 簡化法 FS",f"{bishop['FS']:.3f}")
                 st.caption(f"迭代 {bishop['iterations']} 次；{bishop['limitations']}")
     
@@ -394,14 +386,13 @@ def render_module_5(expanded=False):
                         center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                         radius_values=radii,slice_count=slices_auto5,
                         groundwater_elevation=bishop_gw5)
-                    st.session_state["m5x_auto_bishop_result"]=search
-                    st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+                    store_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", search, (profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"圓弧搜尋失敗：{exc}")
-            auto_bishop=st.session_state.get("m5x_auto_bishop_result")
             auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
-            if auto_bishop and st.session_state.get("m5x_auto_bishop_signature")==auto_sig:
+            auto_bishop, auto_bishop_is_current = read_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", auto_sig)
+            if auto_bishop and auto_bishop_is_current:
                 st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
                 st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
                 if auto_bishop.get("search_boundary_warning"):
