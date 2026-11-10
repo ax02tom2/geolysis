@@ -1,17 +1,18 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated main code commit: b7756ea49239f192678fe2d0e3f8147e657bfda1
+Validated main code commit: a2b109563d3a1a6175c93b5761ad629ec0d1cf57
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 229 passed
-GitHub Actions validation run: 42785906701 (success; includes USACE 2025 bearing load-inclination, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
+Latest verified automated suite: 231 passed
+GitHub Actions validation run: 42786115343 (success; includes USACE 2025 bearing load-inclination, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 42 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 44 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
 Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
 Appendix B: Module 5 checked against USACE 2025 Examples B-1 (undrained isolated footing) and B-3 (drained footing and weak-layer punch-through); three new worked-example regression tests.
 Continuous footing: strip-limit shape factors implemented across Terzaghi, Meyerhof, Hansen and Vesic; Module 5 multilayer UI applies the selected footing type to both layer capacities. Validated against USACE 2025 Appendix B-2; 4 additional theory-family regression cases.
+Appendix B-4: two groundwater/dewatering cases confirm undrained resistance is unchanged by the groundwater rise; uplift-adjusted applied-pressure demand qeq remains outside the capacity-only engine.
