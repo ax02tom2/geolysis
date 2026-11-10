@@ -228,6 +228,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     qallow_net=qnet/FS
     qallow_gross=qallow_net+q
     return {'theory':theory,'Nc':Nc,'Nq':Nq,'Ngamma':Ng,'sc':sc,'sq':sq,'sg':sg,
+            'B_original':B,'L_original':L,'Df':Df,
             'dc':dc,'dq':dq,'dg':dg,'ic':ic,'iq':iq,'ig':ig,'q_surcharge':q,
             'gamma_effective':gamma_eff,'gamma_below_total':gbelow,'shear_zone_depth':shear_zone_depth,'term_c':tc,'term_q':tq,'term_gamma':tg,
             'qu_gross':qu,'qu_net':qnet,'qu_gross_over_FS':qu/FS,'qa_gross_direct_FS':qu/FS,'qa_net':qallow_net,'qa_gross':qallow_gross,
@@ -236,10 +237,11 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None):
-    """Apply USACE EM 1110-1-1905 (2025) Table 5-3/5-4 base and ground
-    inclination factors to a previously calculated Meyerhof-based result.
-    Ground slope is assumed to fall away from the footing. The adjacent-slope
-    global stability check is separate and mandatory.
+    """Apply USACE EM 1110-1-1905 (2025) Tables 5-2 to 5-4.
+
+    The base calculation must be a Meyerhof result. Drained shape/depth factors
+    are rebuilt from effective footing dimensions B'/L' and Df/B' per Table 5-2
+    before applying the Table 5-3 inclination factors.
     """
     c=_finite('c／Su',c_kpa); phi=_finite('phi',phi_deg)
     ab=_finite('基底傾角',base_inclination_deg)
@@ -247,6 +249,12 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     dg=_finite('基礎至坡頂距離',slope_distance_m)
     if c<0 or not 0<=phi<=50 or not 0<=ab<60 or not 0<=ag<45 or dg<0:
         raise ValueError('斜坡／基底輸入超出適用範圍：0≤基底角<60°、0≤地表坡角<45°、距離不可為負')
+    if base_result.get('theory')!='Meyerhof':
+        raise ValueError('USACE 表 5-2 至 5-4 修正需以 Meyerhof-based 基礎結果為輸入')
+    if not math.isclose(c,base_result.get('c_used',c),rel_tol=1e-7,abs_tol=1e-7):
+        raise ValueError('輸入 c／Su 與基礎承載力計算值不一致，請重新計算基礎結果')
+    if not math.isclose(phi,base_result.get('phi_used',phi),rel_tol=1e-7,abs_tol=1e-7):
+        raise ValueError('輸入摩擦角與基礎承載力計算值不一致，請重新計算基礎結果')
     fs_slope = None if adjacent_slope_fs is None else _finite('鄰接坡體整體穩定 FS', adjacent_slope_fs)
     # USACE EM 1110-1-1905 (2025), Table 5-3 note b:
     # the adjacent-ground inclination factors assume global slope FS > 1.3.
@@ -255,50 +263,69 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     if ag > 0 and fs_slope <= 1.3:
         raise ValueError('鄰接坡體整體穩定 FS 必須大於 1.3，否則不可套用 USACE 表 5-3 的地表坡角修正係數')
     B=base_result['B_effective']; L=base_result['L_effective']
-    Nc=base_result['Nc']; q=base_result['q_surcharge']
+    Df=base_result.get('Df')
+    if Df is None or B<=0 or L<=0:
+        raise ValueError('基礎結果缺少有效尺寸或埋深，無法套用 USACE 2025 修正')
+    Nc=base_result['Nc']; Nq=base_result['Nq']; Ng=base_result['Ngamma']
+    q=base_result['q_surcharge']
     if phi>0:
         tp=math.tan(math.radians(phi))
+        flow_n=math.tan(math.radians(45.0+phi/2.0))**2
+        # USACE 2025 Table 5-2: use effective footing dimensions B' and L'.
+        sq=1.0+0.1*flow_n*B/L
+        sc=1.0+0.2*flow_n*B/L
+        sg=1.0+0.1*flow_n*B/L
+        dq=1.0+0.1*math.sqrt(flow_n)*Df/B
+        dc=1.0+0.2*math.sqrt(flow_n)*Df/B
+        dg_factor=1.0+0.1*math.sqrt(flow_n)*Df/B
         base_term=1-(ab/57.0)*tp
         if base_term<0:
             raise ValueError('基底傾角超出此修正公式的適用範圍；請降低 αb 或改用專用分析')
         bq=base_term**2
         bgamma=bq
-        bc=bq-(1-bq)/(Nc*tp) if tp>0 else 1.0
+        bc=bq-(1-bq)/(Nc*tp)
         if bc<0: raise ValueError('基底傾角使凝聚力修正係數小於零；此幾何不適用本方法')
         gq0=(1-math.tan(math.radians(ag)))**2
         gc0=gq0-(1-gq0)/(Nc*tp)
         ggamma0=gq0
         if min(gq0,gc0,ggamma0)<0:
             raise ValueError('地表坡角使地表傾斜修正係數小於零；請改用專用斜坡承載力分析')
-        # USACE Table 5-3: drained factors recover linearly over 5B.
+        # USACE Table 5-3: drained factors recover linearly over 5B'.
         recovery=min(1.0,dg/(5.0*B))
         gq=min(1.0,gq0+(1-gq0)*recovery)
         gc=min(1.0,gc0+(1-gc0)*recovery)
         ggamma=min(1.0,ggamma0+(1-ggamma0)*recovery)
+        tc=base_result['c_used']*Nc*sc*dc*base_result['ic']*bc*gc
+        tq=q*math.cos(math.radians(ag))*Nq*sq*dq*base_result['iq']*bq*gq
+        tg=0.5*B*base_result['gamma_effective']*Ng*sg*dg_factor*base_result['ig']*bgamma*ggamma
     else:
         # USACE Table 5-4 undrained corrections.
+        flow_n=None
+        sc=base_result['sc']; sq=base_result['sq']; sg=base_result['sg']
+        dc=base_result['dc']; dq=base_result['dq']; dg_factor=base_result['dg']
         bq=bgamma=1.0
         bc=max(0.0,1-ab/147.3)
         gq=ggamma=1.0
         gc0=max(0.0,1-ag/147.3)
         gc=min(1.0,gc0+(1-gc0)*min(1.0,dg/(2.0*B)))
-    # The USACE figure defines surcharge on a sloping surface as q0=γDf cos(ag).
+        tc=base_result['term_c']*bc*gc
+        tq=q*math.cos(math.radians(ag))*Nq*sq*dq*base_result['iq']*bq*gq
+        tg=base_result['term_gamma']*bgamma*ggamma
     q_slope=q*math.cos(math.radians(ag))
-    tc=base_result['term_c']*bc*gc
-    tq=q_slope*base_result['Nq']*base_result['sq']*base_result['dq']*base_result['iq']*bq*gq
-    tg=base_result['term_gamma']*bgamma*ggamma
     qu=tc+tq+tg
     qnet=qu-q_slope
     fs=base_result['FS']
     qa_net=qnet/fs
     qa_gross=qa_net+q_slope
-    return {**base_result,'base_factor_c':bc,'base_factor_q':bq,'base_factor_gamma':bgamma,
+    return {**base_result,'N_flow':flow_n,'sc':sc,'sq':sq,'sg':sg,
+        'dc':dc,'dq':dq,'dg':dg_factor,
+        'base_factor_c':bc,'base_factor_q':bq,'base_factor_gamma':bgamma,
         'ground_factor_c':gc,'ground_factor_q':gq,'ground_factor_gamma':ggamma,
         'ground_surcharge_kpa':q_slope,'term_c':tc,'term_q':tq,'term_gamma':tg,
         'qu_gross':qu,'qu_net':qnet,'qa_net':qa_net,'qa_gross':qa_gross,
         'qa_gross_direct_FS':qu/fs,
         'adjacent_slope_fs':fs_slope,
-        'limitations':base_result['limitations']+'；已套用 USACE 2025 表 5-3／5-4 基底與地表傾斜係數。鄰接坡體須先完成整體穩定檢核且 FS > 1.3；本結果不取代該檢核。'}
+        'limitations':base_result['limitations']+'；已依 USACE 2025 表 5-2 以有效尺寸 B′、L′重建 drained 形狀／深度係數，再套用表 5-3／5-4 基底與地表傾斜係數。鄰接坡體須先完成整體穩定檢核且 FS > 1.3；本結果不取代該檢核。'}
 
 def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
         strong_layer_thickness_m, footing_width_m, footing_length_m,
