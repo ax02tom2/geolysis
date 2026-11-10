@@ -334,7 +334,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     elif 'meyerhof' in th:
         kp=math.tan(math.radians(45)+ph/2)**2
         sc=1+0.2*kp*br; sq=1+0.1*kp*br; sg=sq if phi_deg>10 else 1.0
-        dc=1+0.2*math.sqrt(kp)*Df/Be; dq=1+0.1*math.sqrt(kp)*Df/Be; dg=1.0
+        dc=1+0.2*math.sqrt(kp)*Df/Be; dq=1+0.1*math.sqrt(kp)*Df/Be; dg=1+0.1*math.sqrt(kp)*Df/Be
         ic=iq=(1-beta/90.0)**2
         ig=(1-beta/phi_deg)**2 if phi_deg>0 and beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
     else: # Hansen shape/depth, shared by Vesic
