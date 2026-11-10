@@ -954,7 +954,8 @@ def test_meyerhof_drained_unit_weight_shape_factor_is_not_suppressed_below_ten_d
     r=bearing_capacity(theory='Meyerhof',c_kpa=0,phi_deg=phi,
         gamma_moist=18,gamma_sub=9,B=2,L=6,Df=1,water_depth=5)
     kp=math.tan(math.radians(45+phi/2))**2
-    expected=1+0.1*kp*(2/6)
+    kp10=math.tan(math.radians(50))**2
+    expected=1+0.1*kp10*(2/6)*(phi/10)
     assert r['sq']==pytest.approx(expected)
     assert r['sg']==pytest.approx(expected)
 
@@ -1292,3 +1293,46 @@ def test_burland_burbidge_uses_gross_pressure_and_usace_2025_coefficients():
     assert r['influence_depth_m']==pytest.approx(zi_ft*.3048)
     assert r['Ic_tsf_inv']==pytest.approx(ic)
     assert r['settlement_mm']==pytest.approx(expected_ft*304.8)
+
+
+@pytest.mark.parametrize("theory",["Meyerhof","Hansen","Vesic"])
+def test_classical_depth_factor_uses_actual_footing_width_with_eccentricity(theory):
+    r=bearing_capacity(theory=theory,c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=4,L=8,Df=2,water_depth=5,
+        eccentricity_B=0.5,eccentricity_L=0.5)
+    Be=3.0
+    if theory=="Meyerhof":
+        kp=math.tan(math.radians(60))**2
+        expected=1+0.2*math.sqrt(kp)*2/4
+    else:
+        ratio=2/4
+        ang=ratio
+        dq=1+2*math.tan(math.radians(30))*(1-math.sin(math.radians(30)))**2*ang
+        expected=dq-(1-dq)/(r['Nc']*math.tan(math.radians(30)))
+    assert r['dc']==pytest.approx(expected)
+    assert r['B_effective']==pytest.approx(Be)
+
+
+def test_meyerhof_shape_and_depth_factors_interpolate_below_ten_degrees():
+    phi=5.0; B=2.0; L=6.0; Df=1.0
+    r=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=phi,
+        gamma_moist=18,gamma_sub=9,B=B,L=L,Df=Df,water_depth=5)
+    kp10=math.tan(math.radians(50))**2
+    expected_s=1+0.1*kp10*(B/L)*(phi/10)
+    expected_dq=1+0.1*math.sqrt(kp10)*(Df/B)*(phi/10)
+    assert r['sq']==pytest.approx(expected_s)
+    assert r['sg']==pytest.approx(expected_s)
+    assert r['dq']==pytest.approx(expected_dq)
+    assert r['dg']==pytest.approx(expected_dq)
+
+
+def test_layered_bearing_checks_each_weak_layer_in_three_layer_profile():
+    layers=[
+        {'thickness_m':1.0,'c_kpa':100,'phi_deg':32,'gamma_moist_kn_m3':18,'gamma_sub_kn_m3':9,'gamma_below_kn_m3':18},
+        {'thickness_m':1.0,'c_kpa':120,'phi_deg':35,'gamma_below_kn_m3':18},
+        {'thickness_m':2.0,'c_kpa':5,'phi_deg':15,'gamma_below_kn_m3':18},
+    ]
+    r=layered_bearing_capacity_profile(layers=layers,footing_width_m=2,
+        footing_length_m=4,footing_depth_m=1,water_depth_m=5)
+    assert r['layers'][2]['layer']==3
+    assert any(x['controlling_layer']==3 for x in r['candidates'])
