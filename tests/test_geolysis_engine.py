@@ -972,3 +972,20 @@ def test_classical_undrained_horizontal_load_requires_nonzero_base_adhesion(theo
         bearing_capacity(theory=theory,c_kpa=20,phi_deg=0,
             gamma_moist=18,gamma_sub=9,B=2,L=3,Df=1,water_depth=5,
             horizontal_load=100,vertical_load=1000,adhesion_ratio=0)
+
+
+def test_hansen_undrained_classical_depth_factor_uses_hansen_k():
+    r=bearing_capacity(theory='Hansen',c_kpa=50,phi_deg=0,
+        gamma_moist=18,gamma_sub=9,B=2,L=6,Df=3,water_depth=10)
+    assert r['dc']==pytest.approx(1+0.4*math.atan(3/2))
+    assert r['dq']==pytest.approx(1.0)
+    assert r['dg']==pytest.approx(1.0)
+
+
+def test_vesic_drained_inclination_uses_base_adhesion_ratio():
+    args=dict(theory='Vesic',c_kpa=10,phi_deg=30,gamma_moist=18,
+        gamma_sub=9,B=2,L=6,Df=1,water_depth=5,horizontal_load=100,
+        vertical_load=1000)
+    low=bearing_capacity(**args,adhesion_ratio=.3)
+    high=bearing_capacity(**args,adhesion_ratio=.9)
+    assert low['iq']<high['iq']
