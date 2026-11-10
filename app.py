@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -1144,3 +1144,46 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         if bishop and st.session_state.get("m5x_bishop_signature")==bishop_csv:
             st.metric("Bishop 簡化法 FS",f"{bishop['FS']:.3f}")
             st.caption(f"迭代 {bishop['iterations']} 次；{bishop['limitations']}")
+
+
+    with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
+        st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
+        profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
+            value="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0",height=90,key="m5x_profile")
+        ba,bb,bc=st.columns(3)
+        with ba:
+            bishop_c5=st.number_input("均質土 c′ [kPa]",0.0,10000.0,float(c5),1.0,key="m5x_auto_c")
+            bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_auto_phi")
+        with bb:
+            bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
+            bishop_gw5=st.number_input("地下水位高程（留空＝無地下水）", -100.0,1000.0,0.0,0.5,key="m5x_auto_gw")
+        with bc:
+            center_x_min5=st.number_input("圓心 x 最小值 [m]",-100.0,1000.0,3.0,0.5,key="m5x_cxmin")
+            center_x_max5=st.number_input("圓心 x 最大值 [m]",-100.0,1000.0,7.0,0.5,key="m5x_cxmax")
+            center_y_min5=st.number_input("圓心高程最小值 [m]",-100.0,1000.0,8.0,0.5,key="m5x_cymin")
+            center_y_max5=st.number_input("圓心高程最大值 [m]",-100.0,1000.0,14.0,0.5,key="m5x_cymax")
+        radii_csv5=st.text_input("搜尋半徑 [m]（逗號分隔）","8,10,12,15",key="m5x_radii")
+        slices_auto5=st.number_input("每一滑動面切片數",5,100,20,1,key="m5x_auto_slices")
+        if st.button("搜尋最低 Bishop FS",key="m5x_auto_bishop_run"):
+            try:
+                pprof=pd.read_csv(StringIO(profile_csv5))
+                if not {"x_m","elevation_m"}.issubset(pprof.columns):
+                    raise ValueError("地表剖面 CSV 必須包含 x_m、elevation_m")
+                radii=[float(x.strip()) for x in radii_csv5.split(",") if x.strip()]
+                search=bishop_circular_search(ground_profile=pprof[["x_m","elevation_m"]].values.tolist(),
+                    cohesion_kpa=bishop_c5,friction_angle_deg=bishop_phi5,
+                    unit_weight_kn_m3=bishop_gamma5,
+                    center_x_values=[center_x_min5+(center_x_max5-center_x_min5)*i/8 for i in range(9)],
+                    center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
+                    radius_values=radii,slice_count=slices_auto5,
+                    groundwater_elevation=(None if bishop_gw5==-100.0 else bishop_gw5))
+                st.session_state["m5x_auto_bishop_result"]=search
+                st.session_state["m5x_auto_bishop_signature"]=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+            except Exception as exc:
+                st.error(f"圓弧搜尋失敗：{exc}")
+        auto_bishop=st.session_state.get("m5x_auto_bishop_result")
+        auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+        if auto_bishop and st.session_state.get("m5x_auto_bishop_signature")==auto_sig:
+            st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
+            st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
+            st.caption(auto_bishop["limitations"])
