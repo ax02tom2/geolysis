@@ -245,7 +245,7 @@ def usace_meyerhof_settlement_allowable(*, n60, width_m, embedment_m, settlement
     if N<=0 or B<=0 or D<0 or s<=0: raise ValueError('輸入值不合理')
     if energy_percent not in (55,70): raise ValueError('此 USACE 係數表僅支援約 55% 或 70% 能量；請選擇相符能量或使用 N60=60% 對應之經核定方法')
     # EM 1110-1-1905 factors, q in ksf, Nn is N corrected to stated energy.
-    n_n=N*(energy_percent/60.0)
+    n_n=N*(60.0/energy_percent)
     Bft=B/0.3048; Dft=D/0.3048
     kd=min(1+0.33*Dft/Bft,1.33)
     if mat:
@@ -1069,7 +1069,11 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             raise ValueError(f'第{i}片資料不合理（寬度、重量須正；底角需介於 ±45°；強度及孔壓不可負）')
         clean.append((b,W,math.radians(alpha),c,math.radians(phi),u))
     driving=sum(W*math.sin(alpha) for _,W,alpha,_,_,_ in clean)
-    if driving<=0: raise ValueError('滑動面沒有正向總驅動力；請確認切片底角方向及重量')
+    # Normalize the sign convention so mirrored left/right slopes are equivalent.
+    if driving < 0:
+        clean=[(b,W,-alpha,c,phi,u) for b,W,alpha,c,phi,u in clean]
+        driving=-driving
+    if driving<=1e-12: raise ValueError('滑動面沒有正向總驅動力；請確認切片底角方向及重量')
     F=1.5
     for it in range(1,int(max_iterations)+1):
         numerator=0.0
@@ -1077,7 +1081,7 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             m=math.cos(alpha)+math.sin(alpha)*math.tan(phi)/F
             if m<=0: raise ValueError('Bishop 中間係數非正，幾何或參數不適用')
             base_len=b/math.cos(alpha)
-            numerator+=(c*b+(W-u*base_len)*math.tan(phi))/m
+            numerator+=(c*b+(W-u*b)*math.tan(phi))/m
         newF=numerator/driving
         if not math.isfinite(newF) or newF<=0: raise ValueError('Bishop 迭代未得到有效安全係數')
         if abs(newF-F)<=tol:
@@ -1117,7 +1121,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
             if x0<=x<=x1:
                 return y0+(y1-y0)*(x-x0)/(x1-x0)
         return None
-    best=None; evaluated=0
+    best=None; evaluated=0; failure_reasons={}
     for cx in xs:
         for cy in ys:
             for radius in rs:
@@ -1161,7 +1165,9 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                 if len(slices)<5: continue
                 try:
                     result=bishop_simplified_factor_of_safety(slices=slices)
-                except ValueError:
+                except ValueError as exc:
+                    reason=str(exc)
+                    failure_reasons[reason]=failure_reasons.get(reason,0)+1
                     continue
                 evaluated+=1
                 candidate={**result,'center_x_m':cx,'center_elevation_m':cy,
@@ -1169,8 +1175,18 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                 if best is None or candidate['FS']<best['FS']:
                     best=candidate
     if best is None:
-        raise ValueError('搜尋範圍內未找到有效圓弧滑動面；請擴大圓心／半徑範圍並檢查地表剖面')
+        detail='；'.join(f'{reason}（{count} 次）' for reason,count in
+                        sorted(failure_reasons.items(),key=lambda x:x[1],reverse=True)[:3])
+        suffix=f'；主要失敗原因：{detail}' if detail else '；候選圓弧未形成有效地表交點或切片幾何'
+        raise ValueError('搜尋範圍內未找到有效圓弧滑動面'+suffix+'；請擴大圓心／半徑範圍並檢查地表剖面')
+    boundary=[]
+    if best['center_x_m'] in (min(xs),max(xs)): boundary.append('圓心 x')
+    if best['center_elevation_m'] in (min(ys),max(ys)): boundary.append('圓心高程')
+    if best['radius_m'] in (min(rs),max(rs)): boundary.append('半徑')
+    boundary_warning=('最低 FS 落在搜尋網格邊界（'+ '、'.join(boundary) +'），請擴大搜尋範圍並加密網格。'
+                      if boundary else None)
     return {**best,'evaluated_surfaces':evaluated,
+        'search_boundary_warning':boundary_warning,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
         'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
