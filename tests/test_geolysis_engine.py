@@ -1045,9 +1045,11 @@ def test_usace_slope_correction_reduces_capacity_and_recovers_with_distance():
     base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=30,
         gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
     near=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
-        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=0)
+        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=0,
+        adjacent_slope_fs=1.5)
     far=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
-        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=20)
+        phi_deg=30,base_inclination_deg=10,ground_inclination_deg=20,slope_distance_m=20,
+        adjacent_slope_fs=1.5)
     assert near['qu_gross']<far['qu_gross']<base['qu_gross']
 
 
@@ -1344,3 +1346,17 @@ def test_meyerhof_undrained_depth_factor_uses_effective_width_per_usace_2025():
         eccentricity_B=0.2)
     assert r["B_effective"]==pytest.approx(1.6)
     assert r["dc"]==pytest.approx(1+0.2*1.5/1.6)
+
+
+def test_usace_ground_slope_factor_requires_global_stability_fs_above_1_3():
+    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=30,
+        gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
+    with pytest.raises(ValueError,match='必須先完成坡體整體穩定檢核'):
+        bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+            phi_deg=30,ground_inclination_deg=15)
+    with pytest.raises(ValueError,match='FS 必須大於 1.3'):
+        bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+            phi_deg=30,ground_inclination_deg=15,adjacent_slope_fs=1.3)
+    result=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
+        phi_deg=30,ground_inclination_deg=15,adjacent_slope_fs=1.31)
+    assert result['adjacent_slope_fs']==pytest.approx(1.31)
