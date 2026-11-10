@@ -596,3 +596,67 @@ def test_usace_2025_appendix_b3b_undrained_punch_through():
     assert result["qult_kpa"] / ksf_to_kpa == pytest.approx(12.21, abs=0.02)
     assert result["controlling_mode"] == "強上層穿刺至弱下層控制"
 
+def test_usace_2025_appendix_b2_undrained_continuous_footing():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-2,
+    # Table B-2a/b (printed pp. 299-302).
+    # The manual treats a continuous footing per unit length: B=2 ft,
+    # L is not applicable, Df=2 ft, gamma=0.120 kcf, su=0.5 ksf.
+    # L=B is supplied only as the engine's finite-dimension placeholder;
+    # footing_type='continuous' must use the strip limit sc=1, not sc=1.2.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 2.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.120 * kcf_to_kn_m3
+    su = 0.5 * ksf_to_kpa
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=su,
+        phi_deg=0.0,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=1.0 * ft_to_m,  # finite positive placeholder; continuous footing has no design L
+        Df=embedment,
+        water_depth=5.0,
+        fs=3.0,
+        footing_type="continuous",
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=su,
+        phi_deg=0.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    expected_dc = 1.0 + 0.2 * (2.0 / 2.0)
+    expected_qult = (1.0 * expected_dc * 0.5 * 5.14 + 0.24) * ksf_to_kpa
+    assert result["footing_type"] == "continuous"
+    assert result["sc"] == pytest.approx(1.0)
+    assert result["dc"] == pytest.approx(1.2)
+    assert result["q_surcharge"] / ksf_to_kpa == pytest.approx(0.24, abs=1e-8)
+    assert result["qu_gross"] == pytest.approx(expected_qult, rel=1e-8)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(3.32, abs=0.01)
+
+@pytest.mark.parametrize("theory", ["Terzaghi", "Meyerhof", "Hansen", "Vesic"])
+def test_continuous_footing_uses_strip_limit_shape_factors_for_all_theories(theory):
+    result = bearing_capacity(
+        theory=theory,
+        c_kpa=10.0,
+        phi_deg=30.0,
+        gamma_moist=18.0,
+        gamma_sub=9.0,
+        B=2.0,
+        L=2.0,
+        Df=1.0,
+        water_depth=5.0,
+        footing_type="continuous",
+    )
+    assert result["sc"] == pytest.approx(1.0)
+    assert result["sq"] == pytest.approx(1.0)
+    assert result["sg"] == pytest.approx(1.0)
+
