@@ -11,6 +11,10 @@ from geolysis_engine import (
     burland_burbidge_2025_settlement,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
+    classify_uscs_aashto,
+    hoek_brown_parameters,
+    bearing_capacity,
+    bearing_capacity_slope_base_corrections,
 )
 
 
@@ -71,3 +75,58 @@ def test_burland_burbidge_nc_settlement_matches_usace_2025_equations_7_27_to_7_3
     assert result["C2_layer"] == pytest.approx(1.0)
     assert result["C3_time"] == pytest.approx(1.3)
     assert result["settlement_mm"] == pytest.approx(23.3171, abs=0.002)
+
+
+def test_aashto_group_index_matches_m145_example_6_4_1():
+    # AASHTO M 145-91 (2021), §6.4.1: F=55, LL=40, PI=25 -> A-6, GI=10.
+    result = classify_uscs_aashto(
+        p4=98, p10=95, p40=90, p200=55,
+        ll=40, pl=15, d10=None, d30=None, d60=None,
+    )
+    assert result["AASHTO"] == "A-6"
+    assert result["GI"] == 10
+
+
+def test_hoek_brown_2002_high_ucs_modulus_branch():
+    # Hoek, Carranza-Torres & Corkum (2002), Eq. 11b:
+    # for sigma_ci > 100 MPa, Em=(1-D/2)*10^((GSI-10)/40) GPa.
+    result = hoek_brown_parameters(
+        gsi=60, mi=10, sigma_ci_mpa=150, disturbance=0.5,
+        application="general", sigma3_custom_mpa=10,
+    )
+    expected = (1 - 0.5 / 2) * 10 ** ((60 - 10) / 40)
+    assert result["Em_gpa"] == pytest.approx(expected, rel=1e-12)
+
+
+def test_usace_2025_slope_base_factors_match_table_5_3_equations():
+    phi = 30.0
+    alpha_b = 10.0
+    alpha_g = 15.0
+    B = 2.0
+    dg = 1.0
+    base = bearing_capacity(
+        theory="Meyerhof", c_kpa=10, phi_deg=phi,
+        gamma_moist=18, gamma_sub=9, B=B, L=4, Df=1,
+        water_depth=5,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=10, phi_deg=phi,
+        base_inclination_deg=alpha_b,
+        ground_inclination_deg=alpha_g,
+        slope_distance_m=dg,
+        adjacent_slope_fs=1.5,
+    )
+    tan_phi = math.tan(math.radians(phi))
+    bq = (1 - (alpha_b / 57.0) * tan_phi) ** 2
+    bc = bq - (1 - bq) / (base["Nc"] * tan_phi)
+    gq0 = (1 - math.tan(math.radians(alpha_g))) ** 2
+    gc0 = gq0 - (1 - gq0) / (base["Nc"] * tan_phi)
+    recovery = min(1.0, dg / (5.0 * B))
+    gq = min(1.0, gq0 + (1 - gq0) * recovery)
+    gc = min(1.0, gc0 + (1 - gc0) * recovery)
+    assert result["base_factor_q"] == pytest.approx(bq)
+    assert result["base_factor_c"] == pytest.approx(bc)
+    assert result["base_factor_gamma"] == pytest.approx(bq)
+    assert result["ground_factor_q"] == pytest.approx(gq)
+    assert result["ground_factor_c"] == pytest.approx(gc)
+    assert result["ground_factor_gamma"] == pytest.approx(gq)
