@@ -566,3 +566,33 @@ def test_usace_2025_appendix_b3a_drained_isolated_footing():
     # The manual reports 32.15 ksf after rounding its intermediate values.
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(32.15, abs=0.20)
 
+def test_usace_2025_appendix_b3b_undrained_punch_through():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-3,
+    # Table B-3b (printed pp. 307-309).
+    # Published USACE result: weak-layer qult,2=3.54 ksf,
+    # strong-layer thickness Hs=6 ft, spread ratio=3.45,
+    # punch-through capacity=12.21 ksf (rounded).
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    weak_qult = 3.54 * ksf_to_kpa
+    strong_qult = 32.15 * ksf_to_kpa
+    width = 7.0 * ft_to_m
+    thickness = 6.0 * ft_to_m
+
+    result = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=strong_qult,
+        q_ult_weak_kpa=weak_qult,
+        strong_layer_thickness_m=thickness,
+        footing_width_m=width,
+        footing_length_m=width,
+        footing_type="isolated",
+    )
+
+    expected_spread = ((7.0 + 6.0) * (7.0 + 6.0)) / (7.0 * 7.0)
+    expected_punch_kpa = expected_spread * weak_qult
+    assert result["load_spread_factor"] == pytest.approx(expected_spread)
+    assert result["punching_capacity_kpa"] == pytest.approx(expected_punch_kpa)
+    assert result["qult_kpa"] == pytest.approx(expected_punch_kpa)
+    assert result["qult_kpa"] / ksf_to_kpa == pytest.approx(12.21, abs=0.02)
+    assert result["controlling_mode"] == "強上層穿刺至弱下層控制"
+
