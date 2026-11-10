@@ -1192,11 +1192,11 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                     adhesion_ratio=slide_ar5,active_force_kN=active_used,
                     passive_force_kN=passive_used,fs_required=slide_req5)
                 st.session_state["m5x_slide_result"]=slide
-                st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5)
+                st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5)
             except Exception as exc:
                 st.error(f"基底滑動計算失敗：{exc}")
         slide=st.session_state.get("m5x_slide_result")
-        slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5)
+        slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5)
         if slide and st.session_state.get("m5x_slide_signature")==slide_sig:
             st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                 delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
