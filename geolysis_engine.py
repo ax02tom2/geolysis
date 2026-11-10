@@ -344,7 +344,15 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         ratio=Df/Be
         ang=ratio if ratio<=1 else math.atan(ratio)
         dq=1+2*tanp*(1-sinp)**2*ang
-        dc=dq-(1-dq)/(Nc*tanp) if phi_deg>0 else 1+0.4*ang
+        # Brinch-Hansen depth factor for drained soil; for phi=0, the
+        # Vesic/AASHTO-FHWA branch conservatively omits depth correction
+        # (USACE EM 1110-1-1905, Table 5-4, note b).
+        if phi_deg>0:
+            dc=dq-(1-dq)/(Nc*tanp)
+        elif 'vesic' in th:
+            dc=1.0
+        else:
+            dc=1+0.4*ang
         dg=1.0
         H=0.0 if horizontal_load is None else _finite('水平載重',horizontal_load)
         V=1.0 if vertical_load is None else _finite('垂直載重',vertical_load)
@@ -361,7 +369,9 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         if hratio>=1.0: raise ValueError('水平載重已達或超過此公式的可用垂直／基底抗力；請核對 H、V、基底面積及 ca/c')
         theta_load=math.degrees(math.atan2(H,V))
         if 'vesic' in th:
-            m=(2+Be/Le)/(1+Be/Le) if load_direction=='parallel_B' else (2+Le/Be)/(1+Le/Be)
+            # Vesic's m uses the aspect ratio perpendicular to the
+            # horizontal-load direction: parallel B -> L/B; parallel L -> B/L.
+            m=(2+Le/Be)/(1+Le/Be) if load_direction=='parallel_B' else (2+Be/Le)/(1+Be/Le)
             iq=(1-hratio)**m; ig=(1-hratio)**(m+1)
             ic=iq-(1-iq)/(Nq-1) if phi_deg>0 else max(0.0,1.0-m*H/(A*ca*Nc)) if ca>0 else (1.0 if H==0 else 0.0)
         else:
