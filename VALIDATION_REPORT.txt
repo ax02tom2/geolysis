@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 5ce982d85b7d3a7bfd9d8d911c2850447a94ccb5
-Latest validation run: 42786358550 (PR #15 source tree before squash merge; success)
+Validated main code commit: af77d21db1246d4fd4de9c23cd318a91e4cce0d5
+Latest validation run: 42786697259 (PR #16 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 233 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 234 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -194,3 +194,14 @@ USACE Appendix B-6 groundwater-in-shear-zone and punch-through benchmarks — PR
 - PR #15 merged to main at 5ce982d85b7d3a7bfd9d8d911c2850447a94ccb5.
 - GitHub Actions run 42786358550: success; Python 3.11 compile passed; full suite 233 passed in 2.05 s.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and not a separate calculation-code change.
+
+
+Layered profile continuous-footing propagation — PR #16
+
+- A follow-up audit found that the public layered-profile helper still rejected L<B and did not forward footing_type='continuous' to each layer's bearing-capacity calculation, even though the multi-layer punch-through helper already had a strip-footing path.
+- Corrected the helper to accept a positive placeholder L for continuous footings, forward the footing type into every layer calculation, and reject eccentricity along the strip direction.
+- Added a regression case proving the profile helper returns the continuous-strip upper-layer resistance (sc=1.0) rather than rectangular-footing capacity.
+- PR #16 merged to main at af77d21db1246d4fd4de9c23cd318a91e4cce0d5.
+- GitHub Actions run 42786697259: success; Python 3.11 compile passed; full suite 234 passed in 1.83 s.
+- Published reference benchmark count remains 46; this change adds one implementation regression test rather than a new independent published example.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
