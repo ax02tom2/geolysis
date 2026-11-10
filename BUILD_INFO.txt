@@ -1,14 +1,15 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated main code commit: 9865583958176aa07e51adaa63b1b9c8ad21f95c
+Validated main code commit: d91ba4bcd78ccd5702aacc85ff4423703f7ea28f
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 219 passed
-GitHub Actions validation run: 42778142597 (success; includes USACE 2025 Figure 7-16 consolidation time-factor benchmarks)
+Latest verified automated suite: 221 passed
+GitHub Actions validation run: 42783002026 (success; includes USACE 2025 bearing load-inclination and Figure 7-16 consolidation benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 36 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 38 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
+Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
