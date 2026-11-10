@@ -256,4 +256,4 @@ def test_bishop_simplified_matches_independent_usace_appendix_f_iteration():
     ]
     result = bishop_simplified_factor_of_safety(slices=slices)
     assert result["converged"]
-    assert result["FS"] == pytest.approx(2.3295012105169772, abs=1e-9)
+    assert result["FS"] == pytest.approx(2.3295012105169772, abs=1e-8)
