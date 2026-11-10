@@ -172,3 +172,15 @@ def test_usace_2025_groundwater_correction_matches_equation_5_19():
     assert result["gamma_effective_2025_factor"] == pytest.approx(expected_factor)
     assert result["gamma_effective"] == pytest.approx(20 * expected_factor)
     assert result["gamma_effective_method"].endswith("Eq. 5-19")
+
+
+def test_slope_correction_accepts_case_insensitive_meyerhof_alias():
+    base = bearing_capacity(
+        theory="meyerhof", c_kpa=10, phi_deg=30,
+        gamma_moist=18, gamma_sub=9, B=2, L=4, Df=1,
+        water_depth=5,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=10, phi_deg=30,
+    )
+    assert result["theory"] == "meyerhof"
