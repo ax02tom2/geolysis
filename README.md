@@ -39,7 +39,7 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件僅保留 Web 介面實際使用的 Streamlit、Pandas 與 Plotly；工程計算由專案內的 `geolysis_engine.py` 執行。
+Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件僅保留 Web 介面實際使用的 Streamlit、Pandas 與 Plotly；工程計算由專案內的 `geolysis_engine/` 套件執行。
 
 ## 審查修正與公式追溯
 
@@ -77,7 +77,7 @@ GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測
 - `geolysis_engine.stability`：基礎滑動與 Bishop 整體穩定
 - `geolysis_engine._common`：共用數值驗證
 
-既有程式仍可使用 `from geolysis_engine import bearing_capacity` 等匯入方式，不必一次修改全部呼叫端。Streamlit UI 的頁面拆分將在下一階段進行，避免同時改動介面執行流程與計算模組。
+既有程式仍可使用 `from geolysis_engine import bearing_capacity` 等匯入方式，不必一次修改全部呼叫端。計算引擎套件化已完成，對外函式名稱維持相容。
 
 
 ### Streamlit 介面結構
