@@ -28,7 +28,7 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pytest
       - name: Compile active application modules
-        run: python -m compileall -q app.py geolysis_engine
+        run: python -m compileall -q app.py geolysis_engine geolysis_ui
       - name: Run geolysis module and web-app regression tests
         run: >-
           python -m pytest -q

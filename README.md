@@ -78,3 +78,12 @@ GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測
 - `geolysis_engine._common`：共用數值驗證
 
 既有程式仍可使用 `from geolysis_engine import bearing_capacity` 等匯入方式，不必一次修改全部呼叫端。Streamlit UI 的頁面拆分將在下一階段進行，避免同時改動介面執行流程與計算模組。
+
+
+### Streamlit 介面結構
+
+- `app.py`：頁面設定、系統標題、側邊欄與五個模組的協調入口。
+- `geolysis_ui/module1.py` 至 `module5.py`：各工程模組的輸入欄位、互動與結果呈現。
+- `geolysis_ui/__init__.py`：集中匯出各模組的 render 函式。
+
+目前保留原本的單頁呈現、側邊欄模組選擇與 expander 收合方式；此階段只分離程式責任，不改成 Streamlit 多頁導覽，以免改變既有操作習慣。
