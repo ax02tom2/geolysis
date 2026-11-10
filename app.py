@@ -934,7 +934,8 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
     st.markdown("**載重分量（供 Hansen／Vesic 傾斜係數使用）**")
     hcol,vcol=st.columns(2)
     with hcol: H5=st.number_input("水平載重 H [kN]",0.0,1000000.0,0.0,10.0,key='m5_h')
-    with vcol: V5=st.number_input("垂直載重 V [kN]",0.1,1000000.0,1000.0,10.0,key='m5_v')
+    with vcol: V5=st.number_input("垂直載重 V [kN]（含基礎自重及覆土）",0.1,1000000.0,1000.0,10.0,key='m5_v')
+    st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力，包含結構荷載、基礎自重及基礎上覆土重。請勿直接以任意預設值作設計輸入。")
     if theory5=='Terzaghi':
         st.session_state['m5_eL']=0.0
         st.session_state['m5_eB']=0.0
