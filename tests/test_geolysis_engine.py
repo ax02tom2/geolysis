@@ -1360,3 +1360,26 @@ def test_usace_ground_slope_factor_requires_global_stability_fs_above_1_3():
     result=bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
         phi_deg=30,ground_inclination_deg=15,adjacent_slope_fs=1.31)
     assert result['adjacent_slope_fs']==pytest.approx(1.31)
+
+
+def test_sliding_minimum_factor_of_safety_depends_on_load_combination():
+    with pytest.raises(ValueError,match='不得低於 2.0'):
+        foundation_sliding_factor_of_safety(
+            vertical_load_kN=1000,uplift_kN=0,horizontal_load_kN=100,
+            area_m2=10,friction_angle_deg=30,fs_required=1.5)
+    seismic=foundation_sliding_factor_of_safety(
+        vertical_load_kN=1000,uplift_kN=0,horizontal_load_kN=100,
+        area_m2=10,friction_angle_deg=30,fs_required=1.1,load_case='seismic')
+    assert seismic['FS_minimum_required']==pytest.approx(1.1)
+    assert seismic['load_case']=='seismic'
+
+
+def test_developed_rankine_fs_uses_usace_static_and_seismic_minimums():
+    kwargs=dict(effective_unit_weight_kn_m3=9,footing_depth_m=2,
+        footing_length_m=3,friction_angle_deg=30,cohesion_kpa=10)
+    with pytest.raises(ValueError,match='不得低於 2.0'):
+        developed_rankine_sliding_earth_pressures(**kwargs,fs_sliding=1.5)
+    seismic=developed_rankine_sliding_earth_pressures(
+        **kwargs,fs_sliding=1.1,load_case='seismic')
+    assert seismic['FS_minimum_required']==pytest.approx(1.1)
+    assert seismic['load_case']=='seismic'
