@@ -619,7 +619,7 @@ def test_usace_2025_appendix_b2_undrained_continuous_footing():
         gamma_sub=9.0,
         gamma_below=gamma,
         B=width,
-        L=width,
+        L=1.0 * ft_to_m,  # finite positive placeholder; continuous footing has no design L
         Df=embedment,
         water_depth=5.0,
         fs=3.0,
