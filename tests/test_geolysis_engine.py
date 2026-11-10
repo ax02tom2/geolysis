@@ -518,7 +518,7 @@ def test_vesic_horizontal_load_direction_uses_perpendicular_aspect_ratio():
     rl=bearing_capacity(**base,load_direction='parallel_L')
     m_parallel_b=(2+6/2)/(1+6/2)
     m_parallel_l=(2+2/6)/(1+2/6)
-    hratio=100/(1000+2*6*0.6*10/math.tan(math.radians(30)))
+    hratio=100/(1000+2*6*10/math.tan(math.radians(30)))
     assert rb['iq']==pytest.approx((1-hratio)**m_parallel_b)
     assert rl['iq']==pytest.approx((1-hratio)**m_parallel_l)
     assert rb['iq']!=pytest.approx(rl['iq'])
