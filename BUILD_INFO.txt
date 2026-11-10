@@ -1,7 +1,7 @@
 Build: geolysis Web — expanded Module 5 engineering checks
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Validated baseline: 69ae2f96abfd4a20f43922dd4b9b1d717784b211
+Validated commit: 147418d4c79f962d3f7312874eec63c3b1535ed4
 Python CI: 3.11
-Latest verified automated suite at baseline: 156 passed
+Latest verified automated suite: 163 passed
 Runtime smoke: Streamlit AppTest loaded app.py without uncaught exception
 Scope: five engineering modules; Streamlit Web application only.
