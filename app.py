@@ -914,8 +914,9 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             st.session_state['m5_c']=cdef
             st.session_state['m5_phi']=phidef
             st.session_state['_m5_src_prev']=src5
-        c5=st.number_input("凝聚力 c [kPa]",0.0,100000.0,cdef,1.0,key='m5_c',disabled=use_hb5)
-        phi5=st.number_input("內摩擦角 ϕ [°]",0.0,50.0,min(50.0,phidef),1.0,key='m5_phi',disabled=use_hb5)
+        c5=st.number_input("凝聚力 c′／不排水抗剪強度 cu [kPa]",0.0,100000.0,cdef,1.0,key='m5_c',disabled=use_hb5)
+        phi5=st.number_input("有效內摩擦角 ϕ′ [°]（不排水分析設 0）",0.0,50.0,min(50.0,phidef),1.0,key='m5_phi',disabled=use_hb5)
+        st.caption("參數判讀：ϕ′=0 時，c 應輸入不排水抗剪強度 Su／cu；ϕ′>0 時，輸入有效應力 c′、ϕ′。手動欄位預設值僅供操作示範，不代表工址參數；正式設計請採地勘及試驗資料。")
         if use_hb5 and hb_current is None:
             st.error("模組一參數尚未成功計算，不能作為模組五輸入。")
         if use_hb5 and hb_current is not None:
