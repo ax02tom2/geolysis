@@ -1200,11 +1200,11 @@ def test_developed_rankine_earth_pressure_rejects_bad_fs():
 
 
 def test_slope_base_correction_rejects_inapplicable_steep_base_angle():
-    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=40,
+    base=bearing_capacity(theory='Meyerhof',c_kpa=10,phi_deg=50,
         gamma_moist=18,gamma_sub=9,B=2,L=4,Df=1,water_depth=5)
     with pytest.raises(ValueError,match='適用範圍'):
         bearing_capacity_slope_base_corrections(base_result=base,c_kpa=10,
-            phi_deg=40,base_inclination_deg=59,ground_inclination_deg=0)
+            phi_deg=50,base_inclination_deg=59,ground_inclination_deg=0)
 
 
 def test_seismic_pore_pressure_capacity_accepts_shape_depth_factor_above_one():
