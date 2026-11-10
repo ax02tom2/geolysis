@@ -15,6 +15,7 @@ from geolysis_engine import (
     classify_uscs_aashto,
     hoek_brown_parameters,
     bearing_capacity,
+    bearing_capacity_in_situ,
     bearing_capacity_slope_base_corrections,
     layered_bearing_capacity_punching,
     layered_bearing_capacity_profile,
@@ -824,4 +825,61 @@ def test_layered_profile_passes_continuous_footing_type_to_each_layer():
     assert result["qult_kpa"] == pytest.approx(expected_top_qult, rel=1e-8)
     assert result["controlling_layer"] == 1
     assert result["controlling_mode"] == "上層一般承載力"
+
+@pytest.mark.parametrize(
+    "test_type,measurements,expected_ksf",
+    [
+        ("SPT", [12.0, 12.0, 15.0, 14.0], 21.9),
+        ("CPT", [200.0, 200.0, 320.0, 200.0], 31.0),
+        ("PMT", [17.0], 21.2),
+    ],
+)
+def test_usace_2025_appendix_b7_in_situ_bearing_methods(test_type, measurements, expected_ksf):
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-7,
+    # Table B-7b/c (printed pp. 334-336), Eq. 5-25 and Table 5-5.
+    # The manual's rounded qult values are 21.9 ksf (SPT), 31.0 ksf (CPT),
+    # and 21.2 ksf (PMT).
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 8.0 * ft_to_m
+    embedment = 2.5 * ft_to_m
+    gamma = 0.125 * kcf_to_kn_m3
+    values = (
+        [v * ksf_to_kpa for v in measurements]
+        if test_type in ("CPT", "PMT")
+        else measurements
+    )
+    result = bearing_capacity_in_situ(
+        test_type=test_type,
+        measurements=values,
+        drainage="drained",
+        B=width,
+        L=width,
+        Df=embedment,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        water_depth=20.0 * ft_to_m,
+        fs=3.0,
+    )
+    assert result["flow_number"] == pytest.approx(3.0)
+    assert result["measurement_count"] == len(measurements)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(expected_ksf, abs=0.15)
+    assert result["qa_gross_direct_FS"] == pytest.approx(result["qu_gross"] / 3.0)
+
+
+def test_usace_2025_in_situ_bearing_continuous_footing_shape_factor():
+    result = bearing_capacity_in_situ(
+        test_type="SPT",
+        measurements=[12.0, 12.0, 15.0, 14.0],
+        drainage="drained",
+        B=2.0,
+        L=1.0,
+        Df=0.5,
+        gamma_moist=18.0,
+        gamma_sub=9.0,
+        water_depth=10.0,
+        footing_type="continuous",
+    )
+    assert result["shape_factor"] == pytest.approx(1.0)
 
