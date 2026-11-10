@@ -660,3 +660,46 @@ def test_continuous_footing_uses_strip_limit_shape_factors_for_all_theories(theo
     assert result["sq"] == pytest.approx(1.0)
     assert result["sg"] == pytest.approx(1.0)
 
+@pytest.mark.parametrize("water_depth_ft", [6.0, 12.0])
+def test_usace_2025_appendix_b4_undrained_dewatering_resistance(water_depth_ft):
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-4,
+    # Tables B-4a/b/c (printed pp. 311-314).
+    # The undrained resistance remains 5.78 ksf for both groundwater
+    # levels; groundwater buoyancy changes the applied-pressure demand
+    # qeq, which is outside this capacity-only solver.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    width = 7.0 * ft_to_m
+    embedment = 2.0 * ft_to_m
+    gamma = 0.113 * kcf_to_kn_m3
+    su = 0.85 * ksf_to_kpa
+
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=su,
+        phi_deg=0.0,
+        gamma_moist=gamma,
+        gamma_sub=9.0,
+        gamma_below=gamma,
+        B=width,
+        L=width,
+        Df=embedment,
+        water_depth=water_depth_ft * ft_to_m,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=su,
+        phi_deg=0.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+
+    expected_q0 = 0.226 * ksf_to_kpa
+    expected_dc = 1.0 + 0.2 * (2.0 / 7.0)
+    expected_qult = (1.2 * expected_dc * 0.85 * 5.14 + 0.226) * ksf_to_kpa
+    assert result["q_surcharge"] == pytest.approx(expected_q0, abs=0.02)
+    assert result["qu_gross"] == pytest.approx(expected_qult, rel=1e-8)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(5.78, abs=0.02)
+
