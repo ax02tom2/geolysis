@@ -122,7 +122,7 @@ def render_module_5(expanded=False):
         st.caption("以下功能分別計算，不與原本水平地表靜力承載力混為一談。各項結果需依實際地層、地下水、荷載組合及採用規範審查。")
     
         with st.expander("① 斜坡地表／② 傾斜基底承載力修正",expanded=False):
-            st.caption("依 USACE EM 1110-1-1905（2025）表 5-3／5-4 的 Meyerhof-based 修正係數；地表坡面假設由基礎向外下降。坡體整體穩定仍須另外通過檢核。")
+            st.caption("依 USACE EM 1110-1-1905（2025）表 5-3／5-4 的 Meyerhof-based 修正係數；排水載重傾斜角 β 由本頁 H/V 自動計算，不沿用經典理論的手動 β；地表坡面假設由基礎向外下降。坡體整體穩定仍須另外通過檢核。")
             sc1,sc2,sc3=st.columns(3)
             with sc1:
                 base_ang5=st.number_input("基底／剪力鍵等效傾角 αb [°]",0.0,59.0,0.0,1.0,key="m5x_base_angle")
