@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 5b717775cd482789252ab09074efc61853831716
-Validation run: 42765852730 (PR validation of identical source tree before squash merge; success)
+Validated main code commit: e01cde254574d3ec6292ddb6ee09a90c41a14762
+Validation run: 42769696972 (PR validation of identical source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 197 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 209 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -79,12 +79,23 @@ Independent engineering reference benchmark update — PR #6
 
 - Added an independent Simplified Bishop numerical benchmark based on USACE EM 1110-2-1902 (2003), Appendix F, Eqs. F-1/F-2.
 - The expected factor of safety is independently iterated; assertion tolerance is aligned to the solver's documented convergence precision.
-- The complete suite now contains 197 passing tests, including 14 reference benchmark cases.
+- The complete suite at that stage contained 197 passing tests, including 14 reference benchmark cases.
 - The latest validated source tree was tested in GitHub Actions run 42765852730 before squash merge; the merged main commit is 5b717775cd482789252ab09074efc61853831716.
 
 Additional user-interface / scope clarification:
 - Module 5 explicitly states that choosing a seismic sliding load case changes the minimum required FS only; it does not generate seismic inertia forces. The user must include seismic effects in H, V and active/passive earth-pressure inputs.
 - Sliding helper docstrings and README state the same limitation to prevent the load-case selector being mistaken for a seismic force generator.
+
+
+
+USCS/AASHTO and SPT correction boundary benchmarks — PR #8
+
+- Added ASTM D2487 cases for 5% and 12% fines dual symbols, >12% fines single symbol, and CL-ML fines mapping to SC-SM in coarse soils.
+- Added AASHTO M 145 A-7-5 / A-7-6 threshold case at PI = LL - 30.
+- Added USACE EM 1110-1-1905 (2025) Table 4-6 SPT rod-length correction boundary cases and Eq. 4-7 dilatancy correction cases (>15 only; at or below 15 unchanged).
+- PR #8 merged to main at e01cde254574d3ec6292ddb6ee09a90c41a14762.
+- GitHub Actions run 42769696972: success; Python 3.11 compile passed; full suite 209 passed in 2.02 s.
+- The validated PR source tree is identical to the merged main code tree; the merge commit itself is recorded above.
 
 Engineering extensions and explicit limitations:
 - Ground/base inclination factors use the USACE Meyerhof-based family; not a full AASHTO/FHWA implementation.
