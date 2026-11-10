@@ -347,7 +347,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 raise ValueError('Meyerhof 不排水載重傾斜係數已≤0；請降低載重傾角或改用有依據的分析方法')
             iq=ig=1.0
         else:
-            sq=1+0.1*kp*br; sg=sq if phi_deg>10 else 1.0
+            sq=1+0.1*kp*br; sg=sq
             dc=1+0.2*math.sqrt(kp)*Df/Be
             dq=1+0.1*math.sqrt(kp)*Df/Be
             dg=1+0.1*math.sqrt(kp)*Df/Be
@@ -355,8 +355,10 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
             ig=(1-beta/phi_deg)**2 if beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
     else: # Hansen shape/depth, shared by Vesic
         sc=1+(Nq/Nc)*br if phi_deg>0 else 1+0.2*br
-        sq=1+br*sinp
-        sg=1-0.4*br
+        # Hansen uses sin(phi); Vesic uses tan(phi) in the surcharge
+        # shape factor. Keep the two classical formulations distinct.
+        sq=1+br*(tanp if 'vesic' in th else sinp)
+        sg=max(0.6,1-0.4*br)
         ratio=Df/Be
         ang=ratio if ratio<=1 else math.atan(ratio)
         dq=1+2*tanp*(1-sinp)**2*ang
@@ -377,23 +379,37 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         ar=_finite('基底黏著比',adhesion_ratio)
         if H<0 or V<=0 or A<=0 or not 0<=ar<=1: raise ValueError('水平載重需≥0、垂直載重及面積需>0，基底黏著比須在 [0,1]')
         ca=c*ar
-        if phi_deg>0:
-            denom=V+A*ca/math.tan(ph)
-        else:
-            denom=V
-        hratio=H/denom
-        if hratio>=1.0: raise ValueError('水平載重已達或超過此公式的可用垂直／基底抗力；請核對 H、V、基底面積及 ca/c')
         theta_load=math.degrees(math.atan2(H,V))
         if 'vesic' in th:
             # Vesic's m uses the aspect ratio perpendicular to the
             # horizontal-load direction: parallel B -> L/B; parallel L -> B/L.
             m=(2+Le/Be)/(1+Le/Be) if load_direction=='parallel_B' else (2+Be/Le)/(1+Be/Le)
-            iq=(1-hratio)**m; ig=(1-hratio)**(m+1)
-            ic=iq-(1-iq)/(Nq-1) if phi_deg>0 else max(0.0,1.0-m*H/(A*ca*Nc)) if ca>0 else (1.0 if H==0 else 0.0)
+            if phi_deg>0:
+                # AASHTO/FHWA Vesic-based beta uses soil cohesion c,
+                # not the footing-interface adhesion ca.
+                denom=V+A*c/math.tan(ph)
+                hratio=H/denom
+                if hratio>=1.0: raise ValueError('水平載重已達或超過 Vesic 公式可用抗力；請核對 H、V、基礎面積及土體 c')
+                iq=(1-hratio)**m; ig=(1-hratio)**(m+1)
+                ic=iq-(1-iq)/(Nq-1)
+            else:
+                # Undrained Table 5-4: q-term factors remain unity;
+                # Vesic inclination acts on the undrained cohesion term.
+                iq=ig=1.0
+                ic=1.0-m*H/(A*c*Nc) if c>0 else (1.0 if H==0 else 0.0)
         else:
-            iq=(1-0.5*hratio)**5
-            ig=(1-(0.7-theta_load/450.0)*hratio)**5
-            ic=iq-(1-iq)/(Nq-1) if phi_deg>0 else (0.5+0.5*math.sqrt(max(0.0,1.0-H/(A*ca))) if ca>0 else (1.0 if H==0 else 0.0))
+            if phi_deg>0:
+                denom=V+A*ca/math.tan(ph)
+                hratio=H/denom
+                if hratio>=1.0: raise ValueError('水平載重已達或超過 Hansen 公式可用抗力；請核對 H、V、基底面積及 ca/c')
+                iq=(1-0.5*hratio)**5
+                ig=(1-(0.7-theta_load/450.0)*hratio)**5
+                ic=iq-(1-iq)/(Nq-1)
+            else:
+                # Undrained q-term factors are unity; retain Hansen's
+                # classical undrained cohesion inclination expression.
+                iq=ig=1.0
+                ic=(0.5+0.5*math.sqrt(max(0.0,1.0-H/(A*ca))) if ca>0 else (1.0 if H==0 else 0.0))
     # Effective surcharge at foundation base and gamma in N-gamma term.
     q=gamma*min(Df,Dw)+gsub*max(0.0,Df-Dw)
     if Dw<=Df: gamma_eff=gsub
