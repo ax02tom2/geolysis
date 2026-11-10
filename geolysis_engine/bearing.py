@@ -425,6 +425,77 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012)',
         'limitations':'適用砂狀土且地震超額孔隙水壓影響完整承載力剪力區之情境；依手冊移除覆土 Nq 項，並以 (1−ru) 折減 Nγ 項。ru 應依 FSliq／孔壓評估取得，不可任意假設。若土層可液化、邊際液化或顯著強度損失，USACE 原則上不建議使用淺基礎；此式是補充評估，不代表可接受液化場址。未含分層穿刺、側向擴展與地震沉陷。'}
 
+
+
+def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
+        gamma_moist, gamma_sub, water_depth, fs=3.0, footing_type='isolated'):
+    """USACE 2025 in-situ-test bearing capacity, Eqs. 5-25/5-26 and Table 5-5.
+
+    measurements are shear-zone readings: N60 (SPT, blows/ft), qne (CPT, kPa),
+    or pne (PMT, kPa). Their geometric mean is used. The method assumes a
+    centered vertical load, level base and level ground; inclination/seismic
+    factors and layered punch-through must be checked separately.
+    """
+    kind=str(test_type).strip().upper()
+    condition=str(drainage).strip().lower()
+    if kind not in ('SPT','CPT','PMT'):
+        raise ValueError('原位試驗類型須為 SPT、CPT 或 PMT')
+    if condition not in ('drained','undrained'):
+        raise ValueError('排水條件須為 drained 或 undrained')
+    if footing_type not in ('isolated','continuous'):
+        raise ValueError('基礎型式須為 isolated 或 continuous')
+    if not isinstance(measurements,(list,tuple)) or not measurements:
+        raise ValueError('至少輸入一筆剪力區原位試驗值')
+    vals=[_finite(f'{kind} 試驗值',v) for v in measurements]
+    if any(v<=0 for v in vals):
+        raise ValueError('原位試驗值必須全部大於零，幾何平均不接受零或負值')
+    B=_finite('基礎寬度 B',B); L=_finite('基礎長度 L',L)
+    Df=_finite('基礎埋深 Df',Df); Dw=_finite('地下水深度 Dw',water_depth)
+    gamma=_finite('基礎底以上總單位重',gamma_moist)
+    gsub=_finite('基礎底以下有效單位重',gamma_sub)
+    FS=_finite('安全係數',fs)
+    if B<=0 or L<=0 or (footing_type=='isolated' and L<B) or Df<0 or Dw<0:
+        raise ValueError('基礎尺寸或深度不合理')
+    if gamma<=0 or gsub<=0 or FS<=1:
+        raise ValueError('單位重須為正，安全係數須大於 1')
+    geomean=math.exp(sum(math.log(v) for v in vals)/len(vals))
+    if kind=='SPT':
+        s_parameter=geomean*2.0*47.88025898  # pref=2 ksf
+        k_table={'drained':0.60,'undrained':0.35}
+    elif kind=='CPT':
+        s_parameter=geomean
+        k_table={'drained':0.10,'undrained':0.35}
+    else:
+        s_parameter=geomean
+        k_table={'drained':0.90,'undrained':0.70}
+    k=k_table[condition]
+    # Effective surcharge for drained conditions; total-stress surcharge
+    # for undrained conditions (submerged unit weight + gamma_w below WT).
+    q0=gamma*min(Df,Dw)
+    if Df>Dw:
+        q0+=(gsub if condition=='drained' else gsub+9.81)*(Df-Dw)
+    N=3.0  # USACE specifies N=3 when no friction-angle estimate is available.
+    shape_ratio=0.0 if footing_type=='continuous' else B/L
+    if condition=='drained':
+        shape=1.0+0.1*N*shape_ratio
+        depth=1.0+0.1*math.sqrt(N)*(Df/B)
+    else:
+        shape=1.0+0.2*shape_ratio
+        depth=min(1.0+0.2*(Df/B),1.5)
+    qult=k*shape*depth*s_parameter+q0
+    return {
+        'test_type':kind,'drainage':condition,'footing_type':footing_type,
+        'measurement_count':len(vals),'measurements':vals,
+        'geometric_mean':geomean,'N60_equivalent':geomean if kind=='SPT' else None,
+        's_parameter_kpa':s_parameter,'k':k,'flow_number':N,
+        'shape_factor':shape,'depth_factor':depth,
+        'q_surcharge_kpa':q0,'qu_gross':qult,'qu_net':qult-q0,
+        'qa_gross_direct_FS':qult/FS,'qa_net_direct_FS':(qult-q0)/FS,
+        'FS':FS,'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-25/5-26, Table 5-5',
+        'limitations':'採剪力區內原位試驗值之幾何平均；SPT 使用 N60（非 N1,60）並乘 pref=2 ksf，CPT 使用 qne、PMT 使用 pne。依手冊缺少摩擦角時採 Flow Number N=3。此函式僅計算垂直置中載重、水平地表與水平基底；未計入載重傾斜、基底／地表傾斜、地震修正、偏心及分層穿刺。實際 FS 尚須以結構傳遞的 qeq 比較，不可將 qa=qult/FS 當作已完成工址載重檢核。'
+    }
+
+
 def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_m,
         footing_depth_m, water_depth_m, fs=3.0, footing_type='isolated',
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):

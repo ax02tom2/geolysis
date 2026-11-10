@@ -5,7 +5,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+from geolysis_engine import bearing_capacity, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
 
 
 def render_module_5(expanded=False):
@@ -421,6 +421,52 @@ def render_module_5(expanded=False):
                 st.caption(auto_bishop["limitations"])
     
     
+
+        with st.expander("⑦ 原位試驗承載力（USACE 2025）",expanded=False):
+            st.caption("依 USACE 2025 Eqs. 5-25／5-26、Table 5-5，以剪力區內原位試驗值幾何平均估算承載力。SPT 請輸入模組二校正後的 N60（不是 N1,60）；CPT 輸入淨錐尖阻力 qne；PMT 輸入淨極限壓力 pne。CPT／PMT 單位為 kPa。")
+            ia,ib,ic=st.columns(3)
+            with ia:
+                insitu_type5=st.selectbox("原位試驗類型",["SPT","CPT","PMT"],format_func=lambda x:{"SPT":"SPT（N60）","CPT":"CPT（qne）","PMT":"PMT（pne）"}[x],key="m5x_insitu_type")
+                insitu_drainage5=st.selectbox("排水條件",["drained","undrained"],format_func=lambda x:"排水（有效應力）" if x=="drained" else "不排水（總應力）",key="m5x_insitu_drainage")
+            with ib:
+                insitu_footing5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形" if x=="isolated" else "連續條形",key="m5x_insitu_footing")
+                insitu_values5=st.text_input("剪力區試驗值（逗號分隔）",value="",placeholder="例如：12, 12, 15, 14",key="m5x_insitu_values")
+            with ic:
+                st.metric("目前基礎 B × L",f"{B5:.2f} × {L5:.2f} m")
+                st.metric("目前埋深 Df",f"{df5:.2f} m")
+                st.caption(f"Dw={dw5:.2f} m；γ={gamma5:.2f} kN/m³；γ′={gsub5:.2f} kN/m³")
+            unsupported_insitu5=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
+            if unsupported_insitu5:
+                st.warning("目前輸入含水平載重、載重傾角或偏心；原位試驗承載力此版僅支援垂直置中載重，已停用計算按鈕，避免忽略修正係數。斜坡地表／傾斜基底也尚未納入此路徑。")
+            if st.button("計算原位試驗承載力",key="m5x_insitu_run",disabled=unsupported_insitu5):
+                try:
+                    raw=[x.strip() for x in insitu_values5.replace("；",",").replace(";",",").replace("，",",").split(",") if x.strip()]
+                    values=[float(x) for x in raw]
+                    insitu=bearing_capacity_in_situ(
+                        test_type=insitu_type5,measurements=values,drainage=insitu_drainage5,
+                        B=B5,L=L5,Df=df5,gamma_moist=gamma5,gamma_sub=gsub5,
+                        water_depth=dw5,fs=fs5,footing_type=insitu_footing5)
+                    sig=(insitu_type5,insitu_drainage5,insitu_footing5,insitu_values5,
+                         B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
+                    store_result_state(st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu,sig)
+                except Exception as exc:
+                    logging.exception("Unhandled application calculation error")
+                    st.error(f"原位試驗承載力計算失敗：{exc}")
+            insitu_sig=(insitu_type5,insitu_drainage5,insitu_footing5,insitu_values5,
+                        B5,L5,df5,gamma5,gsub5,dw5,fs5,H5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
+            insitu_result,insitu_current=read_result_state(
+                st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu_sig)
+            if insitu_result and insitu_current:
+                mean_unit5="blows/ft" if insitu_type5=="SPT" else "kPa"
+                st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
+                r1,r2,r3=st.columns(3)
+                r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
+                r2.metric("容許承載力 qa,gross",f"{insitu_result['qa_gross_direct_FS']:.1f} kPa")
+                r3.metric("容許承載力 qa,net",f"{insitu_result['qa_net_direct_FS']:.1f} kPa")
+                st.caption(f"形狀係數={insitu_result['shape_factor']:.3f}；深度係數={insitu_result['depth_factor']:.3f}；基礎底覆土壓力 q0={insitu_result['q_surcharge_kpa']:.1f} kPa。")
+                st.caption(insitu_result["limitations"])
+
+
         with st.expander("擴充分析公式依據與適用限制",expanded=False):
             st.markdown("""
     - **斜坡地表／傾斜基底**：USACE [EM 1110-1-1905（2025）](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)，Table 5-3、5-4、Eqs. 5-21／5-22。
