@@ -142,8 +142,9 @@ def render_module_5(expanded=False):
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
                         base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
                         slope_distance_m=slope_dist5,
-                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
+                        horizontal_load=H5,vertical_load=V5)
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
@@ -152,6 +153,7 @@ def render_module_5(expanded=False):
             if slope_result and slope_is_current:
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
+                st.write(f"載重傾斜角 β=atan(H/V)={slope_result['load_inclination_beta_2025_deg']:.2f}°；載重係數 ic=iq={slope_result['load_factor_c_2025']:.3f}、iγ={slope_result['load_factor_gamma_2025']:.3f}")
                 st.write(f"基底係數：bc={slope_result['base_factor_c']:.3f}、bq={slope_result['base_factor_q']:.3f}、bγ={slope_result['base_factor_gamma']:.3f}；地表係數：gc={slope_result['ground_factor_c']:.3f}、gq={slope_result['ground_factor_q']:.3f}、gγ={slope_result['ground_factor_gamma']:.3f}")
                 if phi5>0:
                     st.caption(f"排水 Nγ 項有效單位重 γ′={slope_result['gamma_effective']:.2f} kN/m³；{slope_result['gamma_effective_method']}，修正係數={slope_result['gamma_effective_2025_factor']:.3f}。")
