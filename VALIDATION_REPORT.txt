@@ -2,8 +2,8 @@ Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: af77d21db1246d4fd4de9c23cd318a91e4cce0d5
-Latest validation run: 42786697259 (PR #16 source tree before squash merge; success)
+Validated main code commit: 4ba81989ff3e465f3dc0165aa1851d8012f9a23e
+Latest validation run: 42787292516 (PR #17 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 234 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 238 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -204,4 +204,17 @@ Layered profile continuous-footing propagation — PR #16
 - PR #16 merged to main at af77d21db1246d4fd4de9c23cd318a91e4cce0d5.
 - GitHub Actions run 42786697259: success; Python 3.11 compile passed; full suite 234 passed in 1.83 s.
 - Published reference benchmark count remains 46; this change adds one implementation regression test rather than a new independent published example.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
+
+
+USACE 2025 in-situ SPT/CPT/PMT bearing-capacity method — PR #17
+
+- Implemented USACE EM 1110-1-1905 (31 Jul 2025) Eqs. 5-25/5-26 and Table 5-5 for SPT, CPT and PMT bearing-capacity estimation.
+- The function computes the geometric mean of shear-zone measurements: SPT N60 (not N1,60), CPT net cone resistance qne, or PMT net limit pressure pne. SPT is multiplied by the reference stress pref=2 ksf; Table 5-5 drained/undrained k factors are applied.
+- Uses Flow Number N=3 where no friction-angle estimate is supplied; applies the corresponding USACE Meyerhof-based shape and depth factors, including strip-footing shape factor 1.0.
+- Module 5 now provides a dedicated input/results panel. It blocks calculation when horizontal load, load inclination, eccentricity, base inclination or ground inclination is selected, because those factors are not included in this first in-situ implementation.
+- Added three published Appendix B-7 benchmarks: SPT (N60=12,12,15,14; qult≈21.9 ksf), CPT (qne=200,200,320,200 ksf; qult≈31.0 ksf), and PMT (pne=17 ksf; qult≈21.2 ksf), plus a strip-footing shape-factor regression.
+- Scope limitations remain explicit: this path does not yet apply seismic corrections, combine with layered punch-through checks, or calculate structural column/foundation demand qeq and the resulting actual design FS. It reports ultimate and allowable resistance only.
+- PR #17 merged to main at 4ba81989ff3e465f3dc0165aa1851d8012f9a23e.
+- GitHub Actions run 42787292516: success; Python 3.11 compile passed; full suite 238 passed in 1.60 s.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
