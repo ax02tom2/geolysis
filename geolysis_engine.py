@@ -397,6 +397,8 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 # Vesic inclination acts on the undrained cohesion term.
                 iq=ig=1.0
                 ic=1.0-m*H/(A*c*Nc) if c>0 else (1.0 if H==0 else 0.0)
+                if ic<=0:
+                    raise ValueError('Vesic 不排水水平載重傾斜係數已≤0；請核對 H、土體不排水強度 c、基礎面積及方向')
         else:
             if phi_deg>0:
                 denom=V+A*ca/math.tan(ph)
