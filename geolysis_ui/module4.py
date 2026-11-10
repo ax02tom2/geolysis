@@ -155,13 +155,13 @@ def render_module_4(expanded=False):
                         st.warning("目前輸入的是多層壓縮土。USACE EM 1110-1-1905（2025）表 7-11 要求逐一判定各壓縮層的 Cv，並依各層排水邊界計算 Hdr；不能把所有層厚加總後套用單一 Cv 與排水條件。因此本版不提供多層情況的時間速率及次壓縮數值，避免產生具誤導性的結果。")
                         st.caption("請先以單一、均質且排水條件一致的壓縮層使用下方時間估算；多層分析需補齊每層 Cv、排水路徑、次壓縮指數 Cα 與主固結完成時孔隙比後，才能逐層計算並在共同經過時間下整合。")
                     else:
-                        st.caption("依 USACE 2025 第 7-18、7-19 節。Cv 應由固結試驗或現地試驗取得；此處以代表性壓縮層作一維估算。")
+                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得；此處以單一均質壓縮層作一維估算。")
                         rt_a,rt_b,rt_c=st.columns(3)
                         with rt_a:
                             cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
                             drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
                         with rt_b:
-                            u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.9,value=90.0,step=1.0,key="m4c_u")
+                            u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.4,value=90.0,step=1.0,key="m4c_u")
                             elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
                         with rt_c:
                             calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
