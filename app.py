@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -996,3 +996,151 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
     st.caption("另提醒：USACE 2025 的 AASHTO/FHWA Vesic-based 設計係數系統與本頁 1992 經典 Vesic 表 4-6 不同：2025 系統的水平力係數使用土體 c、φ′=0 深度係數保守省略，且 FHWA 建議不要同時套用形狀與載重傾斜修正；本頁經典公式則使用基底黏著 ca，φ′=0 採 dc=1+0.4k。本頁不宣稱等同完整 AASHTO/FHWA 設計程序。")
     with st.expander("理論公式與文獻來源",expanded=False):
         st.markdown("- [USACE EM 1110-1-1905（2025）：淺基礎承載力設計（現行手冊）](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)\n- [USACE EM 1110-1-1905（1992）：經典承載力因子表](https://www.publications.usace.army.mil/Portals/76/Publications/EngineerManuals/EM_1110-1-1905.pdf)\n- [FHWA GEC No. 6：Shallow Foundations](https://www.fhwa.dot.gov/engineering/geotech/pubs/010943.pdf)\n- [geolysis 開源套件公式文件](https://docs.geolysis.io/en/latest/formulas/ultimate-bearing-capacity/)")
+
+
+    st.markdown("---")
+    st.subheader("進階極限狀態分析（擴充）")
+    st.caption("以下功能分別計算，不與原本水平地表靜力承載力混為一談。各項結果需依實際地層、地下水、荷載組合及採用規範審查。")
+
+    with st.expander("① 斜坡地表／② 傾斜基底承載力修正",expanded=False):
+        st.caption("依 USACE EM 1110-1-1905（2025）表 5-3／5-4 的 Meyerhof-based 修正係數；地表坡面假設由基礎向外下降。坡體整體穩定仍須另外通過檢核。")
+        sc1,sc2,sc3=st.columns(3)
+        with sc1:
+            base_ang5=st.number_input("基底／剪力鍵等效傾角 αb [°]",0.0,59.0,0.0,1.0,key="m5x_base_angle")
+        with sc2:
+            ground_ang5=st.number_input("鄰接地表坡角 αg [°]",0.0,44.0,0.0,1.0,key="m5x_ground_angle")
+        with sc3:
+            slope_dist5=st.number_input("基礎有效邊至坡頂距離 dg [m]",0.0,100.0,0.0,0.5,key="m5x_slope_distance")
+        if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run"):
+            try:
+                base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
+                    gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
+                    B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,
+                    load_angle=beta5,eccentricity_B=eB5,eccentricity_L=eL5)
+                slope_result=bearing_capacity_slope_base_corrections(
+                    base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
+                    base_inclination_deg=base_ang5,ground_inclination_deg=ground_ang5,
+                    slope_distance_m=slope_dist5)
+                st.session_state["m5x_slope_result"]=slope_result
+                st.session_state["m5x_slope_signature"]=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
+            except Exception as exc:
+                st.error(f"斜坡／基底傾斜計算失敗：{exc}")
+        slope_result=st.session_state.get("m5x_slope_result")
+        slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5)
+        if slope_result and st.session_state.get("m5x_slope_signature")==slope_sig:
+            st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
+            st.write(f"bc={slope_result['base_factor_c']:.3f}；bq={slope_result['base_factor_q']:.3f}；gc={slope_result['ground_factor_c']:.3f}；gq={slope_result['ground_factor_q']:.3f}")
+            st.caption(slope_result["limitations"])
+        elif slope_result:
+            st.warning("輸入已變更，請重新執行斜坡／基底傾斜計算。")
+
+    with st.expander("③ 多層地盤：強上層覆蓋弱下層穿刺破壞",expanded=False):
+        st.caption("依 USACE 2025 式 5-17／5-18，採 2V:1H 應力擴散。分別計算上、下層同一基礎的極限承載力，再檢查穿刺控制。")
+        la,lb,lc=st.columns(3)
+        with la:
+            c_top5=st.number_input("上層 c／Su [kPa]",0.0,100000.0,float(c5),1.0,key="m5x_c_top")
+            phi_top5=st.number_input("上層 φ [°]",0.0,50.0,float(phi5),1.0,key="m5x_phi_top")
+        with lb:
+            c_low5=st.number_input("下層 c／Su [kPa]",0.0,100000.0,max(0.0,float(c5)*0.5),1.0,key="m5x_c_low")
+            phi_low5=st.number_input("下層 φ [°]",0.0,50.0,max(0.0,float(phi5)*0.7),1.0,key="m5x_phi_low")
+        with lc:
+            strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
+            footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
+        if st.button("計算多層穿刺承載力",key="m5x_layer_run"):
+            try:
+                top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,
+                    gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
+                    B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5)
+                low=bearing_capacity(theory="Meyerhof",c_kpa=c_low5,phi_deg=phi_low5,
+                    gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
+                    B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5)
+                layered=layered_bearing_capacity_punching(
+                    q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
+                    strong_layer_thickness_m=strong_h5,footing_width_m=B5,
+                    footing_length_m=L5,footing_type=footing_kind5)
+                st.session_state["m5x_layer_result"]=layered
+                st.session_state["m5x_layer_signature"]=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
+            except Exception as exc:
+                st.error(f"多層承載力計算失敗：{exc}")
+        layered=st.session_state.get("m5x_layer_result")
+        layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
+        if layered and st.session_state.get("m5x_layer_signature")==layer_sig:
+            st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
+            st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
+            st.caption(layered["limitations"])
+        elif layered:
+            st.warning("輸入已變更，請重新執行多層穿刺計算。")
+
+    with st.expander("④ 地震等效靜力載重包絡（偽靜力）",expanded=False):
+        st.warning("此面板將 kh、kv 轉成基礎慣性等效作用，並非完整地震承載力分析；不包含土體慣性、液化、循環強度折減或震陷。")
+        ea,eb,ec=st.columns(3)
+        with ea:
+            kh5=st.number_input("水平地震係數 kh",0.0,1.0,0.15,0.01,key="m5x_kh")
+        with eb:
+            kv5=st.number_input("垂直地震係數 kv（正值代表向下增加）",-0.5,0.5,0.0,0.01,key="m5x_kv")
+        with ec:
+            area5=st.number_input("基礎有效面積 A′ [m²]",0.1,5000.0,float(max(0.1,(B5-2*eB5)*(L5-2*eL5))),0.1,key="m5x_area")
+        if st.button("計算地震等效載重",key="m5x_seismic_run"):
+            try:
+                seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
+                    horizontal_load_kN=H5,footing_area_m2=area5,kh=kh5,kv=kv5)
+                st.session_state["m5x_seismic_result"]=seismic
+                st.session_state["m5x_seismic_signature"]=(V5,H5,area5,kh5,kv5)
+            except Exception as exc:
+                st.error(f"地震等效載重計算失敗：{exc}")
+        seismic=st.session_state.get("m5x_seismic_result")
+        if seismic and st.session_state.get("m5x_seismic_signature")== (V5,H5,area5,kh5,kv5):
+            st.dataframe(pd.DataFrame(seismic["cases"]),hide_index=True,use_container_width=True)
+            st.caption(seismic["limitations"])
+
+    with st.expander("⑤ 基礎底面滑動安全係數",expanded=False):
+        st.caption("依 USACE 2025 式 5-28／5-29。基底摩擦、黏著、揚壓力分別輸入；主動／被動土壓需先以 developed strength 另行計算。")
+        sa,sb,sc=st.columns(3)
+        with sa:
+            slide_v5=st.number_input("總垂直力 V [kN]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
+            slide_u5=st.number_input("基底揚壓力合力 U [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_u")
+            slide_h5=st.number_input("水平驅動力 H [kN]",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
+        with sb:
+            slide_area5=st.number_input("基底接觸面積 A [m²]",0.1,5000.0,float(max(0.1,B5*L5)),0.1,key="m5x_slide_area")
+            slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_phi")
+            slide_c5=st.number_input("基底黏著強度 ca [kPa]",0.0,100000.0,0.0,1.0,key="m5x_slide_c")
+        with sc:
+            slide_ar5=st.number_input("黏著折減比",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
+            slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
+            slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
+        slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
+        if st.button("計算基底滑動安全係數",key="m5x_slide_run"):
+            try:
+                slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
+                    uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
+                    friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
+                    adhesion_ratio=slide_ar5,active_force_kN=slide_pa5,
+                    passive_force_kN=slide_pp5,fs_required=slide_req5)
+                st.session_state["m5x_slide_result"]=slide
+                st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5)
+            except Exception as exc:
+                st.error(f"基底滑動計算失敗：{exc}")
+        slide=st.session_state.get("m5x_slide_result")
+        slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5)
+        if slide and st.session_state.get("m5x_slide_signature")==slide_sig:
+            st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
+                delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
+            st.caption(slide["limitations"])
+
+    with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
+        st.caption("輸入同一圓弧滑動面的切片資料。底角正值代表朝滑動方向下降；各片 c′、φ′及孔隙水壓應使用該片底面平均值。")
+        bishop_csv=st.text_area("切片 CSV：width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa",
+            value="width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n1,120,20,10,25,0\n1,100,10,10,25,0",
+            height=120,key="m5x_bishop_csv")
+        if st.button("計算 Bishop 整體穩定 FS",key="m5x_bishop_run"):
+            try:
+                slices=pd.read_csv(StringIO(bishop_csv)).to_dict("records")
+                bishop=bishop_simplified_factor_of_safety(slices=slices)
+                st.session_state["m5x_bishop_result"]=bishop
+                st.session_state["m5x_bishop_signature"]=bishop_csv
+            except Exception as exc:
+                st.error(f"Bishop 整體穩定計算失敗：{exc}")
+        bishop=st.session_state.get("m5x_bishop_result")
+        if bishop and st.session_state.get("m5x_bishop_signature")==bishop_csv:
+            st.metric("Bishop 簡化法 FS",f"{bishop['FS']:.3f}")
+            st.caption(f"迭代 {bishop['iterations']} 次；{bishop['limitations']}")
