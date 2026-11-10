@@ -333,10 +333,26 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
         ic=iq=ig=1.0
     elif 'meyerhof' in th:
         kp=math.tan(math.radians(45)+ph/2)**2
-        sc=1+0.2*kp*br; sq=1+0.1*kp*br; sg=sq if phi_deg>10 else 1.0
-        dc=1+0.2*math.sqrt(kp)*Df/Be; dq=1+0.1*math.sqrt(kp)*Df/Be; dg=1+0.1*math.sqrt(kp)*Df/Be
-        ic=iq=(1-beta/90.0)**2
-        ig=(1-beta/phi_deg)**2 if phi_deg>0 and beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
+        sc=1+0.2*kp*br
+        if phi_deg == 0:
+            # USACE EM 1110-1-1905 (2025), Table 5-4: undrained
+            # q-term factors are all unity; Meyerhof dc is capped at 1.5.
+            sq=sg=1.0
+            dc=min(1+0.2*Df/Be,1.5)
+            dq=dg=1.0
+            # Table 5-4 undrained Meyerhof inclination: ic=1-1.3 H/V.
+            # beta is the entered load angle, so H/V=tan(beta).
+            ic=1-1.3*math.tan(math.radians(beta))
+            if ic<=0:
+                raise ValueError('Meyerhof 不排水載重傾斜係數已≤0；請降低載重傾角或改用有依據的分析方法')
+            iq=ig=1.0
+        else:
+            sq=1+0.1*kp*br; sg=sq if phi_deg>10 else 1.0
+            dc=1+0.2*math.sqrt(kp)*Df/Be
+            dq=1+0.1*math.sqrt(kp)*Df/Be
+            dg=1+0.1*math.sqrt(kp)*Df/Be
+            ic=iq=(1-beta/90.0)**2
+            ig=(1-beta/phi_deg)**2 if beta<phi_deg else (0.0 if beta>=phi_deg else 1.0)
     else: # Hansen shape/depth, shared by Vesic
         sc=1+(Nq/Nc)*br if phi_deg>0 else 1+0.2*br
         sq=1+br*sinp
