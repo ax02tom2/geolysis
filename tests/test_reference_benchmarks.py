@@ -883,3 +883,30 @@ def test_usace_2025_in_situ_bearing_continuous_footing_shape_factor():
     )
     assert result["shape_factor"] == pytest.approx(1.0)
 
+def test_usace_2025_appendix_b5_undrained_pmt_bearing_capacity():
+    # USACE EM 1110-1-1905 (31 Jul 2025), Appendix B, Example B-5,
+    # Table B-5b/e (printed pp. 317-321), Eq. 5-26 and Table 5-5.
+    # PMT net limit pressure pne=15.8 ksf, k=0.70 (undrained),
+    # sc=1.20, dc=1.06, q0=0.31 ksf; manual qult=14.38 ksf.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    result = bearing_capacity_in_situ(
+        test_type="PMT",
+        measurements=[15.8 * ksf_to_kpa],
+        drainage="undrained",
+        B=8.0 * ft_to_m,
+        L=8.0 * ft_to_m,
+        Df=2.5 * ft_to_m,
+        gamma_moist=0.125 * kcf_to_kn_m3,
+        gamma_sub=9.0,
+        water_depth=20.0 * ft_to_m,
+        fs=3.0,
+    )
+    assert result["k"] == pytest.approx(0.70)
+    assert result["shape_factor"] == pytest.approx(1.20)
+    assert result["depth_factor"] == pytest.approx(1.0625)
+    assert result["q_surcharge_kpa"] / ksf_to_kpa == pytest.approx(0.3125, abs=1e-8)
+    # The engine retains full precision; the manual rounds dc to 1.06.
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(14.38, abs=0.05)
+
