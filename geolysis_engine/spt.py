@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 from ._common import _finite
 
+ROD_CORRECTION = [(3,0.75),(4,0.80),(6,0.85),(10,0.95),(float('inf'),1.00)]
+
 def rod_factor(length_m):
     L=_finite('鑽桿長度',length_m)
     if L<=0: raise ValueError('鑽桿長度必須大於 0')
