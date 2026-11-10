@@ -924,8 +924,14 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             if phi_hb_deg>50:
                 st.error("模組一等效摩擦角超過本模組承載力公式目前支援的 50° 上限；系統不會把它截斷成 50° 後計算。請調整有工程依據的圍壓範圍，或改用試驗參數手動輸入。")
     with c:
-        gamma5=st.number_input("地表至基礎底土層 γ [kN/m³]",10.0,30.0,18.5,0.5,key='m5_gamma')
-        gsub5=st.number_input("基礎底以下有效單位重 γ' [kN/m³]",5.0,15.0,9.5,0.5,key='m5_gsub')
+        gamma5=st.number_input("基礎底以上總單位重 γ_D [kN/m³]",10.0,30.0,18.5,0.5,key='m5_gamma')
+        same_gamma_below5=st.checkbox("基礎底下與上覆土同一土層",value=True,key='m5_same_gamma_below')
+        if same_gamma_below5:
+            gamma_below5=gamma5
+        else:
+            gamma_below5=st.number_input("基礎底以下總單位重 γ_H [kN/m³]",10.0,30.0,20.0,0.5,key='m5_gamma_below')
+        gsub5=st.number_input("基礎底以下有效單位重 γ′_H [kN/m³]",5.0,15.0,9.5,0.5,key='m5_gsub')
+        st.caption("地下水位位於基礎底下剪力區時，Nγ 項有效單位重依剪力區深度 H=B′tan(45+ϕ′/2) 估算；上下土層不同時，請取消同層勾選並輸入 γ_H。")
         df5=st.number_input("基礎埋深 Df [m]",0.0,30.0,1.5,0.1,key='m5_df')
     with d:
         dw5=st.number_input("地下水位深度 Dw [m]（自地表）",0.0,100.0,5.0,0.1,key='m5_dw')
@@ -950,7 +956,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
     adhesion5=st.number_input("基底黏著係數 ca/c（Hansen／Vesic）",0.0,1.0,0.6,0.1,key='m5_adhesion',disabled=(theory5 not in ('Hansen','Vesic')))
     st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
     hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi)) if use_hb5 else ()
-    m5_input_signature=(theory5,src5,float(c5),float(phi5),float(gamma5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
+    m5_input_signature=(theory5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
     if st.button("計算極限承載力",key='m5_run'):
         st.session_state.pop('m5_result',None)
         st.session_state.pop('m5_result_signature',None)
@@ -960,7 +966,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             try:
                 if abs(math.degrees(math.atan2(H5,V5))-beta5)>2.0 and H5>0 and theory5=='Meyerhof':
                     st.warning("載重傾角 β 與 H/V 計算角度差異超過 2°；H/V 為 Hansen/Vesic 計算依據，請核對輸入。")
-                result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5)
+                result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5)
                 st.session_state['m5_result']=result5
                 st.session_state['m5_result_signature']=m5_input_signature
             except Exception as exc: st.error(f"承載力計算失敗：{exc}")
