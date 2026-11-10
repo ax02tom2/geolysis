@@ -293,7 +293,11 @@ def render_module_5(expanded=False):
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
                 slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
                 slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
-            slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
+            slide_case5=st.selectbox("荷載組合",["常時／靜力","含地震荷載"],index=0,key="m5x_slide_case")
+            slide_load_case5="seismic" if slide_case5=="含地震荷載" else "static"
+            slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
+            slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
+            st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
             slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
@@ -304,7 +308,8 @@ def render_module_5(expanded=False):
                         earth=developed_rankine_sliding_earth_pressures(
                             effective_unit_weight_kn_m3=slide_gamma5,footing_depth_m=df5,
                             footing_length_m=L5,friction_angle_deg=slide_backfill_phi5,
-                            cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5)
+                            cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5,
+                            load_case=slide_load_case5)
                         active_used=earth["active_force_kN"]
                         passive_used=earth["passive_force_kN"]
                         st.session_state["m5x_slide_earth_result"]=earth
@@ -316,8 +321,9 @@ def render_module_5(expanded=False):
                         uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
                         friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                         adhesion_ratio=slide_ar5,active_force_kN=active_used,
-                        passive_force_kN=passive_used,fs_required=slide_req5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                        passive_force_kN=passive_used,fs_required=slide_req5,
+                        load_case=slide_load_case5)
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
