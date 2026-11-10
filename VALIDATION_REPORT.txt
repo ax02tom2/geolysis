@@ -1,9 +1,24 @@
-Validation report — 2026-11-05 Asia/Taipei (UTC+08:00)
+Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
 
-- Restored the original GSI matrix assessment and Hoek-Brown input controls from the uploaded source.
-- Restored GSI, mi, UCS, disturbance D, application type, unit weight, height and output columns before the Hoek-Brown calculations.
-- Python compilation: passed.
-- Hoek-Brown numerical smoke test: passed.
-- ZIP integrity and UTF-8 paths: passed.
-- Streamlit AppTest / Cloud deployment: not run; Streamlit is not installed in this build environment.
-- This archive contains only the web application files; core-photo analysis code and image-processing dependencies are excluded.
+Repository: ax02tom2/geolysis
+Branch: main
+Validated commit: 198df909fd4ecf53d80bb1bce4457ac37483f86b
+
+Automated GitHub Actions result:
+- Workflow: Geolysis automated tests
+- Run ID: 42732787664
+- Conclusion: success
+- Python: 3.11
+- Compile: app.py and geolysis_engine.py passed
+- Regression suite: 141 passed in 0.15 s
+- Widget-key static check: included in the passing suite
+- Web-scope static check: included in the passing suite
+
+Engineering regression coverage includes USCS/AASHTO boundaries, SPT corrections, single- and multi-layer consolidation, settlement/time-rate methods, Hoek–Brown parameter relations, four bearing-capacity theories, groundwater corrections, eccentricity, load inclination, and a USACE 1992 Example 4-5(b) benchmark.
+
+Not verified by this CI run:
+- Streamlit Community Cloud deployment or live browser interaction.
+- Site-specific geotechnical correctness without project-specific investigation and laboratory data.
+- Methods explicitly outside current scope: sloping ground, inclined footing base, seismic bearing capacity, layered bearing-capacity failure, base sliding, passive resistance and global stability.
+
+This report records the automated checks only; it is not a design certification or independent professional review.
