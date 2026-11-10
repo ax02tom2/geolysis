@@ -249,7 +249,7 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     dg=_finite('基礎至坡頂距離',slope_distance_m)
     if c<0 or not 0<=phi<=50 or not 0<=ab<60 or not 0<=ag<45 or dg<0:
         raise ValueError('斜坡／基底輸入超出適用範圍：0≤基底角<60°、0≤地表坡角<45°、距離不可為負')
-    if base_result.get('theory')!='Meyerhof':
+    if str(base_result.get('theory','')).lower()!='meyerhof':
         raise ValueError('USACE 表 5-2 至 5-4 修正需以 Meyerhof-based 基礎結果為輸入')
     if not math.isclose(c,base_result.get('c_used',c),rel_tol=1e-7,abs_tol=1e-7):
         raise ValueError('輸入 c／Su 與基礎承載力計算值不一致，請重新計算基礎結果')
