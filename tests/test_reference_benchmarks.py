@@ -11,6 +11,7 @@ from geolysis_engine import (
     burland_burbidge_2025_settlement,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
+    consolidation_time_rate,
     classify_uscs_aashto,
     hoek_brown_parameters,
     bearing_capacity,
@@ -368,3 +369,30 @@ def test_aashto_m145_example_6_4_4_a2_7_uses_only_pi_group_index_term():
     )
     assert result["AASHTO"] == "A-2-7"
     assert result["GI"] == 3
+
+
+@pytest.mark.parametrize(
+    ("degree", "expected_tv"),
+    [
+        (70.0, 0.403),
+        (80.0, 0.567),
+        (90.0, 0.848),
+        (93.1, 1.000),
+        (95.0, 1.163),
+        (98.0, 1.500),
+        (99.4, 2.000),
+    ],
+)
+def test_consolidation_time_factor_matches_usace_2025_figure_7_16(degree, expected_tv):
+    # USACE EM 1110-1-1905 (31 Jul 2025), Figure 7-16.
+    # For H=4 m, double drainage gives Hdr=2 m; Cv=0.01 m²/day.
+    result = consolidation_time_rate(
+        primary_settlement_mm=100.0,
+        layer_thickness_m=4.0,
+        cv_m2_per_day=0.01,
+        target_degree_percent=degree,
+        drainage="double",
+    )
+    assert result["time_factor_target"] == pytest.approx(expected_tv, abs=0.001)
+    assert result["drainage_path_m"] == pytest.approx(2.0)
+    assert result["time_to_target_days"] == pytest.approx(expected_tv * 400.0, abs=0.4)

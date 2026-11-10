@@ -53,33 +53,66 @@ def consolidation_allowable_pressure(*, target_settlement_mm, footing_pressure_f
             'search_limit_reached':at_limit['settlement_mm']<=target,**final,
             'method':f'1-D primary consolidation; {stress_method} rectangular stress distribution'}
 
+_USACE_2025_U_TV = (
+    (0.0, 0.0), (10.0, 0.008), (20.0, 0.031), (30.0, 0.071),
+    (40.0, 0.126), (50.0, 0.197), (60.0, 0.287), (70.0, 0.403),
+    (80.0, 0.567), (90.0, 0.848), (93.1, 1.000), (95.0, 1.163),
+    (98.0, 1.500), (99.4, 2.000),
+)
+
+
+def _linear_interpolate(x, x0, y0, x1, y1):
+    return y0 + (x - x0) * (y1 - y0) / (x1 - x0)
+
+
 def _terzaghi_time_factor_from_degree(degree_percent):
-    """Average 1-D consolidation degree U (%) to Terzaghi time factor Tv."""
-    U=_pct('平均固結度 U',degree_percent)/100.0
-    if U>=1.0: raise ValueError('平均固結度 U 必須小於 100%；理論上 100% 需無限時間')
-    if U<=0: return 0.0
-    lo,hi=0.0,10.0
+    """Map U (%) to Tv using USACE 2025 Figure 7-16 tabulated points.
+
+    The figure is tabulated for a linear distribution of excess pore pressure.
+    Values above 99.4% use the classical Terzaghi series as a tail approximation;
+    U=100% requires infinite time.
+    """
+    U = _pct('平均固結度 U', degree_percent)
+    if U >= 100.0:
+        raise ValueError('平均固結度 U 必須小於 100%；理論上 100% 需無限時間')
+    if U <= 0.0:
+        return 0.0
+    for (u0, tv0), (u1, tv1) in zip(_USACE_2025_U_TV, _USACE_2025_U_TV[1:]):
+        if U <= u1:
+            return _linear_interpolate(U, u0, tv0, u1, tv1)
+    # Tail beyond the last tabulated point (99.4%): classical 1-D series.
+    lo, hi = 2.0, 10.0
     for _ in range(90):
-        mid=(lo+hi)/2.0
-        u=1.0
+        mid = (lo + hi) / 2.0
+        u = 1.0
         for m in range(100):
-            odd=2*m+1
-            u-=8.0/(math.pi**2*odd**2)*math.exp(-(odd**2*math.pi**2*mid)/4.0)
-        if u<U: lo=mid
-        else: hi=mid
-    return (lo+hi)/2.0
+            odd = 2 * m + 1
+            u -= 8.0 / (math.pi ** 2 * odd ** 2) * math.exp(-(odd ** 2 * math.pi ** 2 * mid) / 4.0)
+        if u < U / 100.0:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
+
 
 def _terzaghi_degree_from_time_factor(tv):
-    """Invert Terzaghi's one-dimensional average degree-of-consolidation series."""
-    tv=_finite('時間因子 Tv',tv)
-    if tv<0: raise ValueError('時間因子 Tv 不可為負')
-    if tv==0: return 0.0
-    if tv>=10: return 100.0
-    u=1.0
+    """Map Tv to U (%) using USACE 2025 Figure 7-16 tabulated points."""
+    tv = _finite('時間因子 Tv', tv)
+    if tv < 0:
+        raise ValueError('時間因子 Tv 不可為負')
+    if tv == 0:
+        return 0.0
+    for (u0, tv0), (u1, tv1) in zip(_USACE_2025_U_TV, _USACE_2025_U_TV[1:]):
+        if tv <= tv1:
+            return _linear_interpolate(tv, tv0, u0, tv1, u1)
+    # Beyond Tv=2.0, continue with the classical series as a tail approximation.
+    if tv >= 10:
+        return 100.0
+    u = 1.0
     for m in range(100):
-        odd=2*m+1
-        u-=8.0/(math.pi**2*odd**2)*math.exp(-(odd**2*math.pi**2*tv)/4.0)
-    return min(100.0,max(0.0,u*100.0))
+        odd = 2 * m + 1
+        u -= 8.0 / (math.pi ** 2 * odd ** 2) * math.exp(-(odd ** 2 * math.pi ** 2 * tv) / 4.0)
+    return min(100.0, max(0.0, u * 100.0))
 
 def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
                             cv_m2_per_day, target_degree_percent=90.0,

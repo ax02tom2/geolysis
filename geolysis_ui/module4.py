@@ -151,44 +151,46 @@ def render_module_4(expanded=False):
                     st.caption("Boussinesq 應力解假設均布矩形荷載作用於均質彈性半空間；仍需搭配正確分層參數與有效應力剖面。")
     
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
-                    st.caption("依 USACE 2025 第 7-18、7-19 節。Cv 應由固結試驗或現地試驗取得；此處以代表性壓縮層作一維估算。")
-                    rt_a,rt_b,rt_c=st.columns(3)
-                    with rt_a:
-                        cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
-                        drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
-                    with rt_b:
-                        u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.9,value=90.0,step=1.0,key="m4c_u")
-                        elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
-                    with rt_c:
-                        calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
-                        ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
-                        ep4=st.number_input("主固結完成時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.05,key="m4c_ep",disabled=not calc_secondary4)
-                    try:
-                        representative_H4=sum(float(x["Thickness_m"]) for x in layer_rows) if layers_text4.strip() else Hc
-                        primary_total4=float(r["settlement_mm"])
-                        time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
-                            layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                            target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
-                            drainage=drainage4)
-                        st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
-                        st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
-                        if calc_secondary4:
-                            t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                    if layers_text4.strip():
+                        st.warning("目前輸入的是多層壓縮土。USACE EM 1110-1-1905（2025）表 7-11 要求逐一判定各壓縮層的 Cv，並依各層排水邊界計算 Hdr；不能把所有層厚加總後套用單一 Cv 與排水條件。因此本版不提供多層情況的時間速率及次壓縮數值，避免產生具誤導性的結果。")
+                        st.caption("請先以單一、均質且排水條件一致的壓縮層使用下方時間估算；多層分析需補齊每層 Cv、排水路徑、次壓縮指數 Cα 與主固結完成時孔隙比後，才能逐層計算並在共同經過時間下整合。")
+                    else:
+                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得；此處以單一均質壓縮層作一維估算。")
+                        rt_a,rt_b,rt_c=st.columns(3)
+                        with rt_a:
+                            cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
+                            drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
+                        with rt_b:
+                            u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.4,value=90.0,step=1.0,key="m4c_u")
+                            elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
+                        with rt_c:
+                            calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
+                            ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
+                            ep4=st.number_input("主固結完成時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.05,key="m4c_ep",disabled=not calc_secondary4)
+                        try:
+                            representative_H4=sum(float(x["Thickness_m"]) for x in layer_rows) if layers_text4.strip() else Hc
+                            primary_total4=float(r["settlement_mm"])
+                            time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
                                 layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                                target_degree_percent=99.4,drainage=drainage4)
-                            st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
-                            t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
-                            t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
-                            sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
-                                secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
-                                time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
-                            st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
-                        if layers_text4.strip():
-                            st.warning("多層 CSV 的 Cv、排水距離及次壓縮參數目前以總厚度及單一代表 Cv 簡化估算；正式設計應逐層輸入各層 Cv、排水條件及 Cα，不可將此簡化值視為逐層精算。")
-                    except Exception as time_exc:
-                        st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-    
-    
+                                target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
+                                drainage=drainage4)
+                            st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
+                            st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
+                            if calc_secondary4:
+                                t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                                    layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
+                                    target_degree_percent=99.4,drainage=drainage4)
+                                st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
+                                t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
+                                t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
+                                sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
+                                    secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
+                                    time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
+                                st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+                        except Exception as time_exc:
+                            st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
+            
+            
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
