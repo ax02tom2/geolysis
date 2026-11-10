@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import math
 from io import StringIO
-from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+from geolysis_engine import classify_uscs_aashto, spt_correct, spt_profile, consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, bearing_capacity, hoek_brown_parameters, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
 
@@ -1068,8 +1068,36 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
             st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
             st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
             st.caption(layered["limitations"])
+
         elif layered:
             st.warning("輸入已變更，請重新執行多層穿刺計算。")
+        st.markdown("**多層地盤剖面（可輸入 2 層以上）**")
+        st.caption("每列為一個水平土層；厚度為自基礎底面向下的該層厚度。第一層另提供基礎上覆土天然／水下單位重。")
+        multi_layer_csv5=st.text_area("多層土壤 CSV：thickness_m,c_kpa,phi_deg,gamma_below_kn_m3",
+            value=f"thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\\n1.0,{c_top5},{phi_top5},{gamma_below5}\\n2.0,{c_low5},{phi_low5},{gamma_below5}\\n3.0,{c5},{phi5},{gamma_below5}",
+            height=110,key="m5x_multi_layer_csv")
+        if st.button("計算多層地盤穿刺／承載力",key="m5x_multi_layer_run"):
+            try:
+                ml=pd.read_csv(StringIO(multi_layer_csv5))
+                required_cols={"thickness_m","c_kpa","phi_deg","gamma_below_kn_m3"}
+                if not required_cols.issubset(ml.columns):
+                    raise ValueError("CSV 欄位不完整")
+                layer_rows=ml.to_dict("records")
+                layer_rows[0]["gamma_moist_kn_m3"]=gamma5
+                layer_rows[0]["gamma_sub_kn_m3"]=gsub5
+                mr=layered_bearing_capacity_profile(layers=layer_rows,
+                    footing_width_m=B5,footing_length_m=L5,footing_depth_m=df5,
+                    water_depth_m=dw5,fs=fs5,eccentricity_B_m=eB5,eccentricity_L_m=eL5)
+                st.session_state["m5x_multi_layer_result"]=mr
+                st.session_state["m5x_multi_layer_signature"]=multi_layer_csv5
+            except Exception as exc:
+                st.error(f"多層地盤分析失敗：{exc}")
+        mr=st.session_state.get("m5x_multi_layer_result")
+        if mr and st.session_state.get("m5x_multi_layer_signature")==multi_layer_csv5:
+            st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
+            st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
+            st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
+            st.caption(mr["limitations"])
 
     with st.expander("④ 地震等效靜力載重包絡（偽靜力）",expanded=False):
         st.warning("此面板將 kh、kv 轉成基礎慣性等效作用，並非完整地震承載力分析；不包含土體慣性、液化、循環強度折減或震陷。")
