@@ -235,7 +235,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
 
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
-        slope_distance_m=0.0):
+        slope_distance_m=0.0, adjacent_slope_fs=None):
     """Apply USACE EM 1110-1-1905 (2025) Table 5-3/5-4 base and ground
     inclination factors to a previously calculated Meyerhof-based result.
     Ground slope is assumed to fall away from the footing. The adjacent-slope
@@ -247,6 +247,13 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
     dg=_finite('基礎至坡頂距離',slope_distance_m)
     if c<0 or not 0<=phi<=50 or not 0<=ab<60 or not 0<=ag<45 or dg<0:
         raise ValueError('斜坡／基底輸入超出適用範圍：0≤基底角<60°、0≤地表坡角<45°、距離不可為負')
+    fs_slope = None if adjacent_slope_fs is None else _finite('鄰接坡體整體穩定 FS', adjacent_slope_fs)
+    # USACE EM 1110-1-1905 (2025), Table 5-3 note b:
+    # the adjacent-ground inclination factors assume global slope FS > 1.3.
+    if ag > 0 and fs_slope is None:
+        raise ValueError('套用鄰接地表坡角修正前，必須先完成坡體整體穩定檢核並輸入 FS；USACE 表 5-3 的坡角係數要求 FS > 1.3')
+    if ag > 0 and fs_slope <= 1.3:
+        raise ValueError('鄰接坡體整體穩定 FS 必須大於 1.3，否則不可套用 USACE 表 5-3 的地表坡角修正係數')
     B=base_result['B_effective']; L=base_result['L_effective']
     Nc=base_result['Nc']; q=base_result['q_surcharge']
     if phi>0:
@@ -290,7 +297,8 @@ def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         'ground_surcharge_kpa':q_slope,'term_c':tc,'term_q':tq,'term_gamma':tg,
         'qu_gross':qu,'qu_net':qnet,'qa_net':qa_net,'qa_gross':qa_gross,
         'qa_gross_direct_FS':qu/fs,
-        'limitations':base_result['limitations']+'；已套用 USACE 2025 表 5-3／5-4 基底與地表傾斜係數。地表坡體整體穩定仍須另行驗算。'}
+        'adjacent_slope_fs':fs_slope,
+        'limitations':base_result['limitations']+'；已套用 USACE 2025 表 5-3／5-4 基底與地表傾斜係數。鄰接坡體須先完成整體穩定檢核且 FS > 1.3；本結果不取代該檢核。'}
 
 def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
         strong_layer_thickness_m, footing_width_m, footing_length_m,
