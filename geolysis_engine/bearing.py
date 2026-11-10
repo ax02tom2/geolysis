@@ -44,12 +44,12 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
     vals={'c':c_kpa,'phi':phi_deg,'gamma':gamma_moist,'gamma_sub':gamma_sub,'gamma_below':gamma_below,'B':B,'L':L,'Df':Df,'Dw':water_depth,'FS':fs,'beta':load_angle,'eB':eccentricity_B,'eL':eccentricity_L}
     v={k:_finite(k,x) for k,x in vals.items()}
     c,phi_deg,gamma,gsub,gbelow,B,L,Df,Dw,FS,beta,eB,eL=[v[k] for k in ('c','phi','gamma','gamma_sub','gamma_below','B','L','Df','Dw','FS','beta','eB','eL')]
-    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gbelow<=0 or gsub>gbelow or B<=0 or L<B or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90 or footing_type not in ('isolated','continuous'):
+    if c<0 or not 0<=phi_deg<=50 or gamma<=0 or gsub<=0 or gbelow<=0 or gsub>gbelow or B<=0 or L<=0 or (footing_type=='isolated' and L<B) or Df<0 or Dw<0 or FS<=1 or not 0<=beta<90 or footing_type not in ('isolated','continuous'):
         raise ValueError('承載力輸入值不合理；需 γ′≤基礎底下總單位重、矩形基礎 L≥B、FS>1，且 ϕ≤50°')
     if eB<0 or eL<0: raise ValueError('偏心距不可為負值；請輸入偏心距絕對值')
     if footing_type=='continuous' and eL>0: raise ValueError('連續條形基礎不支援沿條形長度方向的偏心距；請改用獨立／矩形基礎模型或專用分析')
     Be=B-2*eB; Le=L-2*eL
-    if Be<=0 or Le<=0 or Le<Be: raise ValueError('有效基礎尺寸必須為正，且有效長邊 L′ ≥ 有效短邊 B′')
+    if Be<=0 or Le<=0 or (footing_type=='isolated' and Le<Be): raise ValueError('有效基礎尺寸必須為正；獨立／矩形基礎另需 L′ ≥ B′')
     th=theory.lower()
     if not any(x in th for x in ('terzaghi','meyerhof','hansen','vesic')): raise ValueError('不支援的理論')
     if 'terzaghi' in th and failure_mode not in ('general','local'): raise ValueError('Terzaghi 破壞模式須為 general 或 local')
