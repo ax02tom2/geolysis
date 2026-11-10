@@ -396,3 +396,31 @@ def test_consolidation_time_factor_matches_usace_2025_figure_7_16(degree, expect
     assert result["time_factor_target"] == pytest.approx(expected_tv, abs=0.001)
     assert result["drainage_path_m"] == pytest.approx(2.0)
     assert result["time_to_target_days"] == pytest.approx(expected_tv * 400.0, abs=0.4)
+
+
+def test_usace_2025_table_5_3_load_inclination_uses_atan_h_over_v_not_legacy_beta():
+    # USACE EM 1110-1-1905 (2025), Table 5-3, Meyerhof-based drained factors:
+    # beta=atan(H/V), ic=iq=(1-beta/90)^2, ig=(1-beta/phi')^2.
+    phi = 30.0
+    base = bearing_capacity(
+        theory="Meyerhof", c_kpa=10, phi_deg=phi,
+        gamma_moist=18, gamma_sub=9, B=2, L=4, Df=1,
+        water_depth=5, load_angle=25.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=10, phi_deg=phi,
+        horizontal_load=300, vertical_load=1000,
+    )
+    beta = math.degrees(math.atan2(300, 1000))
+    iq = (1 - beta / 90.0) ** 2
+    ig = (1 - beta / phi) ** 2
+    assert result["load_inclination_beta_2025_deg"] == pytest.approx(beta)
+    assert result["load_factor_c_2025"] == pytest.approx(iq)
+    assert result["load_factor_q_2025"] == pytest.approx(iq)
+    assert result["load_factor_gamma_2025"] == pytest.approx(ig)
+    assert result["term_c"] == pytest.approx(10 * result["Nc"] * result["sc"] * result["dc"] * iq)
+    assert result["term_q"] == pytest.approx(result["q_surcharge"] * result["Nq"] * result["sq"] * result["dq"] * iq)
+    assert result["term_gamma"] == pytest.approx(
+        0.5 * result["B_effective"] * result["gamma_effective"] * result["Ngamma"]
+        * result["sg"] * result["dg"] * ig
+    )
