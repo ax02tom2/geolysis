@@ -155,3 +155,20 @@ def test_usace_2025_drained_depth_factors_use_effective_width_after_eccentricity
     assert corrected["dq"] == pytest.approx(expected_dq)
     assert corrected["dg"] == pytest.approx(expected_dq)
     assert corrected["dc"] == pytest.approx(expected_dc)
+
+
+def test_usace_2025_groundwater_correction_matches_equation_5_19():
+    # USACE EM 1110-1-1905 (2025), Eq. 5-19:
+    # gamma' = gamma_t * min[0.45 + 0.55*max(Dw-Df,0)/B, 1].
+    base = bearing_capacity(
+        theory="Meyerhof", c_kpa=10, phi_deg=30,
+        gamma_moist=18, gamma_sub=9, gamma_below=20,
+        B=2, L=4, Df=1, water_depth=2,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=10, phi_deg=30,
+    )
+    expected_factor = 0.45 + 0.55 * (2 - 1) / 2
+    assert result["gamma_effective_2025_factor"] == pytest.approx(expected_factor)
+    assert result["gamma_effective"] == pytest.approx(20 * expected_factor)
+    assert result["gamma_effective_method"].endswith("Eq. 5-19")
