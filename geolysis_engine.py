@@ -390,7 +390,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 # interface adhesion ca, consistent with the Hansen branch.
                 denom=V+A*ca/math.tan(ph)
                 hratio=H/denom
-                if hratio>=1.0: raise ValueError('水平載重已達或超過 Vesic 公式可用抗力；請核對 H、V、基礎面積及土體 c')
+                if hratio>=1.0: raise ValueError('水平載重已達或超過 Vesic 公式可用抗力；請核對 H、V、基礎面積及基底黏著 ca')
                 iq=(1-hratio)**m; ig=(1-hratio)**(m+1)
                 ic=iq-(1-iq)/(Nq-1)
             else:
@@ -399,7 +399,7 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                 iq=ig=1.0
                 ic=1.0-m*H/(A*ca*Nc) if ca>0 else (1.0 if H==0 else 0.0)
                 if ic<=0:
-                    raise ValueError('Vesic 不排水水平載重傾斜係數已≤0；請核對 H、土體不排水強度 c、基礎面積及方向')
+                    raise ValueError('Vesic 不排水水平載重傾斜係數已≤0；請核對 H、基底黏著 ca、基礎面積及方向')
         else:
             if phi_deg>0:
                 denom=V+A*ca/math.tan(ph)
@@ -418,7 +418,9 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
                         raise ValueError('Hansen 不排水水平載重已超過基底黏著抗力 ca·A；請核對 H、ca 及有效基礎面積')
                     ic=0.5+0.5*math.sqrt(1.0-h_adhesion_ratio)
                 else:
-                    ic=1.0 if H==0 else 0.0
+                    if H>0:
+                        raise ValueError('Hansen 不排水水平載重無基底黏著 ca 可提供抗力；請核對界面參數')
+                    ic=1.0
     # Surcharge at footing base: drained analyses use effective stress;
     # undrained (phi=0) analyses use total stress, per USACE Table 5-1.
     # gamma_sub is submerged unit weight, so gamma_sat = gamma_sub + gamma_w.
