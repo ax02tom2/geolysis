@@ -143,7 +143,7 @@ with st.expander("⛰️ 模組一：Hoek–Brown 岩體參數分析", expanded=
   </div>
 </details>
 <div class="gsi-lit-zoom-hint">點擊圖片放大，再點一次縮小；放大時左側 GSI 選項仍可操作</div>
-<div class="gsi-lit-zoom-hint">Somodi et al. (2021), Figure 1</div>
+<div class="gsi-lit-zoom-hint"><a href="https://doi.org/10.3390/app11083351" target="_blank" rel="noopener">Somodi et al. (2021), Figure 1 — DOI 原文</a>；開放授權 CC BY 4.0，使用時保留作者與來源標示</div>
 """, unsafe_allow_html=True)
         with fig_col2:
             st.markdown("<div style='text-align:center;font-weight:600'>系統示意圖</div>", unsafe_allow_html=True)
