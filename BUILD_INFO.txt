@@ -1,11 +1,12 @@
-Build: geolysis Web — engineering review corrections
+Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-10 Asia/Taipei (UTC+08:00)
-Merged main commit: c5565e0618657f96198a123ba01a0e1ad61d94f0
+Validated main code commit: b631f44d4b27e23ed4756cb2721ebd8e843090fd
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 173 passed
-GitHub Actions PR validation run: 42756150028 (success; same source tree as merged main)
-Runtime smoke: Streamlit AppTest loaded app.py without uncaught exception
+Latest verified automated suite: 180 passed
+GitHub Actions validation run: 42761022578 (success; PR source tree matches merged main code)
+Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
+Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Scope: five engineering modules; Streamlit Web application only.
