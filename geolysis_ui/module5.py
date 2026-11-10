@@ -156,7 +156,7 @@ def render_module_5(expanded=False):
                 if phi5>0:
                     st.caption(f"排水 Nγ 項有效單位重 γ′={slope_result['gamma_effective']:.2f} kN/m³；{slope_result['gamma_effective_method']}，修正係數={slope_result['gamma_effective_2025_factor']:.3f}。")
                 else:
-                    st.caption("ϕ=0 不排水分析不使用 Nγ 單位重項；地表坡角修正僅作用於凝聚力項。")
+                    st.caption("ϕ=0 不排水分析不使用 Nγ 單位重項；Table 5-4 地表傾斜係數修正凝聚力項，覆土項另依 q₀=γDf cosαg 計算。")
                 st.caption(slope_result["limitations"])
             elif slope_result:
                 st.warning("輸入已變更，請重新執行斜坡／基底傾斜計算。")
