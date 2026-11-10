@@ -936,3 +936,10 @@ def test_undrained_bearing_uses_total_surcharge_below_groundwater(theory):
     expected=18*1+(9+9.81)*(3-1)
     assert r['q_surcharge']==pytest.approx(expected)
     assert r['term_q']==pytest.approx(expected)
+
+
+def test_vesic_undrained_rejects_nonpositive_inclination_factor():
+    with pytest.raises(ValueError,match='Vesic 不排水'):
+        bearing_capacity(theory='Vesic',c_kpa=5,phi_deg=0,
+            gamma_moist=18,gamma_sub=9,B=2,L=3,Df=1,water_depth=5,
+            horizontal_load=1000,vertical_load=1000)
