@@ -130,3 +130,28 @@ def test_usace_2025_slope_base_factors_match_table_5_3_equations():
     assert result["ground_factor_q"] == pytest.approx(gq)
     assert result["ground_factor_c"] == pytest.approx(gc)
     assert result["ground_factor_gamma"] == pytest.approx(gq)
+
+
+def test_usace_2025_drained_depth_factors_use_effective_width_after_eccentricity():
+    # USACE EM 1110-1-1905 (2025), Table 5-2 uses Df/B' for Meyerhof-based
+    # drained depth factors. This differs from the legacy 1992 Df/B branch
+    # when the footing has eccentricity.
+    phi = 5.0
+    B = 2.0
+    B_eff = 1.6
+    Df = 1.0
+    base = bearing_capacity(
+        theory="Meyerhof", c_kpa=10, phi_deg=phi,
+        gamma_moist=18, gamma_sub=9, B=B, L=4, Df=Df,
+        water_depth=5, eccentricity_B=0.2,
+    )
+    corrected = bearing_capacity_slope_base_corrections(
+        base_result=base, c_kpa=10, phi_deg=phi,
+    )
+    flow_n = math.tan(math.radians(45 + phi / 2)) ** 2
+    expected_dq = 1 + 0.1 * math.sqrt(flow_n) * Df / B_eff
+    expected_dc = 1 + 0.2 * math.sqrt(flow_n) * Df / B_eff
+    assert corrected["B_effective"] == pytest.approx(B_eff)
+    assert corrected["dq"] == pytest.approx(expected_dq)
+    assert corrected["dg"] == pytest.approx(expected_dq)
+    assert corrected["dc"] == pytest.approx(expected_dc)
