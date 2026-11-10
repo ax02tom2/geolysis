@@ -1172,13 +1172,15 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
         slide_req5=st.number_input("要求滑動安全係數",1.0,5.0,2.0,0.1,key="m5x_slide_req")
         auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
         slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
+        slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
+        slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,float(c5),1.0,key="m5x_slide_backfill_c")
         if st.button("計算基底滑動安全係數",key="m5x_slide_run"):
             try:
                 if auto_earth5:
                     earth=developed_rankine_sliding_earth_pressures(
                         effective_unit_weight_kn_m3=slide_gamma5,footing_depth_m=df5,
-                        footing_length_m=L5,friction_angle_deg=slide_phi5,
-                        cohesion_kpa=slide_c5,fs_sliding=slide_req5)
+                        footing_length_m=L5,friction_angle_deg=slide_backfill_phi5,
+                        cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5)
                     active_used=earth["active_force_kN"]
                     passive_used=earth["passive_force_kN"]
                     st.session_state["m5x_slide_earth_result"]=earth
@@ -1192,7 +1194,7 @@ with st.expander("🏗️ 模組五：極限承載力四大理論", expanded=exp
                     adhesion_ratio=slide_ar5,active_force_kN=active_used,
                     passive_force_kN=passive_used,fs_required=slide_req5)
                 st.session_state["m5x_slide_result"]=slide
-                st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5)
+                st.session_state["m5x_slide_signature"]=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             except Exception as exc:
                 st.error(f"基底滑動計算失敗：{exc}")
         slide=st.session_state.get("m5x_slide_result")
