@@ -445,10 +445,11 @@ def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
 def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_kN,
         footing_area_m2, kh, kv=0.0):
     """Pseudo-static foundation inertia load envelope, not a seismic bearing
-    resistance equation. ``kv`` is a nonnegative magnitude; both vertical
-    acceleration directions are evaluated internally. Returns equivalent
-    actions for static bearing/sliding checks; soil inertia, cyclic strength
-    degradation, liquefaction and seismic settlement are not included.
+    resistance equation. ``horizontal_load_kN`` is the pre-earthquake static
+    horizontal action H; V is also used as the proxy seismic weight in kh·V.
+    ``kv`` is a nonnegative magnitude; both vertical acceleration directions
+    are evaluated internally. Returns equivalent actions only; soil inertia,
+    cyclic strength degradation, liquefaction and seismic settlement are not included.
     """
     V=_finite('靜態垂直力',vertical_load_kN); H=_finite('靜態水平力',horizontal_load_kN)
     A=_finite('基礎面積',footing_area_m2); khv=_finite('水平地震係數 kh',kh)
@@ -470,7 +471,7 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
     return {'cases':cases,'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
         'governing_horizontal_load_kN':max(x['horizontal_load_kN'] for x in cases),
         'method':'Pseudo-static adverse horizontal action envelope (H + kh·V; V·(1±kv))',
-        'limitations':'水平作用採既有靜力 H 與地震 kh·V 同向的不利包絡 H+khV；兩組垂直地震方向均計算。此包絡只提供作用量大小，不代表已建立水平力方位角。對水平基底與水平地表，Meyerhof 載重傾斜係數使用 H/V 大小；若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
+        'limitations':'水平作用採既有靜力 H 與地震 kh·V 同向的不利包絡 H+khV；兩組垂直地震方向均計算。此包絡只提供作用量大小，不代表已建立水平力方位角；kh·V 將輸入 V 視為地震重量代理值，若結構耐震分析所得有效地震重量不同，應先核對，不可將已含地震慣性力的 H 再輸入以免重複計算。對水平基底與水平地表，Meyerhof 載重傾斜係數使用 H/V 大小；若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
 
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
