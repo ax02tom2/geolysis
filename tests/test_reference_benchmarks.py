@@ -1773,3 +1773,40 @@ def test_usace_2025_appendix_c7d_schmertmann_cpt_settlement_table_rows():
     assert result["layer_results"][0]["Iz_used"] == pytest.approx(.227,abs=.001)
     assert result["layer_results"][3]["Iz_used"] == pytest.approx(.665,abs=.001)
     assert result["settlement_mm"]/25.4 == pytest.approx(1.10,abs=.02)
+
+
+
+def test_usace_2025_appendix_c5_menard_pmt_clay_soft_layer_settlement():
+    # Appendix C-5, Table C-5 (printed pp. 364-367): 8-ft square footing.
+    ft = 0.3048
+    tsf = 95.7605
+    pmt = [
+        {"group":"E1","E0_kpa":225*tsf},
+        {"group":"E2","E0_kpa":225*tsf},{"group":"E2","E0_kpa":292*tsf},
+        *[{"group":"E345","E0_kpa":x*tsf} for x in (292,394,25,33,52,349,287)],
+        *[{"group":"E678","E0_kpa":x*tsf} for x in (287,678,1071)],
+        *[{"group":"E916","E0_kpa":x*tsf} for x in (1220,1724)],
+    ]
+    soft = [{
+        "Layer":"C5-soft-clay", "depth_center_m":14*ft, "thickness_m":4*ft,
+        "E_L_kpa":33.5*tsf, "pne_kpa":3.01*tsf, "I_sigma":0.129,
+    }]
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt,footing_width_m=8*ft,footing_length_m=8*ft,
+        gross_pressure_kpa=2.53*tsf,base_effective_stress_kpa=.156*tsf,
+        equivalent_net_limit_pressure_kpa=10.0*tsf,yield_pressure_kpa=2.53*tsf,
+        soil_type="clay",consolidation_state="auto",
+        lambda_d=1.1,lambda_c=1.1,soft_layers=soft,soft_layer_profile_reviewed=True,
+    )
+    assert result["E1_kpa"]/tsf == pytest.approx(225.0)
+    assert result["E2_kpa"]/tsf == pytest.approx(254.16,abs=.02)
+    assert result["E345_kpa"]/tsf == pytest.approx(68.73,abs=.02)
+    assert result["E678_kpa"]/tsf == pytest.approx(509.08,abs=.02)
+    assert result["E916_kpa"]/tsf == pytest.approx(1428.86,abs=.02)
+    assert result["Ed_kpa"]/tsf == pytest.approx(162.02,abs=.02)
+    assert result["alpha_d"] == pytest.approx(1.0)
+    assert result["alpha_c"] == pytest.approx(1.0)
+    assert result["soft_layer_results"][0]["alpha_L"] == pytest.approx(2/3)
+    assert result["deviatoric_settlement_mm"]/25.4 == pytest.approx(.029*12,abs=.01)
+    assert result["soft_layer_settlement_mm"]/25.4 == pytest.approx(.232,abs=.003)
+    assert result["settlement_mm"]/25.4 == pytest.approx(.70,abs=.01)
