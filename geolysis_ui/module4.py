@@ -133,6 +133,7 @@ def render_module_4(expanded=False):
                 value="",height=130,key="m4_dmt_layers",
                 placeholder="corrected：Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar；MDMT：Layer,depth_center_m,thickness_m,MDMT_kpa,I_sigma")
             st.caption("corrected 模式須輸入儀器校正後 p0/p1、u0、σ′v0（bar）；MDMT 模式直接輸入試驗解讀後拘束模數（kPa），可選填 I_sigma 以採用已核對的文獻／圖表值。")
+            st.caption("MDMT 模式的 depth_center_m 是各層中心點距基礎底的深度，不是層底深度；若原始表列的是層底深度 z_bottom，請換算 depth_center=z_bottom−thickness/2。層厚區間須連續且不得重疊，並應涵蓋計算影響深度。")
             try:
                 if not dmt_text.strip():
                     st.info("請貼上 DMT 分層資料後計算；系統不會用示範模數代替現場試驗。")
@@ -237,6 +238,7 @@ def render_module_4(expanded=False):
             pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
                 value="",height=90,key="m4_pmt_soft_layers",
                 placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n1.0,0.5,5000,600,0.129")
+            st.caption("PMT 軟弱層的 depth_center_m 是層中心點距基礎底的深度；若資料表給層底深度，請用 z_bottom−thickness/2 換算。各層厚度區間不可重疊，系統會檢查重疊。")
             pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方 2B（條形基礎 6B）範圍內所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
             pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
                 value="",height=130,key="m4_pmt_layers",
