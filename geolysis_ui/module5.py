@@ -215,7 +215,7 @@ def render_module_5(expanded=False):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
-                        B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,
+                        B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,footing_type=main_footing_type5,
                         load_angle=beta5,eccentricity_B=eB5,eccentricity_L=eL5)
                     slope_result=bearing_capacity_slope_base_corrections(
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
@@ -223,11 +223,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         horizontal_load=H5,vertical_load=V5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
+            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
 
@@ -235,7 +235,7 @@ def render_module_5(expanded=False):
                     qult_kpa=slope_result["qu_gross"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     eccentricity_B_m=eB5,eccentricity_L_m=eL5,
-                    footing_type="isolated",complete_capacity_model=True,load_confirmed=loads_confirmed5)
+                    footing_type=main_footing_type5,complete_capacity_model=True,load_confirmed=loads_confirmed5)
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
                 if phi5>0:
