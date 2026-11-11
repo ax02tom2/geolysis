@@ -2852,7 +2852,7 @@ def test_usace_seismic_moment_combinations_preserve_signed_static_biaxial_eccent
     assert by_sign[-1]["moment_L_kNm"] == pytest.approx(0.0)
 
 
-def test_usace_seismic_resistance_flags_middle_third_failure_without_hiding_bearing_resistance():
+def test_usace_seismic_resistance_reports_middle_third_reference_without_hiding_bearing_resistance():
     result = seismic_bearing_capacity_residual_pore_pressure_cases(
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
         kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
@@ -2864,10 +2864,14 @@ def test_usace_seismic_resistance_flags_middle_third_failure_without_hiding_bear
         non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     assert result["qu_seismic_governing_kpa"] is not None
-    assert result["overturning_check_pass"] is False
-    assert len(result["overturning_failed_cases"]) == 2
+    assert result["overturning_check_pass"] is True
+    assert result["overturning_failed_cases"] == []
+    assert result["middle_third_check_pass"] is False
+    assert len(result["middle_third_failed_cases"]) == 2
     assert all(case["middle_third_B_pass"] is False for case in result["cases"])
     assert all(case["B_effective_m"] == pytest.approx(1.2) for case in result["cases"])
+    assert all(case["average_contact_pressure_kpa"] == pytest.approx(1000.0 / (1.2 * 3.0))
+               for case in result["cases"])
 
 
 def test_usace_seismic_resistance_middle_third_check_passes_for_centered_load():
@@ -2953,17 +2957,22 @@ def test_general_seismic_eccentricity_evaluates_four_signed_load_combinations():
     assert result["seismic_moment_included"] is True
 
 
-def test_general_seismic_eccentricity_flags_middle_third_failure_with_positive_contact():
+def test_general_seismic_eccentricity_reports_middle_third_separately_from_footprint():
     result = seismic_foundation_eccentricity_cases(
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
         seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
         footing_type="spread", B=2.0, L=3.0,
         eccentricity_B=0.40,
     )
-    assert result["passes"] is False
+    assert result["passes"] is True
+    assert result["geometry_passes"] is True
+    assert result["middle_third_passes"] is False
+    assert result["cases"][0]["resultant_within_footprint"] is True
     assert result["cases"][0]["compression_contact_pass"] is True
     assert result["cases"][0]["B_effective_m"] == pytest.approx(1.2)
     assert result["cases"][0]["middle_third_B_pass"] is False
+    assert result["bearing_pressure_check_complete"] is False
+    assert result["overall_seismic_overturning_passes"] is None
 
 
 def test_general_seismic_eccentricity_flags_loss_of_positive_contact_dimension():
@@ -3081,3 +3090,20 @@ def test_usace_seismic_partial_shear_zone_rejects_invalid_weighted_fraction(frac
             non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
             partial_shear_zone_affected_fraction=fraction,
         )
+
+
+@pytest.mark.parametrize("q_allow,expected", [(300.0, True), (250.0, False)])
+def test_general_seismic_eccentricity_checks_effective_pressure_against_user_allowable(q_allow, expected):
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.40,
+        allowable_bearing_pressure_kpa=q_allow,
+    )
+    assert result["geometry_passes"] is True
+    assert result["middle_third_passes"] is False
+    assert result["bearing_pressure_check_complete"] is True
+    assert result["bearing_pressure_passes"] is expected
+    assert result["overall_seismic_overturning_passes"] is expected
+    assert result["cases"][0]["average_contact_pressure_kpa"] == pytest.approx(1000.0 / (1.2 * 3.0))

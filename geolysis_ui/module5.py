@@ -376,9 +376,12 @@ def render_module_5(expanded=False):
                 static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
             with sd2:
                 static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
+            seismic_qallow5=st.number_input("地震設計容許承載壓力 q_allow [kPa]（0＝未提供，不判定整體通過）",
+                min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow",help="請依適用建築法規／專案設計準則輸入；系統不自動套用地震容許承載力提高係數，也不直接以靜力 qult/FS 代替。")
+            seismic_qallow_value5=(seismic_qallow5 if seismic_qallow5>0 else None)
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
-                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5)
-            if st.button("計算地震偏心與中間三分點",key="m5x_seismic_ecc_run"):
+                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5)
+            if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run"):
                 try:
                     seismic_ecc5=seismic_foundation_eccentricity_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,
@@ -388,17 +391,27 @@ def render_module_5(expanded=False):
                         seismic_moment_B_kNm=seismic_moment_B5,
                         seismic_moment_L_kNm=seismic_moment_L5,
                         static_moment_B_sign=static_moment_B_sign5,
-                        static_moment_L_sign=static_moment_L_sign5)
+                        static_moment_L_sign=static_moment_L_sign5,
+                        allowable_bearing_pressure_kpa=seismic_qallow_value5)
                     store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
                 except Exception as ecc_exc:
                     logging.exception("Unhandled application calculation error")
-                    st.error(f"地震偏心／中間三分點檢核失敗：{ecc_exc}")
+                    st.error(f"地震傾覆幾何／有效承載壓力檢核失敗：{ecc_exc}")
             seismic_ecc5,seismic_ecc_current5=read_result_state(
                 st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc_sig5)
             if seismic_ecc5 and seismic_ecc_current5:
-                st.metric("地震偏心／中間三分點檢核","全部組合符合" if seismic_ecc5["passes"] else "至少一組未符合")
-                if not seismic_ecc5["passes"]:
-                    st.error("至少一組地震載重組合超出中間三分點、失去有效壓縮接觸或有效軸向交換；請另作傾覆／接觸壓力／雙向偏心分析。")
+                st.metric("地震合力位置／有效接觸檢核","全部組合位於基礎範圍內" if seismic_ecc5["geometry_passes"] else "有組合超出基礎範圍")
+                if not seismic_ecc5["geometry_passes"]:
+                    st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；須另作接觸／抗拔／雙向偏心分析。")
+                if not seismic_ecc5["middle_third_passes"]:
+                    st.info("部分組合超出靜力中間三分點。依 USACE §9-10(e)，地震極端事件的判斷不以靜力中三分點作唯一標準；仍須確認 qeq 不超過適用的地震容許承載壓力，若專案規範另要求中三分點則仍應遵守。")
+                if seismic_ecc5["bearing_pressure_check_complete"]:
+                    st.metric("地震有效承載壓力 qeq ≤ q_allow",
+                        "全部組合符合" if seismic_ecc5["bearing_pressure_passes"] else "有組合超過")
+                    if seismic_ecc5["overall_seismic_overturning_passes"] is False:
+                        st.error("地震傾覆／承載整體檢核未通過：合力位置或有效承載壓力至少一項不符合。")
+                else:
+                    st.warning("尚未提供適用規範／專案的地震 q_allow；目前只有合力位置與有效尺寸幾何檢核，不代表整體地震傾覆／承載通過。")
                 st.dataframe(_seismic_case_dataframe(seismic_ecc5["cases"],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(seismic_ecc5["limitations"])
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
@@ -417,7 +430,7 @@ def render_module_5(expanded=False):
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
             st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且經獨立評估確認不液化／無循環強度損失。超額孔隙水壓可選完整剪力區或部分剪力區加權平均；ru 必須依液化／孔壓分析取得，部分區另須提供受影響比例 f 及兩種土層有效單位重。此地震分支目前僅支援水平基底與水平地表；若上方斜坡／傾斜基底輸入非零，系統會停止計算。")
-            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。地震彎矩造成的偏心已逐組合計算並獨立檢核中三分點；部分剪力區可依手冊以使用者輸入的加權比例與兩種有效單位重估算 γ′b，但系統不會自動由地層深度推定比例。仍未納入基底殘餘超額孔壓上拔、土體慣性，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
+            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。地震彎矩造成的偏心已逐組合計算；地震傾覆幾何依 §9-10(e) 檢核合力是否位於基礎範圍內，中三分點另列為靜力參考。部分剪力區可依手冊以使用者輸入的加權比例與兩種有效單位重估算 γ′b，但系統不會自動由地層深度推定比例。仍未納入基底殘餘超額孔壓上拔及土體慣性；孔壓折減極限抗力不是地震 FS，完整承載壓力檢核須提供適用的地震 q_allow。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
@@ -493,8 +506,18 @@ def render_module_5(expanded=False):
                     st.error(sr["governing_case"].get("zero_resistance_reason","至少一組地震組合未能維持有效壓縮接觸；請另作接觸壓力／雙向偏心分析。"))
                 else:
                     st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
-                if not sr.get("overturning_check_pass",True):
-                    st.error("至少一組地震載重組合的偏心距超出基礎中間三分之一（B/6 或 L/6）。依 USACE EM 1110-1-1905 Table 2-1 Note 3，傾覆／偏心極限狀態不符合；即使仍能計算承載力，也不可視為整體安全通過。")
+                if not sr.get("overturning_geometry_check_pass",sr.get("overturning_check_pass",True)):
+                    st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；依 USACE §9-10(e) 幾何檢核不符合。")
+                if not sr.get("middle_third_check_pass",True):
+                    st.info("至少一組地震組合超出靜力中間三分點。地震極端事件不以此作唯一判定；仍須檢核有效承載壓力是否不超過適用的地震 q_allow。")
+                if seismic_qallow_value5 is not None:
+                    sr_qallow_cases=[case for case in sr["cases"] if case.get("average_contact_pressure_kpa") is not None]
+                    sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(case["average_contact_pressure_kpa"]<=seismic_qallow_value5 for case in sr_qallow_cases))
+                    st.metric("孔壓折減分支地震 qeq ≤ q_allow","全部組合符合" if sr_qallow_pass else "有組合超過／無有效值")
+                    if not sr_qallow_pass:
+                        st.error("孔壓折減分支至少一組有效承載壓力超過 q_allow，或無法計算有效接觸壓力。")
+                else:
+                    st.warning("未提供地震設計容許承載壓力 q_allow；本分支僅回報孔壓折減極限抗力與偏心幾何，不代表地震承載安全通過。")
                 st.dataframe(_seismic_case_dataframe(sr['cases'],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
