@@ -2269,3 +2269,39 @@ def test_uscs_peat_result_keeps_optional_plasticity_warning_fields():
     assert result["USCS"] == "PT"
     assert result["U_line_PI"] is None
     assert result["plasticity_warning"] == ""
+
+
+
+def test_burland_burbidge_spt_profile_rejects_near_duplicate_depths():
+    with pytest.raises(ValueError, match="不超過 1 mm"):
+        burland_burbidge_average_n60_from_profile(
+            [
+                {"Depth_below_base_m": 0.5, "N60": 20.0},
+                {"Depth_below_base_m": 0.5005, "N60": 22.0},
+            ],
+            width_m=1.0, granular_layer_thickness_m=5.0,
+        )
+
+
+def test_burland_burbidge_spt_profile_warns_when_only_one_point_influence_zone():
+    result = burland_burbidge_average_n60_from_profile(
+        [
+            {"Depth_below_base_m": 0.5, "N60": 20.0},
+            {"Depth_below_base_m": 1.5, "N60": 22.0},
+        ],
+        width_m=1.0, granular_layer_thickness_m=5.0,
+    )
+    assert result["selected_count"] == 1
+    assert any("僅有 1 個有效" in warning for warning in result["data_quality_warnings"])
+
+
+def test_burland_burbidge_spt_profile_warns_when_valid_data_do_not_reach_zi():
+    result = burland_burbidge_average_n60_from_profile(
+        [
+            {"Depth_below_base_m": 0.5, "N60": 20.0},
+            {"Depth_below_base_m": 0.9, "N60": 22.0},
+        ],
+        width_m=1.0, granular_layer_thickness_m=5.0,
+    )
+    assert result["profile_bottom_m"] == pytest.approx(0.9)
+    assert any("未達影響深度" in warning for warning in result["data_quality_warnings"])
