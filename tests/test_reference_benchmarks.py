@@ -1192,3 +1192,128 @@ def test_usace_seismic_pore_pressure_cases_rejects_cohesive_or_undrained_soil():
             c_kpa=5.0,phi_deg=30.0,gamma_moist=18.5,gamma_sub=9.5,
             gamma_below=18.5,B=2.0,L=3.0,Df=1.5,water_depth=5.0,
         )
+
+
+
+def test_usace_2025_appendix_b5a_undrained_strength_based_bearing_capacity():
+    # Appendix B, Example B-5, Table B-5a (printed pp. 317-318).
+    # 8 ft square footing, Df=2.5 ft, gamma=0.125 kcf, su=3.2 ksf.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    strong_base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=3.2 * ksf_to_kpa,
+        phi_deg=0.0,
+        gamma_moist=0.125 * kcf_to_kn_m3,
+        gamma_sub=9.0,
+        gamma_below=0.125 * kcf_to_kn_m3,
+        B=8.0 * ft_to_m,
+        L=8.0 * ft_to_m,
+        Df=2.5 * ft_to_m,
+        water_depth=20.0 * ft_to_m,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=strong_base,
+        c_kpa=3.2 * ksf_to_kpa,
+        phi_deg=0.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+    assert result["sc"] == pytest.approx(1.2)
+    assert result["dc"] == pytest.approx(1.0625)
+    # Full precision uses dc=1.0625 and q0=0.3125; the manual rounds these
+    # intermediate values to 1.06 and 0.31 before reporting qult=21.23 ksf (rounding difference about 0.054 ksf).
+    expected_full_precision = 1.2 * 1.0625 * 3.2 * 5.14 + 0.3125
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(expected_full_precision, abs=1e-8)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(21.23, abs=0.06)
+
+
+def test_usace_2025_appendix_b5c_undrained_punch_through_bearing_capacity():
+    # Appendix B, Example B-5, Table B-5c (printed pp. 319-320).
+    # Strong Layer 1 su=3.2 ksf; weak Layer 2 su=0.6 ksf; Hs=8.5 ft.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    common = dict(
+        theory="Meyerhof",
+        phi_deg=0.0,
+        gamma_moist=0.125 * kcf_to_kn_m3,
+        gamma_sub=9.0,
+        gamma_below=0.125 * kcf_to_kn_m3,
+        B=8.0 * ft_to_m,
+        L=8.0 * ft_to_m,
+        Df=2.5 * ft_to_m,
+        water_depth=20.0 * ft_to_m,
+        fs=3.0,
+    )
+    strong_base = bearing_capacity(c_kpa=3.2 * ksf_to_kpa, **common)
+    weak_base = bearing_capacity(c_kpa=0.6 * ksf_to_kpa, **common)
+    strong = bearing_capacity_slope_base_corrections(
+        base_result=strong_base,c_kpa=3.2 * ksf_to_kpa,phi_deg=0.0,
+        horizontal_load=0.0,vertical_load=1.0)
+    weak = bearing_capacity_slope_base_corrections(
+        base_result=weak_base,c_kpa=0.6 * ksf_to_kpa,phi_deg=0.0,
+        horizontal_load=0.0,vertical_load=1.0)
+    result = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=strong["qu_gross"],
+        q_ult_weak_kpa=weak["qu_gross"],
+        strong_layer_thickness_m=8.5 * ft_to_m,
+        footing_width_m=8.0 * ft_to_m,
+        footing_length_m=8.0 * ft_to_m,
+        footing_type="isolated",
+    )
+    assert weak["qu_gross"] / ksf_to_kpa == pytest.approx(4.23, abs=0.05)
+    assert result["load_spread_factor"] == pytest.approx(4.25, abs=0.02)
+    assert result["qult_kpa"] / ksf_to_kpa == pytest.approx(17.98, abs=0.10)
+    assert result["controlling_mode"] == "強上層穿刺至弱下層控制"
+    qeq_ksf = (300.0 + 24.0) / 64.0
+    assert result["qult_kpa"] / ksf_to_kpa / qeq_ksf == pytest.approx(3.6, abs=0.1)
+
+
+def test_usace_2025_appendix_b7a_drained_meyerhof_bearing_capacity():
+    # Appendix B, Example B-7, Table B-7a (printed pp. 330-333).
+    # 8 ft square footing, Df=2.5 ft, phi'=32 deg, gamma=0.125 kcf, no groundwater.
+    ft_to_m = 0.3048
+    ksf_to_kpa = 47.88025898
+    kcf_to_kn_m3 = 157.087463
+    base = bearing_capacity(
+        theory="Meyerhof",
+        c_kpa=0.0,
+        phi_deg=32.0,
+        gamma_moist=0.125 * kcf_to_kn_m3,
+        gamma_sub=0.125 * kcf_to_kn_m3,
+        gamma_below=0.125 * kcf_to_kn_m3,
+        B=8.0 * ft_to_m,
+        L=8.0 * ft_to_m,
+        Df=2.5 * ft_to_m,
+        water_depth=20.0 * ft_to_m,
+        fs=3.0,
+    )
+    result = bearing_capacity_slope_base_corrections(
+        base_result=base,
+        c_kpa=0.0,
+        phi_deg=32.0,
+        horizontal_load=0.0,
+        vertical_load=1.0,
+    )
+    assert result["N_flow"] == pytest.approx(3.26, abs=0.01)
+    assert result["sq"] == pytest.approx(1.33, abs=0.01)
+    assert result["dq"] == pytest.approx(1.06, abs=0.01)
+    assert result["Ngamma"] == pytest.approx(21.9, abs=0.2)
+    assert result["sg"] == pytest.approx(1.33, abs=0.01)
+    assert result["dg"] == pytest.approx(1.06, abs=0.01)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(25.5, abs=0.2)
+
+    demand = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=result["qu_gross"],
+        vertical_load_kN=424.0 * 4.448221615,
+        footing_width_m=8.0 * ft_to_m,
+        footing_length_m=8.0 * ft_to_m,
+        footing_depth_m=2.5 * ft_to_m,
+        water_depth_m=20.0 * ft_to_m,
+        required_fs=3.0,
+    )
+    assert demand["qeq_gross_kpa"] / ksf_to_kpa == pytest.approx(6.63, abs=0.02)
+    assert demand["FS_bearing"] == pytest.approx(3.8, abs=0.1)
