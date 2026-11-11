@@ -277,7 +277,8 @@ def _burland_influence_depth_m(*, width_m, granular_layer_thickness_m,
         if Hloose <= 0 or Hloose > Hs:
             raise ValueError('鬆弱層底深度須大於 0，且不得超過砂／礫層總厚度 Hs')
         return min(2.0 * B, Hloose)
-    return 1.43 * B ** 0.7
+    Bft = B / 0.3048
+    return 1.43 * Bft ** 0.7 * 0.3048
 
 
 def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
