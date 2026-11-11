@@ -2848,3 +2848,35 @@ def test_usace_seismic_moment_combinations_preserve_signed_static_biaxial_eccent
     assert by_sign[1]["moment_L_kNm"] == pytest.approx(40.0)
     assert by_sign[-1]["moment_B_kNm"] == pytest.approx(-40.0)
     assert by_sign[-1]["moment_L_kNm"] == pytest.approx(0.0)
+
+
+def test_usace_seismic_resistance_flags_middle_third_failure_without_hiding_bearing_resistance():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+        eccentricity_B=0.40,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    assert result["qu_seismic_governing_kpa"] is not None
+    assert result["overturning_check_pass"] is False
+    assert len(result["overturning_failed_cases"]) == 2
+    assert all(case["middle_third_B_pass"] is False for case in result["cases"])
+    assert all(case["B_effective_m"] == pytest.approx(1.2) for case in result["cases"])
+
+
+def test_usace_seismic_resistance_middle_third_check_passes_for_centered_load():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.1, kv=0.05, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    assert result["overturning_check_pass"] is True
+    assert all(case["overturning_check_pass"] for case in result["cases"])
