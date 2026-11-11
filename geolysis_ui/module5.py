@@ -548,7 +548,8 @@ def render_module_5(expanded=False):
                 r2.metric("qult / FS 參考值",f"{insitu_result['qa_gross_direct_FS']:.1f} kPa")
                 r3.metric("qu,net / FS 參考值",f"{insitu_result['qa_net_direct_FS']:.1f} kPa")
                 st.caption(f"形狀係數={insitu_result['shape_factor']:.3f}；深度係數={insitu_result['depth_factor']:.3f}；基礎底覆土壓力 q0={insitu_result['q_surcharge_kpa']:.1f} kPa。")
-                st.caption("上列 qult/FS 是參考換算，不代表已完成實際設計檢核；上方 qeq 與 FS 才是依實際總垂直力及基底水壓計算的檢核值。")\n                st.caption(insitu_result["limitations"])
+                st.caption("上列 qult/FS 是參考換算，不代表已完成實際設計檢核；上方 qeq 與 FS 才是依實際總垂直力及基底水壓計算的檢核值。")
+                st.caption(insitu_result["limitations"])
 
 
         with st.expander("擴充分析公式依據與適用限制",expanded=False):
