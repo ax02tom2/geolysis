@@ -416,19 +416,30 @@ def render_module_5(expanded=False):
     
         with st.expander("⑤ 基礎底面滑動安全係數",expanded=False):
             st.caption("依 USACE 2025 式 5-28／5-29。基底摩擦、黏著、揚壓力分別輸入；主動／被動土壓需先以 developed strength 另行計算。")
+            slide_footing5=st.selectbox("滑動檢核基礎型式",["isolated","continuous"],
+                index=0 if seismic_footing5=="spread" else 1,
+                format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",
+                key="m5x_slide_footing")
+            slide_is_line5=(slide_footing5=="continuous")
+            slide_force_unit5="kN/m" if slide_is_line5 else "kN"
+            slide_area_unit5="m²/m" if slide_is_line5 else "m²"
+            slide_area_default5=max(0.1,B5*(1.0 if slide_is_line5 else L5))
+            slide_area_key5="m5x_slide_area_continuous" if slide_is_line5 else "m5x_slide_area_isolated"
+            if slide_is_line5:
+                st.info("連續條形基礎採每延米線荷載：V、U、H、Pa、Pp 使用 kN/m；基底面積 A 使用 m²/m，預設為 B×1 m。若上方輸入為總力，請先換算為每延米。")
             sa,sb,sc=st.columns(3)
             with sa:
-                slide_v5=st.number_input("靜力總垂直力 V [kN]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
-                slide_u5=st.number_input("基底揚壓力合力 U [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_u")
-                slide_h5=st.number_input("靜力水平力 H [kN]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
+                slide_v5=st.number_input(f"靜力總垂直力 V [{slide_force_unit5}]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
+                slide_u5=st.number_input(f"基底揚壓力合力 U [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_u")
+                slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
             with sb:
-                slide_area5=st.number_input("基底接觸面積 A [m²]",0.1,5000.0,float(max(0.1,B5*L5)),0.1,key="m5x_slide_area")
+                slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
                 slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_phi")
                 slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key="m5x_slide_c")
             with sc:
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
-                slide_pa5=st.number_input("主動土壓力 Pa [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
-                slide_pp5=st.number_input("已折減被動抗力 Pp [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
+                slide_pa5=st.number_input(f"主動土壓力 Pa [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
+                slide_pp5=st.number_input(f"已折減被動抗力 Pp [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
             slide_case5=st.selectbox("荷載組合",["常時／靜力","含地震荷載"],index=0,key="m5x_slide_case")
             slide_load_case5="seismic" if slide_case5=="含地震荷載" else "static"
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
@@ -444,7 +455,7 @@ def render_module_5(expanded=False):
                     if auto_earth5:
                         earth=developed_rankine_sliding_earth_pressures(
                             effective_unit_weight_kn_m3=slide_gamma5,footing_depth_m=df5,
-                            footing_length_m=L5,friction_angle_deg=slide_backfill_phi5,
+                            footing_length_m=(1.0 if slide_is_line5 else L5),friction_angle_deg=slide_backfill_phi5,
                             cohesion_kpa=slide_backfill_c5,fs_sliding=slide_req5,
                             load_case=slide_load_case5)
                         active_used=earth["active_force_kN"]
@@ -469,11 +480,11 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
