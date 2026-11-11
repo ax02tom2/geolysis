@@ -563,7 +563,7 @@ def render_module_5(expanded=False):
             insitu_layer_footing5=st.selectbox("分層基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_insitu_layer_footing")
             insitu_layer_csv5=st.text_area(
                 "各層原位試驗資料（CSV）",
-                value="thickness_m,test_type,drainage,measurements\\n1.5,SPT,drained,20;22;18\\n2.0,SPT,undrained,4;5;4",
+                value="thickness_m,test_type,drainage,measurements\n1.5,SPT,drained,20;22;18\n2.0,SPT,undrained,4;5;4",
                 height=125,key="m5x_insitu_layer_csv")
             insitu_layer_unsupported5=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if insitu_layer_unsupported5:
