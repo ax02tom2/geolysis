@@ -1,12 +1,12 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: 9d447b10112df63cbdea381008a6beed85809036
+Validated main code commit: 08da196355a316907579660c9c8df911e77ebc33
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 261 passed
-GitHub Actions validation run: 42948248967 (success; Python 3.11 compile passed; 261 passed; includes Module 4 qeq/qult-FS settlement cap and Appendix C-7e Burland–Burbidge settlement benchmark, Module 3-to-4 N60 profile linkage, Module 5 seismic residual-pore-pressure resistance envelope and factors, qeq/actual FS, in-situ layered punch-through, Figure 7-16 consolidation and 53 published Appendix B worked-example benchmarks)
+Latest verified automated suite: 264 passed
+GitHub Actions validation run: 42959903162 (success; Python 3.11 compile passed; 264 passed; includes Module 4 DMT incremental constrained-modulus method, qeq/qult-FS pressure cap, Appendix C-7e Burland–Burbidge benchmark, Module 3-to-4 N60 profile linkage, Module 5 seismic residual-pore-pressure resistance envelope and factors, qeq/actual FS, in-situ layered punch-through, Figure 7-16 consolidation and 53 published Appendix B worked-example benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 54 published worked-example benchmarks (53 Appendix B plus Appendix C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
@@ -27,3 +27,4 @@ Module 3 → Module 4: Module 4 can now reuse current valid SPT profile N60 read
 Module 5 seismic bearing: pseudo-static vertical load cases are combined with USACE 2025 Meyerhof sγ/dγ/iγ/bγ/gγ and Eq. 5-19 groundwater correction before applying Eqs. 9-3/9-4 residual pore-pressure reduction. Reports governing ultimate resistance only; no seismic FS/pass verdict. Four regression cases added.
 Appendix B coverage: added B-5a, B-5c and B-7a published worked-example benchmarks; 53 published Appendix B benchmark cases now covered. Latest full suite at PR #24: 260 passed.
 Appendix C-7e: added published Burland–Burbidge SPT settlement benchmark; reproduces 1.2 in and verifies gross qeq versus qult/FS cap.
+Module 4 DMT: added USACE 2025 Eqs. 3-41, 4-13 to 4-15 and 7-10; DMT profile coverage checks, strip footing stress solution and qeq/qult-FS pressure cap. Latest suite: 264 passed.\n
