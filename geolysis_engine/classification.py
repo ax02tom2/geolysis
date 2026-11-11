@@ -44,8 +44,17 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
     else:
         organic_confirmed=False
         organic_note=''
-    aline=0.73*(ll-20.0)
+    # ASTM D2487 Fig. 3: A-line is horizontal at PI=4 through LL=25.5,
+    # then follows PI=0.73(LL-20).
+    aline = 4.0 if ll <= 25.5 else 0.73*(ll-20.0)
     above_a = pi >= aline and pi > 0
+    # U-line: vertical at LL=16 to PI=7, then PI=0.9(LL-8).
+    uline = 7.0 if ll <= 16.0 else 0.9*(ll-8.0)
+    plasticity_warning = ""
+    if ll < 16.0:
+        plasticity_warning = "LL 位於 U-line 垂直界線（LL=16）左側；請複驗液限／塑限與資料輸入。"
+    elif pi > uline + 1e-9:
+        plasticity_warning = f"PI={pi:.2f}% 高於 U-line={uline:.2f}%；ASTM D2487 指出應複驗，不宜直接採信本次塑性試驗值。"
     if ll < 50:
         if 4 <= pi <= 7 and above_a:
             fine_class = 'CL-ML'
@@ -128,6 +137,6 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
         gi=max(0,int(math.floor(raw_gi+0.5)))
     return {'USCS':uscs,'AASHTO':aashto,'GI':int(gi),'PI':pi,'Cu':cu,'Cc':cc,
             'gravel_pct':100-p4,'sand_pct':p4-p200,'fines_pct':p200,
-            'organic_note':organic_note,'A_line_PI':aline,'peat':False}
+            'organic_note':organic_note,'A_line_PI':aline,'U_line_PI':uline,'plasticity_warning':plasticity_warning,'peat':False}
 
 ROD_CORRECTION = [(3,0.75),(4,0.80),(6,0.85),(10,0.95),(float('inf'),1.00)]
