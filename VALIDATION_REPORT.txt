@@ -503,3 +503,17 @@ Module 3 mixed-layer SPT profile corrections — PR #51
 - GitHub Actions run 42983198348: success; Python 3.11 compile passed; full suite 355 passed in 2.08 s.
 - Published worked-example benchmark count remains 59 (53 Appendix B plus six Appendix C cases); this PR adds three equation/applicability regression tests, not new published examples.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 4-6 and Eqs. 4-4 to 4-7.
+
+
+
+Module 3 → Module 4 Burland–Burbidge row-wise material corrections — PR #52
+
+- Added optional `Burland_Material` tags to Module 3 SPT profile and Module 4 manual N60 CSV: `standard`, `fine_sand_silt_saturated`, or `gravel_sandy_gravel`.
+- The Module 4 engine applies the §7-13 saturated fine sand/silt correction to each N60>15 measurement, or the 1.25 gravel/sandy gravel factor, before arithmetic averaging. These are independent from the Module 3 liquefaction `(N1)60` correction.
+- If row-wise tags are used, all selected measurements within Zi must be tagged. Global material correction switches cannot be combined with row-wise tags, preventing double correction.
+- Module 3 ground-depth to footing-base conversion preserves the material tags; Module 4 displays the correction applied to every selected SPT point.
+- Added four regression tests for per-row adjustment, incomplete row labels, double-correction prevention, and Module 3 linkage.
+- PR #52 merged to main at d030b0e942310e365c3c234637733bd548814836.
+- GitHub Actions run 42984034614: success; Python 3.11 compile passed; full suite 359 passed in 2.27 s.
+- Published worked-example benchmark count remains 59 (53 Appendix B plus six Appendix C cases); four new tests are equation/integration regressions, not new published examples.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §7-13, Table 7-9 and Eq. 4-7.
