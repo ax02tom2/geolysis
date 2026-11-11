@@ -737,3 +737,45 @@ Module 5 seismic overturning moment and eccentricity — PR #73
 - GitHub Actions run 42996975023: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 404 passed in 2.15 s.
 - Public USACE Appendix B/C worked-example benchmark count remains 66; the four new tests are engineering guard/regression tests, not additional published worked-example benchmarks.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-4, Eqs. 5-4 to 5-8, Figure 5-4; §5-5, Eqs. 5-15/5-16.
+
+
+Module 5 seismic overturning middle-third check — PR #75
+
+- Added per-case eccentricity limits eB≤B/6 and eL≤L/6 (for spread footings) to the residual-pore-pressure seismic bearing combinations.
+- The middle-third check is separate from bearing resistance: where B′ and L′ remain positive, the app still reports the computed resistance but flags the overturning/eccentricity ULS as not passing. This avoids implying that a numeric bearing resistance means the overall foundation is safe.
+- Each case exposes B/L middle-third booleans and maximum eccentricity utilization; the aggregate result reports whether every evaluated case satisfies the check.
+- Added two regression tests: a case outside B/6 with positive effective width and a centered case that passes.
+- PR #75 merged to main at 104622effd33c2de6569f918361e69c516e31205.
+- GitHub Actions run 42997530733: success; Python 3.11 compile passed; Streamlit AppTest included; 406 passed in 1.99 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 2-1 Note 3 and §5-4, Eqs. 5-4 to 5-8.
+
+Module 5 pseudo-static seismic sliding combinations — PR #76
+
+- Added foundation_sliding_pseudostatic_cases, evaluating the adverse horizontal driving action H+khW and both vertical reactions V−kvW and V+kvW. The smaller FS controls.
+- Reuses the USACE 2025 Eqs. 5-28/5-29 sliding resistance model and enforces the minimum seismic sliding FS of 1.1 from Table 2-1 Note 2. It does not transfer this 1.1 value to bearing capacity or overturning.
+- Rejects V−kvW≤0 and cases where base uplift U reaches/exceeds the minimum vertical compression. This prevents calculating frictional sliding resistance when the base is no longer in compression.
+- Module 5 UI now reads kh, kv and W from the upper seismic load panel when "含地震荷載" is selected. The local H and V are labeled as static baseline values to avoid double-counting seismic increments.
+- Active/passive earth pressure and uplift remain user-confirmed inputs or developed-Rankine outputs. For asymmetric backfill, the user must supply the adverse directional Pa/Pp; the helper does not infer arbitrary horizontal azimuth or reverse asymmetric earth-pressure geometry.
+- Added four regression tests covering H+khW, V±kvW, zero/uplift guards and the 1.1 minimum.
+- PR #76 merged at 2bed859e1d176d454718d2a33cc23791603b3823.
+- GitHub Actions run 42998031941: success; Python 3.11 compile passed; Streamlit AppTest included; 410 passed in 2.39 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 2-1 Note 2, Eqs. 5-28/5-29 and Eqs. 5-31 to 5-35.
+
+Module 5 continuous-footing sliding units — PR #77
+
+- Added an explicit isolated/continuous footing selector to the sliding panel.
+- Continuous strip footing loads V, U, H, Pa and Pp are now labeled kN/m; base contact area is m²/m and defaults to B×1 m. Isolated footing loads remain kN and area remains m².
+- Automatic developed Rankine active/passive earth-pressure calculation uses a 1 m reference length for continuous footings so its returned forces are consistent with kN/m line loads.
+- The selected footing type is included in the result signature to prevent stale results from being shown after switching footing geometry.
+- PR #77 merged at 64f0e4d4be62db86c7bbb272e42792d29caf0a7d.
+- GitHub Actions run 42998259880: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 410 passed in 1.94 s.
+- Public USACE Appendix B/C benchmark count remains 66; PR #75/76 added engineering regression cases rather than new published worked examples.
+
+
+Module 5 continuous-footing sliding output units — PR #79
+
+- Continuous-footing seismic sliding case tables now label resisting force, driving force, passive resistance used, horizontal load and vertical load as kN/m.
+- Automatically developed Rankine active/passive forces are displayed as kN/m for continuous footings and kN for isolated footings.
+- This is a UI unit-label correction only; no calculation formula changed.
+- PR #79 merged at f591911037ad930282c348d663ca3187661300a9.
+- GitHub Actions run 42998605070: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 410 passed in 2.03 s.
