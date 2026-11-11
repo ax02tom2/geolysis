@@ -495,7 +495,11 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
                 raise ValueError("USACE Table 7-6 僅列 NC peat 的 α=1；其他 peat 狀態不外插")
             return 1.0
         if consolidation_state == "weathered_remolded":
-            return {"clay": 0.5, "silt": 0.5, "sand": 1.0/3.0, "sand_gravel": 0.25}[soil_type]
+            if soil_type == "clay":
+                if not 7.0 <= ratio <= 9.0:
+                    raise ValueError(f"USACE Table 7-6：weathered/remolded clay 的 E/pne 適用範圍 7–9，目前 {ratio:.2f}；不外插 α")
+                return 0.5
+            return {"silt": 0.5, "sand": 1.0/3.0, "sand_gravel": 0.25}[soil_type]
         threshold = {
             "clay": (16.0, 9.0, 16.0, 2.0/3.0, 1.0),
             "silt": (14.0, 8.0, 14.0, 0.5, 2.0/3.0),
@@ -525,8 +529,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             z = _finite("軟弱層中心深度", row.get("depth_center_m"))
             EL = _finite("軟弱層 PMT 模數 EL", row.get("E_L_kpa"))
             pneL = _finite("軟弱層等效淨極限壓力 pne", row.get("pne_kpa"))
-            if H <= 0 or z <= 0 or EL <= 0 or pneL <= 0:
-                raise ValueError(f"PMT 軟弱層第 {index} 筆厚度、深度、EL、pne 必須大於 0")
+            if H <= 0 or z < H / 2.0 or EL <= 0 or pneL <= 0:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆厚度、深度、EL、pne 不合理；深度需完全位於基礎底以下")
             if z + H / 2.0 > soft_limit + 1e-9:
                 raise ValueError(f"PMT 軟弱層第 {index} 筆超出式 7-12 適用深度 {soft_limit:.2f} m")
             if EL >= Ed:
