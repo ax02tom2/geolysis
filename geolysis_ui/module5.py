@@ -185,7 +185,7 @@ def render_module_5(expanded=False):
                 eccentricity_B_m=eB5,eccentricity_L_m=eL5,
                 footing_type="isolated",complete_capacity_model=main_load_complete,
                 incomplete_reason=main_reason,load_confirmed=loads_confirmed5,
-                base_inclination_deg=base_ang5,key_prefix="m5_classic")
+                key_prefix="m5_classic")
             factors=pd.DataFrame([
                 {'項目':'凝聚力項 cNc','承載力因子':result5['Nc'],'形狀係數':result5['sc'],'深度係數':result5['dc'],'傾斜係數':result5['ic'],'貢獻(kPa)':result5['term_c']},
                 {'項目':'覆土項 qNq','承載力因子':result5['Nq'],'形狀係數':result5['sq'],'深度係數':result5['dq'],'傾斜係數':result5['iq'],'貢獻(kPa)':result5['term_q']},
