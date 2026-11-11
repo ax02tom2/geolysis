@@ -2587,3 +2587,30 @@ def test_schmertmann_cpt_requires_clean_young_normally_consolidated_sand_confirm
         **kwargs, soil_applicability_confirmed=True,
     )
     assert result["soil_applicability_confirmed"] is True
+
+
+
+def test_usace_pmt_peat_requires_explicit_normally_consolidated_state():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    common = dict(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0, yield_pressure_kpa=250.0,
+        soil_type="peat", round_footing=True,
+        deep_uniform_deposit_confirmed=True,
+    )
+    with pytest.raises(ValueError, match="僅列正常固結泥炭"):
+        menard_rousseau_pmt_settlement_2025(
+            **common, consolidation_state="auto",
+        )
+    result = menard_rousseau_pmt_settlement_2025(
+        **common, consolidation_state="normally_consolidated",
+    )
+    assert result["alpha_d"] == pytest.approx(1.0)
+    assert result["alpha_c"] == pytest.approx(1.0)
