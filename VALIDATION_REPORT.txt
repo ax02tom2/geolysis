@@ -336,3 +336,18 @@ USACE 2025 DMT incremental constrained-modulus settlement — PR #26
 - GitHub Actions run 42959903162: success; Python 3.11 compile passed; full suite 264 passed.
 - Three new equation/regression tests validate DMT parameter conversion, pressure cap, layer summation, strip-footing stress influence and rejection of incomplete or invalid DMT profiles. These are not counted as published Appendix C benchmarks.
 - Published worked-example benchmark count remains 54.
+
+
+
+USACE 2025 Schmertmann CPT settlement — PR #27
+
+- Added `schmertmann_cpt_settlement_2025()` implementing Eqs. 7-16 to 7-26, Figure 7-13 and Table 7-8.
+- Calculates equivalent Es from measured CPT qc: 2.5qc axisymmetric, 3.5qc plane strain, and interpolated Es for intermediate rectangular L/B.
+- Computes peak strain influence Izp, depth-varying Iza/Izc/Izr, embedment C1 and creep C2; integrates Iz·H/Es across the CPT profile.
+- Applies gross q/gross qeq capped by qult/FS and requires full measured profile coverage to the interpolated 2B–4B influence depth; continuous footings use plane-strain 4B.
+- Module 4 now exposes CPT qc layered input, footing type/geometry, base effective stress and peak-Iz depth effective stress.
+- UI warns that the manual's Es correlations were developed for young (<100 years), normally consolidated, clean silica sands; measured qc, not net cone resistance qn, is required.
+- PR #27 merged to main at ebca5f965483edac4d3dcb52a0e3dcc30ec4f9ab.
+- GitHub Actions run 42960116509: success; Python 3.11 compile passed; full suite 266 passed.
+- Two equation/regression tests added for square/strip influence distributions, C1/C2, Es, qult/FS cap and incomplete-profile rejection. Not counted as published Appendix C benchmarks.
+- Published worked-example benchmark count remains 54.
