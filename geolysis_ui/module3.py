@@ -76,37 +76,45 @@ def render_module_3(expanded=False):
         st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Rod_Length_m")
+        profile_confirm=st.checkbox("已確認 CSV 為本次鑽孔實測 SPT 資料（不是示範數據）",value=False,key="m3_profile_confirm")
         # Clear any previous profile before validating current inputs to prevent stale Module 4 linkage.
         st.session_state.pop("m3_profile_result",None)
-        try:
-            prof=pd.read_csv(csv_file) if csv_file is not None else pd.read_csv(StringIO(csv_text))
-            required={'Depth_m','N','Effective_Stress_kPa'}
-            if required.issubset(prof.columns) and len(prof):
-                if prof[list(required)].isnull().any().any() or (prof['Effective_Stress_kPa']<=0).any() or (prof['N']<0).any():
-                    raise ValueError('CSV 含空值、負 N 值或非正有效覆土應力')
-                rows=prof.to_dict('records')
-                corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
-                    cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
-                out=pd.DataFrame(corrected)
-                st.dataframe(out,use_container_width=True,hide_index=True)
-                plot_out=out.dropna(subset=['N1_60_final'])
-                if len(plot_out):
-                    fig=go.Figure(go.Scatter(x=plot_out['N1_60_final'],y=plot_out['Depth_m'],mode='lines+markers',name='(N1)60 最終值'))
-                    fig.update_yaxes(autorange='reversed',title='深度 [m]'); fig.update_xaxes(title='(N1)60 最終值')
-                    fig.update_layout(height=420,title='SPT 修正值深度剖面')
-                    st.plotly_chart(fig,use_container_width=True)
-                if 'Refusal' in out.columns and out['N1_60_final'].isna().any():
-                    st.warning("表格中的拒錘／部分貫入列已排除一般 N 值修正與剖面連線；請依原始貫入紀錄個別判讀。")
-                high_n=out['N']>=50
-                refusal_mask=(out['Refusal'].astype(str).str.lower().isin(['true','1','1.0','yes','y','refusal','拒錘','部分貫入']) if 'Refusal' in out.columns else pd.Series(False,index=out.index))
-                if (high_n & ~refusal_mask).any():
-                    st.warning("剖面仍有 N≥50 且未標記 Refusal 的測點；請逐筆核對拒錘／部分貫入紀錄，必要時補上 Refusal 欄位。")
-                st.download_button('下載修正後 SPT CSV',out.to_csv(index=False).encode('utf-8-sig'),'SPT_corrected.csv','text/csv',key='m3_download')
-                st.session_state['m3_profile_result']=out
-            else: st.info('請提供 Depth_m、N、Effective_Stress_kPa 三欄；未提供完整欄位前不執行剖面計算。')
-        except Exception as exc:
-            logging.exception("Unhandled application calculation error")
-            st.error(f"逐深度資料檢核失敗：{exc}")
+        if profile_confirm:
+            try:
+                prof=pd.read_csv(csv_file) if csv_file is not None else pd.read_csv(StringIO(csv_text))
+                required={'Depth_m','N','Effective_Stress_kPa'}
+                if required.issubset(prof.columns) and len(prof):
+                    if prof[list(required)].isnull().any().any() or (prof['Effective_Stress_kPa']<=0).any() or (prof['N']<0).any():
+                        raise ValueError('CSV 含空值、負 N 值或非正有效覆土應力')
+                    rows=prof.to_dict('records')
+                    corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
+                        cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
+                    out=pd.DataFrame(corrected)
+                    st.dataframe(out,use_container_width=True,hide_index=True)
+                    plot_out=out.dropna(subset=['N1_60_final'])
+                    if len(plot_out):
+                        fig=go.Figure(go.Scatter(x=plot_out['N1_60_final'],y=plot_out['Depth_m'],mode='lines+markers',name='(N1)60 最終值'))
+                        fig.update_yaxes(autorange='reversed',title='深度 [m]'); fig.update_xaxes(title='(N1)60 最終值')
+                        fig.update_layout(height=420,title='SPT 修正值深度剖面')
+                        st.plotly_chart(fig,use_container_width=True)
+                    if 'Refusal' in out.columns and out['N1_60_final'].isna().any():
+                        st.warning("表格中的拒錘／部分貫入列已排除一般 N 值修正與剖面連線；請依原始貫入紀錄個別判讀。")
+                    high_n=out['N']>=50
+                    refusal_mask=(out['Refusal'].astype(str).str.lower().isin(['true','1','1.0','yes','y','refusal','拒錘','部分貫入']) if 'Refusal' in out.columns else pd.Series(False,index=out.index))
+                    if (high_n & ~refusal_mask).any():
+                        st.warning("剖面仍有 N≥50 且未標記 Refusal 的測點；請逐筆核對拒錘／部分貫入紀錄，必要時補上 Refusal 欄位。")
+                    st.download_button('下載修正後 SPT CSV',out.to_csv(index=False).encode('utf-8-sig'),'SPT_corrected.csv','text/csv',key='m3_download')
+                    st.session_state['m3_profile_result']=out
+                else: st.info('請提供 Depth_m、N、Effective_Stress_kPa 三欄；未提供完整欄位前不執行剖面計算。')
+            except Exception as exc:
+                logging.exception("Unhandled application calculation error")
+                st.error(f"逐深度資料檢核失敗：{exc}")
+        else:
+            st.session_state.pop("m3_profile_result",None)
+            if csv_file is not None or csv_text.strip():
+                st.warning("已提供 CSV，但尚未確認為本次實測資料；不會計算或提供給模組四沿用。")
+            else:
+                st.info("尚未提供鑽孔逐深度 SPT CSV；不會使用示範數據或自動建立剖面。")
         st.caption("依 USACE EM 1110-1-1905（2025）：CN 僅建議用於非凝聚性土壤；黏土不作覆土修正，黏土類 CB 採 1.0。一般淺基礎設計可採 CN≤2.0；液化評估常見文獻上限 1.7，應依分析目的選擇。")
         st.info("飽和細砂／粉土的膨脹修正必須在覆土修正後進行，僅適用於地下水位以下且 (N1)60 > 15；粗砂不適用。")
         with st.expander("SPT 修正依據與文獻",expanded=False):
