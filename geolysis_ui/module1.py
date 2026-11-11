@@ -300,7 +300,7 @@ def render_module_1(expanded=False):
                     _ucs_regional_source),
             })
 
-            st.caption("地區適用性：2025 年逐試體案例涵蓋台灣北部與中部西部麓山帶；2009 年區域彙整另提供東部中央山脈東翼變質岩與大理岩概略範圍。平原沖積層屬土壤，不適用完整岩石 UCS；海岸山脈亦缺少可直接套用的本批 UCS 數據，勿以其他地區案例代替。")
+            st.caption("地區適用性：2025 年論文方法段稱彙整 31 筆資料，但表 5 逐列可辨識 32 個試體編號；系統依表 5 原列逐筆登錄，並保留單一試體性質，不將其視為統計區間。案例涵蓋台灣北部與中部西部麓山帶；2009 年區域彙整另提供東部中央山脈東翼變質岩與大理岩概略範圍。平原沖積層屬土壤，不適用完整岩石 UCS；海岸山脈亦缺少可直接套用的本批 UCS 數據，勿以其他地區案例代替。")
             _sandstone_cases = [k for k in _ucs_case_data if "砂岩" in k and "互層" not in k]
             _case_by_rock = {
                 "砂岩 Sandstone": _sandstone_cases,
