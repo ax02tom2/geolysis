@@ -212,6 +212,9 @@ def render_module_4(expanded=False):
                 value="",height=120,key="m4_cpt_layers",
                 placeholder="Layer,thickness_m,qc_kpa\n1,0.25,8000\n2,0.25,9500\n…（需涵蓋完整影響深度）")
             st.caption("σ′zp 應取自有效應力剖面在峰值 Iz 深度的位置；矩形基礎峰值深度依 L/B 由 B/2 至 B 內插，連續基礎取 B。CPT qc 不可將 qc−σv0 的淨值誤填為 qc。")
+            cptSoilConfirmed=st.checkbox("已確認影響範圍為年輕（<100 年）、正常固結、潔淨矽砂；非黏土、有機土或膠結土",value=False,key="m4_cpt_soil_confirm")
+            if not cptSoilConfirmed:
+                st.warning("Schmertmann CPT 經驗式的 qc–Es 關係有明確土類與地質年齡適用限制；未確認前不執行計算。若為其他土類，請改用適用的 DMT／PMT／固結分析或另有依據的方法。")
             try:
                 if not cptText.strip():
                     st.info("請貼上 CPT qc 分層資料後計算；不以通用 Es 預設值代替現地試驗。")
@@ -222,7 +225,8 @@ def render_module_4(expanded=False):
                         gross_pressure_kpa=cptq,base_effective_stress_kpa=cptSigD,
                         peak_effective_stress_kpa=cptSigP,years=cptYears,
                         ultimate_bearing_kpa=(cptQult if cptQult>0 else None),
-                        factor_of_safety=cptFs,footing_type=cptType)
+                        factor_of_safety=cptFs,footing_type=cptType,
+                        soil_applicability_confirmed=cptSoilConfirmed)
                     st.metric("CPT 估算總沉陷",f"{cptResult['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {cptResult['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {cptResult['net_pressure_increment_kpa']:.1f} kPa ｜ Izp = {cptResult['Iz_peak']:.3f} ｜ C1 = {cptResult['C1_embedment']:.3f} ｜ C2 = {cptResult['C2_creep']:.3f}")
                     st.dataframe(pd.DataFrame(cptResult["layer_results"]),hide_index=True,use_container_width=True)
