@@ -770,3 +770,12 @@ Module 5 continuous-footing sliding units — PR #77
 - PR #77 merged at 64f0e4d4be62db86c7bbb272e42792d29caf0a7d.
 - GitHub Actions run 42998259880: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 410 passed in 1.94 s.
 - Public USACE Appendix B/C benchmark count remains 66; PR #75/76 added engineering regression cases rather than new published worked examples.
+
+
+Module 5 continuous-footing sliding output units — PR #79
+
+- Continuous-footing seismic sliding case tables now label resisting force, driving force, passive resistance used, horizontal load and vertical load as kN/m.
+- Automatically developed Rankine active/passive forces are displayed as kN/m for continuous footings and kN for isolated footings.
+- This is a UI unit-label correction only; no calculation formula changed.
+- PR #79 merged at f591911037ad930282c348d663ca3187661300a9.
+- GitHub Actions run 42998605070: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 410 passed in 2.03 s.
