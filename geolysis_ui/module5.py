@@ -100,6 +100,7 @@ def render_module_5(expanded=False):
         with d:
             dw5=st.number_input("地下水位深度 Dw [m]（自地表）",0.0,100.0,5.0,0.1,key='m5_dw')
             fs5=st.number_input("安全係數 FS",1.1,5.0,3.0,0.1,key='m5_fs')
+            if fs5<3.0: st.warning("目前 allowable bearing pressure 使用的 FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供其他規範／敏感度比較，但不可視為符合 USACE 靜力承載力安全要求。實際 qeq 檢核仍固定以 FS≥3.0 判定。")
             beta5=st.number_input("載重傾角 β [°]（Meyerhof 使用）",0.0,60.0,0.0,1.0,key='m5_beta',disabled=(theory5!='Meyerhof'))
         failure_mode5=st.selectbox("Terzaghi 剪力破壞模式",['general','local'],format_func=lambda x:'一般剪力破壞' if x=='general' else '局部剪力破壞（c、ϕ 折減）',disabled=(theory5!='Terzaghi'),key='m5_failure_mode')
         st.markdown("**載重分量（供 Hansen／Vesic 傾斜係數使用）**")
