@@ -675,3 +675,17 @@ Module 2 independent USCS/AASHTO classification benchmark — PR #66
 - PR #66 merged to main at 8a79fee2cf04f9b161ff2276195d6b6b8d8ee491.
 - GitHub Actions run 42987676198: success; Python 3.11 compile passed; full suite 386 passed in 2.49 s.
 - References: Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2/2-5; AASHTO M145 (2021), §§3.1, 6.1–6.1.2.
+
+
+
+Module 5 seismic horizontal direction and inclined-geometry applicability guard — PR #67
+
+- Audited the pseudo-static horizontal action convention. The engine now makes explicit that the adverse horizontal envelope aligns the pre-earthquake static horizontal action H with kh·V; both vertical cases V(1±kv) remain evaluated.
+- Clarified that V is used as a proxy for seismic weight in kh·V. The UI states that H must exclude already-counted seismic inertia and that the proxy weight must be reconciled with the effective seismic weight from the structural analysis.
+- The USACE 2025 residual-pore-pressure bearing branch now rejects nonzero base inclination or ground slope. The current scalar Meyerhof load-inclination implementation does not encode the reversed earthquake-force direction relative to inclined base/ground geometry; silently combining static slope corrections with this seismic branch would overstate the model's directional capability.
+- Module 5 disables the seismic pore-pressure-reduced bearing action when either angle is nonzero and explains why. Static slope/base bearing corrections remain available separately.
+- Added regression tests for the adverse horizontal action envelope and rejection of both inclined-base and sloping-ground seismic cases.
+- PR #67 merged to main at c7bc075ad2aad3f39ed24a5fbb551353bf8aafc3.
+- GitHub Actions run 42989784735: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 389 passed in 1.74 s.
+- Published USACE Appendix B/C worked-example benchmark count remains 66; this PR adds three regression/guard tests, not new worked-example benchmarks.
+- References: USACE EM 1110-1-1905 (31 Jul 2025), Table 5-3, §5-5f(3)-(5), Chapter 9 §9-10 and Eqs. 9-3/9-4.
