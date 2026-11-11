@@ -1037,3 +1037,15 @@ def test_usace_in_situ_layered_profile_shallow_weak_layer_directly_controls():
     assert result["controlling_layer"] == 2
     assert result["candidates"][-1]["spread_factor"] == pytest.approx(1.0)
 
+def test_usace_in_situ_layered_profile_rejects_drained_weak_layer_punching():
+    with pytest.raises(ValueError, match="weak clay|undrained"):
+        layered_bearing_capacity_in_situ_profile(
+            layers=[
+                {"thickness_m":1.5,"test_type":"SPT","drainage":"drained","measurements":[20,20]},
+                {"thickness_m":2.0,"test_type":"CPT","drainage":"drained","measurements":[50,55]},
+            ],
+            footing_width_m=2.0,footing_length_m=3.0,
+            footing_depth_m=0.0,water_depth_m=10.0,
+            gamma_moist_kn_m3=18.0,gamma_sub_kn_m3=9.0,
+        )
+
