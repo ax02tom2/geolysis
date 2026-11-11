@@ -443,35 +443,40 @@ def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
         'limitations':'適用強上層覆蓋弱下層的簡化穿刺檢核；弱層需位於相應承載力剪力區範圍（方／矩形約 0.5B–2B，條形約 1B–4B）。兩層 q_ult 須採相同載重、排水條件及修正係數體系；不取代多層有限元素或完整破壞機制分析。'}
 
 def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_kN,
-        footing_area_m2, kh, kv=0.0):
+        footing_area_m2, kh, kv=0.0, seismic_weight_kN=None):
     """Pseudo-static foundation inertia load envelope, not a seismic bearing
-    resistance equation. ``horizontal_load_kN`` is the pre-earthquake static
-    horizontal action H; V is also used as the proxy seismic weight in kh·V.
-    ``kv`` is a nonnegative magnitude; both vertical acceleration directions
-    are evaluated internally. Returns equivalent actions only; soil inertia,
-    cyclic strength degradation, liquefaction and seismic settlement are not included.
+    resistance equation. horizontal_load_kN is the pre-earthquake static H;
+    seismic_weight_kN is the effective seismic weight W. If W is omitted, V
+    is retained as a backward-compatible preliminary proxy. Earthquake
+    increments are kh·W horizontally and ±kv·W vertically.
     """
-    V=_finite('靜態垂直力',vertical_load_kN); H=_finite('靜態水平力',horizontal_load_kN)
+    V=_finite('靜態垂直力 V',vertical_load_kN); H=_finite('靜態水平力 H',horizontal_load_kN)
     A=_finite('基礎面積',footing_area_m2); khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
-    if V<=0 or A<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
-        raise ValueError('地震分析輸入超出範圍：V、面積須正，H≥0，0≤kh≤1，0≤kv≤0.5')
+    W=V if seismic_weight_kN is None else _finite('有效地震重量 W',seismic_weight_kN)
+    if V<=0 or W<=0 or A<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震分析輸入超出範圍：V、W、面積須正，H≥0，0≤kh≤1，0≤kv≤0.5')
+    vertical_min=V-kvv*W
+    if vertical_min<=0:
+        raise ValueError('V−kv·W≤0，地震垂直作用已達零壓或上拔；本承載力包絡僅適用正向壓縮，須另作上拔／接觸分析')
     cases=[]
-    # Envelope the horizontal earthquake action in the adverse direction:
-    # the existing static H and kh·V are aligned. For level base/ground,
-    # the Meyerhof inclination factor depends on the magnitude of H/V.
-    he=H+khv*V
+    # Envelope both horizontal acceleration directions by aligning kh·W
+    # with existing static H. For level base/ground, Meyerhof inclination
+    # factors depend on the resultant H/V magnitude.
+    he=H+khv*W
     for sign in (-1,1):
-        ve=V*(1+sign*kvv)
+        ve=V+sign*kvv*W
         cases.append({'vertical_load_kN':ve,'horizontal_load_kN':he,
-            'horizontal_load_direction':'靜力 H 與地震 kh·V 同向（不利包絡）',
+            'seismic_weight_kN':W,
+            'horizontal_load_direction':'靜力 H 與地震 kh·W 同向（不利包絡）',
             'average_contact_pressure_kpa':ve/A,
             'load_angle_deg':math.degrees(math.atan2(he,ve)),
             'vertical_sign':('向下增加' if ve>V else '向下減少' if ve<V else '無垂直增減')})
-    return {'cases':cases,'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
+    return {'cases':cases,'seismic_weight_kN':W,
+        'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
         'governing_horizontal_load_kN':max(x['horizontal_load_kN'] for x in cases),
-        'method':'Pseudo-static adverse horizontal action envelope (H + kh·V; V·(1±kv))',
-        'limitations':'水平作用採既有靜力 H 與地震 kh·V 同向的不利包絡 H+khV；兩組垂直地震方向均計算。此包絡只提供作用量大小，不代表已建立水平力方位角；kh·V 將輸入 V 視為地震重量代理值，若結構耐震分析所得有效地震重量不同，應先核對，不可將已含地震慣性力的 H 再輸入以免重複計算。對水平基底與水平地表，Meyerhof 載重傾斜係數使用 H/V 大小；若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
+        'method':'Pseudo-static adverse action envelope (H + kh·W; V ± kv·W)',
+        'limitations':'水平作用採既有靜力 H 與地震 kh·W 同向的不利包絡；垂直作用以靜態 V 加減 kv·W，W 為有效地震重量而非必然等於 V。W 應依適用耐震規範及結構分析計算，未輸入時才以 V 作初步代理。H 必須是不含已另行計入之地震慣性力的靜力水平作用，以免重複計算。此包絡只提供作用量大小，不代表已建立水平力方位角；對水平基底與水平地表，Meyerhof 載重傾斜係數使用合力 H/V 大小。若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
 
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
@@ -507,7 +512,7 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
 def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         horizontal_load_kN, kh, kv, footing_type, residual_excess_pore_pressure_ratio,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
-        water_depth, eccentricity_B=0.0, eccentricity_L=0.0,
+        water_depth, seismic_weight_kN=None, eccentricity_B=0.0, eccentricity_L=0.0,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
@@ -554,7 +559,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         water_depth=water_depth,fs=3.0,eccentricity_B=eccentricity_B,
         eccentricity_L=eccentricity_L,footing_type=footing_map[footing_type])
     action=seismic_bearing_capacity_pseudostatic(
-        vertical_load_kN=V,horizontal_load_kN=H,footing_area_m2=1.0,kh=khv,kv=kvv)
+        vertical_load_kN=V,horizontal_load_kN=H,footing_area_m2=1.0,
+        kh=khv,kv=kvv,seismic_weight_kN=seismic_weight_kN)
     cases=[]
     for case in action['cases']:
         corrected=bearing_capacity_slope_base_corrections(
@@ -604,6 +610,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     governing=min(cases,key=lambda x:x['qu_seismic_kpa'])
     return {
         'cases':cases,
+        'seismic_weight_kN':action['seismic_weight_kN'],
         'governing_case':governing,
         'qu_seismic_governing_kpa':governing['qu_seismic_kpa'],
         'footing_type':footing_type,
