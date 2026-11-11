@@ -1494,14 +1494,15 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
 
 
 @pytest.mark.parametrize(
-    "application,disturbance,expected_phi,expected_c",
+    "application,disturbance,expected_phi,expected_c,expected_sigma_cm,expected_sigma_c_mass",
     [
-        ("tunnel", 0.0, 47.16, 0.58),
-        ("slope", 1.0, 27.61, 0.35),
+        ("tunnel", 0.0, 47.16, 0.58, 7.80982, 2.24130),
+        ("slope", 1.0, 27.61, 0.35, 2.83626, 0.47453),
     ],
 )
 def test_hoek_brown_2002_published_example_equivalent_mc_parameters(
-    application, disturbance, expected_phi, expected_c
+    application, disturbance, expected_phi, expected_c,
+    expected_sigma_cm, expected_sigma_c_mass
 ):
     # Hoek, Carranza-Torres & Corkum (2002), §7 example:
     # sigma_ci=50 MPa, mi=10, GSI=45, H=100 m, gamma=27 kN/m3.
@@ -1512,6 +1513,6 @@ def test_hoek_brown_2002_published_example_equivalent_mc_parameters(
     )
     assert result["phi_equiv_deg"] == pytest.approx(expected_phi, abs=0.02)
     assert result["c_equiv_mpa"] == pytest.approx(expected_c, abs=0.01)
-    assert result["sigma_cm_mpa"] == pytest.approx(7.80982, abs=1e-4)
-    assert result["sigma_c_mass_mpa"] == pytest.approx(2.24130, abs=1e-4)
+    assert result["sigma_cm_mpa"] == pytest.approx(expected_sigma_cm, abs=1e-4)
+    assert result["sigma_c_mass_mpa"] == pytest.approx(expected_sigma_c_mass, abs=1e-4)
     assert result["sigma_t_mass_mpa"] < 0.0
