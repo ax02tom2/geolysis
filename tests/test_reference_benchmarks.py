@@ -1379,6 +1379,7 @@ def test_usace_2025_dmt_settlement_converts_readings_and_sums_incremental_layers
         layers=layers, footing_width_m=1.0, footing_length_m=1.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         ultimate_bearing_kpa=450.0, factor_of_safety=3.0,
+        soil_applicability_confirmed=True,
     )
     first = result["layer_results"][0]
     expected_id = (3.0 - 2.0) / (2.0 - 0.5)
@@ -1489,6 +1490,7 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
         layers=layers, footing_width_m=1.0, footing_length_m=10.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         peak_effective_stress_kpa=100.0, footing_type="continuous",
+        soil_applicability_confirmed=True,
     )
     assert result["influence_depth_required_m"] == pytest.approx(4.0)
     assert result["profile_depth_used_m"] == pytest.approx(4.0)
@@ -1498,6 +1500,7 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
             layers=layers[:4], footing_width_m=1.0, footing_length_m=10.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
             peak_effective_stress_kpa=100.0, footing_type="continuous",
+            soil_applicability_confirmed=True,
         )
 
 
@@ -1773,6 +1776,7 @@ def test_usace_2025_appendix_c7d_schmertmann_cpt_settlement_table_rows():
         gross_pressure_kpa=3.31*tsf,base_effective_stress_kpa=.156*tsf,
         peak_effective_stress_kpa=.40625*tsf,years=50.0,
         ultimate_bearing_kpa=25.5*2*47.88025898,factor_of_safety=3.0,
+        soil_applicability_confirmed=True,
     )
     assert result["Iz_peak"] == pytest.approx(.779,abs=.001)
     assert result["C1_embedment"] == pytest.approx(.975,abs=.001)
@@ -2566,3 +2570,20 @@ def test_usace_pmt_shape_factors_are_limited_to_figure_7_11():
         menard_rousseau_pmt_settlement_2025(
             **common, lambda_d=1.1, lambda_c=1.2,
         )
+
+
+
+def test_schmertmann_cpt_requires_clean_young_normally_consolidated_sand_confirmation():
+    layers = [{"thickness_m": 1.0, "qc_kpa": 8000.0},
+              {"thickness_m": 1.0, "qc_kpa": 9000.0}]
+    kwargs = dict(
+        layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        peak_effective_stress_kpa=100.0,
+    )
+    with pytest.raises(ValueError, match="年輕（<100 年）、正常固結、潔淨矽砂"):
+        schmertmann_cpt_settlement_2025(**kwargs)
+    result = schmertmann_cpt_settlement_2025(
+        **kwargs, soil_applicability_confirmed=True,
+    )
+    assert result["soil_applicability_confirmed"] is True
