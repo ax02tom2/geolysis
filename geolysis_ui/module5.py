@@ -320,6 +320,7 @@ def render_module_5(expanded=False):
     
         with st.expander("④ 地震等效靜力載重包絡（偽靜力）",expanded=False):
             st.warning("此面板將 kh、kv 轉成基礎慣性等效作用，並非完整地震承載力分析；不包含土體慣性、液化、循環強度折減或震陷。")
+            st.caption("此處 H5 視為地震前既有靜力水平力（不含 khV）；系統採 H+khV 作為不利同向包絡。khV 暫以輸入 V5 作為地震重量代理值，須確認與結構耐震分析的有效地震重量一致；若 H5 已含地震慣性力，不可重複加入。")
             ea,eb,ec=st.columns(3)
             with ea:
                 kh5=st.number_input("水平地震係數 kh",0.0,1.0,0.15,0.01,key="m5x_kh")
