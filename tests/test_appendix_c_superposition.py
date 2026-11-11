@@ -58,7 +58,10 @@ def test_usace_2025_appendix_c2_superimposed_footings_at_point_b_and_e():
 def test_usace_2025_appendix_c3a_areal_fill_only_settlement():
     # EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-3a.
     h = [2, 1, 2, 2, 3, 3, 3, 4, 5]
-    z = [1, 2.5, 3.5, 6, 8.5, 11.5, 14.5, 18, 22.5]
+    # The published C-3a row-3 midpoint (3.5 ft) overlaps row 2 when
+    # checked against the published thicknesses. Use the contiguous midpoint
+    # 4.0 ft for geometric ordering only; settlement stresses remain table values.
+    z = [1, 2.5, 4.0, 6, 8.5, 11.5, 14.5, 18, 22.5]
     s0 = [.06, .15, .21, .33, .40, .49, .59, .69, .84]
     sp = [.70, .79, .85, .97, 1.04, 5.89, 5.99, 6.09, 6.24]
     cc = [.113] * 5 + [.048] * 4
@@ -74,7 +77,9 @@ def test_usace_2025_appendix_c3b_areal_fill_plus_footing_settlement():
     h = [2, 1, 2, 2, 3, 3, 3, 4, 5]
     # Depths are measured below the footing base; the first layer begins
     # 6 ft below grade because compacted structural fill occupies that zone.
-    z = [7, 8.5, 9.5, 12, 14.5, 17.5, 20.5, 24, 28.5]
+    # Add the 6-ft structural-fill offset to the corrected contiguous
+    # C-3a midpoints; the source table's row-3 value (9.5 ft) overlaps row 2.
+    z = [7, 8.5, 10.0, 12, 14.5, 17.5, 20.5, 24, 28.5]
     s0 = [.06, .15, .21, .33, .40, .49, .59, .69, .84]
     sp = [.70, .79, .85, .97, 1.04, 5.89, 5.99, 6.09, 6.24]
     cc = [.113] * 5 + [.048] * 4
