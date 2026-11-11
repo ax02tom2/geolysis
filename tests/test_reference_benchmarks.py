@@ -2482,3 +2482,57 @@ def test_spt_profile_uses_global_defaults_when_layer_overrides_are_blank():
     assert result["CS"] == pytest.approx(1.1)
     assert result["CN"] == pytest.approx(1.0)
     assert result["dilatancy_applied"] is False
+
+
+
+def test_burland_burbidge_applies_material_adjustments_per_spt_depth():
+    profile = [
+        {"Depth_below_base_m": 1.4, "N60": 12.0, "Burland_Material": "standard"},
+        {"Depth_below_base_m": 0.5, "N60": 20.0, "Burland_Material": "fine_sand_silt_saturated"},
+        {"Depth_below_base_m": 1.0, "N60": 24.0, "Burland_Material": "gravel_sandy_gravel"},
+    ]
+    result = burland_burbidge_average_n60_from_profile(
+        profile, width_m=1.0, granular_layer_thickness_m=5.0,
+    )
+    assert result["selected_count"] == 3
+    assert [row[0] for row in result["selected_profile"]] == pytest.approx([0.5, 1.0, 1.4])
+    assert [row[2] for row in result["selected_profile"]] == pytest.approx([17.5, 30.0, 12.0])
+    assert result["N60_average"] == pytest.approx((17.5 + 30.0 + 12.0) / 3.0)
+    assert "飽和細砂／粉土" in result["selected_adjustments"][0]
+    assert "礫土／砂礫土" in result["selected_adjustments"][1]
+    assert "一般土層" in result["selected_adjustments"][2]
+
+
+def test_burland_burbidge_row_material_requires_complete_labels_inside_zi():
+    profile = [
+        {"Depth_below_base_m": 0.5, "N60": 20.0, "Burland_Material": "standard"},
+        {"Depth_below_base_m": 1.0, "N60": 24.0, "Burland_Material": ""},
+    ]
+    with pytest.raises(ValueError, match="未填 Burland_Material"):
+        burland_burbidge_average_n60_from_profile(
+            profile, width_m=1.0, granular_layer_thickness_m=5.0,
+        )
+
+
+def test_burland_burbidge_row_material_cannot_be_combined_with_global_adjustment():
+    with pytest.raises(ValueError, match="關閉全剖面"):
+        burland_burbidge_average_n60_from_profile(
+            [{"Depth_below_base_m": 0.5, "N60": 20.0,
+              "Burland_Material": "fine_sand_silt_saturated"}],
+            width_m=1.0, granular_layer_thickness_m=5.0,
+            fine_sand_saturated=True,
+        )
+
+
+def test_burland_burbidge_module3_link_preserves_row_material_tags():
+    result = burland_burbidge_average_n60_from_ground_profile(
+        [
+            {"Depth_m": 1.0, "N60": 20.0, "Burland_Material": "fine_sand_silt_saturated"},
+            {"Depth_m": 1.5, "N60": 24.0, "Burland_Material": "gravel_sandy_gravel"},
+            {"Depth_m": 1.9, "N60": 12.0, "Burland_Material": "standard"},
+        ],
+        foundation_depth_m=0.5, width_m=1.0,
+        granular_layer_thickness_m=5.0,
+    )
+    assert result["selected_count"] == 3
+    assert [row[2] for row in result["selected_profile"]] == pytest.approx([17.5, 30.0, 12.0])
