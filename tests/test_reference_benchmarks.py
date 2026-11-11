@@ -27,6 +27,7 @@ from geolysis_engine import (
     layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure,
     seismic_bearing_capacity_residual_pore_pressure_cases,
+    seismic_foundation_eccentricity_cases,
     foundation_sliding_factor_of_safety,
     foundation_sliding_pseudostatic_cases,
     bishop_simplified_factor_of_safety,
@@ -2928,4 +2929,64 @@ def test_usace_pseudostatic_sliding_enforces_minimum_earthquake_fs():
             horizontal_load_kN=100.0, seismic_weight_kN=1000.0,
             kh=0.2, kv=0.1, area_m2=6.0,
             friction_angle_deg=30.0, fs_required=1.0,
+        )
+
+
+def test_general_seismic_eccentricity_evaluates_four_signed_load_combinations():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=50.0,
+        seismic_weight_kN=1000.0, kh=0.1, kv=0.1,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.05, seismic_moment_B_kNm=50.0,
+    )
+    assert len(result["cases"]) == 4
+    plus = next(case for case in result["cases"]
+                if case["horizontal_earthquake_sign"] == 1 and case["vertical_load_kN"] == pytest.approx(900.0))
+    minus = next(case for case in result["cases"]
+                 if case["horizontal_earthquake_sign"] == -1 and case["vertical_load_kN"] == pytest.approx(900.0))
+    assert plus["horizontal_load_kN"] == pytest.approx(150.0)
+    assert minus["horizontal_load_kN"] == pytest.approx(50.0)
+    assert plus["eccentricity_B_m"] == pytest.approx(100.0 / 900.0)
+    assert minus["eccentricity_B_m"] == pytest.approx(0.0)
+    assert result["passes"] is True
+    assert result["seismic_moment_included"] is True
+
+
+def test_general_seismic_eccentricity_flags_middle_third_failure_with_positive_contact():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.40,
+    )
+    assert result["passes"] is False
+    assert result["cases"][0]["compression_contact_pass"] is True
+    assert result["cases"][0]["B_effective_m"] == pytest.approx(1.2)
+    assert result["cases"][0]["middle_third_B_pass"] is False
+
+
+def test_general_seismic_eccentricity_flags_loss_of_positive_contact_dimension():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.1, kv=0.1,
+        footing_type="spread", B=2.0, L=3.0,
+        seismic_moment_B_kNm=1100.0,
+    )
+    assert result["passes"] is False
+    assert any(not case["compression_contact_pass"] for case in result["cases"])
+
+
+def test_general_seismic_eccentricity_rejects_strip_long_axis_moment_and_zero_vertical_case():
+    with pytest.raises(ValueError, match="連續條形基礎不支援長邊方向偏心或彎矩"):
+        seismic_foundation_eccentricity_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+            seismic_weight_kN=1000.0, kh=0.1, kv=0.0,
+            footing_type="strip", B=2.0, L=10.0,
+            seismic_moment_L_kNm=10.0,
+        )
+    with pytest.raises(ValueError, match="V−kvW≤0"):
+        seismic_foundation_eccentricity_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+            seismic_weight_kN=2500.0, kh=0.1, kv=0.5,
+            footing_type="spread", B=2.0, L=3.0,
         )
