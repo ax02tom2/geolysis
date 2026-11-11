@@ -730,6 +730,19 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
         M = _finite("DMT constrained modulus MDMT", row.get("MDMT_kpa"))
         if H <= 0 or z < H / 2.0 or M <= 0:
             raise ValueError(f"DMT 第 {index} 層厚度、中心深度或 MDMT 不合理")
+        layer_top = z - H / 2.0
+        layer_bottom = z + H / 2.0
+        continuity_tolerance = 1e-3
+        if abs(layer_top - profile_bottom) > continuity_tolerance:
+            if layer_top > profile_bottom:
+                raise ValueError(
+                    f"DMT MDMT 剖面第 {index} 層與前一層之間有 "
+                    f"{layer_top - profile_bottom:.3f} m 空缺；必須由基礎底起連續分層，不能略過未測土層"
+                )
+            raise ValueError(
+                f"DMT MDMT 剖面第 {index} 層與前一層重疊或順序錯誤 "
+                f"({layer_top:.3f} m < 前層底 {profile_bottom:.3f} m)"
+            )
         raw_iz = row.get("I_sigma")
         if raw_iz is not None and not (isinstance(raw_iz, float) and math.isnan(raw_iz)):
             Iz = _finite("DMT 應力影響係數 I_sigma", raw_iz)
@@ -742,7 +755,7 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
             raise ValueError(f"DMT 第 {index} 層 I_sigma 必須介於 0 與 1")
         delta_sigma = Iz * q_net
         settlement = delta_sigma / M * H * 1000.0
-        profile_bottom = max(profile_bottom, z + H / 2.0)
+        profile_bottom = layer_bottom
         rows.append({
             "Layer": row.get("Layer", index), "Depth_center_m": z,
             "Thickness_m": H, "MDMT_kPa": M, "Stress_factor_I_sigma": Iz,

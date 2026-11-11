@@ -1701,7 +1701,7 @@ def test_usace_2025_appendix_c7b_dmt_modulus_settlement_table_rows():
         (16.4,.7,1570,.097),
     ]
     layers = [
-        {"Layer": i+1, "depth_center_m": z*ft, "thickness_m": h*ft,
+        {"Layer": i+1, "depth_center_m": (z-h/2.0)*ft, "thickness_m": h*ft,
          "MDMT_kpa": M*tsf, "I_sigma": Iz}
         for i,(z,h,M,Iz) in enumerate(data)
     ]
@@ -1834,7 +1834,7 @@ def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
         (29.8,.6,33,.031),(30.5,.7,32,.030),
     ]
     layers = [
-        {"Layer":i+1,"depth_center_m":z*ft,"thickness_m":H*ft,
+        {"Layer":i+1,"depth_center_m":(z-H/2.0)*ft,"thickness_m":H*ft,
          "MDMT_kpa":M*tsf,"I_sigma":Iz}
         for i,(z,H,M,Iz) in enumerate(data)
     ]
@@ -1968,3 +1968,41 @@ def test_aashto_m145_group_boundaries(fines, p10, p40, ll, pi, expected):
         ll=ll, pl=ll-pi, np_flag=(pi == 0),
     )
     assert result["AASHTO"] == expected
+
+
+
+@pytest.mark.parametrize(
+    ("second_center", "expected_message"),
+    [
+        (1.60, "空缺"),
+        (1.40, "重疊或順序錯誤"),
+    ],
+)
+def test_usace_2025_dmt_direct_mdmt_profile_rejects_gaps_and_overlaps(
+    second_center, expected_message
+):
+    # Each layer has H=1 m. First layer covers 0–1 m; the second must start at 1 m.
+    layers = [
+        {"Layer": 1, "depth_center_m": 0.5, "thickness_m": 1.0,
+         "MDMT_kpa": 10000.0},
+        {"Layer": 2, "depth_center_m": second_center, "thickness_m": 1.0,
+         "MDMT_kpa": 12000.0},
+    ]
+    with pytest.raises(ValueError, match=expected_message):
+        dmt_modulus_settlement_2025(
+            layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
+
+
+def test_usace_2025_dmt_direct_mdmt_profile_must_start_at_footing_base():
+    layers = [
+        {"Layer": i + 1, "depth_center_m": 0.6 + i,
+         "thickness_m": 1.0, "MDMT_kpa": 10000.0}
+        for i in range(2)
+    ]
+    with pytest.raises(ValueError, match="空缺"):
+        dmt_modulus_settlement_2025(
+            layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
