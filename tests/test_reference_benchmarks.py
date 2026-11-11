@@ -2326,7 +2326,7 @@ def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations
             effective_width_m=2.0, bearing_factor_ngamma=20.0,
             residual_excess_pore_pressure_ratio=0.2,
         )
-    with pytest.raises(ValueError, match="完整承載力剪力區"):
+    with pytest.raises(ValueError, match="部分剪力區模式必須提供"):
         seismic_bearing_capacity_residual_pore_pressure(
             footing_type="spread", effective_unit_weight_kn_m3=18.0,
             effective_width_m=2.0, bearing_factor_ngamma=20.0,
@@ -2340,7 +2340,7 @@ def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations
     ("non_liquefiable_confirmed", "full_shear_zone_confirmed", "message"),
     [
         (False, True, "不液化／無循環剪力強度損失"),
-        (True, False, "完整承載力剪力區"),
+        (True, False, "部分剪力區模式必須提供"),
     ],
 )
 def test_usace_seismic_cases_require_both_applicability_confirmations(
@@ -2999,4 +2999,85 @@ def test_general_seismic_eccentricity_rejects_spread_footing_with_long_side_shor
             vertical_load_kN=1000.0, horizontal_load_kN=0.0,
             seismic_weight_kN=1000.0, kh=0.1, kv=0.0,
             footing_type="spread", B=3.0, L=2.0,
+        )
+
+
+def test_usace_seismic_residual_pore_pressure_weighted_partial_shear_zone_formula():
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=10.0,
+        effective_unit_weight_unaffected_kn_m3=18.0,
+        effective_width_m=2.0, bearing_factor_ngamma=20.0,
+        residual_excess_pore_pressure_ratio=0.5,
+        shape_depth_inclination_factor=1.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
+        partial_shear_zone_affected_fraction=0.4,
+    )
+    expected_gamma_b = 0.4 * (1.0 - 0.5) * 10.0 + 0.6 * 18.0
+    expected_unweighted = 0.4 * 10.0 + 0.6 * 18.0
+    assert result["gamma_effective_weighted_kn_m3"] == pytest.approx(expected_gamma_b)
+    assert result["pore_pressure_resistance_factor"] == pytest.approx(expected_gamma_b / expected_unweighted)
+    assert result["qu_seismic_kpa"] == pytest.approx(0.4 * expected_gamma_b * 2.0 * 20.0)
+    assert result["pore_pressure_affected_fraction"] == pytest.approx(0.4)
+
+
+def test_usace_seismic_residual_pore_pressure_cases_accept_weighted_partial_shear_zone():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
+        partial_shear_zone_affected_fraction=0.5,
+        gamma_effective_susceptible_kn_m3=10.0,
+        gamma_effective_unaffected_kn_m3=18.5,
+    )
+    expected_gamma_b = 0.5 * (1.0 - 0.2) * 10.0 + 0.5 * 18.5
+    assert result["partial_shear_zone_affected_fraction"] == pytest.approx(0.5)
+    assert all(case["gamma_effective_weighted_kn_m3"] == pytest.approx(expected_gamma_b)
+               for case in result["cases"])
+    assert result["qu_seismic_governing_kpa"] is not None
+
+
+def test_usace_seismic_partial_shear_zone_requires_fraction_and_both_effective_unit_weights():
+    with pytest.raises(ValueError, match="部分剪力區模式必須提供"):
+        seismic_bearing_capacity_residual_pore_pressure_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+            kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+            footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+            c_kpa=0.0, phi_deg=30.0,
+            gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+            B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+            non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
+            partial_shear_zone_affected_fraction=0.5,
+            gamma_effective_susceptible_kn_m3=10.0,
+        )
+
+
+def test_usace_seismic_full_shear_zone_rejects_partial_zone_overrides():
+    with pytest.raises(ValueError, match="完整剪力區模式不可同時輸入"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_unit_weight_unaffected_kn_m3=18.0,
+            effective_width_m=2.0, bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.5,
+            non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+            partial_shear_zone_affected_fraction=0.4,
+        )
+
+
+@pytest.mark.parametrize("fraction", [0.0, 1.0, -0.1, 1.1])
+def test_usace_seismic_partial_shear_zone_rejects_invalid_weighted_fraction(fraction):
+    with pytest.raises(ValueError, match="部分剪力區加權比例須介於 0 與 1"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_unit_weight_unaffected_kn_m3=18.0,
+            effective_width_m=2.0, bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.5,
+            non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
+            partial_shear_zone_affected_fraction=fraction,
         )
