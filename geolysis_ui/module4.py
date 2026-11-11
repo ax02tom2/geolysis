@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure
 
 
 def render_module_4(expanded=False):
@@ -14,7 +14,7 @@ def render_module_4(expanded=False):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
         method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
         if method4.startswith('砂土／礫土'):
-            st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；輸入值應是基礎底至影響深度內的平均 N60，不是 (N1)60。")
+            st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；使用基礎底至影響深度內的平均 N60，不是 (N1)60。可直接連結模組三剖面，並依基礎埋深將地表深度換算為基礎底下深度。")
             a,b,c=st.columns(3)
             with a:
                 n4=st.number_input("影響深度內平均 N60",1.0,100.0,20.0,1.0,key='m4_bb_n60')
@@ -29,9 +29,15 @@ def render_module_4(expanded=False):
                 sigp4=st.number_input("先期固結壓力 σ′p [kPa]（正常固結時採 σ′0）",1.0,5000.0,100.0,5.0,key='m4_bb_sigp')
             with c:
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
+                df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
             profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；欄位 Depth_below_base_m、N60）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60\n0.5,18\n1.0,20\n1.5,22")
+            m3_profile_data4=st.session_state.get('m3_profile_result')
+            use_m3_spt4=st.checkbox("直接使用模組三已校正 SPT 剖面（N60）",
+                value=False,disabled=(m3_profile_data4 is None),key='m4_bb_use_m3_spt')
+            if m3_profile_data4 is None:
+                st.caption("尚無模組三有效 SPT 剖面；先在模組三輸入／上傳逐深度資料並完成修正後，此處即可直接帶入。")
             d,e=st.columns(2)
             with d:
                 oc4=st.checkbox("超固結顆粒土（使用 σ′p 分段式）",key='m4_bb_oc')
@@ -41,7 +47,15 @@ def render_module_4(expanded=False):
                 ndecrease4=st.checkbox("N60 隨深度持續下降（影響深度改採 min(2B, 鬆弱層厚度)）",key='m4_bb_decrease')
             try:
                 n60_used4=n4
-                if profile_text4.strip():
+                if use_m3_spt4:
+                    avg_bb=burland_burbidge_average_n60_from_ground_profile(
+                        m3_profile_data4.to_dict('records'),foundation_depth_m=df_bb4,
+                        width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
+                        gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
+                    n60_used4=avg_bb['N60_average']
+                    st.caption(f"已由模組三地表深度扣除 Df={df_bb4:.2f} m，依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆有效 N60；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
+                elif profile_text4.strip():
                     prof_bb=pd.read_csv(StringIO(profile_text4))
                     avg_bb=burland_burbidge_average_n60_from_profile(prof_bb.to_dict('records'),
                         width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
@@ -50,7 +64,7 @@ def render_module_4(expanded=False):
                     st.caption(f"依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆測點；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
                     st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
                 elif gravel4 or fine_sat4:
-                    st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可貼上剖面 CSV 以自動處理。")
+                    st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
                 bb_args=dict(n60_average=n60_used4,width_m=width4,length_m=length4,
                     initial_effective_stress_kpa=sig04,preconsolidation_stress_kpa=sigp4,
                     granular_layer_thickness_m=hs4,years=years4,load_type=loadtype4,
