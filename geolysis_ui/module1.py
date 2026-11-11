@@ -183,9 +183,13 @@ def render_module_1(expanded=False):
                 _mi_range_text = f"{mi_low:g}–{mi_high:g}" if mi_low != mi_high else f"{mi_low:g}（單一案例／採用值）"
                 st.caption(f"mi 參考值：{_mi_range_text}；採用 {mi:g}。{mi_source}。")
                 if rock_preset == "砂岩 Sandstone（台灣南莊層三軸案例）":
-                    st.markdown("[查看南莊層砂岩三軸反算案例](https://www.thb.gov.tw/FileResource.axd?path=html%2Fdoc%2F%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B%2F%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)")
+                    st.markdown("[查看南莊層砂岩三軸反算案例](https://ws.thb.gov.tw/001/Upload/OldFile/resource/html/doc/%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B/%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)")
                 elif rock_preset == "片岩 Schist（蘇花公路案例）":
                     st.markdown("[查看蘇花公路片岩工程參數來源](https://dptrc.sinotech.org.tw/chinese/02_about/download.php%40f%3Dmenu01361588416.pdf)")
+                if rock_preset == "砂岩 Sandstone（台灣南莊層三軸案例）":
+                    st.info("同一 2014 年南莊層隧道案例：完整岩心三軸反算 mi=7.752、單壓強度 σci=5.022 MPa；報告另將隧道岩體 GSI 評估為 40–55。請區分完整岩心 GSI=100（用於完整岩石參數反算）與岩體 GSI=40–55（用於岩體分析），不可混用。")
+                elif rock_preset == "片岩 Schist（蘇花公路案例）":
+                    st.info("同一 2012 年蘇花公路片岩案例：mi=10、擾動係數 D=0.7；不同區域的岩體 GSI 分別採 15（崩坍區）、25（崩積層）、35（塊狀岩盤）。這些是三種不同地質區的案例值，不是同一岩體的統計範圍；請依現地條件選用。")
     
             st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
             st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
