@@ -68,8 +68,8 @@ def render_module_4(expanded=False):
                 bb_args=dict(n60_average=n60_used4,width_m=width4,length_m=length4,
                     initial_effective_stress_kpa=sig04,preconsolidation_stress_kpa=sigp4,
                     granular_layer_thickness_m=hs4,years=years4,load_type=loadtype4,
-                    overconsolidated=oc4,gravel_adjustment=(gravel4 if not profile_text4.strip() else False),
-                    fine_sand_saturated=(fine_sat4 if not profile_text4.strip() else False),
+                    overconsolidated=oc4,gravel_adjustment=(gravel4 if not profile_text4.strip() and not use_m3_spt4 else False),
+                    fine_sand_saturated=(fine_sat4 if not profile_text4.strip() and not use_m3_spt4 else False),
                     n_decreases_with_depth=ndecrease4)
                 pressure_check4=None
                 if qult4>0:
