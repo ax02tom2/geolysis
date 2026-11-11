@@ -681,7 +681,7 @@ Module 2 independent USCS/AASHTO classification benchmark — PR #66
 Module 5 seismic horizontal direction and inclined-geometry applicability guard — PR #67
 
 - Audited the pseudo-static horizontal action convention. The engine now makes explicit that the adverse horizontal envelope aligns the pre-earthquake static horizontal action H with kh·V; both vertical cases V(1±kv) remain evaluated.
-- Clarified that V is used as a proxy for seismic weight in kh·V. The UI states that H must exclude already-counted seismic inertia and that the proxy weight must be reconciled with the effective seismic weight from the structural analysis.
+- At the PR #67 stage, V was still used as a proxy for seismic weight in kh·V. This provisional assumption was superseded by PR #69, which adds a separate effective seismic weight W input.
 - The USACE 2025 residual-pore-pressure bearing branch now rejects nonzero base inclination or ground slope. The current scalar Meyerhof load-inclination implementation does not encode the reversed earthquake-force direction relative to inclined base/ground geometry; silently combining static slope corrections with this seismic branch would overstate the model's directional capability.
 - Module 5 disables the seismic pore-pressure-reduced bearing action when either angle is nonzero and explains why. Static slope/base bearing corrections remain available separately.
 - Added regression tests for the adverse horizontal action envelope and rejection of both inclined-base and sloping-ground seismic cases.
@@ -689,3 +689,19 @@ Module 5 seismic horizontal direction and inclined-geometry applicability guard 
 - GitHub Actions run 42989784735: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 389 passed in 1.74 s.
 - Published USACE Appendix B/C worked-example benchmark count remains 66; this PR adds three regression/guard tests, not new worked-example benchmarks.
 - References: USACE EM 1110-1-1905 (31 Jul 2025), Table 5-3, §5-5f(3)-(5), Chapter 9 §9-10 and Eqs. 9-3/9-4.
+
+
+
+Module 5 effective seismic weight separated from static foundation reaction — PR #69
+
+- The earlier pseudo-static workflow used the static foundation vertical reaction V as the proxy for seismic weight in both kh·V and kv·V. This was a useful preliminary approximation but not generally equivalent to the effective seismic weight used by the structural seismic load calculation.
+- USACE EM 1110-1-1905 (31 Jul 2025), Eq. 5-1 defines the static foundation reaction V=Q+Wf, with Wf including footing weight and soil above the bearing elevation. ASCE/SEI 7-22 §12.7.2 defines effective seismic weight W separately, including dead load and specified portions of other loads.
+- The engine now accepts an optional effective seismic weight W. Horizontal earthquake increment is kh·W; the vertical earthquake cases are V±kv·W. If W is omitted by legacy callers, V remains the backward-compatible preliminary proxy.
+- Module 5 exposes W as a separate input, initially defaulted to V for preliminary work; users can enter the effective seismic weight from structural analysis. H is still treated as the pre-earthquake static horizontal action, excluding any seismic inertia already included elsewhere.
+- If V−kv·W≤0, the pseudo-static bearing envelope rejects the case and directs the user to perform a separate uplift/contact analysis. The current bearing resistance path assumes positive compressive contact.
+- Both the general pseudo-static envelope and residual-pore-pressure bearing calculation use the same W; result signatures include W to prevent stale results after the input changes.
+- Added three regression tests: separate W from V, reject zero/uplift vertical contact, and verify W propagates into residual-pore-pressure bearing cases.
+- PR #69 merged to main at 5d17bdac695012f87f575c6488af092b4d56d334.
+- GitHub Actions run 42990267495: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 392 passed in 2.22 s.
+- Public USACE Appendix B/C worked-example benchmark count remains 66; these are additional load-model regression checks, not new worked-example benchmarks.
+- References: USACE EM 1110-1-1905 (31 Jul 2025), §5-2a and Eq. 5-1; ASCE/SEI 7-22 §12.7.2 (effective seismic weight).

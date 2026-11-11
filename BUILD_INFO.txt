@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: c7bc075ad2aad3f39ed24a5fbb551353bf8aafc3
+Validated main code commit: 5d17bdac695012f87f575c6488af092b4d56d334
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 389 passed
-GitHub Actions validation run: 42989784735 (success; Python 3.11 compile passed; Streamlit AppTest included; 389 passed in 1.74 s; PR #67 seismic direction guard)
-Runtime smoke: PR #67 CI run 42989784735 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
+Latest verified automated suite: 392 passed
+GitHub Actions validation run: 42990267495 (success; Python 3.11 compile passed; Streamlit AppTest included; 392 passed in 2.22 s; PR #69 effective seismic weight)
+Runtime smoke: PR #69 CI run 42990267495 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -135,4 +135,6 @@ Module 2 independent USCS/AASHTO classification benchmark — PR #66
 - GitHub Actions run 42987676198: success; Python 3.11 compile passed; full suite 386 passed in 2.49 s.
 - References: Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2/2-5; AASHTO M145 (2021), §§3.1, 6.1–6.1.2.
 
-Module 5 seismic direction applicability — PR #67: pseudo-static horizontal force is explicitly treated as the adverse aligned envelope H+khV, with both vertical cases V(1±kv). V is a proxy for seismic weight and must be reconciled with the structural seismic mass; H must exclude any already-counted seismic inertia to avoid double counting. The residual-pore-pressure bearing branch now rejects nonzero base or ground inclination because the current scalar Meyerhof model does not encode reversed earthquake-force direction relative to the inclined geometry. The UI disables the calculation in those cases. Static slope/base corrections remain available separately. Added three regression tests; GitHub Actions run 42989784735 passed 389 tests in 1.74 s. USACE Appendix B/C benchmark count remains 66.
+Module 5 seismic direction applicability — PR #67: pseudo-static horizontal force is explicitly treated as the adverse aligned envelope; the residual-pore-pressure bearing branch rejects nonzero base or ground inclination because the current scalar Meyerhof model does not encode reversed earthquake-force direction relative to inclined geometry. Static slope/base corrections remain available separately. PR #69 supersedes the preliminary khV/V assumption by using a separate effective seismic weight W for khW and ±kvW; see validation record below.
+
+Module 5 effective seismic weight — PR #69: static vertical foundation reaction V and effective seismic weight W are now separate inputs. Horizontal pseudo-static increment is kh·W; vertical cases are V±kv·W. W defaults to V only as a backward-compatible preliminary proxy, while Module 5 exposes a separate W input for the value derived from structural seismic analysis. The calculation rejects V−kv·W≤0 because compression-only bearing resistance is not valid when the vertical case reaches zero contact or uplift. Added three regression tests. PR #69 merged at 5d17bdac695012f87f575c6488af092b4d56d334; GitHub Actions run 42990267495 passed 392 tests in 2.22 s. Public USACE Appendix B/C benchmark count remains 66.
