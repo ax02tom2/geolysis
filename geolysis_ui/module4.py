@@ -253,8 +253,16 @@ def render_module_4(expanded=False):
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
                 if pmtQu>0 and pmtFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
-                pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
-            pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
+                pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat","rock"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭","rock":"岩石"}[x],key="m4_pmt_soil")
+            pmtRockCondition=None
+            if pmtSoil=="rock":
+                pmtState="auto"
+                pmtRockCondition=st.selectbox("岩體分類（表 7-6）",[
+                    "extremely_fractured","other","slightly_fractured_or_extremely_weathered"
+                ],format_func=lambda x:{"extremely_fractured":"極度破碎（α=1/3）","other":"其他岩體（α=1/2）","slightly_fractured_or_extremely_weathered":"輕度破碎或極度風化（α=2/3）"}[x],key="m4_pmt_rock_condition")
+                st.caption("岩石 α 依 USACE Table 7-6 岩體狀態直接選取，不使用土壤 E/pne 固結狀態判讀。")
+            else:
+                pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
             if pmtSoil=="peat" and pmtState=="auto":
                 st.warning("USACE Table 7-6 僅列正常固結泥炭 α=1；須先確認泥炭為正常固結，並明確選擇「正常固結」，不可由 E/pne 自動推定。")
             if pmtRound:
