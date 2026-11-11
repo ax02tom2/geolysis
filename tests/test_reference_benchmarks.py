@@ -2261,3 +2261,11 @@ def test_uscs_astm_u_line_flags_points_above_or_left_for_retest():
     assert left["plasticity_warning"] and "左側" in left["plasticity_warning"]
     assert normal["plasticity_warning"] == ""
     assert above["U_line_PI"] == pytest.approx(19.8)
+
+
+
+def test_uscs_peat_result_keeps_optional_plasticity_warning_fields():
+    result = classify_uscs_aashto(peat=True)
+    assert result["USCS"] == "PT"
+    assert result["U_line_PI"] is None
+    assert result["plasticity_warning"] == ""
