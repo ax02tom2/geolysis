@@ -145,6 +145,187 @@ def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
             'primary_settlement_at_elapsed_mm':settlement*Uelapsed/100.0})
     return result
 
+
+def consolidation_time_rate_layers(*, layer_results, layer_time_parameters,
+                                   target_degree_percent=90.0,
+                                   elapsed_days=365.25):
+    """Integrate independent 1-D Terzaghi time-rate responses for multiple layers.
+
+    Each layer requires its own Cv and drainage path (Drainage='single' or
+    'double', or an explicit Hdr_m). C_alpha/e_p are optional; when C_alpha>0,
+    e_p is required and t1_days may be supplied. If t1_days is omitted, the
+    USACE Figure 7-16 U=99.4% (Tv≈2.0) time is used as an explicitly approximate
+    start of secondary compression.
+    """
+    if not isinstance(layer_results, (list, tuple)) or not layer_results:
+        raise ValueError('需提供至少一個已計算主固結沉陷的分層結果')
+    if not isinstance(layer_time_parameters, (list, tuple)) or not layer_time_parameters:
+        raise ValueError('需逐層提供 Cv 與排水路徑參數')
+    Utarget=_pct('目標平均固結度',target_degree_percent)
+    if not 0<Utarget<100:
+        raise ValueError('目標平均固結度 U 必須大於 0% 且小於 100%')
+    elapsed=_finite('共同經過時間',elapsed_days)
+    if elapsed<0:
+        raise ValueError('共同經過時間不可為負')
+
+    def layer_key(value):
+        if value is None:
+            return ''
+        try:
+            number=float(value)
+            if math.isfinite(number) and number.is_integer():
+                return str(int(number))
+        except (TypeError, ValueError):
+            pass
+        return str(value).strip()
+
+    def optional_number(value, name):
+        if value is None or str(value).strip()=='':
+            return None
+        try:
+            number=float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f'{name} 必須為數值或留白')
+        if math.isnan(number):
+            return None
+        return _finite(name, number)
+
+    primary_by_key={}
+    for i,row in enumerate(layer_results,1):
+        key=layer_key(row.get('Layer',i))
+        if not key or key in primary_by_key:
+            raise ValueError('主固結分層結果的 Layer 編號不可空白或重複')
+        H=_finite('壓縮層厚度',row.get('Thickness_m'))
+        S=_finite('最終主固結沉陷',row.get('Settlement_mm'))
+        if H<=0 or S<0:
+            raise ValueError('各層厚度須大於 0，主固結沉陷不可為負')
+        primary_by_key[key]={'Layer':row.get('Layer',i),'Thickness_m':H,
+                             'Settlement_mm':S}
+
+    parameter_by_key={}
+    for row in layer_time_parameters:
+        key=layer_key(row.get('Layer'))
+        if not key or key in parameter_by_key:
+            raise ValueError('時間參數 CSV 的 Layer 編號不可空白或重複')
+        parameter_by_key[key]=row
+    if set(parameter_by_key)!=set(primary_by_key):
+        missing=sorted(set(primary_by_key)-set(parameter_by_key))
+        extra=sorted(set(parameter_by_key)-set(primary_by_key))
+        details=[]
+        if missing: details.append('缺少 Layer：'+', '.join(missing))
+        if extra: details.append('多餘 Layer：'+', '.join(extra))
+        raise ValueError('時間參數必須與主固結分層結果一一對應；'+'；'.join(details))
+
+    tv_target=_terzaghi_time_factor_from_degree(Utarget)
+    tv_secondary_start=_terzaghi_time_factor_from_degree(99.4)
+    prepared=[]
+    for key,base in primary_by_key.items():
+        params=parameter_by_key[key]
+        H=base['Thickness_m']
+        cv=_finite('逐層固結係數 Cv',params.get('Cv_m2_per_day'))
+        if cv<=0:
+            raise ValueError(f'Layer {key} 的 Cv 必須大於 0')
+        hdr_input=optional_number(params.get('Hdr_m'),'逐層排水距離 Hdr')
+        drainage=str(params.get('Drainage') or '').strip().lower()
+        if hdr_input is not None:
+            Hdr=hdr_input
+            drainage_label='指定 Hdr'
+            if Hdr<=0 or Hdr>H:
+                raise ValueError(f'Layer {key} 的 Hdr 必須大於 0 且不得超過該層厚度')
+        elif drainage=='double':
+            Hdr=H/2.0
+            drainage_label='double'
+        elif drainage=='single':
+            Hdr=H
+            drainage_label='single'
+        else:
+            raise ValueError(f'Layer {key} 必須指定 Drainage=single/double，或提供 Hdr_m')
+        Ca=optional_number(params.get('C_alpha'),'逐層次壓縮指數 C_alpha')
+        Ca=0.0 if Ca is None else Ca
+        if Ca<0:
+            raise ValueError(f'Layer {key} 的 C_alpha 不可為負')
+        ep=optional_number(params.get('e_p'),'主固結完成時孔隙比 e_p')
+        t1=optional_number(params.get('t1_days'),'次壓縮起算時間 t1_days')
+        t1_source='輸入值'
+        if Ca>0:
+            if ep is None or ep<=-1:
+                raise ValueError(f'Layer {key} 的 C_alpha>0 時，必須提供 e_p>-1')
+            if t1 is None:
+                t1=tv_secondary_start*Hdr**2/cv
+                t1_source='USACE U=99.4% 近似估算'
+            if t1<=0:
+                raise ValueError(f'Layer {key} 的 t1_days 必須大於 0')
+        else:
+            ep=None
+            t1=None
+            t1_source='未啟用次壓縮'
+        prepared.append({
+            **base,'Cv_m2_per_day':cv,'Drainage':drainage_label,
+            'Hdr_m':Hdr,'C_alpha':Ca,'e_p':ep,'t1_days':t1,
+            't1_source':t1_source,
+            'time_to_target_days':tv_target*Hdr**2/cv,
+        })
+
+    total_primary=sum(row['Settlement_mm'] for row in prepared)
+    def average_degree_at(days):
+        if total_primary<=0:
+            return 0.0
+        settled=0.0
+        for row in prepared:
+            tv=days*row['Cv_m2_per_day']/(row['Hdr_m']**2)
+            degree=_terzaghi_degree_from_time_factor(tv)
+            settled+=row['Settlement_mm']*degree/100.0
+        return 100.0*settled/total_primary
+
+    if total_primary<=0:
+        target_days=0.0
+    else:
+        low=0.0
+        high=max(row['time_to_target_days'] for row in prepared)
+        for _ in range(90):
+            mid=(low+high)/2.0
+            if average_degree_at(mid)<Utarget:
+                low=mid
+            else:
+                high=mid
+        target_days=(low+high)/2.0
+
+    layer_output=[]
+    total_primary_elapsed=0.0
+    total_secondary_elapsed=0.0
+    for row in prepared:
+        tv_elapsed=elapsed*row['Cv_m2_per_day']/(row['Hdr_m']**2)
+        degree=_terzaghi_degree_from_time_factor(tv_elapsed)
+        primary_elapsed=row['Settlement_mm']*degree/100.0
+        secondary=0.0
+        if row['C_alpha']>0 and elapsed>row['t1_days']:
+            secondary=(row['C_alpha']*row['Thickness_m']/(1.0+row['e_p'])
+                       *math.log10(elapsed/row['t1_days'])*1000.0)
+        total_primary_elapsed+=primary_elapsed
+        total_secondary_elapsed+=secondary
+        layer_output.append({
+            **row,'time_factor_at_elapsed':tv_elapsed,
+            'degree_at_elapsed_percent':degree,
+            'primary_settlement_at_elapsed_mm':primary_elapsed,
+            'secondary_settlement_at_elapsed_mm':secondary,
+            'total_settlement_at_elapsed_mm':primary_elapsed+secondary,
+        })
+    average_elapsed=average_degree_at(elapsed)
+    return {
+        'layer_results':layer_output,
+        'target_degree_percent':Utarget,
+        'time_to_target_days':target_days,
+        'time_to_target_years':target_days/365.25,
+        'elapsed_days':elapsed,
+        'average_degree_at_elapsed_percent':average_elapsed,
+        'ultimate_primary_settlement_mm':total_primary,
+        'primary_settlement_at_elapsed_mm':total_primary_elapsed,
+        'secondary_settlement_at_elapsed_mm':total_secondary_elapsed,
+        'total_settlement_at_elapsed_mm':total_primary_elapsed+total_secondary_elapsed,
+        'method':'逐層獨立一維 Terzaghi 固結時間率；USACE EM 1110-1-1905 (2025) §7-18 / Figure 7-16；次壓縮採 Eq. 7-47',
+        'limitations':'各層以獨立一維平均固結度模型計算，並在共同經過時間下加總；不是含層間排水阻抗、砂層排水邊界變化、垂直排水井或施工分期的全耦合多層固結分析。每層 Cv 與 Hdr 必須依試驗及實際排水邊界取得。若未輸入 t1_days，次壓縮起算時間以 U=99.4%（Tv≈2.0）近似，正式設計宜以固結試驗判讀 t1 取代。'
+    }
+
 def immediate_elastic_settlement(*, net_pressure_kpa, footing_width_m,
                                  soil_modulus_mpa, poisson_ratio=0.5,
                                  influence_factor=0.82):
