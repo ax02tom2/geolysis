@@ -435,8 +435,9 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
     sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
     pne = _finite("PMT 等效淨極限壓力 pne", equivalent_net_limit_pressure_kpa)
+    py = _finite("PMT 屈服壓力 Py", yield_pressure_kpa)
     fs = _finite("承載力安全係數", factor_of_safety)
-    if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or fs <= 0 or not pmt_moduli:
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or py <= 0 or fs <= 0 or not pmt_moduli:
         raise ValueError("基礎尺寸、壓力、PMT pne、FS 或模數資料不合理")
     if soft_layers:
         if not soft_layer_profile_reviewed:
@@ -465,6 +466,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         q_used = min(q, qult / fs)
     else:
         q_used = q
+    if q_used > py:
+        raise ValueError(f"採用 gross q／qeq={q_used:.1f} kPa 超過 PMT 屈服壓力 Py={py:.1f} kPa；須改用對應壓力的割線模數")
     q_net = q_used - sigD
     if q_net <= 0:
         raise ValueError("gross q／qeq 不大於基礎底初始有效應力，無正的新增壓力")
