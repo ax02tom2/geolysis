@@ -1662,3 +1662,20 @@ def test_usace_2025_menard_pmt_weathered_clay_alpha_uses_table_7_6_range():
             soil_type="clay", consolidation_state="weathered_remolded",
             round_footing=True, deep_uniform_deposit_confirmed=True,
         )
+
+
+
+def test_usace_2025_menard_pmt_rejects_design_pressure_above_yield_pressure():
+    pmt = [
+        {"group": group, "E0_kpa": 12000.0}
+        for group in ("E1", "E2", "E345", "E678", "E916")
+    ]
+    with pytest.raises(ValueError, match="超過 PMT 屈服壓力 Py"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=300.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=1500.0,
+            yield_pressure_kpa=250.0,
+            soil_type="sand", consolidation_state="normally_consolidated",
+            round_footing=True, deep_uniform_deposit_confirmed=True,
+        )
