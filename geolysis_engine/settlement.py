@@ -485,7 +485,7 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
         if raw_n is None or (isinstance(raw_n,(int,float)) and math.isnan(float(raw_n))):
             continue
         n=_finite('N60',raw_n)
-        converted.append({'Depth_below_base_m':max(0.0,z),'N60':n})
+        converted.append({'Depth_below_base_m':max(0.0,z),'N60':n, **({'Burland_Material':row.get('Burland_Material')} if 'Burland_Material' in row else {})})
     if not converted:
         raise ValueError('基礎底以下沒有可用的 N60 測點；拒錘／部分貫入列不納入平均')
     result=burland_burbidge_average_n60_from_profile(
