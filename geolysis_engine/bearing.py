@@ -775,7 +775,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
             else:
                 resistance=seismic_bearing_capacity_residual_pore_pressure(
                     footing_type=footing_type,
-                    effective_unit_weight_kn_m3=corrected['gamma_effective'],
+                    effective_unit_weight_kn_m3=(corrected['gamma_effective'] if full_shear_zone_confirmed else gamma_susceptible_input),
                     effective_width_m=base['B_effective'],
                     bearing_factor_ngamma=base['Ngamma'],
                     residual_excess_pore_pressure_ratio=ru,
