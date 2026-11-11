@@ -436,11 +436,12 @@ def render_module_4(expanded=False):
                                 params_ready4=True
                                 for row in time_params4:
                                     cv_value=row.get("Cv_m2_per_day")
-                                    drainage_value=str(row.get("Drainage") or "").strip()
+                                    drainage_raw=row.get("Drainage")
+                                    drainage_missing=(drainage_raw is None or pd.isna(drainage_raw) or str(drainage_raw).strip()=="")
                                     hdr_value=row.get("Hdr_m")
                                     if cv_value is None or pd.isna(cv_value) or str(cv_value).strip()=="":
                                         params_ready4=False
-                                    if not drainage_value and (hdr_value is None or pd.isna(hdr_value) or str(hdr_value).strip()==""):
+                                    if drainage_missing and (hdr_value is None or pd.isna(hdr_value) or str(hdr_value).strip()==""):
                                         params_ready4=False
                                 if params_ready4:
                                     multi_time4=consolidation_time_rate_layers(
