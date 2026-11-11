@@ -489,3 +489,17 @@ Module 1 eastern Taiwan crystalline-rock statistics — PR #48
 
 Combined PR #49 validation after PR #47/#48: GitHub Actions run 42971389181 succeeded; Python 3.11 compile and Streamlit AppTest passed; 344 automated tests passed in 2.03 s. PR #48 adds UI reference data only and no engine tests.
 Published USACE worked-example benchmark count remains 59: 53 Appendix B plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e. All equation-level and UI regression tests remain counted separately.
+
+
+
+Module 3 mixed-layer SPT profile corrections — PR #51
+
+- Added optional per-row `Soil_Behavior` (cohesionless/cohesive) and `Apply_Dilatancy` (true/false) overrides. CN is now applied only to cohesionless rows; cohesive rows use CB=1 and CN=1. Dilatancy is applied only to explicitly eligible cohesionless rows and remains downstream of CN.
+- Added optional per-row `Energy_Ratio_pct`, `Borehole_Factor`, `Sampler_Factor`, and `Rod_Length_m` overrides; blank values retain the existing profile-wide settings.
+- Refusal rows remain in the profile but do not receive ordinary N60 or (N1)60 corrections.
+- Module 3 warns when a profile omits row-level soil behavior, and when a global dilatancy selection would apply to every cohesionless row. CSV output preserves the selected per-row correction fields.
+- Added three regression tests covering mixed sand/clay profiles, row-specific equipment factors, row-specific dilatancy, refusal rows, invalid combinations, and fallback behavior.
+- PR #51 merged to main at 2c1dc2c9f3157eb5984db0b71548846ec5784c15.
+- GitHub Actions run 42983198348: success; Python 3.11 compile passed; full suite 355 passed in 2.08 s.
+- Published worked-example benchmark count remains 54; this PR adds three equation/applicability regression tests, not new published examples.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 4-6 and Eqs. 4-4 to 4-7.
