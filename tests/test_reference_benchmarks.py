@@ -16,6 +16,7 @@ from geolysis_engine import (
     hoek_brown_parameters,
     bearing_capacity,
     bearing_capacity_in_situ,
+    layered_bearing_capacity_in_situ_profile,
     bearing_pressure_safety_check,
     bearing_capacity_slope_base_corrections,
     layered_bearing_capacity_punching,
@@ -982,4 +983,57 @@ def test_usace_2025_middle_third_boundary_is_strictly_inside():
     )
     assert result["passes_middle_third"] is False
     assert result["passes_all_checks"] is False
+
+def test_usace_in_situ_layered_profile_spread_and_control():
+    # Independently calculate layer resistances from Table 5-5, then apply
+    # Eq. 5-17. B=2 m, L=3 m, Hs=1.5 m gives spread=(3.5*4.5)/(2*3)=2.625.
+    result = layered_bearing_capacity_in_situ_profile(
+        layers=[
+            {"thickness_m":1.5,"test_type":"SPT","drainage":"drained","measurements":[20,22,18]},
+            {"thickness_m":2.0,"test_type":"SPT","drainage":"undrained","measurements":[4,5,4]},
+        ],
+        footing_width_m=2.0,footing_length_m=3.0,
+        footing_depth_m=0.0,water_depth_m=10.0,
+        gamma_moist_kn_m3=18.0,gamma_sub_kn_m3=9.0,
+    )
+    top_mean=(20*22*18)**(1/3)
+    weak_mean=(4*5*4)**(1/3)
+    top_qult=0.6*(1+0.3*2/3)*(top_mean*2*47.88025898)
+    weak_qult=0.35*(1+0.2*2/3)*(weak_mean*2*47.88025898)
+    spread=((2.0+1.5)*(3.0+1.5))/(2.0*3.0)
+    assert result["layers"][0]["qult_kpa"] == pytest.approx(top_qult)
+    assert result["layers"][1]["qult_kpa"] == pytest.approx(weak_qult)
+    assert result["candidates"][-1]["spread_factor"] == pytest.approx(spread)
+    assert result["qult_kpa"] == pytest.approx(min(top_qult,spread*weak_qult))
+    assert result["controlling_mode"] == "原位試驗弱層穿刺控制"
+
+
+def test_usace_in_situ_layered_profile_continuous_strip_spread():
+    result = layered_bearing_capacity_in_situ_profile(
+        layers=[
+            {"thickness_m":2.0,"test_type":"PMT","drainage":"drained","measurements":[200,220]},
+            {"thickness_m":2.0,"test_type":"PMT","drainage":"undrained","measurements":[15,16]},
+        ],
+        footing_width_m=2.0,footing_length_m=1.0,
+        footing_depth_m=0.0,water_depth_m=10.0,
+        gamma_moist_kn_m3=18.0,gamma_sub_kn_m3=9.0,
+        footing_type="continuous",
+    )
+    assert result["candidates"][-1]["spread_factor"] == pytest.approx(2.0)
+    assert result["punching_depth_range_m"] == pytest.approx((2.0,8.0))
+
+
+def test_usace_in_situ_layered_profile_shallow_weak_layer_directly_controls():
+    result = layered_bearing_capacity_in_situ_profile(
+        layers=[
+            {"thickness_m":0.5,"test_type":"SPT","drainage":"drained","measurements":[20,20]},
+            {"thickness_m":1.0,"test_type":"SPT","drainage":"undrained","measurements":[3,3]},
+        ],
+        footing_width_m=2.0,footing_length_m=3.0,
+        footing_depth_m=0.0,water_depth_m=10.0,
+        gamma_moist_kn_m3=18.0,gamma_sub_kn_m3=9.0,
+    )
+    assert result["controlling_mode"] == "剪力區弱層直接控制"
+    assert result["controlling_layer"] == 2
+    assert result["candidates"][-1]["spread_factor"] == pytest.approx(1.0)
 
