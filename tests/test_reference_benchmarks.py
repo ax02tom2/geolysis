@@ -2827,3 +2827,24 @@ def test_usace_seismic_strip_foundation_rejects_long_axis_seismic_moment():
             seismic_moment_L_kNm=10.0,
             non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
         )
+
+
+def test_usace_seismic_moment_combinations_preserve_signed_static_biaxial_eccentricity():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=50.0,
+        kh=0.1, kv=0.05, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.15,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=4.0, Df=1.0, water_depth=5.0,
+        eccentricity_B=0.02, eccentricity_L=0.02,
+        seismic_moment_B_kNm=20.0, seismic_moment_L_kNm=20.0,
+        static_moment_B_sign=-1, static_moment_L_sign=1,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    by_sign = {case["horizontal_earthquake_sign"]: case for case in result["cases"]
+               if case["vertical_load_kN"] == pytest.approx(950.0)}
+    assert by_sign[1]["moment_B_kNm"] == pytest.approx(0.0)
+    assert by_sign[1]["moment_L_kNm"] == pytest.approx(40.0)
+    assert by_sign[-1]["moment_B_kNm"] == pytest.approx(-40.0)
+    assert by_sign[-1]["moment_L_kNm"] == pytest.approx(0.0)
