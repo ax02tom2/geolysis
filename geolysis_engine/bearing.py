@@ -480,7 +480,7 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
     if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
-        raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數須在 (0,1]')
+        raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數乘積須大於 0')
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
     coeff=0.5 if footing_type=='strip' else 0.4
@@ -491,6 +491,100 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012)',
         'limitations':'適用砂狀土且地震超額孔隙水壓影響完整承載力剪力區之情境；依手冊移除覆土 Nq 項，並以 (1−ru) 折減 Nγ 項。ru 應依 FSliq／孔壓評估取得，不可任意假設。若土層可液化、邊際液化或顯著強度損失，USACE 原則上不建議使用淺基礎；此式是補充評估，不代表可接受液化場址。未含分層穿刺、側向擴展與地震沉陷。'}
 
+
+
+def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
+        horizontal_load_kN, kh, kv, footing_type, residual_excess_pore_pressure_ratio,
+        c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
+        water_depth, eccentricity_B=0.0, eccentricity_L=0.0,
+        base_inclination_deg=0.0, ground_inclination_deg=0.0,
+        slope_distance_m=0.0, adjacent_slope_fs=None):
+    """Evaluate USACE 2025 seismic Nγ resistance for both pseudo-static load cases.
+
+    Automatically applies Meyerhof-based shape/depth/load-inclination/base/
+    ground-inclination factors (Tables 5-2/5-3), groundwater Eq. 5-19, and
+    residual pore-pressure reduction (Eqs. 9-3/9-4). This returns resistance
+    only, not a seismic qeq/FS or a complete seismic design verdict.
+    """
+    c=_finite('有效凝聚力 c′',c_kpa)
+    phi=_finite('有效摩擦角 φ′',phi_deg)
+    if c<0 or c>1e-9 or phi<=0:
+        raise ValueError('式 9-3／9-4 僅供砂狀排水土使用；需 c′≈0 且 φ′>0，不可套用不排水黏土或含顯著凝聚力土層')
+    ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
+    if not 0<=ru<1:
+        raise ValueError('殘餘超額孔隙水壓比須符合 0≤ru<1')
+    footing_map={'spread':'isolated','strip':'continuous'}
+    if footing_type not in footing_map:
+        raise ValueError('基礎型式須為 spread 或 strip')
+    V=_finite('靜態垂直力 V',vertical_load_kN)
+    H=_finite('靜態水平力 H',horizontal_load_kN)
+    khv=_finite('水平地震係數 kh',kh)
+    kvv=_finite('垂直地震係數 kv',kv)
+    if V<=0 or H<0 or not 0<=khv<=1 or not -0.5<=kvv<=0.5:
+        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、-0.5≤kv≤0.5')
+    # The residual-pore-pressure equation is sand-like and uses the USACE
+    # Meyerhof-based resistance factors, not whichever classic theory is selected.
+    base=bearing_capacity(
+        theory='Meyerhof',c_kpa=0.0,phi_deg=phi,gamma_moist=gamma_moist,
+        gamma_sub=gamma_sub,gamma_below=gamma_below,B=B,L=L,Df=Df,
+        water_depth=water_depth,fs=3.0,eccentricity_B=eccentricity_B,
+        eccentricity_L=eccentricity_L,footing_type=footing_map[footing_type])
+    action=seismic_bearing_capacity_pseudostatic(
+        vertical_load_kN=V,horizontal_load_kN=H,footing_area_m2=1.0,kh=khv,kv=kvv)
+    cases=[]
+    for case in action['cases']:
+        corrected=bearing_capacity_slope_base_corrections(
+            base_result=base,c_kpa=0.0,phi_deg=phi,
+            base_inclination_deg=base_inclination_deg,
+            ground_inclination_deg=ground_inclination_deg,
+            slope_distance_m=slope_distance_m,
+            adjacent_slope_fs=adjacent_slope_fs,
+            horizontal_load=case['horizontal_load_kN'],
+            vertical_load=case['vertical_load_kN'])
+        factors={
+            'shape_s_gamma':corrected['sg'],
+            'depth_d_gamma':corrected['dg'],
+            'inclination_i_gamma':corrected['load_factor_gamma_2025'],
+            'base_b_gamma':corrected['base_factor_gamma'],
+            'ground_g_gamma':corrected['ground_factor_gamma'],
+        }
+        product=math.prod(factors.values())
+        if product<=0:
+            qu=0.0
+            resistance=None
+            reason='地震載重傾角 β≥φ′，Meyerhof iγ=0，無正值 Nγ 承載力貢獻'
+        else:
+            resistance=seismic_bearing_capacity_residual_pore_pressure(
+                footing_type=footing_type,
+                effective_unit_weight_kn_m3=corrected['gamma_effective'],
+                effective_width_m=base['B_effective'],
+                bearing_factor_ngamma=base['Ngamma'],
+                residual_excess_pore_pressure_ratio=ru,
+                shape_depth_inclination_factor=product)
+            qu=resistance['qu_seismic_kpa']
+            reason=None
+        cases.append({
+            **case,
+            'load_inclination_beta_deg':corrected['load_inclination_beta_2025_deg'],
+            **factors,
+            'correction_product':product,
+            'gamma_effective_eq_5_19_kn_m3':corrected['gamma_effective'],
+            'effective_width_m':base['B_effective'],
+            'Ngamma_meyerhof':base['Ngamma'],
+            'qu_seismic_kpa':qu,
+            'zero_resistance_reason':reason,
+            'method':(resistance['method'] if resistance else 'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3 and Eqs. 9-3/9-4'),
+        })
+    governing=min(cases,key=lambda x:x['qu_seismic_kpa'])
+    return {
+        'cases':cases,
+        'governing_case':governing,
+        'qu_seismic_governing_kpa':governing['qu_seismic_kpa'],
+        'footing_type':footing_type,
+        'ru':ru,
+        'method':'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4',
+        'limitations':'已自動依兩組偽靜力 V/H 組合計算 Meyerhof sγ、dγ、iγ、bγ、gγ，並以 Eq. 5-19 取得剪力區有效單位重，再套用 (1−ru) 折減。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、結構地震彎矩引致之額外偏心、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。'
+    }
 
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
