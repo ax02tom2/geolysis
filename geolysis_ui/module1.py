@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import math
 import plotly.graph_objects as go
-from geolysis_engine import hoek_brown_parameters
+from geolysis_engine import hoek_brown_parameters, hoek_brown_structure_applicability
 
 
 def render_module_1(expanded=False):
@@ -112,6 +112,7 @@ def render_module_1(expanded=False):
                     xaxis=dict(automargin=True), yaxis=dict(automargin=True))
                 st.plotly_chart(gsi_demo, use_container_width=True, config={"displayModeBar":False})
             st.caption("文獻圖與系統示意圖並列；自製圖僅協助理解相對趨勢，不取代原始 GSI 判讀。")
+            st.caption("適用限制：GSI 假設岩體有足夠節理組數，可視為互鎖塊體連續體；若破壞由少數持續性弱面、層面或楔形塊體控制，應另做結構面／楔形分析。濕潤或軟化會降低節理面品質評級；孔隙水壓仍須另以有效應力處理，不可直接當作 GSI 折減。FHWA 量化圖另指出，約 10 m 隧道跨度及小於 20 m 邊坡高度為其適用尺度參考，較大開挖需考慮尺度效應。")
             with st.expander("案例來源與文獻", expanded=False):
                 st.markdown("""
     - [北部侯硐案例與七類岩性參數研究（國立臺灣科技大學，2022）](https://ndltd.ncl.edu.tw/cgi-bin/gs32/gsweb.cgi?search=s%3Did%3D%22110NTUS5512077%22.)
@@ -121,6 +122,8 @@ def render_module_1(expanded=False):
     - [南部燕巢泥岩崩塌](https://doi.org/10.1007/s10346-019-01250-3)｜[南部深層潛移邊坡研究](https://doi.org/10.1007/s10346-024-02453-z)｜[台灣大型深層山崩地形研究](https://doi.org/10.1016/j.geomorph.2012.11.004)
     - [東部蘇花公路 115.9k 案例](https://doi.org/10.29974/JCSWC.201306_44(2).0001)｜[安通混雜岩層崩塌](https://doi.org/10.3390/w12020480)
     - [Somodi et al. (2021), GSI Figure 1](https://doi.org/10.3390/app11083351)
+    - [FHWA-NHI-16-072 (2016), Figures 9-23/9-24：GSI 適用限制與 GSI>75 注意事項](https://www.fhwa.dot.gov/engineering/geotech/pubs/nhi16072.pdf)
+    - [Hoek & Brown (2018), The Hoek–Brown failure criterion and GSI](https://doi.org/10.1016/j.jrmge.2018.08.001)
                 """)
     
         _struct_code = gsi_struct[0]
@@ -438,6 +441,11 @@ def render_module_1(expanded=False):
                 raise ValueError("缺少 UCS 試驗值或有效的 ISRM 現場強度分級，請先補足資料。")
             if not gsi_selection_valid:
                 raise ValueError("目前選取的岩體結構與不連續面品質組合不適用基本 GSI 圖，請重新選擇。")
+            _hb_applicability = hoek_brown_structure_applicability(gsi=gsi, structure_code=_struct_code)
+            if _hb_applicability["warning"]:
+                st.warning(_hb_applicability["warning"])
+            if not _hb_applicability["applicable"] or (_struct_code == "A" and gsi_upper > 75.0):
+                raise ValueError(_hb_applicability["warning"] or "完整／巨塊狀岩體的 GSI 區間包含大於 75 的值，不應使用 Hoek–Brown 準則。")
             if gsi_lower > gsi_upper:
                 raise ValueError("GSI 初判下限不可大於上限，請修正區間。")
             hb_current = hoek_brown_parameters(gsi=gsi,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
