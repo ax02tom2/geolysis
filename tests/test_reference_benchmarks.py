@@ -1117,3 +1117,29 @@ def test_burland_burbidge_module3_link_rejects_profile_without_usable_below_base
             width_m=2.0,
             granular_layer_thickness_m=5.0,
         )
+
+
+
+def test_usace_seismic_residual_pore_pressure_allows_shape_depth_factor_product_above_one():
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=18.0,
+        effective_width_m=2.0,
+        bearing_factor_ngamma=20.0,
+        residual_excess_pore_pressure_ratio=0.2,
+        shape_depth_inclination_factor=1.25,
+    )
+    assert result["other_correction_product"] == pytest.approx(1.25)
+    assert result["qu_seismic_kpa"] == pytest.approx(0.4 * 0.8 * 18.0 * 2.0 * 20.0 * 1.25)
+
+
+def test_usace_seismic_residual_pore_pressure_rejects_nonpositive_factor_product():
+    with pytest.raises(ValueError, match="修正係數乘積"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="strip",
+            effective_unit_weight_kn_m3=18.0,
+            effective_width_m=2.0,
+            bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+            shape_depth_inclination_factor=0.0,
+        )
