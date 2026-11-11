@@ -374,3 +374,20 @@ USACE 2025 Ménard-Rousseau PMT settlement — PR #30
 - PR #30 merged at ba2129752bcff52663a1990f627fbd787080a46f.
 - GitHub Actions run 42961299758: success; Python 3.11 compile passed; full suite 274 passed.
 - Six new equation/applicability regression tests cover Eq. 7-11, Eq. 7-12, harmonic grouping, Table 7-6 ranges, Py limit and soft-layer depth. These are not counted as published Appendix C worked examples.
+
+
+
+Module 3 SPT input provenance guard — PR #31
+
+- Removed auto-populated example borehole SPT CSV. The depth profile remains empty until the user supplies a real CSV.
+- Single-point SPT calculation and profile CSV calculation now require explicit confirmation that the values belong to the current field investigation.
+- Unconfirmed/invalid inputs clear the current N60 and profile state, preventing sample or stale values from silently feeding Module 4.
+- PR #31 merged at ff1b47eebe92ef85bcb65e3a2b5e543f393bad55.
+- GitHub Actions run 42961658132: success; Python 3.11 compile passed; full suite 274 passed.
+
+
+Module 2 soil classification input guard
+
+- The particle-size curve option now defaults off; D10/D30/D60 fields start at zero and cannot be treated as a real gradation curve until entered.
+- Classification execution is disabled until the user confirms that the displayed values are the current laboratory test data. This prevents the example defaults from being accidentally classified as a real soil sample.
+- Main commit: 538a6afb60ffc0d8111cfabeaa65f877b7f4690a. Included in the next full CI verification.
