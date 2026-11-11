@@ -340,7 +340,8 @@ def render_module_5(expanded=False):
     
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
-            st.caption("僅適用砂狀土且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。")
+            st.caption("僅適用砂狀土且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。形狀與深度係數可能大於 1，因此修正係數乘積不限制在 1 以下；須依 USACE 表 5-2 至 5-4 逐項計算。")
+            st.info("本區只計算孔壓折減後極限承載力 qu，不會自動將偽靜力 kh／kv 載重包絡合併成地震 qeq 與 FS。因地震水平力、傾斜修正、地震彎矩／偏心及土體慣性尚未完整整合，這裡不顯示地震安全係數或通過判定。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
@@ -353,7 +354,7 @@ def render_module_5(expanded=False):
                 ngamma_seismic5=st.number_input("承載力因子 Nγ（依目前 φ 與 Meyerhof 自動帶入）",0.0,2000.0,float(seismic_reference5["Ngamma"]),0.5,key="m5x_seismic_ng")
                 gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]（依地下水計算自動帶入）",1.0,25.0,float(max(1.0,min(25.0,seismic_reference5["gamma_effective"]))),0.5,key="m5x_seismic_gamma")
             with ss3:
-                corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積",0.01,1.0,1.0,0.01,key="m5x_seismic_corr")
+                corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積（可大於 1）",0.01,10.0,1.0,0.01,key="m5x_seismic_corr")
             if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure(
