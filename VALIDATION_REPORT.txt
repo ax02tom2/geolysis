@@ -558,3 +558,16 @@ Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
 - GitHub Actions run 42985106615: success; Python 3.11 compile passed; full suite 364 passed in 1.91 s.
 - Published USACE Appendix B/C benchmark coverage is now 61: 53 Appendix B and eight Appendix C cases (C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
+
+
+
+Module 4 PMT peat applicability — PR #57
+
+- USACE 2025 Table 7-6 provides α=1 for normally consolidated peat only; it does not provide an automatic E/pne range for peat.
+- The engine now rejects `soil_type="peat"` with `consolidation_state="auto"` instead of silently assuming normally consolidated behavior.
+- Module 4 warns that the user must establish normally consolidated peat and explicitly select that state before using α=1.
+- Added a regression test for the rejected automatic state and valid explicit NC calculation.
+- PR #57 merged to main at 8ec0fa171bfc78817630d29ca2e368ba1fa104cb.
+- GitHub Actions run 42985213671: success; Python 3.11 compile passed; full suite 362 passed in 1.40 s.
+- Published worked-example benchmark count remains 59; one additional test covers Table 7-6 applicability, not a new published worked example.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 7-6.
