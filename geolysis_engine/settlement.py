@@ -374,6 +374,45 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
             'selected_profile':selected,
             'adjustments':'逐點修正後平均' if (gravel_adjustment or fine_sand_saturated) else '未另作粒料修正'}
 
+def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_depth_m,
+        width_m, granular_layer_thickness_m, n_decreases_with_depth=False,
+        gravel_adjustment=False, fine_sand_saturated=False):
+    """Convert a Module 3 ground-referenced SPT N60 profile to footing-base depths.
+
+    Refusal / partial-penetration rows with no N60 are excluded. Values above
+    the footing base are excluded after converting z = Depth_m - Df.
+    """
+    Df=_finite('基礎埋深 Df',foundation_depth_m)
+    if Df<0:
+        raise ValueError('基礎埋深不可為負')
+    if not profile:
+        raise ValueError('模組三尚無有效 SPT 剖面資料')
+    converted=[]
+    for row in profile:
+        if 'Depth_m' not in row or 'N60' not in row:
+            raise ValueError('模組三 SPT 剖面必須包含 Depth_m、N60 欄位')
+        depth=_finite('SPT 地表下深度',row['Depth_m'])
+        if depth<0:
+            raise ValueError('SPT 地表下深度不可為負')
+        z=depth-Df
+        if z < -1e-9:
+            continue
+        raw_n=row['N60']
+        if raw_n is None or (isinstance(raw_n,(int,float)) and math.isnan(float(raw_n))):
+            continue
+        n=_finite('N60',raw_n)
+        converted.append({'Depth_below_base_m':max(0.0,z),'N60':n})
+    if not converted:
+        raise ValueError('基礎底以下沒有可用的 N60 測點；拒錘／部分貫入列不納入平均')
+    result=burland_burbidge_average_n60_from_profile(
+        converted,width_m=width_m,granular_layer_thickness_m=granular_layer_thickness_m,
+        n_decreases_with_depth=n_decreases_with_depth,
+        gravel_adjustment=gravel_adjustment,fine_sand_saturated=fine_sand_saturated)
+    result['foundation_depth_m']=Df
+    result['source_depth_reference']='Depth_m measured from ground surface; converted to depth below footing base'
+    return result
+
+
 def boussinesq_rectangular_center_factor(width_m, length_m, depth_m):
     """Vertical stress influence factor beneath the center of a uniformly loaded rectangle."""
     B=_finite('基礎寬度 B',width_m); L=_finite('基礎長度 L',length_m); z=_finite('深度 z',depth_m)

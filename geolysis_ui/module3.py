@@ -68,6 +68,8 @@ def render_module_3(expanded=False):
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         default_csv="Depth_m,N,Effective_Stress_kPa,Rod_Length_m\n5,12,50,6\n10,18,95,11\n15,25,140,16"
         csv_text=st.text_area("或貼上 CSV 內容",default_csv,height=100,key="m3_profile")
+        # Clear any previous profile before validating current inputs to prevent stale Module 4 linkage.
+        st.session_state.pop("m3_profile_result",None)
         try:
             prof=pd.read_csv(csv_file) if csv_file is not None else pd.read_csv(StringIO(csv_text))
             required={'Depth_m','N','Effective_Stress_kPa'}

@@ -9,6 +9,7 @@ import pytest
 from geolysis_engine import (
     spt_correct,
     burland_burbidge_2025_settlement,
+    burland_burbidge_average_n60_from_ground_profile,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
     consolidation_time_rate,
@@ -1084,4 +1085,35 @@ def test_usace_2025_settlement_pressure_rejects_invalid_inputs(q, qult, fs):
             gross_equivalent_pressure_kpa=q,
             ultimate_bearing_kpa=qult,
             factor_of_safety=fs,
+        )
+
+
+
+def test_burland_burbidge_imports_module3_n60_and_converts_depth_from_ground():
+    profile = [
+        {"Depth_m": 0.5, "N60": 18.0},   # above footing base: excluded
+        {"Depth_m": 1.5, "N60": 20.0},   # 0.5 m below base: included
+        {"Depth_m": 2.0, "N60": 25.0},   # 1.0 m below base: included
+        {"Depth_m": 2.5, "N60": None},   # refusal / partial penetration: excluded
+        {"Depth_m": 3.5, "N60": 40.0},   # outside influence depth: excluded
+    ]
+    result = burland_burbidge_average_n60_from_ground_profile(
+        profile,
+        foundation_depth_m=1.0,
+        width_m=2.0,
+        granular_layer_thickness_m=5.0,
+    )
+    assert result["foundation_depth_m"] == pytest.approx(1.0)
+    assert result["selected_count"] == 2
+    assert result["N60_average"] == pytest.approx(22.5)
+    assert result["selected_profile"] == [(0.5, 20.0, 20.0), (1.0, 25.0, 25.0)]
+
+
+def test_burland_burbidge_module3_link_rejects_profile_without_usable_below_base_n60():
+    with pytest.raises(ValueError, match="沒有可用的 N60"):
+        burland_burbidge_average_n60_from_ground_profile(
+            [{"Depth_m": 0.5, "N60": 20.0}, {"Depth_m": 2.0, "N60": None}],
+            foundation_depth_m=1.0,
+            width_m=2.0,
+            granular_layer_thickness_m=5.0,
         )
