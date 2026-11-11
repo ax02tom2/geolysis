@@ -487,5 +487,5 @@ Module 1 eastern Taiwan crystalline-rock statistics — PR #48
 - Added corresponding Hoek typical mi presets for gneiss (28±5) and marble (9±3).
 - The source report warns that drillhole distribution is limited; these statistics are only suitable for a similar small local area and must not be generalized to all eastern Taiwan mountain geology.
 
-Verification status after PR #47: 344 automated tests passed, including Python 3.11 compile and Streamlit AppTest. PR #48 adds UI reference data only and no engine tests. PR #49 runs the full suite against the combined PR #47/#48 main state.
+Combined PR #49 validation after PR #47/#48: GitHub Actions run 42971389181 succeeded; Python 3.11 compile and Streamlit AppTest passed; 344 automated tests passed in 2.03 s. PR #48 adds UI reference data only and no engine tests.
 Published USACE worked-example benchmark count remains 59: 53 Appendix B plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e. All equation-level and UI regression tests remain counted separately.
