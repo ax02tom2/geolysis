@@ -29,6 +29,7 @@ from geolysis_engine import (
     usace_settlement_design_pressure,
     dmt_settlement_2025,
     schmertmann_cpt_settlement_2025,
+    menard_rousseau_pmt_settlement_2025,
 )
 
 
@@ -1516,3 +1517,116 @@ def test_hoek_brown_2002_published_example_equivalent_mc_parameters(
     assert result["sigma_cm_mpa"] == pytest.approx(expected_sigma_cm, abs=1e-4)
     assert result["sigma_c_mass_mpa"] == pytest.approx(expected_sigma_c_mass, abs=1e-4)
     assert result["sigma_t_mass_mpa"] < 0.0
+
+def test_usace_2025_menard_rousseau_pmt_settlement_equation_7_11():
+    pmt = [
+        {"group": "E1", "E0_kpa": 12000.0},
+        {"group": "E2", "E0_kpa": 15000.0},
+        {"group": "E345", "E0_kpa": 18000.0},
+        {"group": "E678", "E0_kpa": 22000.0},
+        {"group": "E916", "E0_kpa": 25000.0},
+    ]
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0,
+        soil_type="sand", consolidation_state="normally_consolidated",
+        round_footing=True, ultimate_bearing_kpa=450.0,
+        deep_uniform_deposit_confirmed=True,
+    )
+    expected_ed = 4.0 / (
+        1/12000.0 + 1/(0.85*15000.0) + 1/18000.0
+        + 1/(2.5*22000.0) + 1/(2.5*25000.0)
+    )
+    assert result["E1_kpa"] == pytest.approx(12000.0)
+    assert result["Ed_kpa"] == pytest.approx(expected_ed)
+    assert result["Ec_kpa"] == pytest.approx(12000.0)
+    assert result["alpha_d"] == pytest.approx(1/3)
+    assert result["alpha_c"] == pytest.approx(1/3)
+    assert result["gross_pressure_used_kpa"] == pytest.approx(150.0)
+    assert result["capacity_limit_governs"] is True
+    qnet = 50.0
+    expected_dev = (2/(9*expected_ed))*qnet*0.6096*(1.0*2.0/0.6096)**(1/3)
+    expected_sph = ((1/3)/(9*12000.0))*qnet*1.0*2.0
+    assert result["deviatoric_settlement_mm"] == pytest.approx(expected_dev*1000)
+    assert result["spherical_settlement_mm"] == pytest.approx(expected_sph*1000)
+    assert result["settlement_mm"] == pytest.approx((expected_dev+expected_sph)*1000)
+
+
+def test_usace_2025_menard_rousseau_pmt_rejects_out_of_table_alpha_and_soft_layer_claim():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    with pytest.raises(ValueError, match="深層且相對均質"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=2000.0,
+            round_footing=True,
+        )
+    with pytest.raises(ValueError, match="E/pne 適用範圍"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=100.0,
+            soil_type="sand", consolidation_state="normally_consolidated",
+            round_footing=True, deep_uniform_deposit_confirmed=True,
+        )
+
+
+
+def test_usace_2025_menard_rousseau_pmt_soft_layer_eq_7_12():
+    pmt = [
+        {"group": "E1", "E0_kpa": 12000.0},
+        {"group": "E2", "E0_kpa": 15000.0},
+        {"group": "E345", "E0_kpa": 18000.0},
+        {"group": "E678", "E0_kpa": 22000.0},
+        {"group": "E916", "E0_kpa": 25000.0},
+    ]
+    soft = [
+        {"Layer": "soft-1", "depth_center_m": 1.0, "thickness_m": 0.5,
+         "E_L_kpa": 5000.0, "pne_kpa": 600.0}
+    ]
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0,
+        soil_type="sand", consolidation_state="normally_consolidated",
+        round_footing=True, soft_layers=soft, soft_layer_profile_reviewed=True,
+    )
+    Ed = result["Ed_kpa"]
+    alphaL = 1.0 / 3.0
+    Iz = boussinesq_rectangular_center_factor(2.0, 2.0, 1.0)
+    expected = alphaL * (1.0/5000.0 - 1.0/Ed) * Iz * 100.0 * 0.5 * 1000.0
+    assert result["soft_layer_settlement_mm"] == pytest.approx(expected)
+    assert result["soft_layer_results"][0]["I_sigma"] == pytest.approx(Iz)
+    assert result["settlement_mm"] == pytest.approx(
+        result["deviatoric_settlement_mm"]
+        + result["spherical_settlement_mm"]
+        + expected
+    )
+
+
+def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_out_of_range_layer():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    with pytest.raises(ValueError, match="超出式 7-12"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=1500.0,
+            soil_type="sand", consolidation_state="normally_consolidated",
+            round_footing=True,
+            soft_layers=[{"depth_center_m": 5.0, "thickness_m": 0.5,
+                          "E_L_kpa": 5000.0, "pne_kpa": 600.0}],
+            soft_layer_profile_reviewed=True,
+        )
