@@ -1223,7 +1223,11 @@ def test_usace_2025_appendix_b5a_undrained_strength_based_bearing_capacity():
     )
     assert result["sc"] == pytest.approx(1.2)
     assert result["dc"] == pytest.approx(1.0625)
-    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(21.23, abs=0.05)
+    # Full precision uses dc=1.0625 and q0=0.3125; the manual rounds these
+    # intermediate values to 1.06 and 0.31 before reporting qult=21.23 ksf.
+    expected_full_precision = 1.2 * 1.0625 * 3.2 * 5.14 + 0.3125
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(expected_full_precision, abs=1e-8)
+    assert result["qu_gross"] / ksf_to_kpa == pytest.approx(21.23, abs=0.06)
 
 
 def test_usace_2025_appendix_b5c_undrained_punch_through_bearing_capacity():
