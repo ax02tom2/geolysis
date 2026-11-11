@@ -700,7 +700,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         "alpha_c": alpha_c, "lambda_d": ld, "lambda_c": lc,
         "group_harmonic_means_kpa": harmonic,
         "method": ("USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eqs. 7-11/7-12, Tables 7-5/7-6" if soft_layers else "USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eq. 7-11 and Table 7-5"),
-        "limitations": "深層均質部分依 Eq. 7-11；若有軟弱／鬆散夾層，僅計入輸入且位於矩形基礎 2B 或條形基礎 6B 範圍內的 Eq. 7-12 修正。非圓形基礎 λd/λc 必須由 Figure 7-11 讀取。PMT 設計壓力不可超過屈服壓力 Py；未包含地震沉陷。"
+        "limitations": "深層均質部分依 Eq. 7-11；若有軟弱／鬆散夾層，僅計入輸入且位於矩形基礎 2B 或條形基礎 6B 範圍內的 Eq. 7-12 修正。非圓形基礎 λd/λc 必須由 Figure 7-11 讀取；岩石 α 依 Table 7-6 岩體破碎／風化分類。PMT 設計壓力不可超過屈服壓力 Py；未包含地震沉陷。"
     }
 
 def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m,
