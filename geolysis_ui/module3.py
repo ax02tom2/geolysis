@@ -65,7 +65,13 @@ def render_module_3(expanded=False):
                 st.session_state['m3_current_n160']=current['N1_60_final']
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
+                st.session_state.pop("m3_current_n60",None)
+                st.session_state.pop("m3_current_n160",None)
                 st.error(f"SPT 修正失敗：{exc}")
+        else:
+            st.session_state.pop("m3_current_n60",None)
+            st.session_state.pop("m3_current_n160",None)
+            st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
         st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
