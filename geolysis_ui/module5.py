@@ -351,12 +351,18 @@ def render_module_5(expanded=False):
                 st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震 H/V 組合自動計算，不再要求手動猜測係數。")
             with ss3:
                 st.caption("兩組垂直地震係數方向均會計算，並以較低地震極限抗力作控制。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
+            nonliquefiable_confirmed5=st.checkbox("已依獨立液化／循環強度評估確認：剪力區砂土不發生液化或循環剪力強度損失（本式只適用不液化但會產生超額孔壓的砂土）",value=False,key="m5x_nonliquefiable_confirm")
+            full_shear_zone_confirmed5=st.checkbox("已確認殘餘超額孔隙水壓影響完整承載力剪力區；若僅部分影響，須另依手冊加權有效單位重",value=False,key="m5x_full_shear_zone_confirm")
+            if not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5):
+                st.warning("未完成兩項適用性確認前，不執行式 9-3／9-4 計算。")
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
                         footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
+                        non_liquefiable_confirmed=nonliquefiable_confirmed5,
+                        full_shear_zone_confirmed=full_shear_zone_confirmed5,
                         c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,
                         gamma_sub=gsub5,gamma_below=gamma_below5,
                         B=B5,L=L5,Df=df5,water_depth=dw5,
