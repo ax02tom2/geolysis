@@ -783,7 +783,7 @@ Module 5 continuous-footing sliding output units — PR #79
 
 Module 5 seismic applicability caption correction — PR #81
 
-- Updated the Module 5 seismic applicability caption to state accurately that signed seismic base moments and eccentricity are now evaluated in the seismic branch, while residual pore-pressure uplift, soil inertia, partial shear-zone pore-pressure weighting and seismic qeq/FS remain outside the supported calculation.
+- Updated the Module 5 seismic applicability caption to state accurately that signed seismic base moments and eccentricity are now evaluated in the seismic branch, while residual pore-pressure uplift, soil inertia and seismic qeq/FS remain outside the supported calculation. Partial shear-zone weighting was subsequently added by PR #85.
 - UI text only; no calculation changes.
 - PR #81 merged at aa6dbb0d27e7ba631c4372f71bce9185f4094bc5.
 - GitHub Actions run 42999188372: success; full suite 410 passed.
@@ -810,3 +810,18 @@ Module 5 primary continuous-footing bearing analysis — PR #83
 - PR #83 merged at 8bfd9352f5518a323e3caf8fa34a07653417b2a4.
 - GitHub Actions run 43000729114: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 415 passed in 1.67 s.
 - Public USACE Appendix B/C worked-example benchmark count remains 66; PR #82's five additions are engineering regression tests, not new published worked examples.
+
+
+Module 5 partial shear-zone pore-pressure weighting — PR #85
+
+- Extended the USACE EM 1110-1-1905 (2025) residual-pore-pressure bearing resistance branch to support both full and partial shear-zone excess pore-pressure influence.
+- Full-zone case remains γ′b=(1−ru)γ′sus.
+- Partial-zone case uses the manual's weighted effective unit weight:
+  γ′b=f(1−ru)γ′sus+(1−f)γ′unaff.
+- The weighted share f is explicitly supplied by the user based on the bearing shear-zone geometry/distribution in Figure 5-4; it is not inferred from total borehole depth. The affected and unaffected unit weights must both be effective/buoyant values for the corresponding groundwater conditions.
+- UI now has three states: unconfirmed, full shear zone, or partial shear zone. Partial mode requires f, both effective unit weights and a separate user confirmation before enabling calculation. Eq. 5-19 provides only an initial reference value for the two unit weights; users must replace it when the affected/unaffected strata differ.
+- The method continues to require independent confirmation of non-liquefiable/no cyclic strength-loss conditions and c′≈0, φ′>0. It does not model residual base uplift, soil inertia, lateral spreading, seismic settlement, or a complete seismic qeq/FS.
+- Added eight automated regression cases covering the weighted formula, wrapper integration, missing/invalid parameters, full-mode guard and invalid f bounds.
+- PR #85 merged at a10e5e957921f5bd0980c5ff53543229b6549529.
+- GitHub Actions run 43001923263: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 423 passed in 1.57 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(c)(3)(b), Figure 5-4 and Eqs. 9-3/9-4.
