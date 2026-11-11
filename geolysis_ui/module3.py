@@ -38,6 +38,7 @@ def render_module_3(expanded=False):
             dilatancy_allowed=(soil_behavior_code=="cohesionless" and cn_method!="不修正")
             dilatancy=st.checkbox("飽和細砂／粉土位於地下水位以下，且 (N1)60 > 15：套用膨脹修正",value=False,key="m3_dilatancy",disabled=(not dilatancy_allowed))
             if not dilatancy_allowed: dilatancy=False
+        single_confirm=st.checkbox("已確認上方輸入為本次實測／採用資料",value=False,key="m3_single_confirm")
         refusal_single=st.checkbox("本筆為拒錘／部分貫入（不套用一般 N 值修正）",value=False,key="m3_refusal")
         if n_measured>=50 and not refusal_single:
             st.warning("本筆 N 值 ≥50；請回查每 150 mm 擊數與實際貫入量，確認是否已達拒錘／部分貫入條件，不可只把高 N 值視為一般貫入結果。")
