@@ -191,9 +191,9 @@ def render_module_4(expanded=False):
             st.caption("依 USACE EM 1110-1-1905（2025）式 7-11、表 7-5、表 7-6 及圖 7-11、7-12。此介面先實作深層且相對均質土層分支；若基礎下方 2B 內有軟弱／鬆散層，不能使用本分支，須另做式 7-12 評估。")
             a,b,c=st.columns(3)
             with a:
-                pmtB=st.number_input("基礎寬度 B [m]",0.3,30.0,2.0,0.1,key="m4_pmt_b")
-                pmtL=st.number_input("基礎長度 L [m]",0.3,100.0,2.0,0.1,key="m4_pmt_l")
-                pmtRound=st.checkbox("圓形基礎（λd = λc = 1）",value=False,key="m4_pmt_round")
+                pmtB=st.number_input("基礎寬度／圓形基礎等效直徑 B [m]",0.3,30.0,2.0,0.1,key="m4_pmt_b")
+                pmtRound=st.checkbox("圓形基礎（λd = λc = 1；L 取等效直徑）",value=False,key="m4_pmt_round")
+                pmtL=pmtB if pmtRound else st.number_input("基礎長度 L [m]",min_value=float(pmtB),max_value=100.0,value=float(max(pmtB,2.0)),step=0.1,key="m4_pmt_l")
             with b:
                 pmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_pmt_q")
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
