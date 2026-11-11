@@ -540,6 +540,8 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         raise ValueError('基礎型式須為 spread 或 strip')
     if V<=0 or W<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0:
         raise ValueError('地震偏心輸入不合理：V、W、B、L須正；H與偏心距不可為負')
+    if footing_type=='spread' and Lv<Bv:
+        raise ValueError('矩形／獨立基礎長邊 L 不可小於短邊 B')
     if not 0<=khv<=1 or not 0<=kvv<=0.5:
         raise ValueError('地震係數須符合 0≤kh≤1、0≤kv≤0.5')
     if sign_MB not in (-1,1) or sign_ML not in (-1,1):
