@@ -197,11 +197,11 @@ def render_module_4(expanded=False):
             with b:
                 pmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_pmt_q")
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
-                pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",1.0,20000.0,1500.0,10.0,key="m4_pmt_pne")
+                pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
                 pmtQu=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult")
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
-                pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",1.0,20000.0,300.0,10.0,key="m4_pmt_py")
+                pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
                 pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
             pmtState=st.selectbox("土層狀態（表 7-6）",["normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
             if pmtRound:
