@@ -21,6 +21,7 @@ def hoek_brown_parameters(*, gsi, mi, sigma_ci_mpa, disturbance, application='sl
     a=0.5+(1.0/6.0)*(math.exp(-G/15.0)-math.exp(-20.0/3.0))
     sig_cm=sci*((mb+4*s-a*(mb-8*s))*((mb/4+s)**(a-1)))/(2*(1+a)*(2+a))
     sigc_mass=sci*(s**a)
+    sigt_mass=-(s*sci/mb)
     gamma_mpa=gamma/1000.0
     if application=='slope':
         sig3max=sig_cm*0.72*((sig_cm/(gamma_mpa*H))**(-0.91))
@@ -48,7 +49,7 @@ def hoek_brown_parameters(*, gsi, mi, sigma_ci_mpa, disturbance, application='sl
     else:
         em_gpa=(1-D/2)*(10**((G-10)/40))
     return {'GSI':G,'mb':mb,'s':s,'a':a,'sigma_ci_mpa':sci,
-            'sigma_cm_mpa':sig_cm,'sigma_c_mass_mpa':sigc_mass,
+            'sigma_cm_mpa':sig_cm,'sigma_c_mass_mpa':sigc_mass,'sigma_t_mass_mpa':sigt_mass,
             'sigma3_max_mpa':sig3max,'sigma3n':sig3n,
             'c_equiv_mpa':c_mpa,'c_equiv_kpa':c_mpa*1000,
             'phi_equiv_deg':phi,'Em_gpa':em_gpa,
