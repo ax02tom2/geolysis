@@ -450,7 +450,7 @@ def render_module_4(expanded=False):
                     except Exception as immediate_exc:
                         st.error(f"即時沉陷估算失敗：{immediate_exc}")
                 with st.expander("多重荷載疊加／大面積填土（逐層 Δσz）",expanded=False):
-                    st.caption("適用於相鄰基礎、獨立基礎＋連續基礎、填土＋基礎等多重荷載。請先依 USACE 第 6 章完成各荷載的應力分布與疊加，再輸入每層合計 Δσz；本區只計算固結沉陷，不會自行推算荷載幾何或反算 qa。")
+                    st.caption("適用於相鄰基礎、獨立基礎＋連續基礎、填土＋基礎等多重荷載。Depth_center_m 以你選定的剖面基準面向下量測（例如基礎底或填土底）。請先依 USACE 第 6 章完成各荷載的應力分布與疊加，再輸入每層合計 Δσz；本區只計算固結沉陷，不會自行推算荷載幾何或反算 qa。")
                     super_layers_text4=st.text_area(
                         "逐層總應力增量 CSV（kPa；必須是所有荷載疊加後的總 Δσz）",
                         value="",height=130,key="m4c_superposition_layers",
