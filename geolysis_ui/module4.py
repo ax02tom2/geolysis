@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -368,6 +368,7 @@ def render_module_4(expanded=False):
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
+                stress_ratio_clay4=None
                 if layers_text4.strip():
                     layer_rows=pd.read_csv(StringIO(layers_text4)).to_dict('records')
                     r=consolidation_allowable_pressure_layers(layers=layer_rows,footing_width_m=qB,
@@ -377,14 +378,14 @@ def render_module_4(expanded=False):
                     st.dataframe(pd.DataFrame(r['layer_results']),hide_index=True,use_container_width=True)
                     st.caption("分層表逐層列出應力影響係數、應力增量及主固結沉陷；總沉陷為各層沉陷量加總。若提供 Stress_factor（0–1），該層會優先採用輸入值；請僅填入經核對的 USACE 範例／圖表或獨立應力分析值，空白則依上方 Boussinesq／2:1 方法計算。")
                 else:
-                    stress_ratio=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
+                    stress_ratio_clay4=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
                         else boussinesq_rectangular_center_factor(qB,qL,zc))
-                    r=consolidation_allowable_pressure(target_settlement_mm=target4,footing_pressure_factor=stress_ratio,
+                    r=consolidation_allowable_pressure(target_settlement_mm=target4,footing_pressure_factor=stress_ratio_clay4,
                         layer_thickness_m=Hc,initial_void_ratio=e0,compression_index=Cc,recompression_index=Cr,
                         initial_effective_stress_kpa=sig0,preconsolidation_stress_kpa=sigp,
                         max_pressure_kpa=max_clay_q,stress_method=stress_method_clay4)
                     qa_clay_settlement=r['qa_primary_consolidation_kpa']
-                    st.write(f"應力影響係數 = {stress_ratio:.3f} ｜ 壓縮層中點應力增量 Δσ = {r['delta_sigma_mid_kpa']:.2f} kPa ｜ 預估主固結沉陷 = {r['settlement_mm']:.2f} mm")
+                    st.write(f"應力影響係數 = {stress_ratio_clay4:.3f} ｜ 壓縮層中點應力增量 Δσ = {r['delta_sigma_mid_kpa']:.2f} kPa ｜ 預估主固結沉陷 = {r['settlement_mm']:.2f} mm")
                     st.caption(f"固結狀態：{r['regime']}；最終有效應力 = {r['final_effective_stress_kpa']:.2f} kPa。")
                 qa_clay_final=min(qa_clay_settlement,qcap_clay4) if qcap_clay4>0 else qa_clay_settlement
                 st.metric("沉陷＋承載力控制容許接觸壓力（淨值）",f"{qa_clay_final:.1f} kPa")
@@ -416,8 +417,15 @@ def render_module_4(expanded=False):
                             ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
                             ep4=st.number_input("主固結完成時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.05,key="m4c_ep",disabled=not calc_secondary4)
                         try:
-                            representative_H4=sum(float(x["Thickness_m"]) for x in layer_rows) if layers_text4.strip() else Hc
-                            primary_total4=float(r["settlement_mm"])
+                            representative_H4=Hc
+                            primary_at_final_pressure4=consolidation_settlement_1d(
+                                layer_thickness_m=Hc,initial_void_ratio=e0,
+                                compression_index=Cc,recompression_index=Cr,
+                                initial_effective_stress_kpa=sig0,
+                                preconsolidation_stress_kpa=sigp,
+                                stress_increase_kpa=qa_clay_final*stress_ratio_clay4)
+                            primary_total4=float(primary_at_final_pressure4["settlement_mm"])
+                            st.caption(f"時間速率與次壓縮採用最終控制淨壓力 qa,net={qa_clay_final:.2f} kPa 對應的主固結沉陷 {primary_total4:.2f} mm；若模組五承載力上限控制，已重新計算，不沿用容許沉陷目標值。")
                             time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
                                 layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
                                 target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
