@@ -2326,3 +2326,27 @@ def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations
             residual_excess_pore_pressure_ratio=0.2,
             non_liquefiable_confirmed=True,
         )
+
+
+
+@pytest.mark.parametrize(
+    ("non_liquefiable_confirmed", "full_shear_zone_confirmed", "message"),
+    [
+        (False, True, "不液化／無循環剪力強度損失"),
+        (True, False, "完整承載力剪力區"),
+    ],
+)
+def test_usace_seismic_cases_require_both_applicability_confirmations(
+    non_liquefiable_confirmed, full_shear_zone_confirmed, message
+):
+    with pytest.raises(ValueError, match=message):
+        seismic_bearing_capacity_residual_pore_pressure_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+            kh=0.2, kv=0.0, footing_type="spread",
+            residual_excess_pore_pressure_ratio=0.2,
+            c_kpa=0.0, phi_deg=30.0,
+            gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+            B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+            non_liquefiable_confirmed=non_liquefiable_confirmed,
+            full_shear_zone_confirmed=full_shear_zone_confirmed,
+        )
