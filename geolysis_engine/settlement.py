@@ -695,7 +695,7 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
                                     gross_pressure_kpa, base_effective_stress_kpa,
                                     peak_effective_stress_kpa, years=50.0,
                                     ultimate_bearing_kpa=None, factor_of_safety=3.0,
-                                    footing_type="isolated"):
+                                    footing_type="isolated", soil_applicability_confirmed=False):
     """USACE 2025 Schmertmann CPT settlement, Eqs. 7-16 to 7-26.
 
     Each layer contains thickness_m and measured cone tip resistance qc_kpa.
@@ -711,6 +711,8 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
     fs = _finite("承載力安全係數", factor_of_safety)
     if B <= 0 or L < B or q <= 0 or sigD < 0 or sigP <= 0 or t <= 0 or fs <= 1.0 or not layers:
         raise ValueError("基礎尺寸、壓力、有效應力、時間或 CPT 分層資料不合理；承載力安全係數 FS 必須大於 1.0")
+    if soil_applicability_confirmed is not True:
+        raise ValueError("Schmertmann CPT 經驗式僅適用年輕（<100 年）、正常固結、潔淨矽砂；請先確認本次分析符合此適用條件，其他土類不可直接套用")
     if footing_type not in ("isolated", "continuous"):
         raise ValueError("基礎型式須為 isolated 或 continuous")
     if ultimate_bearing_kpa is not None:
@@ -785,7 +787,7 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
         "net_pressure_increment_kpa": q_net, "Iz_peak": Izp,
         "peak_depth_m": peak_depth, "C1_embedment": C1, "C2_creep": C2,
         "influence_depth_required_m": influence_depth, "profile_depth_used_m": depth,
-        "layer_results": rows,
+        "layer_results": rows, "soil_applicability_confirmed": True,
         "method": "USACE EM 1110-1-1905 (2025), Schmertmann CPT, Eqs. 7-16 to 7-26",
         "limitations": "適用年輕（<100 年）、正常固結、潔淨矽砂的經驗模數關係；其他土類須有適用性判斷。CPT qc 為實測錐尖阻抗。矩形基礎依 L/B 線性內插 Es 與 Iz；連續基礎採平面應變。未包含地震沉陷或非均質三維土-結構互制。"
     }
