@@ -597,3 +597,14 @@ Module 4 Appendix C-2/C-3 superposition and fill consolidation — PR #59
 - GitHub Actions run 42985828131: success; Python 3.11 compile passed; full suite 373 passed in 1.96 s.
 - Public worked-example coverage is now 66 cases: 53 Appendix B and 13 Appendix C cases (C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-2/C-3a/C-3b/C-3c; Eqs. 6-6, 6-7, 7-8, 7-9 and 7-42.
+
+
+
+Module 4 settlement pressure-cap visibility — PR #60
+
+- DMT, CPT and PMT methods already applied `min(gross q or qeq, qult/FS)`; the UI previously displayed the capped pressure but did not explicitly disclose when the capacity limit governed.
+- Added an explicit warning showing the user-entered q/qeq, the qult/FS limit, and that the lower value was used.
+- No calculation formula changed; the existing Streamlit AppTest and 369-test suite pass.
+- PR #60 merged to main at 1e42944efd2ed6e50ffa9a49820b01d04073b99d.
+- GitHub Actions run 42985920334: success; Python 3.11 compile passed; full suite 369 passed in 2.43 s.
+- Published worked-example benchmark count remains 59.
