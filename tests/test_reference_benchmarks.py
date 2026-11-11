@@ -1530,6 +1530,7 @@ def test_usace_2025_menard_rousseau_pmt_settlement_equation_7_11():
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
         equivalent_net_limit_pressure_kpa=1500.0,
+        yield_pressure_kpa=250.0,
         soil_type="sand", consolidation_state="normally_consolidated",
         round_footing=True, ultimate_bearing_kpa=450.0,
         deep_uniform_deposit_confirmed=True,
@@ -1566,6 +1567,7 @@ def test_usace_2025_menard_rousseau_pmt_rejects_out_of_table_alpha_and_soft_laye
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
             equivalent_net_limit_pressure_kpa=2000.0,
+        yield_pressure_kpa=250.0,
             round_footing=True,
         )
     with pytest.raises(ValueError, match="E/pne 適用範圍"):
@@ -1573,6 +1575,7 @@ def test_usace_2025_menard_rousseau_pmt_rejects_out_of_table_alpha_and_soft_laye
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
             equivalent_net_limit_pressure_kpa=100.0,
+        yield_pressure_kpa=250.0,
             soil_type="sand", consolidation_state="normally_consolidated",
             round_footing=True, deep_uniform_deposit_confirmed=True,
         )
@@ -1595,6 +1598,7 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_eq_7_12():
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
         equivalent_net_limit_pressure_kpa=1500.0,
+        yield_pressure_kpa=250.0,
         soil_type="sand", consolidation_state="normally_consolidated",
         round_footing=True, soft_layers=soft, soft_layer_profile_reviewed=True,
     )
@@ -1624,6 +1628,7 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_out_of_range_layer():
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
             equivalent_net_limit_pressure_kpa=1500.0,
+        yield_pressure_kpa=250.0,
             soil_type="sand", consolidation_state="normally_consolidated",
             round_footing=True,
             soft_layers=[{"depth_center_m": 5.0, "thickness_m": 0.5,
@@ -1642,6 +1647,7 @@ def test_usace_2025_menard_pmt_weathered_clay_alpha_uses_table_7_6_range():
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
         equivalent_net_limit_pressure_kpa=1500.0,
+        yield_pressure_kpa=250.0,
         soil_type="clay", consolidation_state="weathered_remolded",
         round_footing=True, deep_uniform_deposit_confirmed=True,
     )
@@ -1652,6 +1658,7 @@ def test_usace_2025_menard_pmt_weathered_clay_alpha_uses_table_7_6_range():
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
             equivalent_net_limit_pressure_kpa=1000.0,
+        yield_pressure_kpa=250.0,
             soil_type="clay", consolidation_state="weathered_remolded",
             round_footing=True, deep_uniform_deposit_confirmed=True,
         )
