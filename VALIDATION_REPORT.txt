@@ -351,3 +351,26 @@ USACE 2025 Schmertmann CPT settlement — PR #27
 - GitHub Actions run 42960116509: success; Python 3.11 compile passed; full suite 266 passed.
 - Two equation/regression tests added for square/strip influence distributions, C1/C2, Es, qult/FS cap and incomplete-profile rejection. Not counted as published Appendix C benchmarks.
 - Published worked-example benchmark count remains 54.
+
+
+
+Hoek-Brown 2002 published worked example — PR #28
+
+- Added two independent regression cases from Hoek, Carranza-Torres & Corkum (2002), §7: tunnel (D=0) and slope (D=1), using σci=50 MPa, mi=10, GSI=45, H=100 m and γ=27 kN/m³.
+- Reproduces tunnel equivalent φ′≈47.16°, c′≈0.58 MPa and slope equivalent φ′≈27.61°, c′≈0.35 MPa.
+- Exposed rock-mass tensile strength σt=−sσci/mb (Eq. 7) in the engine and Module 1 UI.
+- PR #28 merged at 238095b7a5ca1e5b5760b87f4eb907f4a26bbac4; GitHub Actions run 42960565407 passed 268 tests at that commit.
+- These are two worked subcases from one published rock-mechanics example; they are reported separately from the 54 USACE Appendix B/C worked-example benchmark count.
+
+
+USACE 2025 Ménard-Rousseau PMT settlement — PR #30
+
+- Added Eq. 7-11 deep relatively uniform deposit settlement: five Figure 7-12 modulus groups (E1, E2, E3/4/5, E6/7/8, E9/16), harmonic means, Ec and Ed per Eq. 7-14, plus Table 7-6 αd/αc.
+- Added Eq. 7-12 soft/loose layer correction with EL, layer pne, thickness, depth and Boussinesq stress influence; checks 2B for rectangular and 6B for strip footing applicability.
+- Table 7-6 α values are selected only within listed E/pne ranges; unsupported ratios are rejected rather than interpolated. Weathered/remolded clay is specifically limited to E/pne=7–9.
+- Round footing uses λd=λc=1; non-round footing requires user-confirmed λd/λc read from Figure 7-11 rather than guessed chart values.
+- PMT yield pressure Py is mandatory; adopted gross q/gross qeq is rejected if it exceeds Py. Gross q is also capped by qult/FS.
+- Module 4 exposes PMT grouped E0 input and optional soft-layer CSV. The PMT method requires profile review, all five groups to 8B, and either deep-uniform confirmation or soft-layer inventory confirmation.
+- PR #30 merged at ba2129752bcff52663a1990f627fbd787080a46f.
+- GitHub Actions run 42961299758: success; Python 3.11 compile passed; full suite 274 passed.
+- Six new equation/applicability regression tests cover Eq. 7-11, Eq. 7-12, harmonic grouping, Table 7-6 ranges, Py limit and soft-layer depth. These are not counted as published Appendix C worked examples.
