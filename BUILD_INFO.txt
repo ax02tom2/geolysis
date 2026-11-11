@@ -1,15 +1,15 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: e2e69e2f13a49450a97d315db088b2ebe87f0c73
+Validated main code commit: 6d90cbd63676ee7ad9d723ee18091938c56c73a0
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 361 passed
-GitHub Actions validation run: 42984935565 (success; Python 3.11 compile passed; 361 passed in 2.14 s; includes PR #54 Schmertmann CPT soil-applicability gate, PR #53 PMT Figure 7-11 shape-factor bounds, PR #52 row-wise Burland–Burbidge N60 corrections through Module 3/4, PR #51 mixed-layer SPT corrections, PR #47 seismic applicability gates and PR #48 eastern Taiwan rock-reference data)
-Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception on the PR #49 code state (commit 3198911f381b2d32e14549aeb1c87a45404b509d); PR #51 CI validates compileall and pytest, but did not rerun AppTest
+Latest verified automated suite: 364 passed
+GitHub Actions validation run: 42985106615 (success; Python 3.11 compile passed; 364 passed in 1.91 s; includes PR #56 Appendix C-1/C-4 layer-specific e-log-p calculation and Module 4 UI)
+Runtime smoke: latest PR #56 CI ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 59 published worked-example benchmarks (53 Appendix B plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 61 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
 Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
@@ -44,3 +44,16 @@ Module 3 mixed-layer SPT: row-specific soil behavior and dilatancy eligibility; 
 Module 3 → Module 4 Burland–Burbidge: per-row material tags apply saturated fine sand/silt correction or gravel ×1.25 before N60 averaging; four integration/regression tests added. Latest suite 359 passed.
 Module 4 PMT: λd/λc now constrained to USACE Figure 7-11 chart bounds and curve ordering; conservative chart-end defaults; two regression tests. Latest suite 360 passed.
 Module 4 CPT: Schmertmann method now requires explicit confirmation of young (<100 years), normally consolidated, clean silica sand applicability; one regression test added. Latest suite 361 passed.
+
+
+Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
+- Added an Appendix C-1 six-layer e-log-p benchmark. The six published settlement rows sum to approximately 0.0309 ft (0.37 in).
+- Added a layer-specific e-log-p rebound/recompression engine method using each stratum's e0, e_exc and e_final values. Rebound and recompression thicknesses are separate because the excavation/recompression influence zones need not match.
+- Added Appendix C-4 validation from Table C-4. Using the table-rounded void ratios, rebound is approximately 0.126 ft (1.51 in), recompression approximately 0.550 ft (6.60 in), and net settlement approximately 0.424 ft (5.08 in). The small difference from the printed rebound 0.13 ft (1.56 in) is consistent with the table's rounded void ratios.
+- Module 4 now exposes a multi-layer measured e-log-p CSV input; the original single-layer Cr/Cc path remains explicitly labeled as idealized.
+- The new calculation requires effective stresses and e-log-p void ratios to be supplied per layer. It does not itself calculate groundwater drawdown, excavation stress relief or foundation-induced stress distribution; those must be established separately per USACE Table 7-10.
+- Added three regression tests: Appendix C-1, Appendix C-4 and invalid void-ratio path rejection. Added the new test file to GitHub Actions.
+- PR #56 merged to main at 6d90cbd63676ee7ad9d723ee18091938c56c73a0.
+- GitHub Actions run 42985106615: success; Python 3.11 compile passed; full suite 364 passed in 1.91 s.
+- Published USACE Appendix B/C benchmark coverage is now 61: 53 Appendix B and eight Appendix C cases (C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
