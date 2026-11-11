@@ -10,6 +10,7 @@ from geolysis_engine import (
     spt_correct,
     burland_burbidge_2025_settlement,
     burland_burbidge_average_n60_from_ground_profile,
+    burland_burbidge_average_n60_from_profile,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
     consolidation_time_rate,
@@ -2176,3 +2177,48 @@ def test_hoek_brown_high_gsi_blocky_rock_requires_brittle_failure_review():
 def test_hoek_brown_gsi_applicability_rejects_invalid_structure_code():
     with pytest.raises(ValueError, match="A–F"):
         hoek_brown_structure_applicability(gsi=50.0, structure_code="Z")
+
+
+
+def test_burland_burbidge_fine_sand_dilatancy_corrects_raw_n60_before_mean():
+    result = burland_burbidge_average_n60_from_profile(
+        [
+            {"Depth_below_base_m": 0.5, "N60": 25.0},
+            {"Depth_below_base_m": 1.0, "N60": 10.0},
+        ],
+        width_m=1.0, granular_layer_thickness_m=5.0,
+        fine_sand_saturated=True,
+    )
+    assert result["selected_profile"] == [
+        (0.5, 25.0, 20.0),
+        (1.0, 10.0, 10.0),
+    ]
+    assert result["N60_average"] == pytest.approx(15.0)
+    assert "直接" not in result["adjustments"]
+    assert "式 4-7" in result["adjustments"]
+
+
+def test_burland_burbidge_gravel_adjustment_is_applied_per_test_before_mean():
+    result = burland_burbidge_average_n60_from_profile(
+        [
+            {"Depth_below_base_m": 0.5, "N60": 10.0},
+            {"Depth_below_base_m": 1.0, "N60": 20.0},
+        ],
+        width_m=1.0, granular_layer_thickness_m=5.0,
+        gravel_adjustment=True,
+    )
+    assert result["selected_profile"] == [
+        (0.5, 10.0, 12.5),
+        (1.0, 20.0, 25.0),
+    ]
+    assert result["N60_average"] == pytest.approx(18.75)
+    assert "×1.25" in result["adjustments"]
+
+
+def test_burland_burbidge_cannot_apply_gravel_and_fine_sand_corrections_together():
+    with pytest.raises(ValueError, match="不可同時套用"):
+        burland_burbidge_average_n60_from_profile(
+            [{"Depth_below_base_m": 0.5, "N60": 25.0}],
+            width_m=1.0, granular_layer_thickness_m=5.0,
+            gravel_adjustment=True, fine_sand_saturated=True,
+        )
