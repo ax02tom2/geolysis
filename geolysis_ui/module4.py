@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure
 
 
 def render_module_4(expanded=False):
@@ -21,9 +21,10 @@ def render_module_4(expanded=False):
                 width4=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key='m4_bb_b')
                 length4=st.number_input("基礎長邊 L [m]",0.3,100.0,3.0,0.1,key='m4_bb_l')
             with b:
-                q4=st.number_input("目前基礎底總接觸壓力 q [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
+                q4=st.number_input("目前基礎底 gross 壓力 q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
-                qcap4=st.number_input("模組五 qa,gross（總容許承載力）上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4_bb_qcap')
+                qult4=st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult')
+                fs_bb4=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key='m4_bb_fs')
                 sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
                 sigp4=st.number_input("先期固結壓力 σ′p [kPa]（正常固結時採 σ′0）",1.0,5000.0,100.0,5.0,key='m4_bb_sigp')
             with c:
@@ -56,10 +57,23 @@ def render_module_4(expanded=False):
                     overconsolidated=oc4,gravel_adjustment=(gravel4 if not profile_text4.strip() else False),
                     fine_sand_saturated=(fine_sat4 if not profile_text4.strip() else False),
                     n_decreases_with_depth=ndecrease4)
-                q4_used=min(q4,qcap4) if qcap4>0 else q4
-                max_q4=min(5000.0,qcap4) if qcap4>0 else 5000.0
-                if qcap4>0 and q4>qcap4:
-                    st.warning(f"目前輸入 q={q4:.1f} kPa 高於模組五 qa,gross={qcap4:.1f} kPa；沉陷估算改以後者計算。")
+                pressure_check4=None
+                if qult4>0:
+                    pressure_check4=usace_settlement_design_pressure(
+                        gross_equivalent_pressure_kpa=q4,
+                        ultimate_bearing_kpa=qult4,
+                        factor_of_safety=fs_bb4)
+                    q4_used=pressure_check4['design_pressure_kpa']
+                    capacity_limit4=pressure_check4['capacity_pressure_limit_kpa']
+                    max_q4=min(5000.0,capacity_limit4)
+                    if pressure_check4['capacity_limit_governs']:
+                        st.warning(f"輸入 q／qeq={q4:.1f} kPa 高於 qult/FS={capacity_limit4:.1f} kPa；依 USACE 2025 沉陷壓力限制，計算改採 qult/FS。")
+                    st.caption(f"承載力壓力上限：qult/FS = {qult4:.1f}/{fs_bb4:.2f} = {capacity_limit4:.1f} kPa。")
+                else:
+                    q4_used=q4
+                    max_q4=5000.0
+                    capacity_limit4=None
+                    st.warning("尚未輸入模組五 gross qult；目前只做沉陷估算，尚未套用 USACE 2025 的 qult/FS 承載力壓力上限。")
                 r=burland_burbidge_2025_settlement(gross_pressure_kpa=q4_used,**bb_args)
                 qa_bb=burland_burbidge_2025_allowable_pressure(target_settlement_mm=target_bb4,max_pressure_kpa=max_q4,**bb_args)
                 st.metric("沉陷＋承載力控制容許總接觸壓力",f"{qa_bb['qa_settlement_gross_kpa']:.1f} kPa")
@@ -68,12 +82,12 @@ def render_module_4(expanded=False):
                 st.write(f"形狀係數 C1 = {r['C1_shape']:.3f} ｜ 層厚係數 C2 = {r['C2_layer']:.3f} ｜ 時間係數 C3 = {r['C3_time']:.3f} ｜ {r['regime']}")
                 st.caption(r['method'])
                 st.warning(r['limitations'])
-                if qa_bb['pressure_search_limit_reached'] and qcap4>0 and qcap4<=5000:
+                if qa_bb['pressure_search_limit_reached'] and qult4>0 and capacity_limit4 is not None and capacity_limit4<=5000:
                     st.caption("容許壓力受模組五輸入的 qa,gross 上限控制；在該上限內，預估沉陷仍未超過目標值。")
                 elif qa_bb['pressure_search_limit_reached']:
                     st.warning("5,000 kPa 搜尋上限內仍未達容許沉陷量，結果受搜尋上限控制，請檢查輸入。")
                 if qa_bb['no_feasible_pressure']: st.error("即使不增加基礎接觸壓力，公式中的初始應力沉陷項仍已超過容許沉陷量；目前沒有可行的正接觸壓力解，請檢查 σ′0、N60、目標沉陷與方法適用性。")
-                st.info("本結果已可選擇套用模組五 qa,gross 作承載力上限；若未輸入該值，結果僅受沉陷控制。請確認模組五使用相同基礎尺寸、埋深、地下水與地層條件。")
+                st.info("本方法使用 gross q／偏心時的 qeq，並以 gross qult/FS 作承載力上限；偏心基礎不可輸入 V/A 的平均壓力取代 qeq。若未輸入 qult，結果僅受沉陷控制。請確認模組五與本頁採用相同基礎尺寸、埋深、地下水及地層條件。")
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
                 st.error(f"Burland–Burbidge 沉陷估算失敗：{exc}")
