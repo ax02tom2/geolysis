@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, schmertmann_cpt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -12,7 +12,7 @@ def render_module_4(expanded=False):
     # ==============================================================================
     with st.expander("📏 模組四：容許承載力與沉陷控制", expanded):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
-        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
+        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
         if method4.startswith('砂土／礫土'):
             st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；使用基礎底至影響深度內的平均 N60，不是 (N1)60。可直接連結模組三剖面，並依基礎埋深將地表深度換算為基礎底下深度。")
             a,b,c=st.columns(3)
@@ -147,6 +147,46 @@ def render_module_4(expanded=False):
             except Exception as exc:
                 logging.exception("DMT settlement calculation failed")
                 st.error(f"DMT 沉陷估算失敗：{exc}")
+        elif method4.startswith('CPT：'):
+            st.caption("依 USACE EM 1110-1-1905（2025）式 7-16～7-26。以 CPT 實測 qc 計算等效 Es，依基礎長寬比建立 Iz 深度分布，逐層加總沉陷。原始經驗模數主要適用於年輕（<100 年）、正常固結、潔淨矽砂；不應直接套用於黏土、有機土或膠結土。")
+            a,b,c=st.columns(3)
+            with a:
+                cptB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_cpt_b")
+                cptL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_cpt_l")
+                cptType=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m4_cpt_type")
+            with b:
+                cptq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_q")
+                cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")
+                cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
+            with c:
+                cptQult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult")
+                cptFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_cpt_fs")
+                cptYears=st.number_input("載重作用時間 [年]",0.01,100.0,50.0,0.5,key="m4_cpt_years")
+            cptText=st.text_area("CPT 分層 CSV（由基礎底開始，逐層向下；qc 為實測錐尖阻抗）",
+                value="",height=120,key="m4_cpt_layers",
+                placeholder="Layer,thickness_m,qc_kpa\n1,0.25,8000\n2,0.25,9500\n…（需涵蓋完整影響深度）")
+            st.caption("σ′zp 應取自有效應力剖面在峰值 Iz 深度的位置；矩形基礎峰值深度依 L/B 由 B/2 至 B 內插，連續基礎取 B。CPT qc 不可將 qc−σv0 的淨值誤填為 qc。")
+            try:
+                if not cptText.strip():
+                    st.info("請貼上 CPT qc 分層資料後計算；不以通用 Es 預設值代替現地試驗。")
+                else:
+                    cptLayers=pd.read_csv(StringIO(cptText)).to_dict("records")
+                    cptResult=schmertmann_cpt_settlement_2025(
+                        layers=cptLayers,footing_width_m=cptB,footing_length_m=cptL,
+                        gross_pressure_kpa=cptq,base_effective_stress_kpa=cptSigD,
+                        peak_effective_stress_kpa=cptSigP,years=cptYears,
+                        ultimate_bearing_kpa=(cptQult if cptQult>0 else None),
+                        factor_of_safety=cptFs,footing_type=cptType)
+                    st.metric("CPT 估算總沉陷",f"{cptResult['settlement_mm']:.2f} mm")
+                    st.write(f"採用 gross 壓力 = {cptResult['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {cptResult['net_pressure_increment_kpa']:.1f} kPa ｜ Izp = {cptResult['Iz_peak']:.3f} ｜ C1 = {cptResult['C1_embedment']:.3f} ｜ C2 = {cptResult['C2_creep']:.3f}")
+                    st.dataframe(pd.DataFrame(cptResult["layer_results"]),hide_index=True,use_container_width=True)
+                    if cptQult<=0:
+                        st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
+                    st.caption(cptResult["method"])
+                    st.warning(cptResult["limitations"])
+            except Exception as exc:
+                logging.exception("Schmertmann CPT settlement calculation failed")
+                st.error(f"CPT 沉陷估算失敗：{exc}")
         elif method4.startswith('砂土：'):
             st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
             a,b,c=st.columns(3)
