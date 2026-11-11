@@ -238,9 +238,13 @@ def render_module_4(expanded=False):
                             lambda_d=pmtLd,lambda_c=pmtLc,round_footing=pmtRound,
                             ultimate_bearing_kpa=(pmtQu if pmtQu>0 else None),
                             factor_of_safety=pmtFs,
-                            deep_uniform_deposit_confirmed=pmtDeepConfirmed)
+                            deep_uniform_deposit_confirmed=pmtDeepConfirmed,
+                            soft_layers=(pd.read_csv(StringIO(pmtSoftText)).to_dict("records") if pmtSoftText.strip() else None),
+                            soft_layer_profile_reviewed=pmtSoftConfirmed)
                         st.metric("PMT 估算總沉陷",f"{pmtResult['settlement_mm']:.2f} mm")
-                        st.write(f"剪切變形沉陷 = {pmtResult['deviatoric_settlement_mm']:.2f} mm ｜ 體積變形沉陷 = {pmtResult['spherical_settlement_mm']:.2f} mm")
+                        st.write(f"剪切變形沉陷 = {pmtResult['deviatoric_settlement_mm']:.2f} mm ｜ 體積變形沉陷 = {pmtResult['spherical_settlement_mm']:.2f} mm ｜ 軟弱層修正 = {pmtResult['soft_layer_settlement_mm']:.2f} mm")
+                        if pmtResult["soft_layer_results"]:
+                            st.dataframe(pd.DataFrame(pmtResult["soft_layer_results"]),hide_index=True,use_container_width=True)
                         st.write(f"採用 gross 壓力 = {pmtResult['gross_pressure_used_kpa']:.1f} kPa ｜ Ed = {pmtResult['Ed_kpa']:.0f} kPa ｜ Ec = {pmtResult['Ec_kpa']:.0f} kPa ｜ αd = {pmtResult['alpha_d']:.3f} ｜ αc = {pmtResult['alpha_c']:.3f}")
                         st.dataframe(pd.DataFrame([{"分組":k,"調和平均 E0 [kPa]":v} for k,v in pmtResult["group_harmonic_means_kpa"].items()]),hide_index=True,use_container_width=True)
                         if pmtQu<=0:
