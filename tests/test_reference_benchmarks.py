@@ -1945,26 +1945,26 @@ def test_uscs_major_group_symbols_match_astm_d2487_criteria(kwargs, expected):
 
 
 @pytest.mark.parametrize(
-    ("fines", "ll", "pi", "expected"),
+    ("fines", "p10", "p40", "ll", "pi", "expected"),
     [
-        (10, 35, 5, "A-1-a"),
-        (20, 30, 5, "A-1-b"),
-        (5, 30, 0, "A-3"),
-        (20, 35, 5, "A-2-4"),
-        (20, 50, 5, "A-2-5"),
-        (20, 35, 15, "A-2-6"),
-        (20, 50, 20, "A-2-7"),
-        (50, 35, 10, "A-4"),
-        (50, 50, 10, "A-5"),
-        (50, 35, 20, "A-6"),
-        (50, 60, 20, "A-7-5"),
-        (50, 60, 40, "A-7-6"),
+        (10, 40, 20, 25, 5, "A-1-a"),
+        (20, 60, 40, 30, 5, "A-1-b"),
+        (5, 80, 60, 30, 0, "A-3"),
+        (20, 80, 60, 35, 5, "A-2-4"),
+        (20, 80, 60, 50, 5, "A-2-5"),
+        (20, 80, 60, 35, 15, "A-2-6"),
+        (20, 80, 60, 50, 20, "A-2-7"),
+        (50, 80, 60, 35, 10, "A-4"),
+        (50, 80, 60, 50, 10, "A-5"),
+        (50, 80, 60, 35, 20, "A-6"),
+        (50, 80, 60, 60, 20, "A-7-5"),
+        (50, 80, 60, 60, 40, "A-7-6"),
     ],
 )
-def test_aashto_m145_group_boundaries(fines, ll, pi, expected):
+def test_aashto_m145_group_boundaries(fines, p10, p40, ll, pi, expected):
     # AASHTO M 145 Table 1: representative group/subgroup limits.
     result = classify_uscs_aashto(
-        p4=95, p10=80, p40=60, p200=fines,
+        p4=95, p10=p10, p40=p40, p200=fines,
         ll=ll, pl=ll-pi, np_flag=(pi == 0),
     )
     assert result["AASHTO"] == expected
