@@ -5,7 +5,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases
 
 
 
@@ -346,30 +346,34 @@ def render_module_5(expanded=False):
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
                 seismic_footing5=st.selectbox("基礎型式",["spread","strip"],format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",key="m5x_seismic_footing")
-            seismic_reference5=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
-                gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
-                B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,
-                eccentricity_B=eB5,eccentricity_L=eL5)
             with ss2:
-                ngamma_seismic5=st.number_input("承載力因子 Nγ（依目前 φ 與 Meyerhof 自動帶入）",0.0,2000.0,float(seismic_reference5["Ngamma"]),0.5,key="m5x_seismic_ng")
-                gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]（依地下水計算自動帶入）",1.0,25.0,float(max(1.0,min(25.0,seismic_reference5["gamma_effective"]))),0.5,key="m5x_seismic_gamma")
+                st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震 H/V 組合自動計算，不再要求手動猜測係數。")
             with ss3:
-                corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積（可大於 1）",0.01,1000.0,1.0,0.01,key="m5x_seismic_corr")
+                st.caption("兩組垂直地震係數方向均會計算，並以較低地震極限抗力作控制。")
             if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
                 try:
-                    sr=seismic_bearing_capacity_residual_pore_pressure(
-                        footing_type=seismic_footing5,effective_unit_weight_kn_m3=gamma_seismic5,
-                        effective_width_m=(B5-2*eB5),bearing_factor_ngamma=ngamma_seismic5,
+                    sr=seismic_bearing_capacity_residual_pore_pressure_cases(
+                        vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
+                        footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
-                        shape_depth_inclination_factor=corr_seismic5)
-                    store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr, (ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5))
+                        c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,
+                        gamma_sub=gsub5,gamma_below=gamma_below5,
+                        B=B5,L=L5,Df=df5,water_depth=dw5,
+                        eccentricity_B=eB5,eccentricity_L=eL5,
+                        base_inclination_deg=base_ang5,
+                        ground_inclination_deg=ground_ang5,
+                        slope_distance_m=slope_dist5,
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
+                    store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
+                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(ru5,seismic_footing5,ngamma_seismic5,gamma_seismic5,corr_seismic5,B5,eB5)
+            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
-                st.metric("地震孔壓折減後極限承載力",f"{sr['qu_seismic_kpa']:.1f} kPa")
+                st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
+                st.dataframe(pd.DataFrame(sr['cases']),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
     
