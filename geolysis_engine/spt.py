@@ -49,9 +49,39 @@ def spt_correct(n, energy_ratio_pct, borehole_factor, sampler_factor, rod_length
             'N1_60_dilatancy':n1_60_dil,'N1_60_final':n1_60_dil,
             'soil_behavior':soil_behavior,'dilatancy_applied':bool(apply_dilatancy and n1_60>15)}
 
+def _profile_value(row, key, default):
+    value = row.get(key, default)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return default
+    try:
+        if math.isnan(float(value)):
+            return default
+    except (TypeError, ValueError):
+        pass
+    return value
+
+
+def _profile_bool(value, *, default, label):
+    value = _profile_value({"value": value}, "value", default)
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in ("1", "1.0", "true", "yes", "y", "是", "套用"):
+        return True
+    if normalized in ("0", "0.0", "false", "no", "n", "否", "不套用"):
+        return False
+    raise ValueError(f"{label} 僅接受 true／false")
+
+
 def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_length_m,
                 cn_method='Liao & Whitman', cn_cap=2.0, soil_behavior='cohesionless',
                 apply_dilatancy=False):
+    """Correct a depth profile with optional per-row soil and equipment overrides.
+
+    Optional CSV columns: Soil_Behavior (cohesionless/cohesive),
+    Apply_Dilatancy (true/false), Energy_Ratio_pct, Borehole_Factor,
+    Sampler_Factor and Rod_Length_m. Global settings remain the fallback.
+    """
     out=[]
     if not rows: raise ValueError('逐深度資料不可為空')
     seen=set()
@@ -64,26 +94,33 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         seen.add(depth)
         clean={**row,'Depth_m':depth,'N':_finite('N',row['N']),
                'Effective_Stress_kPa':_finite('Effective_Stress_kPa',row['Effective_Stress_kPa'])}
-        # Refusal rows skip correction, but must still pass source-data validation.
         if clean['N']<0 or clean['Effective_Stress_kPa']<=0:
             raise ValueError('逐深度資料的 N 不可為負值，Effective_Stress_kPa 必須大於 0')
-        flag=row.get('Refusal',False)
-        is_refusal=(flag is True or str(flag).strip().lower() in ('1','1.0','true','yes','y','refusal','拒錘','部分貫入'))
-        if is_refusal:
+        row_soil = str(_profile_value(row, "Soil_Behavior", soil_behavior)).strip().lower()
+        if row_soil not in ("cohesionless", "cohesive"):
+            raise ValueError(f"深度 {depth:g} m 的 Soil_Behavior 僅接受 cohesionless 或 cohesive")
+        row_dilatancy = _profile_bool(
+            _profile_value(row, "Apply_Dilatancy", None),
+            default=(bool(apply_dilatancy) and row_soil == "cohesionless"),
+            label=f"深度 {depth:g} m 的 Apply_Dilatancy",
+        )
+        row_er = _finite("逐深度能量比", _profile_value(row, "Energy_Ratio_pct", energy_ratio_pct))
+        row_cb = _finite("逐深度鑽孔修正係數", _profile_value(row, "Borehole_Factor", borehole_factor))
+        row_cs = _finite("逐深度取樣器修正係數", _profile_value(row, "Sampler_Factor", sampler_factor))
+        flag = _profile_bool(row.get('Refusal', False), default=False, label="Refusal")
+        if flag:
             out.append({**clean,'N60':None,'CE':None,'CB':None,'CS':None,'CR':None,
                 'CN_raw':None,'CN':None,'N1_60':None,'N1_60_dilatancy':None,
-                'N1_60_final':None,'soil_behavior':soil_behavior,
+                'N1_60_final':None,'soil_behavior':row_soil,
                 'dilatancy_applied':False,'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
             continue
-        row_rod_length=row.get('Rod_Length_m',rod_length_m)
-        if (row_rod_length is None or
-            (isinstance(row_rod_length,str) and not row_rod_length.strip()) or
-            (isinstance(row_rod_length,(int,float)) and math.isnan(float(row_rod_length)))):
-            row_rod_length=rod_length_m
-        row_rod_length=_finite('逐深度鑽桿長度',row_rod_length)
-        r=spt_correct(row['N'],energy_ratio_pct,borehole_factor,sampler_factor,row_rod_length,
-                      row['Effective_Stress_kPa'],cn_method,cn_cap,
-                      soil_behavior=soil_behavior,apply_dilatancy=apply_dilatancy)
-        out.append({**clean,'Rod_Length_m':row_rod_length,**r,'Correction_status':'已完成一般 N 值修正'})
+        row_rod_length=_finite('逐深度鑽桿長度',_profile_value(row, "Rod_Length_m", rod_length_m))
+        result=spt_correct(clean['N'],row_er,row_cb,row_cs,row_rod_length,
+                      clean['Effective_Stress_kPa'],cn_method,cn_cap,
+                      soil_behavior=row_soil,apply_dilatancy=row_dilatancy)
+        out.append({**clean,'Rod_Length_m':row_rod_length,
+            'Energy_Ratio_pct_used':row_er,'Borehole_Factor_used':result['CB'],
+            'Sampler_Factor_used':row_cs,**result,
+            'Correction_status':'已完成逐深度修正'})
     out.sort(key=lambda x:x['Depth_m'])
     return out

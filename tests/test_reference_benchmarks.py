@@ -8,6 +8,7 @@ import pytest
 
 from geolysis_engine import (
     spt_correct,
+    spt_profile,
     burland_burbidge_2025_settlement,
     burland_burbidge_average_n60_from_ground_profile,
     burland_burbidge_average_n60_from_profile,
@@ -2414,3 +2415,70 @@ def test_burland_c2_only_reduces_when_granular_layer_is_thinner_than_zi(layer_ra
         granular_layer_thickness_m=layer_ratio * zi_m,
     )
     assert result["C2_layer"] == pytest.approx(expected_c2)
+
+
+
+def test_spt_profile_applies_soil_behavior_and_dilatancy_per_depth():
+    rows = [
+        {"Depth_m": 1.0, "N": 20, "Effective_Stress_kPa": 100,
+         "Soil_Behavior": "cohesionless", "Borehole_Factor": 1.05,
+         "Apply_Dilatancy": False},
+        {"Depth_m": 2.0, "N": 20, "Effective_Stress_kPa": 100,
+         "Soil_Behavior": "cohesive", "Borehole_Factor": 1.15,
+         "Apply_Dilatancy": False},
+        {"Depth_m": 3.0, "N": 20, "Effective_Stress_kPa": 100,
+         "Soil_Behavior": "cohesionless", "Apply_Dilatancy": True},
+        {"Depth_m": 4.0, "N": 50, "Effective_Stress_kPa": 120,
+         "Soil_Behavior": "cohesive", "Refusal": True},
+    ]
+    result = spt_profile(
+        rows, energy_ratio_pct=60, borehole_factor=1.0,
+        sampler_factor=1.0, rod_length_m=8.0,
+        cn_method="Liao & Whitman", cn_cap=2.0,
+        soil_behavior="cohesionless", apply_dilatancy=False,
+    )
+    sand, clay, dense_fines, refusal = result
+    assert sand["CB"] == pytest.approx(1.05)
+    assert sand["CN"] == pytest.approx(math.sqrt(101.3 / 100.0))
+    assert sand["soil_behavior"] == "cohesionless"
+    assert clay["CB"] == pytest.approx(1.0)
+    assert clay["CB_input"] == pytest.approx(1.15)
+    assert clay["CN"] == pytest.approx(1.0)
+    assert clay["N1_60_final"] == pytest.approx(clay["N60"])
+    assert dense_fines["dilatancy_applied"] is True
+    assert dense_fines["N1_60_final"] == pytest.approx(
+        15.0 + 0.5 * (dense_fines["N1_60"] - 15.0)
+    )
+    assert refusal["N60"] is None
+    assert refusal["soil_behavior"] == "cohesive"
+
+
+def test_spt_profile_rejects_invalid_layer_behavior_and_dilatancy_on_clay():
+    base = {"Depth_m": 1.0, "N": 20, "Effective_Stress_kPa": 100}
+    with pytest.raises(ValueError, match="Soil_Behavior"):
+        spt_profile(
+            [{**base, "Soil_Behavior": "sand"}],
+            energy_ratio_pct=60, borehole_factor=1.0,
+            sampler_factor=1.0, rod_length_m=8.0,
+        )
+    with pytest.raises(ValueError, match="膨脹修正"):
+        spt_profile(
+            [{**base, "Soil_Behavior": "cohesive", "Apply_Dilatancy": True}],
+            energy_ratio_pct=60, borehole_factor=1.0,
+            sampler_factor=1.0, rod_length_m=8.0,
+        )
+
+
+def test_spt_profile_uses_global_defaults_when_layer_overrides_are_blank():
+    result = spt_profile(
+        [{"Depth_m": 1.0, "N": 20, "Effective_Stress_kPa": 100,
+          "Soil_Behavior": "", "Apply_Dilatancy": ""}],
+        energy_ratio_pct=60, borehole_factor=1.15,
+        sampler_factor=1.1, rod_length_m=8.0,
+        soil_behavior="cohesive", apply_dilatancy=True,
+    )[0]
+    assert result["soil_behavior"] == "cohesive"
+    assert result["CB"] == pytest.approx(1.0)
+    assert result["CS"] == pytest.approx(1.1)
+    assert result["CN"] == pytest.approx(1.0)
+    assert result["dilatancy_applied"] is False

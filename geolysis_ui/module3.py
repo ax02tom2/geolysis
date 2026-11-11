@@ -73,9 +73,9 @@ def render_module_3(expanded=False):
             st.session_state.pop("m3_current_n160",None)
             st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
-        st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
+        st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點膨脹修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用膨脹修正。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
-        csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Rod_Length_m")
+        csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Soil_Behavior,Apply_Dilatancy,Rod_Length_m")
         profile_confirm=st.checkbox("已確認 CSV 為本次鑽孔實測 SPT 資料（不是示範數據）",value=False,key="m3_profile_confirm")
         # Clear any previous profile before validating current inputs to prevent stale Module 4 linkage.
         st.session_state.pop("m3_profile_result",None)
@@ -86,6 +86,10 @@ def render_module_3(expanded=False):
                 if required.issubset(prof.columns) and len(prof):
                     if prof[list(required)].isnull().any().any() or (prof['Effective_Stress_kPa']<=0).any() or (prof['N']<0).any():
                         raise ValueError('CSV 含空值、負 N 值或非正有效覆土應力')
+                    if 'Soil_Behavior' not in prof.columns:
+                        st.warning("CSV 未提供 Soil_Behavior；本次逐深度剖面會沿用上方單一土壤性質設定。若鑽孔包含砂土與黏土交互層，請加入 Soil_Behavior 欄，逐列填 cohesionless 或 cohesive，避免 CN 修正套用錯誤。")
+                    if dilatancy and 'Apply_Dilatancy' not in prof.columns:
+                        st.warning("CSV 未提供 Apply_Dilatancy；已勾選的膨脹修正會套用至所有 cohesionless 列。只有地下水位以下的飽和細砂／粉土且 (N1)60>15 才可套用，混合土層請加入 Apply_Dilatancy 欄逐列指定 true／false。")
                     rows=prof.to_dict('records')
                     corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
                         cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
