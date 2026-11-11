@@ -234,6 +234,33 @@ def secondary_compression_settlement(*, layer_thickness_m,
             'time_ratio':t2/t1,
             'method':'USACE EM 1110-1-1905 (2025) Eq. 7-47'}
 
+def usace_settlement_design_pressure(*, gross_equivalent_pressure_kpa,
+        ultimate_bearing_kpa, factor_of_safety=3.0):
+    """Apply the USACE 2025 settlement pressure limit.
+
+    Settlement calculations use the applicable gross pressure (q) or gross
+    equivalent pressure (q_eq), limited to q_ult / FS. For eccentric footings,
+    the caller must supply q_eq rather than average V/A.
+    """
+    q=_finite('gross／gross equivalent pressure q or qeq',gross_equivalent_pressure_kpa)
+    qult=_finite('gross ultimate bearing pressure qult',ultimate_bearing_kpa)
+    fs=_finite('承載力安全係數 FS',factor_of_safety)
+    if q<=0 or qult<=0 or fs<=1:
+        raise ValueError('q／qeq 與 qult 須大於 0，承載力安全係數 FS 須大於 1')
+    limit=qult/fs
+    used=min(q,limit)
+    return {
+        'input_gross_equivalent_pressure_kpa':q,
+        'ultimate_bearing_pressure_kpa':qult,
+        'factor_of_safety':fs,
+        'capacity_pressure_limit_kpa':limit,
+        'design_pressure_kpa':used,
+        'capacity_limit_governs':limit<q,
+        'method':'USACE EM 1110-1-1905 (2025), §7-2 and settlement method procedures',
+        'limitations':'輸入 q 應為適用的 gross bearing pressure；偏心基礎應輸入 qeq。沉陷計算採 min(q 或 qeq, qult/FS)。本函式只執行壓力上限控制，不代替模組五的實際承載力、偏心、滑動、抗浮及整體穩定檢核。'
+    }
+
+
 def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
                                       gross_pressure_kpa, initial_effective_stress_kpa,
                                       preconsolidation_stress_kpa, granular_layer_thickness_m,
