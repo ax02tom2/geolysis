@@ -1379,7 +1379,6 @@ def test_usace_2025_dmt_settlement_converts_readings_and_sums_incremental_layers
         layers=layers, footing_width_m=1.0, footing_length_m=1.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         ultimate_bearing_kpa=450.0, factor_of_safety=3.0,
-        soil_applicability_confirmed=True,
     )
     first = result["layer_results"][0]
     expected_id = (3.0 - 2.0) / (2.0 - 0.5)
