@@ -365,7 +365,7 @@ def render_module_4(expanded=False):
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
                 qcap_clay4=st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap')
-            layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa\n1,1.5,3.0,0.8,0.30,0.05,60,100\n2,5.0,4.0,0.9,0.40,0.06,100,150")
+            layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
                 if layers_text4.strip():
@@ -375,7 +375,7 @@ def render_module_4(expanded=False):
                         max_pressure_kpa=max_clay_q)
                     qa_clay_settlement=r['qa_primary_consolidation_kpa']
                     st.dataframe(pd.DataFrame(r['layer_results']),hide_index=True,use_container_width=True)
-                    st.caption("分層表逐層列出應力影響係數、應力增量及主固結沉陷；總沉陷為各層沉陷量加總。")
+                    st.caption("分層表逐層列出應力影響係數、應力增量及主固結沉陷；總沉陷為各層沉陷量加總。若提供 Stress_factor（0–1），該層會優先採用輸入值；請僅填入經核對的 USACE 範例／圖表或獨立應力分析值，空白則依上方 Boussinesq／2:1 方法計算。")
                 else:
                     stress_ratio=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
                         else boussinesq_rectangular_center_factor(qB,qL,zc))
