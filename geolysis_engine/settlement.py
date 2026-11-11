@@ -1033,7 +1033,20 @@ def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m
         if missing: raise ValueError('分層固結 CSV 缺少欄位：'+', '.join(sorted(missing)))
         z=_finite('Depth_center_m',row['Depth_center_m'])
         H=_finite('Thickness_m',row['Thickness_m'])
-        factor=_layer_stress_factor(B,L,z,stress_method)
+        raw_factor=row.get("Stress_factor")
+        if raw_factor is not None:
+            try:
+                missing_factor=math.isnan(float(raw_factor))
+            except (TypeError, ValueError):
+                missing_factor=False
+        else:
+            missing_factor=True
+        if missing_factor:
+            factor=_layer_stress_factor(B,L,z,stress_method)
+        else:
+            factor=_finite("逐層 Stress_factor",raw_factor)
+            if not 0.0 <= factor <= 1.0:
+                raise ValueError("逐層 Stress_factor 必須介於 0 與 1")
         ds=q*factor
         r=consolidation_settlement_1d(layer_thickness_m=H,initial_void_ratio=row['e0'],
             compression_index=row['Cc'],recompression_index=row['Cr'],

@@ -2662,3 +2662,67 @@ def test_usace_pmt_rock_requires_table_7_6_rock_classification():
             soil_type="rock", round_footing=True,
             deep_uniform_deposit_confirmed=True,
         )
+
+
+
+def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
+    # Appendix C-1, Table C-1 (printed pp. 339-341).
+    ft = 0.3048
+    tsf = 95.7605
+    data = [
+        (0.5,1.0,.15,.79,.44,1.0,.226,.024),
+        (2.0,2.0,.24,.88,.40,.92,.226,.024),
+        (4.0,2.0,.33,.97,.28,.63,.226,.024),
+        (6.5,3.0,.40,1.04,.16,.36,.226,.024),
+        (9.5,3.0,.49,5.89,.09,.20,.096,.012),
+        (12.5,3.0,.59,5.99,.05,.12,.096,.012),
+    ]
+    layers = [
+        {"Layer":i+1,"Depth_center_m":z*ft,"Thickness_m":H*ft,
+         "e0":1.0,"Cc":Cc,"Cr":Cr,"Sigma0_kPa":s0*tsf,
+         "SigmaP_kPa":sp*tsf,"Stress_factor":Iz}
+        for i,(z,H,s0,sp,ds,Iz,Cc,Cr) in enumerate(data)
+    ]
+    result = consolidation_settlement_layers(
+        layers=layers,footing_width_m=7*ft,footing_length_m=7*ft,
+        net_pressure_kpa=.438*tsf,stress_method="Boussinesq",
+    )
+    expected_ft = sum(
+        H*((Cr/2.0)*math.log10((s0+.438*Iz)/s0) if s0+.438*Iz<=sp
+           else (Cr/2.0)*math.log10(sp/s0)+(Cc/2.0)*math.log10((s0+.438*Iz)/sp))
+        for z,H,s0,sp,ds,Iz,Cc,Cr in data
+    )
+    assert len(result["layer_results"]) == 6
+    assert result["layer_results"][0]["Stress_factor"] == pytest.approx(1.0)
+    assert result["settlement_mm"]/304.8 == pytest.approx(expected_ft,abs=1e-9)
+    assert result["settlement_mm"]/304.8 == pytest.approx(.03087,abs=.0001)
+    assert result["settlement_mm"]/25.4 == pytest.approx(.37,abs=.01)
+
+
+def test_usace_2025_appendix_c3c_consolidation_time_rate():
+    # Appendix C-3c: U=70%, Tv=0.403, Hdr=25/2 ft, Cv=0.412 ft²/day.
+    ft = 0.3048
+    cv_m2_day = 0.412 * (0.3048**2)
+    result = consolidation_time_rate(
+        primary_settlement_mm=1.10*25.4,
+        layer_thickness_m=25*ft,
+        cv_m2_per_day=cv_m2_day,
+        target_degree_percent=70.0,
+        drainage="double",
+    )
+    assert result["time_factor_target"] == pytest.approx(.403,abs=.001)
+    assert result["drainage_path_m"] == pytest.approx(12.5*ft)
+    assert result["time_to_target_days"] == pytest.approx(152.8,abs=.5)
+
+
+def test_consolidation_layer_stress_factor_must_be_between_zero_and_one():
+    layers = [{
+        "Depth_center_m": 1.0, "Thickness_m": 2.0, "e0": 0.8,
+        "Cc": 0.3, "Cr": 0.05, "Sigma0_kPa": 100.0,
+        "SigmaP_kPa": 150.0, "Stress_factor": 1.01,
+    }]
+    with pytest.raises(ValueError, match="Stress_factor 必須介於 0 與 1"):
+        consolidation_settlement_layers(
+            layers=layers, footing_width_m=2.0, footing_length_m=3.0,
+            net_pressure_kpa=100.0,
+        )
