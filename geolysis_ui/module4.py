@@ -83,7 +83,7 @@ def render_module_4(expanded=False):
                 st.caption(r['method'])
                 st.warning(r['limitations'])
                 if qa_bb['pressure_search_limit_reached'] and qult4>0 and capacity_limit4 is not None and capacity_limit4<=5000:
-                    st.caption("容許壓力受模組五輸入的 qa,gross 上限控制；在該上限內，預估沉陷仍未超過目標值。")
+                    st.caption("容許壓力受模組五 qult/FS 上限控制；在該上限內，預估沉陷仍未超過目標值。")
                 elif qa_bb['pressure_search_limit_reached']:
                     st.warning("5,000 kPa 搜尋上限內仍未達容許沉陷量，結果受搜尋上限控制，請檢查輸入。")
                 if qa_bb['no_feasible_pressure']: st.error("即使不增加基礎接觸壓力，公式中的初始應力沉陷項仍已超過容許沉陷量；目前沒有可行的正接觸壓力解，請檢查 σ′0、N60、目標沉陷與方法適用性。")
