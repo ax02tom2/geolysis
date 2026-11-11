@@ -252,7 +252,7 @@ def render_module_5(expanded=False):
                         q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
                         strong_layer_thickness_m=strong_h5,footing_width_m=B5,
                         footing_length_m=L5,footing_type=footing_kind5)
-                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5))
+                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
