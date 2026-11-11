@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, schmertmann_cpt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -12,7 +12,7 @@ def render_module_4(expanded=False):
     # ==============================================================================
     with st.expander("📏 模組四：容許承載力與沉陷控制", expanded):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
-        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
+        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","PMT：Ménard–Rousseau 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
         if method4.startswith('砂土／礫土'):
             st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；使用基礎底至影響深度內的平均 N60，不是 (N1)60。可直接連結模組三剖面，並依基礎埋深將地表深度換算為基礎底下深度。")
             a,b,c=st.columns(3)
@@ -187,6 +187,65 @@ def render_module_4(expanded=False):
             except Exception as exc:
                 logging.exception("Schmertmann CPT settlement calculation failed")
                 st.error(f"CPT 沉陷估算失敗：{exc}")
+        elif method4.startswith('PMT：'):
+            st.caption("依 USACE EM 1110-1-1905（2025）式 7-11、表 7-5、表 7-6 及圖 7-11、7-12。此介面先實作深層且相對均質土層分支；若基礎下方 2B 內有軟弱／鬆散層，不能使用本分支，須另做式 7-12 評估。")
+            a,b,c=st.columns(3)
+            with a:
+                pmtB=st.number_input("基礎寬度 B [m]",0.3,30.0,2.0,0.1,key="m4_pmt_b")
+                pmtL=st.number_input("基礎長度 L [m]",0.3,100.0,2.0,0.1,key="m4_pmt_l")
+                pmtRound=st.checkbox("圓形基礎（λd = λc = 1）",value=False,key="m4_pmt_round")
+            with b:
+                pmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_pmt_q")
+                pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
+                pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",1.0,20000.0,1500.0,10.0,key="m4_pmt_pne")
+            with c:
+                pmtQu=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult")
+                pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
+                pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
+            pmtState=st.selectbox("土層狀態（表 7-6）",["normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
+            if pmtRound:
+                pmtLd=pmtLc=1.0
+                st.caption("圓形基礎依 USACE Figure 7-11，λd = λc = 1。")
+            else:
+                x,y=st.columns(2)
+                with x:
+                    pmtLd=st.number_input("λd（依 Figure 7-11 讀值）",0.01,5.0,1.0,0.01,key="m4_pmt_ld")
+                with y:
+                    pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",0.01,5.0,1.0,0.01,key="m4_pmt_lc")
+                pmtLambdaConfirmed=st.checkbox("已依 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
+            pmtDeepConfirmed=st.checkbox("已確認為深層且相對均質土層，且基礎下方 2B 內沒有軟弱／鬆散夾層",value=False,key="m4_pmt_deep_confirm")
+            pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
+                value="",height=130,key="m4_pmt_layers",
+                placeholder="group,E0_kpa\nE1,12000\nE2,15000\nE345,18000\nE678,22000\nE916,25000\n…（每組可有多筆試驗值）")
+            st.caption("五組代表深度：E1=0–0.5B；E2=0.5–1B；E345=1–2.5B；E678=2.5–4B；E916=4–8B。每組以調和平均計算。pne 請採模組五／PMT 剪力區的等效淨極限壓力；設計壓力不可超過 PMT 屈服壓力 Py。")
+            try:
+                if not pmtText.strip():
+                    st.info("請貼上五組 PMT E0 試驗值後計算。")
+                else:
+                    pmtRows=pd.read_csv(StringIO(pmtText)).to_dict("records")
+                    if not pmtRound and not pmtLambdaConfirmed:
+                        st.error("非圓形基礎須先依文獻圖 7-11 確認 λd、λc。")
+                    else:
+                        pmtResult=menard_rousseau_pmt_settlement_2025(
+                            pmt_moduli=pmtRows,footing_width_m=pmtB,footing_length_m=pmtL,
+                            gross_pressure_kpa=pmtq,base_effective_stress_kpa=pmtSigD,
+                            equivalent_net_limit_pressure_kpa=pmtPne,
+                            soil_type=pmtSoil,consolidation_state=pmtState,
+                            lambda_d=pmtLd,lambda_c=pmtLc,round_footing=pmtRound,
+                            ultimate_bearing_kpa=(pmtQu if pmtQu>0 else None),
+                            factor_of_safety=pmtFs,
+                            deep_uniform_deposit_confirmed=pmtDeepConfirmed)
+                        st.metric("PMT 估算總沉陷",f"{pmtResult['settlement_mm']:.2f} mm")
+                        st.write(f"剪切變形沉陷 = {pmtResult['deviatoric_settlement_mm']:.2f} mm ｜ 體積變形沉陷 = {pmtResult['spherical_settlement_mm']:.2f} mm")
+                        st.write(f"採用 gross 壓力 = {pmtResult['gross_pressure_used_kpa']:.1f} kPa ｜ Ed = {pmtResult['Ed_kpa']:.0f} kPa ｜ Ec = {pmtResult['Ec_kpa']:.0f} kPa ｜ αd = {pmtResult['alpha_d']:.3f} ｜ αc = {pmtResult['alpha_c']:.3f}")
+                        st.dataframe(pd.DataFrame([{"分組":k,"調和平均 E0 [kPa]":v} for k,v in pmtResult["group_harmonic_means_kpa"].items()]),hide_index=True,use_container_width=True)
+                        if pmtQu<=0:
+                            st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
+                        st.caption(pmtResult["method"])
+                        st.warning(pmtResult["limitations"])
+            except Exception as exc:
+                logging.exception("Menard-Rousseau PMT settlement calculation failed")
+                st.error(f"PMT 沉陷估算失敗：{exc}")
         elif method4.startswith('砂土：'):
             st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
             a,b,c=st.columns(3)
