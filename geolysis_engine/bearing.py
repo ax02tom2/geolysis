@@ -508,7 +508,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     """
     c=_finite('有效凝聚力 c′',c_kpa)
     phi=_finite('有效摩擦角 φ′',phi_deg)
-    if c>1e-9 or phi<=0:
+    if c<0 or c>1e-9 or phi<=0:
         raise ValueError('式 9-3／9-4 僅供砂狀排水土使用；需 c′≈0 且 φ′>0，不可套用不排水黏土或含顯著凝聚力土層')
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     if not 0<=ru<1:
