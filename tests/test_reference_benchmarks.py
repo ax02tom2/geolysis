@@ -1810,3 +1810,41 @@ def test_usace_2025_appendix_c5_menard_pmt_clay_soft_layer_settlement():
     assert result["deviatoric_settlement_mm"]/25.4 == pytest.approx(.029*12,abs=.01)
     assert result["soft_layer_settlement_mm"]/25.4 == pytest.approx(.232,abs=.003)
     assert result["settlement_mm"]/25.4 == pytest.approx(.70,abs=.01)
+
+
+
+def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
+    # Appendix C-6b, Table C-6a/C-6b (printed pp. 368-373).
+    # The 46 listed layer settlements sum to about 0.81 in; the printed
+    # total is 0.081 in, a factor-of-ten discrepancy.
+    ft = 0.3048
+    tsf = 95.7605
+    data = [
+        (.7,.7,769,.998),(1.6,.9,770,.969),(2.3,.7,920,.914),(3.0,.7,158,.834),
+        (3.6,.6,717,.757),(4.3,.7,917,.666),(4.9,.6,898,.593),(5.6,.7,985,.516),
+        (6.2,.6,2264,.458),(6.9,.7,2132,.399),(7.5,.6,1559,.356),(8.2,.7,1457,.313),
+        (8.9,.7,1115,.277),(9.5,.6,789,.250),(10.2,.7,858,.223),(10.8,.6,858,.202),
+        (11.5,.7,459,.182),(12.1,.6,412,.167),(12.8,.7,1059,.151),(13.4,.6,517,.139),
+        (14.1,.7,72,.127),(14.8,.7,58,.117),(15.4,.6,29,.109),(16.1,.7,39,.100),
+        (16.7,.6,61,.094),(17.4,.7,48,.087),(18.0,.6,45,.081),(18.7,.7,70,.076),
+        (19.4,.7,88,.071),(20.0,.6,115,.067),(20.7,.7,167,.062),(21.3,.6,138,.059),
+        (22.0,.7,78,.056),(22.6,.6,190,.053),(23.3,.7,135,.050),(23.9,.6,199,.047),
+        (24.6,.7,179,.045),(25.3,.7,40,.043),(25.9,.6,35,.041),(26.6,.7,122,.039),
+        (27.2,.6,55,.037),(27.9,.7,39,.035),(28.5,.6,38,.034),(29.2,.7,31,.032),
+        (29.8,.6,33,.031),(30.5,.7,32,.030),
+    ]
+    layers = [
+        {"Layer":i+1,"depth_center_m":z*ft,"thickness_m":H*ft,
+         "MDMT_kpa":M*tsf,"I_sigma":Iz}
+        for i,(z,H,M,Iz) in enumerate(data)
+    ]
+    result = dmt_modulus_settlement_2025(
+        layers=layers,footing_width_m=8*ft,footing_length_m=8*ft,
+        gross_pressure_kpa=2.53*tsf,base_effective_stress_kpa=.15*tsf,
+    )
+    expected_in = sum((2.53-.15)*Iz*H/M*12 for z,H,M,Iz in data)
+    assert len(result["layer_results"]) == 46
+    assert result["layer_results"][0]["Stress_factor_I_sigma"] == pytest.approx(.998)
+    assert result["profile_depth_used_m"] > 30*ft
+    assert result["settlement_mm"]/25.4 == pytest.approx(expected_in,abs=1e-6)
+    assert result["settlement_mm"]/25.4 == pytest.approx(.827,abs=.002)
