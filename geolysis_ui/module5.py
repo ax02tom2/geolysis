@@ -46,7 +46,7 @@ def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
         st.success("承載力 FS 與中三分點偏心限制均符合目前 USACE 2025 最低要求。")
     elif complete_capacity_model and not check["passes_bearing"]:
         st.error("承載力安全係數低於 USACE 2025 最低要求 3.0。")
-    st.caption("V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已含基礎自重及基礎底以上覆土；不要只填柱載重 Q。地下水位高於基礎底時，依 uD=γw(Df−Dw) 扣除基底水壓。此項只檢核承載力與中三分點偏心，不取代滑動、抗浮、整體穩定及沉陷檢核。")
+    st.caption("V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已含基礎自重及基礎底以上覆土；不要只填柱載重 Q。地下水位高於基礎底時，依 uD=γw(Df−Dw) 扣除基底水壓。此項只檢核承載力與中三分點偏心，不取代滑動、抗浮、整體穩定及沉陷檢核。qult 抗力端仍依上方所選理論計算；選用 1992 經典理論時，這是與 USACE 2025 需求端公式組合的檢核，不代表整套抗力係數已改為 2025 Meyerhof-based 方法。")
     return check
 
 
@@ -141,8 +141,9 @@ def render_module_5(expanded=False):
             r2.metric("淨容許承載力 qa,net",f"{result5['qa_net']:.1f} kPa")
             r3.metric("總容許承載力 qa,gross",f"{result5['qa_gross']:.1f} kPa")
 
-            main_load_complete=(H5<=0 or theory5 in ("Hansen","Vesic") or
-                (theory5=="Meyerhof" and abs(beta5-math.degrees(math.atan2(H5,V5)))<=0.1))
+            main_load_complete=((theory5=="Meyerhof" and abs(beta5-math.degrees(math.atan2(H5,V5)))<=0.1) or
+                (theory5 in ("Hansen","Vesic")) or
+                (theory5=="Terzaghi" and H5<=0))
             main_reason=("目前 H>0，但所選理論沒有套用與 H/V 相符的載重傾斜修正；請選 Hansen／Vesic，或在 Meyerhof 中將 β 設為 atan(H/V)。" if not main_load_complete else None)
             _render_bearing_safety_check(
                 qult_kpa=result5["qu_gross"],vertical_load_kN=V5,
