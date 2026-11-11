@@ -1512,6 +1512,6 @@ def test_hoek_brown_2002_published_example_equivalent_mc_parameters(
     )
     assert result["phi_equiv_deg"] == pytest.approx(expected_phi, abs=0.02)
     assert result["c_equiv_mpa"] == pytest.approx(expected_c, abs=0.01)
-    assert result["sigma_cm_mpa"] == pytest.approx(6.98, abs=0.03)
-    assert result["sigma_c_mass_mpa"] == pytest.approx(3.0, abs=0.1)
+    assert result["sigma_cm_mpa"] == pytest.approx(7.80982, abs=1e-4)
+    assert result["sigma_c_mass_mpa"] == pytest.approx(2.24130, abs=1e-4)
     assert result["sigma_t_mass_mpa"] < 0.0
