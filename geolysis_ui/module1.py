@@ -177,7 +177,8 @@ def render_module_1(expanded=False):
                 mi_default, mi_low, mi_high, mi_source = mi_reference[rock_preset]
                 mi = float(mi_default)
                 mi = st.number_input("mi（可直接調整）", min_value=1.0, max_value=50.0, value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
-                st.caption(f"mi 初估：{mi_low}–{mi_high}；採用 {mi:g}。{mi_source}。")
+                _mi_range_text = f"{mi_low:g}–{mi_high:g}" if mi_low != mi_high else f"{mi_low:g}（單一案例／採用值）"
+                st.caption(f"mi 參考值：{_mi_range_text}；採用 {mi:g}。{mi_source}。")
                 if rock_preset == "砂岩 Sandstone（台灣南莊層三軸案例）":
                     st.markdown("[查看南莊層砂岩三軸反算案例](https://www.thb.gov.tw/FileResource.axd?path=html%2Fdoc%2F%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B%2F%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)")
                 elif rock_preset == "片岩 Schist（蘇花公路案例）":
