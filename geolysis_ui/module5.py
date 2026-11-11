@@ -5,7 +5,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, seismic_foundation_eccentricity_cases, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases
 
 
 
@@ -334,7 +334,8 @@ def render_module_5(expanded=False):
                 seismic_moment_B5=st.number_input("地震基礎底彎矩 M_B,E [kN·m]（短邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_B")
             with sm2:
                 seismic_moment_L5=st.number_input("地震基礎底彎矩 M_L,E [kN·m]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_L")
-            st.caption("請輸入結構耐震分析傳至基礎底面的地震彎矩分量；正負號以 +kh 方向為基準，系統會自動反算 −kh 方向。靜力偏心距 eB/eL 會先換算為靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。此兩個彎矩輸入僅用於下方地震孔壓折減承載力，不會改變上方單純 H/V 等效載重表。")
+            st.markdown("**地震彎矩與偏心檢核（一般地震載重適用，不依賴孔壓折減條件）**")
+            st.caption("請輸入結構耐震分析傳至基礎底面的水平地震彎矩分量；正負號以 +kh 方向為基準，系統假設反向作用時彎矩線性反號。靜力偏心距 eB/eL 會先換算為帶方向的靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。此兩個彎矩輸入會供本區一般地震偏心檢核及下方地震孔壓折減承載力使用，不會改變上方單純 H/V 等效載重表。")
             if kh5>0 and abs(seismic_moment_B5)<1e-9 and abs(seismic_moment_L5)<1e-9:
                 st.warning("目前兩個地震基礎底彎矩均為 0；系統不會由 khW 自行猜測作用高度。若結構分析已有地震彎矩，請輸入其傳至基礎底面的帶符號分量；未輸入時結果不包含地震傾覆偏心。")
             sd1,sd2=st.columns(2)
@@ -342,6 +343,31 @@ def render_module_5(expanded=False):
                 static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
             with sd2:
                 static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
+            seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
+                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5)
+            if st.button("計算地震偏心與中間三分點",key="m5x_seismic_ecc_run"):
+                try:
+                    seismic_ecc5=seismic_foundation_eccentricity_cases(
+                        vertical_load_kN=V5,horizontal_load_kN=H5,
+                        seismic_weight_kN=seismic_weight5,kh=kh5,kv=kv5,
+                        footing_type=seismic_footing5,B=B5,L=L5,
+                        eccentricity_B=eB5,eccentricity_L=eL5,
+                        seismic_moment_B_kNm=seismic_moment_B5,
+                        seismic_moment_L_kNm=seismic_moment_L5,
+                        static_moment_B_sign=static_moment_B_sign5,
+                        static_moment_L_sign=static_moment_L_sign5)
+                    store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
+                except Exception as ecc_exc:
+                    logging.exception("Unhandled application calculation error")
+                    st.error(f"地震偏心／中間三分點檢核失敗：{ecc_exc}")
+            seismic_ecc5,seismic_ecc_current5=read_result_state(
+                st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc_sig5)
+            if seismic_ecc5 and seismic_ecc_current5:
+                st.metric("地震偏心／中間三分點檢核","全部組合符合" if seismic_ecc5["passes"] else "至少一組未符合")
+                if not seismic_ecc5["passes"]:
+                    st.error("至少一組地震載重組合超出中間三分點、失去有效壓縮接觸或有效軸向交換；請另作傾覆／接觸壓力／雙向偏心分析。")
+                st.dataframe(pd.DataFrame(seismic_ecc5["cases"]),hide_index=True,use_container_width=True)
+                st.caption(seismic_ecc5["limitations"])
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
                 try:
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
