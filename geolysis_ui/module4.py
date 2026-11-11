@@ -203,7 +203,7 @@ def render_module_4(expanded=False):
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
                 pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
-            pmtState=st.selectbox("土層狀態（表 7-6）",["normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
+            pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
             if pmtRound:
                 pmtLd=pmtLc=1.0
                 st.caption("圓形基礎依 USACE Figure 7-11，λd = λc = 1。")
