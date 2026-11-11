@@ -395,11 +395,11 @@ def render_module_5(expanded=False):
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
                         horizontal_load_kN=H5,footing_area_m2=area5,kh=kh5,kv=kv5,
                         seismic_weight_kN=seismic_weight5)
-                    store_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", seismic, (V5,H5,area5,kh5,kv5,seismic_weight5))
+                    store_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", seismic, (V5,H5,area5,kh5,kv5,seismic_weight5,seismic_footing5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震等效載重計算失敗：{exc}")
-            seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5,seismic_weight5))
+            seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5,seismic_weight5,seismic_footing5))
             if seismic and seismic_is_current:
                 st.dataframe(_seismic_case_dataframe(seismic["cases"],seismic_footing5),hide_index=True,use_container_width=True)
     
