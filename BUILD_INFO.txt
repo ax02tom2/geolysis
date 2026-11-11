@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: f3aec6fd4da140c8718849fb1a4df4418a7f49cf
+Validated main code commit: d9e58cb26ebca528552fd936484d41ca2f16d7fc
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 384 passed
-GitHub Actions validation run: 42986876578 (success; Python 3.11 compile passed; 384 passed in 1.27 s; includes PR #63 per-layer stress factors and PR #64 northeastern Taiwan sandstone case)
-Runtime smoke: latest main CI run 42986876578 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
+Latest verified automated suite: 385 passed
+GitHub Actions validation run: 42987296496 (success; Python 3.11 compile passed; 385 passed in 2.31 s; includes PR #65 capacity-limited primary settlement for time-rate/secondary calculations)
+Runtime smoke: PR #65 CI run 42987296496 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -113,3 +113,14 @@ Module 1 northeastern Taiwan weathered sandstone case — PR #64
 - GitHub Actions main run 42986876578: success; Python 3.11 compile passed; full suite 384 passed in 1.27 s.
 - Public worked-example benchmark count remains 66; PR #63 adds stronger integrated checks of existing C-1/C-3c cases, and PR #64 adds a parameter reference case rather than a new worked-example calculation.
 - Reference: Shao et al. (2021), *Investigations of a Weathered and Closely Jointed Rock Slope Failure Using Back Analyses*, Sustainability 13(23), 13452, https://doi.org/10.3390/su132313452.
+
+
+Module 4 pressure consistency for consolidation time-rate and secondary compression — PR #65
+- Audit confirmed the secondary-compression UI already exists; no duplicate panel was added. The actual issue was that the time-rate/secondary block reused the settlement at the settlement-based allowable pressure even when the Module 5 qa,net cap governed.
+- The single-layer clay workflow now retains the exact stress influence factor used in the allowable-pressure calculation and recomputes primary consolidation settlement at the final controlling net pressure qa_clay_final before calculating degree-of-consolidation settlement and adding secondary compression.
+- This prevents overstating long-term settlement when the bearing-capacity pressure cap is lower than the settlement-based pressure.
+- Multi-layer time-rate/secondary calculations remain blocked until each layer has its own Cv, drainage path, Cα and end-of-primary void ratio, as required for a defensible common-time integration.
+- Added a regression test verifying that a capacity cap below the settlement-based pressure produces primary settlement below the target settlement.
+- PR #65 merged to main at d9e58cb26ebca528552fd936484d41ca2f16d7fc.
+- GitHub Actions run 42987296496: success; Python 3.11 compile passed; full suite 385 passed in 2.31 s.
+- Public worked-example benchmark count remains 66.
