@@ -23,6 +23,7 @@ from geolysis_engine import (
     layered_bearing_capacity_punching,
     layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure,
+    seismic_bearing_capacity_residual_pore_pressure_cases,
     foundation_sliding_factor_of_safety,
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
@@ -1142,4 +1143,52 @@ def test_usace_seismic_residual_pore_pressure_rejects_nonpositive_factor_product
             bearing_factor_ngamma=20.0,
             residual_excess_pore_pressure_ratio=0.2,
             shape_depth_inclination_factor=0.0,
+        )
+
+
+
+def test_usace_seismic_pore_pressure_cases_auto_apply_table_factors_and_control_envelope():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0,
+        horizontal_load_kN=0.0,
+        kh=0.2,
+        kv=0.1,
+        footing_type="spread",
+        residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0,
+        phi_deg=30.0,
+        gamma_moist=18.5,
+        gamma_sub=9.5,
+        gamma_below=18.5,
+        B=2.0,
+        L=3.0,
+        Df=1.5,
+        water_depth=5.0,
+    )
+    assert len(result["cases"]) == 2
+    controlling = result["governing_case"]
+    beta = math.degrees(math.atan2(200.0, 900.0))
+    flow_n = math.tan(math.radians(60.0)) ** 2
+    shape = 1.0 + 0.1 * flow_n * (2.0 / 3.0)
+    depth = 1.0 + 0.1 * math.sqrt(flow_n) * (1.5 / 2.0)
+    inclination = (1.0 - beta / 30.0) ** 2
+    gamma_effective = 18.5
+    nq = math.exp(math.pi * math.tan(math.radians(30.0))) * flow_n
+    ngamma = (nq - 1.0) * math.tan(math.radians(42.0))
+    expected = 0.4 * (1.0 - 0.2) * gamma_effective * 2.0 * ngamma * shape * depth * inclination
+    assert controlling["vertical_sign"] == "向下減少"
+    assert controlling["load_inclination_beta_deg"] == pytest.approx(beta)
+    assert controlling["shape_s_gamma"] == pytest.approx(shape)
+    assert controlling["depth_d_gamma"] == pytest.approx(depth)
+    assert controlling["inclination_i_gamma"] == pytest.approx(inclination)
+    assert controlling["qu_seismic_kpa"] == pytest.approx(expected)
+
+
+def test_usace_seismic_pore_pressure_cases_rejects_cohesive_or_undrained_soil():
+    with pytest.raises(ValueError, match="砂狀排水土"):
+        seismic_bearing_capacity_residual_pore_pressure_cases(
+            vertical_load_kN=1000.0,horizontal_load_kN=0.0,kh=0.2,kv=0.0,
+            footing_type="spread",residual_excess_pore_pressure_ratio=0.2,
+            c_kpa=5.0,phi_deg=30.0,gamma_moist=18.5,gamma_sub=9.5,
+            gamma_below=18.5,B=2.0,L=3.0,Df=1.5,water_depth=5.0,
         )
