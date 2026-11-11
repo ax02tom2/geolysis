@@ -531,3 +531,16 @@ Module 4 PMT shape-factor applicability — PR #53
 - GitHub Actions run 42984431701: success; Python 3.11 compile passed; full suite 360 passed in 1.66 s.
 - Published worked-example benchmark count remains 59; two additional tests validate chart-domain and curve-order applicability, not new published examples.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Figure 7-11.
+
+
+
+Module 4 Schmertmann CPT applicability gate — PR #54
+
+- Added an engine-enforced confirmation that the Schmertmann CPT qc–Es method is being used within its stated calibration domain: young (<100 years), normally consolidated, clean silica sands.
+- Module 4 now requires an explicit UI confirmation before calculation. Clay, organic, cemented, and other soils outside the stated calibration domain must use another suitable method or an independently justified correlation.
+- Existing measured qc requirement, gross q/qeq vs qult/FS pressure cap, peak-depth effective stress input, and full influence-depth coverage checks remain in force.
+- Added regression coverage for the unconfirmed rejection and confirmed calculation; updated the published Appendix C-7d test.
+- PR #54 merged to main at e2e69e2f13a49450a97d315db088b2ebe87f0c73.
+- GitHub Actions run 42984935565: success; Python 3.11 compile passed; full suite 361 passed in 2.14 s.
+- Published worked-example benchmark count remains 59; one additional regression test covers method applicability, not a new published example.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §7-12, Eqs. 7-16 to 7-26.
