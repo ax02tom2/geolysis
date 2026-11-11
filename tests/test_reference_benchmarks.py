@@ -1552,3 +1552,57 @@ def test_usace_2025_menard_rousseau_pmt_rejects_out_of_table_alpha_and_soft_laye
             soil_type="sand", consolidation_state="normally_consolidated",
             round_footing=True, deep_uniform_deposit_confirmed=True,
         )
+
+
+
+def test_usace_2025_menard_rousseau_pmt_soft_layer_eq_7_12():
+    pmt = [
+        {"group": "E1", "E0_kpa": 12000.0},
+        {"group": "E2", "E0_kpa": 15000.0},
+        {"group": "E345", "E0_kpa": 18000.0},
+        {"group": "E678", "E0_kpa": 22000.0},
+        {"group": "E916", "E0_kpa": 25000.0},
+    ]
+    soft = [
+        {"Layer": "soft-1", "depth_center_m": 1.0, "thickness_m": 0.5,
+         "E_L_kpa": 5000.0, "pne_kpa": 600.0}
+    ]
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0,
+        soil_type="sand", consolidation_state="normally_consolidated",
+        round_footing=True, soft_layers=soft, soft_layer_profile_reviewed=True,
+    )
+    Ed = result["Ed_kpa"]
+    alphaL = 1.0 / 3.0
+    Iz = boussinesq_rectangular_center_factor(2.0, 2.0, 1.0)
+    expected = alphaL * (1.0/5000.0 - 1.0/Ed) * Iz * 100.0 * 0.5 * 1000.0
+    assert result["soft_layer_settlement_mm"] == pytest.approx(expected)
+    assert result["soft_layer_results"][0]["I_sigma"] == pytest.approx(Iz)
+    assert result["settlement_mm"] == pytest.approx(
+        result["deviatoric_settlement_mm"]
+        + result["spherical_settlement_mm"]
+        + expected
+    )
+
+
+def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_out_of_range_layer():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    with pytest.raises(ValueError, match="超出式 7-12"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=1500.0,
+            soil_type="sand", consolidation_state="normally_consolidated",
+            round_footing=True,
+            soft_layers=[{"depth_center_m": 5.0, "thickness_m": 0.5,
+                          "E_L_kpa": 5000.0, "pne_kpa": 600.0}],
+            soft_layer_profile_reviewed=True,
+        )
