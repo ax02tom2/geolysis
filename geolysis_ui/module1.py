@@ -167,7 +167,7 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
                 "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
                 "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
-                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
+                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
             ], key="hb_rock_type_for_mi")
             # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
             mi_reference = {
@@ -184,6 +184,7 @@ def render_module_1(expanded=False):
                 "片麻岩 Gneiss": (28, 23, 33, "Hoek：28 ± 5；完整試體垂直片理方向的典型值，片理方向會影響。"),
                 "大理岩 Marble": (9, 6, 12, "Hoek/Marinos：9 ± 3；一般完整岩石文獻值，非特定工址試驗值。"),
                 "砂岩 Sandstone（台灣南莊層三軸案例）": (7.752, 7.752, 7.752, "台灣南莊層單一完整岩心案例三軸反算 mi=7.752；不是砂岩通用值。"),
+                "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": (15, 15, 15, "台鐵宜蘭線瑞芳段風化砂岩回算案例：分析採用 mi=15；研究初始參考 17±4，mi 對該案例穩定性影響較小。"),
                 "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。")
             }
             if rock_preset == "自訂輸入 mi":
@@ -204,6 +205,9 @@ def render_module_1(expanded=False):
                     st.info("同一 2014 年南莊層隧道案例：完整岩心三軸反算 mi=7.752、單壓強度 σci=5.022 MPa；報告另將隧道岩體 GSI 評估為 40–55。請區分完整岩心 GSI=100（用於完整岩石參數反算）與岩體 GSI=40–55（用於岩體分析），不可混用。")
                 elif rock_preset == "片岩 Schist（蘇花公路案例）":
                     st.info("同一 2012 年蘇花公路片岩案例：mi=10、擾動係數 D=0.7；不同區域的岩體 GSI 分別採 15（崩坍區）、25（崩積層）、35（塊狀岩盤）。這些是三種不同地質區的案例值，不是同一岩體的統計範圍；請依現地條件選用。")
+                elif rock_preset == "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
+                    st.info("2020 年台鐵宜蘭線瑞芳段風化砂岩崩塌回算案例（Shao et al., 2021）：分析採用 mi=15、σci=25–35 MPa；回算適用範圍 GSI=20–30、D=0.8–0.9。研究內文的初始參數範圍較寬（GSI=15–40、D=0.7–0.9），上述較窄區間是回算後的案例結果，不是台灣砂岩通用值。")
+                    st.markdown("[查看台鐵宜蘭線瑞芳段風化砂岩回算研究](https://www.mdpi.com/2071-1050/13/23/13452)")
     
             st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
             st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
@@ -225,6 +229,9 @@ def render_module_1(expanded=False):
                 "南莊層砂岩｜隧道完整岩心試驗單一案例": (5.022, 5.022, 5.022,
                     "完整岩心 UCS = 5.022 MPa；同一案例三軸反算 mi = 7.752。這是單一試體／案例，不是南莊層通用值。",
                     "https://www.thb.gov.tw/FileResource.axd?path=html%2Fdoc%2F%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B%2F%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf"),
+                "東北部宜蘭線瑞芳段風化砂岩｜崩塌回算案例": (25.0, 35.0, 30.0,
+                    "Liao (2018) 砂岩試驗原始 σci 範圍 15–40 MPa；Shao et al. (2021) 為避免低值過度保守，案例分析採用 25–35 MPa。這是分析採用範圍，不是原始試驗統計信賴區間。",
+                    "https://www.mdpi.com/2071-1050/13/23/13452"),
                 "五指山層砂岩｜台灣岩石工程性質彙整": (34.3, 83.4, 58.9,
                     "350–850 kgf/cm²，換算約 34.3–83.4 MPa。",
                     "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
@@ -344,6 +351,7 @@ def render_module_1(expanded=False):
                 "片麻岩 Gneiss": [k for k in _ucs_case_data if "片麻岩" in k],
                 "大理岩 Marble": [k for k in _ucs_case_data if "大理岩" in k],
                 "砂岩 Sandstone（台灣南莊層三軸案例）": [k for k in _ucs_case_data if "南莊層砂岩｜隧道" in k],
+                "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": [k for k in _ucs_case_data if "東北部宜蘭線瑞芳段風化砂岩" in k],
                 "片岩 Schist（蘇花公路案例）": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
                 "頁岩 Shale": [k for k in _ucs_case_data if "頁岩" in k and "砂頁岩互層" not in k],
                 "泥岩／黏土岩 Mudstone / Claystone": [k for k in _ucs_case_data if "泥岩" in k],
