@@ -57,3 +57,4 @@ Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
 - GitHub Actions run 42985106615: success; Python 3.11 compile passed; full suite 364 passed in 1.91 s.
 - Published USACE Appendix B/C benchmark coverage is now 61: 53 Appendix B and eight Appendix C cases (C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
+Module 4 PMT peat: auto state no longer assumes NC; requires explicit normally consolidated selection per Table 7-6. One regression test added. Latest suite 362 passed.
