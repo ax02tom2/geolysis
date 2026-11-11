@@ -506,7 +506,7 @@ def render_module_5(expanded=False):
                     st.error(sr["governing_case"].get("zero_resistance_reason","至少一組地震組合未能維持有效壓縮接觸；請另作接觸壓力／雙向偏心分析。"))
                 else:
                     st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
-                if not sr.get("overturning_check_pass",True):
+                if not sr.get("overturning_geometry_check_pass",sr.get("overturning_check_pass",True)):
                     st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；依 USACE §9-10(e) 幾何檢核不符合。")
                 if not sr.get("middle_third_check_pass",True):
                     st.info("至少一組地震組合超出靜力中間三分點。地震極端事件不以此作唯一判定；仍須檢核有效承載壓力是否不超過適用的地震 q_allow。")
