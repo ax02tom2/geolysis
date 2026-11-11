@@ -377,7 +377,7 @@ def render_module_5(expanded=False):
             with sd2:
                 static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
             seismic_qallow5=st.number_input("地震設計容許承載壓力 q_allow [kPa]（0＝未提供，不判定整體通過）",
-                min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow")
+                min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow",help="請依適用建築法規／專案設計準則輸入；系統不自動套用地震容許承載力提高係數，也不直接以靜力 qult/FS 代替。")
             seismic_qallow_value5=(seismic_qallow5 if seismic_qallow5>0 else None)
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
                 seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5)
