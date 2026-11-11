@@ -257,3 +257,17 @@ USACE 2025 in-situ layered bearing and weak-clay punch-through integration — P
 - GitHub Actions run 42935178184: success; Python 3.11 compile passed; full suite 247 passed in 1.82 s.
 - Published reference benchmark count remains 50; four additional tests validate the in-situ layered calculation and applicability boundaries.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
+
+
+
+USACE 2025 settlement pressure consistency — PR #21
+
+- Added `usace_settlement_design_pressure()` to the calculation engine. It applies the Chapter 7 design-pressure limit: use the applicable gross bearing pressure q or gross equivalent pressure qeq, whichever is appropriate, capped by qult/FS.
+- Module 4 Burland–Burbidge inputs now distinguish the applied gross q/qeq from the gross ultimate bearing resistance qult and the selected FS. The displayed applied pressure is min(q or qeq, qult/FS); the allowable-pressure search is also capped at qult/FS.
+- For eccentric foundations, the UI explicitly instructs the user to enter qeq rather than average V/A. If qult is omitted, the UI warns that the result is settlement-only and does not include the USACE bearing-capacity pressure limit.
+- Added independent regression tests for both governing cases (qeq controls / qult/FS controls) and invalid input boundaries.
+- Source: USACE EM 1110-1-1905 (31 Jul 2025), §7-2 and Chapter 7 settlement procedures; the manual requires gross q or qeq, limited by qult/FS, whichever is less.
+- PR #21 merged to main at bd41b50fceac21c9375f5de25e921731f21366b8.
+- GitHub Actions run 42946825884: success; Python 3.11 compile passed; full suite 251 passed in 1.44 s.
+- Published Appendix B benchmark count remains 50; four additional pytest cases cover the pressure-cap helper and input validation. The two governing cases are equation-level regression tests, not new published worked examples.
+- The PR source tree was validated before merge; this validation-report/build-info update is documentation-only and is not a separate calculation-code change.
