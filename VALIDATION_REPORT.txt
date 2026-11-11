@@ -425,3 +425,67 @@ USACE Appendix C-6b mixed-soil DMT settlement benchmark — PR #35
 - PR #35 merged at b8a8cfbca744cac901f163b9acbd331352fee734.
 - GitHub Actions run 42963545017: success; Python 3.11 compile passed; full suite 279 passed.
 - Published USACE worked-example coverage is now 59: 53 Appendix B cases plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e.
+
+
+
+Further engineering audit and regression hardening — PR #37 to PR #48
+
+Module 2 SPT and soil-classification regression coverage — PR #37
+- Expanded independent SPT correction and USCS/AASHTO boundary tests. These are equation and classification regression checks, not additional published worked-example benchmarks.
+
+Module 4 DMT profile integrity — PR #38
+- Direct MDMT profiles now reject depth gaps and overlaps, and the published DMT examples use layer-center depths derived from the source table's cumulative layer-bottom depths.
+- Added regression coverage for profile continuity, layer midpoint conversion and pressure-cap behavior.
+
+Module 5 bearing FS and PMT layer validation — PR #39
+- Added explicit USACE static bearing FS compliance warnings when the selected FS is below the Table 2-1 minimum of 3.0.
+- Rejects overlapping PMT soft-layer intervals so the same soil thickness cannot be counted twice.
+
+Module 1 Taiwan rock strength references — PR #40
+- Added 32 specimen-level UCS rows transcribed from Liu, Chiu & Lo (2025), Table 5, including sample IDs and locations where reported; retained the distinction between single-specimen values and statistical ranges.
+- The paper's methods text says 31 data records while Table 5 visibly lists 32 specimen IDs. The UI documents this discrepancy and follows the printed table rows.
+- Added 2009 regional references for eastern Central Range metamorphic rocks, Gutingkeng mudstone, western foothill sandstone-shale interbeds and offshore-island granite.
+- Added Taiwan-specific mi cases for Nanzhuang sandstone and Suhua Highway schist, with source links and single-case/adopted-value caveats.
+
+Module 1 Hoek–Brown high-GSI applicability — PR #41
+- Added an engine-level GSI/structure applicability check.
+- Blocks Hoek–Brown calculations for intact/massive structure class A when GSI>75, or when the selected GSI uncertainty range extends above 75, following FHWA-NHI-16-072 Figure 9-24.
+- High-GSI blocky rock remains calculable but displays brittle-spalling and structural-control warnings. GSI chart notes now distinguish structural-plane/wedge failure, wet joint-surface quality and pore-pressure treatment.
+
+Module 4 Burland–Burbidge SPT correction transparency — PR #42
+- Reports whether the method-specific fine saturated sand/silt dilatancy correction or gravel ×1.25 correction was applied to each N60 measurement before arithmetic averaging.
+- Clarifies that the Burland–Burbidge §7-13 workflow uses N60, not the liquefaction-normalized (N1)60 profile.
+- Global material correction toggles are explicitly limited to profiles where all selected measurements within Zi belong to that soil category; mixed profiles require row-wise pre-adjusted N60 input.
+
+Module 2 ASTM D2487 plasticity chart correction — PR #43
+- Corrected the A-line to the ASTM horizontal PI=4 segment through LL=25.5, followed by PI=0.73(LL−20). This fixes low-liquid-limit soils that could previously be misclassified as clay rather than silt or CL-ML.
+- Added the U-line (vertical at LL=16 to PI=7, then PI=0.9(LL−8)) and warnings for points left of or above the U-line so test results can be reviewed.
+
+Module 1 Taiwan case parameter provenance — PR #44
+- Linked the direct Taiwan Highway Engineering source for the Nanzhuang sandstone case.
+- Clearly distinguishes the intact-core fitting values (mi=7.752, UCS=5.022 MPa, intact-core GSI=100) from the tunnel rock-mass GSI range of 40–55.
+- Documents the Suhua schist case (mi=10, D=0.7) and its distinct GSI values of 15/25/35 for three different geological zones.
+
+Module 4 Burland–Burbidge SPT profile data quality — PR #45
+- Rejects SPT depths within 1 mm as duplicate measurements.
+- Warns when only one valid SPT point contributes to Nbar or when the valid profile does not reach Zi.
+- When Hs<Zi, warns that the finite granular-layer C2 correction reduces settlement and requires a markedly stiffer underlying stratum; a softer/compressible lower layer requires layered CPT/DMT/consolidation analysis.
+
+Module 4 PMT/DMT depth convention — PR #46
+- Clarifies that PMT and direct-MDMT depth_center_m inputs are layer midpoints below footing base.
+- If the source table reports layer-bottom depth, convert using depth_center = z_bottom − thickness/2. Layer intervals must be contiguous and non-overlapping.
+
+Module 5 seismic residual-pore-pressure applicability — PR #47
+- Requires explicit confirmation that independent liquefaction/cyclic-strength assessment finds the shear-zone sand non-liquefiable and without cyclic shear-strength loss, and that residual excess pore pressure affects the full bearing shear zone.
+- The engine API enforces both confirmations; the UI disables calculation until they are supplied.
+- The calculation includes both vertical pseudo-static load directions, controlling horizontal kh·V, Meyerhof load inclination, USACE Tables 5-2/5-3 correction factors and groundwater Eq. 5-19, then applies Eqs. 9-3/9-4.
+- It reports ultimate resistance only. Seismic moment-induced eccentricity, residual base uplift, soil inertia and partial-shear-zone weighted effective unit weight remain excluded; no seismic qeq/FS or pass verdict is claimed.
+- Clarifies that Table 2-1 Note 2's FS=1.1 applies to sliding only, not bearing capacity. Seismic bearing allowable-stress increases must follow the applicable building code/UFC and are not permitted where soils are susceptible to shear-strength loss.
+
+Module 1 eastern Taiwan crystalline-rock statistics — PR #48
+- Added Taiwan Power Company SNFD-AR2021 Table 3-24 statistics: eastern Taiwan granite gneiss n=84 (28.9–153.6 MPa, mean 103.3 MPa) and marble n=29 (19.1–148.9 MPa, mean 105.7 MPa), with quartiles and medians shown in the UI.
+- Added corresponding Hoek typical mi presets for gneiss (28±5) and marble (9±3).
+- The source report warns that drillhole distribution is limited; these statistics are only suitable for a similar small local area and must not be generalized to all eastern Taiwan mountain geology.
+
+Combined PR #49 validation after PR #47/#48: GitHub Actions run 42971389181 succeeded; Python 3.11 compile and Streamlit AppTest passed; 344 automated tests passed in 2.03 s. PR #48 adds UI reference data only and no engine tests.
+Published USACE worked-example benchmark count remains 59: 53 Appendix B plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e. All equation-level and UI regression tests remain counted separately.
