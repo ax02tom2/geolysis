@@ -514,6 +514,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
         water_depth, seismic_weight_kN=None, eccentricity_B=0.0, eccentricity_L=0.0,
         seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
+        static_moment_B_sign=1, static_moment_L_sign=1,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
@@ -548,6 +549,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     eL0=_finite('靜力長邊偏心距 eL',eccentricity_L)
     MBe=_finite('地震短邊方向彎矩 M_B,E',seismic_moment_B_kNm)
     MLe=_finite('地震長邊方向彎矩 M_L,E',seismic_moment_L_kNm)
+    sign_MB=_finite('靜力短邊彎矩方向',static_moment_B_sign)
+    sign_ML=_finite('靜力長邊彎矩方向',static_moment_L_sign)
+    if sign_MB not in (-1,1) or sign_ML not in (-1,1):
+        raise ValueError('靜力彎矩方向只能為 +1 或 -1')
     if V<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
         raise ValueError('地震載重輸入不合理：V、B、L須正；H、偏心距不可為負；0≤kh≤1、0≤kv≤0.5')
     ab=_finite('基底傾角',base_inclination_deg)
@@ -560,8 +565,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         vertical_load_kN=V,horizontal_load_kN=H,footing_area_m2=1.0,
         kh=khv,kv=kvv,seismic_weight_kN=seismic_weight_kN)
     W=action['seismic_weight_kN']
-    static_MB=V*eB0
-    static_ML=V*eL0
+    static_MB=sign_MB*V*eB0
+    static_ML=sign_ML*V*eL0
     horizontal_signs=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
     cases=[]
     for hsign in horizontal_signs:
