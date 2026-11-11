@@ -72,3 +72,4 @@ Module 4 Appendix C-2/C-3 superposition and fill consolidation — PR #59
 - GitHub Actions run 42985828131: success; Python 3.11 compile passed; full suite 373 passed in 1.96 s.
 - Public worked-example coverage is now 66 cases: 53 Appendix B and 13 Appendix C cases (C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-2/C-3a/C-3b/C-3c; Eqs. 6-6, 6-7, 7-8, 7-9 and 7-42.
+Module 4 DMT/CPT/PMT: explicitly warns when gross q/qeq is capped by qult/FS; no formula change. Streamlit AppTest and 369 tests passed.
