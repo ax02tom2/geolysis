@@ -635,6 +635,10 @@ def layered_bearing_capacity_in_situ_profile(*, layers, footing_width_m,
                 'weak_layer_top_depth_m':hs,
             })
         elif hs<=upper_depth:
+            if item['drainage']!='undrained':
+                raise ValueError(
+                    f"第 {item['layer']} 層弱層位於穿刺檢核深度範圍，但 USACE 2025 §5-5a(2) 的 2V:1H 穿刺案例為強層覆蓋弱黏土；此層需以 undrained 條件評估，否則請改用土壤強度參數式 5-22 並另行評估破壞機制"
+                )
             spread=((B+hs)*(L+hs)/(B*L)
                     if footing_type=='isolated' else (B+hs)/B)
             candidates.append({
