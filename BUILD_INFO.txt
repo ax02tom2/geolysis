@@ -1,12 +1,12 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: bd41b50fceac21c9375f5de25e921731f21366b8
+Validated main code commit: c02f01ec2e916b98f47082186b0381d1434b21ae
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 251 passed
-GitHub Actions validation run: 42946825884 (success; Python 3.11 compile passed; 251 passed; includes USACE 2025 settlement qeq/qult-FS pressure cap, qeq/actual FS checks, in-situ layered punch-through, bearing load-inclination, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
+Latest verified automated suite: 257 passed
+GitHub Actions validation run: 42947562780 (success; Python 3.11 compile passed; 257 passed; includes Module 4 qeq/qult-FS settlement cap, Module 3-to-4 N60 profile linkage, Module 5 seismic residual-pore-pressure resistance envelope and factors, qeq/actual FS, in-situ layered punch-through, Figure 7-16 consolidation and Appendix B worked-example benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 50 independent reference benchmark cases including Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
@@ -22,4 +22,4 @@ USACE 2025 in-situ bearing: added SPT/CPT/PMT drained/undrained engine method an
 Appendix B-5: added undrained PMT bearing benchmark; verifies k=0.70 and qult≈14.41 ksf against the manual's rounded 14.38 ksf.
 USACE 2025 qeq / actual bearing FS: added Eqs. 5-2/5-3 and 5-23, effective dimensions, hydrostatic uplift at footing base, Table 2-1 FS≥3.0 and strict middle-third eccentricity checks. UI requires confirmation of total V=Q+Wf before displaying qeq/FS. 243 tests passed; 50 published reference benchmarks remain.
 USACE 2025 in-situ layered punch-through: each layer accepts SPT N60 / CPT qne / PMT pne and drainage condition; per-layer Table 5-5 resistance is combined with Eqs. 5-17/5-18 2V:1H spread for weak undrained clay within the specified depth range. UI integrated with qeq/actual FS; centered vertical load and level base/ground only. Four regression tests added; 247 total tests pass.
-Module 4 settlement pressure: Burland–Burbidge now uses gross q or eccentric gross qeq, capped by gross qult/FS per USACE 2025 Chapter 7; eccentric footing input guidance added. Four regression cases added; 251 total tests pass.\n
+Module 4 settlement pressure: Burland–Burbidge now uses gross q or eccentric gross qeq, capped by gross qult/FS per USACE 2025 Chapter 7; eccentric footing input guidance added. Four regression cases added; 251 total tests pass.\nModule 3 → Module 4: Module 4 can now reuse current valid SPT profile N60 readings, converting ground depths to footing-base depths with Df and excluding refusal rows. Two regression tests added.\nModule 5 seismic bearing: pseudo-static vertical load cases are combined with USACE 2025 Meyerhof sγ/dγ/iγ/bγ/gγ and Eq. 5-19 groundwater correction before applying Eqs. 9-3/9-4 residual pore-pressure reduction. Reports governing ultimate resistance only; no seismic FS/pass verdict. Four regression cases added.\n
