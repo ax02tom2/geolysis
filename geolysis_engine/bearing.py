@@ -662,8 +662,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'footing_type':footing_type,'ru':ru,
         'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
         'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
+        'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
         'method':'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
-        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。若兩分量均為 0，代表本次未納入地震彎矩，結果僅為不含地震傾覆效應的初步抗力估算，不可視為已完成地震偏心分析。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
     }
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
