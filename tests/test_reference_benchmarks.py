@@ -1460,6 +1460,7 @@ def test_usace_2025_schmertmann_cpt_settlement_matches_equations_7_16_to_7_26():
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         peak_effective_stress_kpa=100.0, years=50.0,
         ultimate_bearing_kpa=450.0, factor_of_safety=3.0,
+        soil_applicability_confirmed=True,
     )
     qnet = 150.0 - 50.0
     expected_izp = 0.5 + 0.1 * math.sqrt(qnet / 100.0)
