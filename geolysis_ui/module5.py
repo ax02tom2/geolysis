@@ -439,7 +439,7 @@ def render_module_5(expanded=False):
                 pf1,pf2=st.columns(2)
                 with pf1:
                     partial_shear_zone_affected_fraction5=st.number_input("受影響剪力區加權比例 f",0.01,0.99,0.50,0.01,key="m5x_partial_shear_fraction",
-                        help="依 USACE Figure 5-4 承載力剪力區內，受超額孔隙水壓影響土層的分布／體積比例估算；不是整個鑽孔深度比例。")
+                        help="預設 0.50 僅為欄位初始值，不是建議比例；須依 USACE Figure 5-4 承載力剪力區內受影響土層的分布／體積比例自行判讀，不是整個鑽孔深度比例。")
                     gamma_effective_susceptible5=st.number_input("受影響土層有效單位重 γ′sus [kN/m³]",0.1,40.0,float(max(0.1,gamma_effective_default5)),0.1,key="m5x_gamma_sus",
                         help="輸入受影響土層在相應地下水條件下的有效／浮單位重。")
                 with pf2:
