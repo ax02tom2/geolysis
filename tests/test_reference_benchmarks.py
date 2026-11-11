@@ -2222,3 +2222,50 @@ def test_burland_burbidge_cannot_apply_gravel_and_fine_sand_corrections_together
             width_m=1.0, granular_layer_thickness_m=5.0,
             gravel_adjustment=True, fine_sand_saturated=True,
         )
+
+
+
+@pytest.mark.parametrize(
+    ("ll", "pi", "expected"),
+    [
+        (20.0, 3.0, "ML"),
+        (25.0, 3.9, "ML"),
+        (20.0, 4.0, "CL-ML"),
+        (25.0, 7.0, "CL-ML"),
+        (25.0, 7.1, "CL"),
+    ],
+)
+def test_uscs_astm_a_line_horizontal_lower_segment(ll, pi, expected):
+    result = classify_uscs_aashto(
+        p4=95, p10=90, p40=80, p200=70,
+        ll=ll, pl=ll-pi,
+    )
+    assert result["USCS"] == expected
+    assert result["A_line_PI"] == pytest.approx(4.0)
+
+
+def test_uscs_astm_u_line_flags_points_above_or_left_for_retest():
+    above = classify_uscs_aashto(
+        p4=95, p10=90, p40=80, p200=70,
+        ll=30.0, pl=10.0,
+    )
+    left = classify_uscs_aashto(
+        p4=95, p10=90, p40=80, p200=70,
+        ll=15.0, pl=11.0,
+    )
+    normal = classify_uscs_aashto(
+        p4=95, p10=90, p40=80, p200=70,
+        ll=30.0, pl=15.0,
+    )
+    assert above["plasticity_warning"] and "U-line" in above["plasticity_warning"]
+    assert left["plasticity_warning"] and "左側" in left["plasticity_warning"]
+    assert normal["plasticity_warning"] == ""
+    assert above["U_line_PI"] == pytest.approx(19.8)
+
+
+
+def test_uscs_peat_result_keeps_optional_plasticity_warning_fields():
+    result = classify_uscs_aashto(peat=True)
+    assert result["USCS"] == "PT"
+    assert result["U_line_PI"] is None
+    assert result["plasticity_warning"] == ""
