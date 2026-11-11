@@ -1505,7 +1505,7 @@ def test_usace_2025_menard_rousseau_pmt_settlement_equation_7_11():
     result = menard_rousseau_pmt_settlement_2025(
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
-        equivalent_net_limit_pressure_kpa=2000.0,
+        equivalent_net_limit_pressure_kpa=1500.0,
         soil_type="sand", consolidation_state="normally_consolidated",
         round_footing=True, ultimate_bearing_kpa=450.0,
         deep_uniform_deposit_confirmed=True,
