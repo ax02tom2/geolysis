@@ -1146,11 +1146,13 @@ def test_usace_seismic_bearing_capacity_eq_9_3_and_9_4():
     strip=seismic_bearing_capacity_residual_pore_pressure(
         footing_type='strip',effective_unit_weight_kn_m3=10,
         effective_width_m=2,bearing_factor_ngamma=20,
-        residual_excess_pore_pressure_ratio=.4)
+        residual_excess_pore_pressure_ratio=.4,
+        non_liquefiable_confirmed=True,full_shear_zone_confirmed=True)
     spread=seismic_bearing_capacity_residual_pore_pressure(
         footing_type='spread',effective_unit_weight_kn_m3=10,
         effective_width_m=2,bearing_factor_ngamma=20,
-        residual_excess_pore_pressure_ratio=.4)
+        residual_excess_pore_pressure_ratio=.4,
+        non_liquefiable_confirmed=True,full_shear_zone_confirmed=True)
     assert strip['qu_seismic_kpa']==pytest.approx(.5*.6*10*2*20)
     assert spread['qu_seismic_kpa']==pytest.approx(.4*.6*10*2*20)
 
@@ -1213,7 +1215,8 @@ def test_slope_base_correction_rejects_inapplicable_steep_base_angle():
 def test_seismic_pore_pressure_capacity_accepts_shape_depth_factor_above_one():
     r=seismic_bearing_capacity_residual_pore_pressure(footing_type='spread',
         effective_unit_weight_kn_m3=10,effective_width_m=2,bearing_factor_ngamma=20,
-        residual_excess_pore_pressure_ratio=.2,shape_depth_inclination_factor=1.4)
+        residual_excess_pore_pressure_ratio=.2,shape_depth_inclination_factor=1.4,
+        non_liquefiable_confirmed=True,full_shear_zone_confirmed=True)
     assert r['qu_seismic_kpa']==pytest.approx(.4*.8*10*2*20*1.4)
 
 
