@@ -686,6 +686,80 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
         "limitations": "適用年輕（<100 年）、正常固結、潔淨矽砂的經驗模數關係；其他土類須有適用性判斷。CPT qc 為實測錐尖阻抗。矩形基礎依 L/B 線性內插 Es 與 Iz；連續基礎採平面應變。未包含地震沉陷或非均質三維土-結構互制。"
     }
 
+
+def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
+                                gross_pressure_kpa, base_effective_stress_kpa,
+                                ultimate_bearing_kpa=None, factor_of_safety=3.0,
+                                footing_type="isolated"):
+    """USACE 2025 DMT incremental constrained-modulus settlement (Eq. 7-10).
+
+    Each row contains depth_center_m, thickness_m and MDMT_kpa. Optional
+    I_sigma allows use of a documented stress-influence chart/table value;
+    otherwise Boussinesq center stress influence is calculated.
+    """
+    B = _finite("基礎短邊 B", footing_width_m)
+    L = _finite("基礎長邊 L", footing_length_m)
+    q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
+    sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
+    fs = _finite("承載力安全係數", factor_of_safety)
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 0 or not layers:
+        raise ValueError("基礎尺寸、gross 壓力、FS 與 DMT 模數剖面不合理")
+    if footing_type not in ("isolated", "continuous"):
+        raise ValueError("基礎型式須為 isolated 或 continuous")
+    if ultimate_bearing_kpa is not None:
+        qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
+        if qult <= 0:
+            raise ValueError("輸入 qult 時必須大於 0")
+        q_used = min(q, qult / fs)
+    else:
+        q_used = q
+    q_net = q_used - sigD
+    if q_net <= 0:
+        raise ValueError("gross q／qeq 不大於基礎底初始有效應力，無正的新增應力")
+    required_depth = (6.0 if footing_type == "continuous" else 2.0) * B
+    rows = []
+    profile_bottom = 0.0
+    for index, row in enumerate(layers, 1):
+        H = _finite("DMT 層厚", row.get("thickness_m"))
+        z = _finite("DMT 層中心深度", row.get("depth_center_m"))
+        M = _finite("DMT constrained modulus MDMT", row.get("MDMT_kpa"))
+        if H <= 0 or z < H / 2.0 or M <= 0:
+            raise ValueError(f"DMT 第 {index} 層厚度、中心深度或 MDMT 不合理")
+        raw_iz = row.get("I_sigma")
+        if raw_iz is not None and not (isinstance(raw_iz, float) and math.isnan(raw_iz)):
+            Iz = _finite("DMT 應力影響係數 I_sigma", raw_iz)
+        elif footing_type == "continuous":
+            a = B / 2.0
+            Iz = (2.0 / math.pi) * (math.atan(a / z) + a * z / (a*a + z*z))
+        else:
+            Iz = boussinesq_rectangular_center_factor(B, L, z)
+        if not 0.0 <= Iz <= 1.0:
+            raise ValueError(f"DMT 第 {index} 層 I_sigma 必須介於 0 與 1")
+        delta_sigma = Iz * q_net
+        settlement = delta_sigma / M * H * 1000.0
+        profile_bottom = max(profile_bottom, z + H / 2.0)
+        rows.append({
+            "Layer": row.get("Layer", index), "Depth_center_m": z,
+            "Thickness_m": H, "MDMT_kPa": M, "Stress_factor_I_sigma": Iz,
+            "Delta_sigma_kPa": delta_sigma, "Settlement_mm": settlement,
+        })
+    if profile_bottom < required_depth - 1e-8:
+        raise ValueError(
+            f"DMT 模數剖面僅涵蓋至 {profile_bottom:.2f} m；USACE 2025 至少需涵蓋 "
+            f"{required_depth:.2f} m，不可外插未測土層"
+        )
+    return {
+        "settlement_mm": sum(x["Settlement_mm"] for x in rows),
+        "gross_pressure_used_kpa": q_used,
+        "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
+        "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "base_effective_stress_kpa": sigD, "net_pressure_increment_kpa": q_net,
+        "influence_depth_required_m": required_depth,
+        "profile_depth_used_m": profile_bottom, "layer_results": rows,
+        "method": "USACE EM 1110-1-1905 (2025), DMT incremental constrained modulus, Eq. 7-10",
+        "limitations": "直接輸入經 DMT 試驗解讀／校正取得的 MDMT；可選擇輸入已核對的 I_sigma，否則採 Boussinesq 矩形基礎中心線或無限長條形基礎解。僅計算 1-D 增量拘束模數沉陷，不含 foundation rigidity、3-D、creep、aging 或 seismic correction。"
+    }
+
 def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
                         gross_pressure_kpa, base_effective_stress_kpa,
                         ultimate_bearing_kpa=None, factor_of_safety=3.0,
