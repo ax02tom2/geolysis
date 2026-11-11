@@ -287,7 +287,7 @@ def render_module_4(expanded=False):
                 st.error(f"砂土容許承載力估算失敗：{exc}")
             st.info("此法是砂土 SPT 經驗法，不適用於黏土固結沉陷；採用時須確認 N 值代表基礎影響深度範圍，且不可重複作地下水修正。")
         else:
-            st.caption("以 e–log σ′ 一維主固結理論計算；可選用 Boussinesq 矩形均布荷載中心點應力解，或 2:1 簡化法。亦可輸入多層 CSV，逐層計算後加總主固結沉陷。")
+            st.caption("以 e–log σ′ 一維主固結理論計算；可選用 Boussinesq 矩形均布荷載中心點應力解，或 2:1 簡化法。亦可輸入多層 CSV，選填 Stress_factor 以使用已核對的圖表／規範應力影響係數；未填時由所選方法計算。")
             stress_method_clay4=st.selectbox("垂直應力增量分布",["Boussinesq","2:1"],format_func=lambda x:"Boussinesq 矩形均布荷載（較建議）" if x=="Boussinesq" else "2:1 簡化法（初步估算）",key='m4c_stress_method')
             a,b,c=st.columns(3)
             with a:
@@ -304,7 +304,7 @@ def render_module_4(expanded=False):
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
                 qcap_clay4=st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap')
-            layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa\n1,1.5,3.0,0.8,0.30,0.05,60,100\n2,5.0,4.0,0.9,0.40,0.06,100,150")
+            layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.92\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.63")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
                 if layers_text4.strip():
