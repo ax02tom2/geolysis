@@ -531,8 +531,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     H=_finite('靜態水平力 H',horizontal_load_kN)
     khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
-    if V<=0 or H<0 or not 0<=khv<=1 or not -0.5<=kvv<=0.5:
-        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、-0.5≤kv≤0.5')
+    if V<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、0≤kv≤0.5')
     # The residual-pore-pressure equation is sand-like and uses the USACE
     # Meyerhof-based resistance factors, not whichever classic theory is selected.
     base=bearing_capacity(
