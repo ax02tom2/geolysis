@@ -642,7 +642,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         static_moment_B_sign=1, static_moment_L_sign=1,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
-        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
+        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False,
+        partial_shear_zone_affected_fraction=None,
+        gamma_effective_susceptible_kn_m3=None,
+        gamma_effective_unaffected_kn_m3=None):
     """USACE 2025 residual-pore-pressure bearing resistance for level geometry.
 
     Static eccentricities are converted to static base moments using V·e.
@@ -656,9 +659,21 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         raise ValueError('式 9-3／9-4 僅供砂狀排水土使用；需 c′≈0 且 φ′>0，不可套用不排水黏土或含顯著凝聚力土層')
     if not non_liquefiable_confirmed:
         raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
-    if not full_shear_zone_confirmed:
-        raise ValueError('目前實作僅適用超額孔隙水壓影響完整承載力剪力區；部分剪力區須依手冊加權有效單位重另算')
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
+    if full_shear_zone_confirmed:
+        if any(value is not None for value in (partial_shear_zone_affected_fraction,gamma_effective_susceptible_kn_m3,gamma_effective_unaffected_kn_m3)):
+            raise ValueError('完整剪力區模式不可同時輸入部分剪力區加權參數')
+        partial_fraction=None
+        gamma_susceptible_input=None
+        gamma_unaffected_input=None
+    else:
+        if partial_shear_zone_affected_fraction is None or gamma_effective_susceptible_kn_m3 is None or gamma_effective_unaffected_kn_m3 is None:
+            raise ValueError('部分剪力區模式必須提供受影響加權比例 f、受影響及未受影響土層有效單位重')
+        partial_fraction=_finite('受超額孔隙水壓影響剪力區加權比例 f',partial_shear_zone_affected_fraction)
+        gamma_susceptible_input=_finite('受影響土層有效單位重',gamma_effective_susceptible_kn_m3)
+        gamma_unaffected_input=_finite('未受影響土層有效單位重',gamma_effective_unaffected_kn_m3)
+        if not 0.0<partial_fraction<1.0 or gamma_susceptible_input<=0 or gamma_unaffected_input<=0:
+            raise ValueError('部分剪力區加權比例須介於 0 與 1，兩種有效單位重均須大於 0')
     if not 0<=ru<1:
         raise ValueError('殘餘超額孔隙水壓比須符合 0≤ru<1')
     footing_map={'spread':'isolated','strip':'continuous'}
@@ -766,7 +781,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                     residual_excess_pore_pressure_ratio=ru,
                     shape_depth_inclination_factor=product,
                     non_liquefiable_confirmed=non_liquefiable_confirmed,
-                    full_shear_zone_confirmed=full_shear_zone_confirmed)
+                    full_shear_zone_confirmed=full_shear_zone_confirmed,
+                    partial_shear_zone_affected_fraction=partial_fraction,
+                    effective_unit_weight_unaffected_kn_m3=gamma_unaffected_input)
                 qu=resistance['qu_seismic_kpa']
                 reason=None
             cases.append({
@@ -775,6 +792,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                 'load_inclination_beta_deg':corrected['load_inclination_beta_2025_deg'],
                 **factors,'correction_product':product,
                 'gamma_effective_eq_5_19_kn_m3':corrected['gamma_effective'],
+                'gamma_effective_weighted_kn_m3':(resistance['gamma_effective_weighted_kn_m3'] if resistance else None),
+                'pore_pressure_affected_fraction':(resistance['pore_pressure_affected_fraction'] if resistance else (1.0 if full_shear_zone_confirmed else partial_fraction)),
+                'pore_pressure_resistance_factor':(resistance['pore_pressure_resistance_factor'] if resistance else None),
                 'effective_width_m':base['B_effective'],
                 'Ngamma_meyerhof':base['Ngamma'],
                 'qu_seismic_kpa':qu,'zero_resistance_reason':reason,
@@ -791,6 +811,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'cases':cases,'seismic_weight_kN':W,
         'governing_case':governing,'qu_seismic_governing_kpa':qu_governing,
         'footing_type':footing_type,'ru':ru,
+        'full_shear_zone_confirmed':full_shear_zone_confirmed,
+        'partial_shear_zone_affected_fraction':(None if full_shear_zone_confirmed else partial_fraction),
+        'gamma_effective_susceptible_kn_m3':(None if full_shear_zone_confirmed else gamma_susceptible_input),
+        'gamma_effective_unaffected_kn_m3':(None if full_shear_zone_confirmed else gamma_unaffected_input),
         'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
         'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
         'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
@@ -798,7 +822,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'overturning_failed_cases':[case for case in cases if not case['overturning_check_pass']],
         'overturning_governing_case':max(cases,key=lambda case:case['overturning_utilization']),
         'method':'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
-        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。若兩分量均為 0，代表本次未納入地震彎矩，結果僅為不含地震傾覆效應的初步抗力估算，不可視為已完成地震偏心分析。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。若兩分量均為 0，代表本次未納入地震彎矩，結果僅為不含地震傾覆效應的初步抗力估算，不可視為已完成地震偏心分析。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
     }
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
