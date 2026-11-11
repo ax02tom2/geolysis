@@ -505,7 +505,7 @@ def render_module_4(expanded=False):
                                 st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-                            with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
+                with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
                     with im_a:
