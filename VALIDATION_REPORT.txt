@@ -309,3 +309,15 @@ Appendix B worked-example coverage completion — PR #24
 - PR #24 merged to main at bd37686e19dced106c9c4498027cc931b0950f37.
 - GitHub Actions run 42948043639: success; Python 3.11 compile passed; full suite 260 passed in 1.45 s.
 - The published worked-example tests remain separate from equation-level and regression tests; no synthetic tests are counted as published benchmarks.
+
+
+
+Appendix C-7e Burland–Burbidge settlement benchmark — PR #25
+
+- Added the USACE 2025 Appendix C Example C-7 Table C-7e published SPT settlement benchmark.
+- Inputs: N60 arithmetic mean 14; gross qeq 3.31 tsf; mean initial effective stress 0.35 tsf; preconsolidation stress 3.88 tsf; influence depth and granular layer thickness 6.13 ft; 50-year static load.
+- The settlement calculation reproduces approximately 1.2 in (30.48 mm), with C1=1.0, C2=1.0, C3≈1.54 and the overconsolidated / below-preconsolidation branch.
+- The test also verifies the Module 4 pressure limit: qeq=3.31 tsf is below qult/FS=25.5/3=8.5 tsf, so qeq governs the applied gross pressure.
+- PR #25 merged to main at 9d447b10112df63cbdea381008a6beed85809036.
+- GitHub Actions run 42948248967: success; Python 3.11 compile passed; full suite 261 passed in 1.51 s.
+- Published worked-example benchmark count is now 54: 53 Appendix B cases plus this Appendix C-7e settlement case.
