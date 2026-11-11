@@ -1848,3 +1848,38 @@ def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
     assert result["profile_depth_used_m"] > 30*ft
     assert result["settlement_mm"]/25.4 == pytest.approx(expected_in,abs=1e-6)
     assert result["settlement_mm"]/25.4 == pytest.approx(.827,abs=.002)
+
+
+
+def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
+    # Appendix C-1, Table C-1 (printed pp. 339-341).
+    ft = 0.3048
+    tsf = 95.7605
+    data = [
+        (0.5,1.0,.15,.79,.44,1.0,.226,.024),
+        (2.0,2.0,.24,.88,.40,.92,.226,.024),
+        (4.0,2.0,.33,.97,.28,.63,.226,.024),
+        (6.5,3.0,.40,1.04,.16,.36,.226,.024),
+        (9.5,3.0,.49,5.89,.09,.20,.096,.012),
+        (12.5,3.0,.59,5.99,.05,.12,.096,.012),
+    ]
+    layers = [
+        {"Layer":i+1,"Depth_center_m":z*ft,"Thickness_m":H*ft,
+         "e0":1.0,"Cc":Cc,"Cr":Cr,"Sigma0_kPa":s0*tsf,
+         "SigmaP_kPa":sp*tsf,"Stress_factor":Iz}
+        for i,(z,H,s0,sp,ds,Iz,Cc,Cr) in enumerate(data)
+    ]
+    result = consolidation_settlement_layers(
+        layers=layers,footing_width_m=7*ft,footing_length_m=7*ft,
+        net_pressure_kpa=.438*tsf,stress_method="Boussinesq",
+    )
+    expected_ft = sum(
+        H*(Cr*math.log10((s0+ds)/s0) if s0+ds<=sp
+           else Cr*math.log10(sp/s0)+Cc*math.log10((s0+ds)/sp))
+        for z,H,s0,sp,ds,Iz,Cc,Cr in data
+    )
+    assert len(result["layer_results"]) == 6
+    assert result["layer_results"][0]["Stress_factor"] == pytest.approx(1.0)
+    assert result["settlement_mm"]/304.8 == pytest.approx(expected_ft,abs=1e-9)
+    assert result["settlement_mm"]/304.8 == pytest.approx(.03098,abs=.0001)
+    assert result["settlement_mm"]/25.4 == pytest.approx(.37,abs=.01)
