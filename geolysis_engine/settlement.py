@@ -263,12 +263,30 @@ def usace_settlement_design_pressure(*, gross_equivalent_pressure_kpa,
     }
 
 
+def _burland_influence_depth_m(*, width_m, granular_layer_thickness_m,
+                                  n_decreases_with_depth=False,
+                                  loose_layer_thickness_m=None):
+    B = _finite('基礎寬度 B', width_m)
+    Hs = _finite('砂／礫層厚度 Hs', granular_layer_thickness_m)
+    if B <= 0 or Hs <= 0:
+        raise ValueError('基礎寬度 B 與砂／礫層厚度 Hs 必須大於 0')
+    if n_decreases_with_depth:
+        if loose_layer_thickness_m is None:
+            raise ValueError('N60 隨深度下降時，須另輸入鬆弱層底深度；不可用砂／礫層總厚度 Hs 代替')
+        Hloose = _finite('鬆弱層底深度', loose_layer_thickness_m)
+        if Hloose <= 0 or Hloose > Hs:
+            raise ValueError('鬆弱層底深度須大於 0，且不得超過砂／礫層總厚度 Hs')
+        return min(2.0 * B, Hloose)
+    return 1.43 * B ** 0.7
+
+
 def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
                                       gross_pressure_kpa, initial_effective_stress_kpa,
                                       preconsolidation_stress_kpa, granular_layer_thickness_m,
                                       years=30.0, load_type='static',
                                       overconsolidated=False, gravel_adjustment=False,
-                                      fine_sand_saturated=False, n_decreases_with_depth=False):
+                                      fine_sand_saturated=False, n_decreases_with_depth=False,
+                                      loose_layer_thickness_m=None):
     """USACE EM 1110-1-1905 (31 Jul 2025), §7-13 Burland-Burbidge SPT method.
 
     Uses N60 (not (N1)60) averaged over the influence zone. Imperial equations
@@ -289,9 +307,11 @@ def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
     if gravel_adjustment: N*=1.25
     if fine_sand_saturated and N>15: N=15+0.5*(N-15)
     Bft=B/0.3048; Lft=L/0.3048; Hsft=Hs/0.3048
-    zi_ft=1.43*(Bft**0.7)
-    if n_decreases_with_depth:
-        zi_ft=min(2.0*Bft,Hsft)
+    zi_m=_burland_influence_depth_m(
+        width_m=B,granular_layer_thickness_m=Hs,
+        n_decreases_with_depth=n_decreases_with_depth,
+        loose_layer_thickness_m=loose_layer_thickness_m)
+    zi_ft=zi_m/0.3048
     if zi_ft<=0: raise ValueError('影響深度計算結果不合理')
     ic_tsf_inv=0.35/(N**1.4)
     c1=max(1.0,(1.25*(Lft/Bft)/(Lft/Bft+0.25))**2)
@@ -341,6 +361,7 @@ def burland_burbidge_2025_allowable_pressure(*, target_settlement_mm, max_pressu
 
 def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_layer_thickness_m,
                                                 n_decreases_with_depth=False,
+                                                loose_layer_thickness_m=None,
                                                 gravel_adjustment=False,
                                                 fine_sand_saturated=False):
     """Compute arithmetic mean adjusted N60 within the 2025 USACE influence zone.
@@ -354,8 +375,10 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
     if B<=0 or Hs<=0 or not profile: raise ValueError('需提供正值 B、層厚及至少一筆 N60 剖面資料')
     if gravel_adjustment and fine_sand_saturated:
         raise ValueError('礫土修正與飽和細砂／粉土膨脹修正不可同時套用，請依土壤粒徑組成選擇')
-    zi=1.43*(B/0.3048)**0.7*0.3048
-    if n_decreases_with_depth: zi=min(2.0*B,Hs)
+    zi=_burland_influence_depth_m(
+        width_m=B,granular_layer_thickness_m=Hs,
+        n_decreases_with_depth=n_decreases_with_depth,
+        loose_layer_thickness_m=loose_layer_thickness_m)
     selected=[]
     seen_depths=[]
     valid_profile_depths=[]
@@ -395,7 +418,7 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
 
 def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_depth_m,
         width_m, granular_layer_thickness_m, n_decreases_with_depth=False,
-        gravel_adjustment=False, fine_sand_saturated=False):
+        loose_layer_thickness_m=None, gravel_adjustment=False, fine_sand_saturated=False):
     """Convert a Module 3 ground-referenced SPT N60 profile to footing-base depths.
 
     Refusal / partial-penetration rows with no N60 are excluded. Values above
@@ -426,6 +449,7 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
     result=burland_burbidge_average_n60_from_profile(
         converted,width_m=width_m,granular_layer_thickness_m=granular_layer_thickness_m,
         n_decreases_with_depth=n_decreases_with_depth,
+        loose_layer_thickness_m=loose_layer_thickness_m,
         gravel_adjustment=gravel_adjustment,fine_sand_saturated=fine_sand_saturated)
     result['foundation_depth_m']=Df
     result['source_depth_reference']='Depth_m measured from ground surface; converted to depth below footing base'
