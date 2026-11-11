@@ -188,7 +188,7 @@ def render_module_4(expanded=False):
                 logging.exception("Schmertmann CPT settlement calculation failed")
                 st.error(f"CPT 沉陷估算失敗：{exc}")
         elif method4.startswith('PMT：'):
-            st.caption("依 USACE EM 1110-1-1905（2025）式 7-11、表 7-5、表 7-6 及圖 7-11、7-12。此介面先實作深層且相對均質土層分支；若基礎下方 2B 內有軟弱／鬆散層，不能使用本分支，須另做式 7-12 評估。")
+            st.caption("依 USACE EM 1110-1-1905（2025）式 7-11／7-12、表 7-5／7-6 及圖 7-11／7-12。可計算深層均質沉陷，並可另外輸入 2B（條形基礎 6B）範圍內的軟弱／鬆散層修正。")
             a,b,c=st.columns(3)
             with a:
                 pmtB=st.number_input("基礎寬度／圓形基礎等效直徑 B [m]",0.3,30.0,2.0,0.1,key="m4_pmt_b")
