@@ -28,6 +28,7 @@ from geolysis_engine import (
     seismic_bearing_capacity_residual_pore_pressure,
     seismic_bearing_capacity_residual_pore_pressure_cases,
     foundation_sliding_factor_of_safety,
+    foundation_sliding_pseudostatic_cases,
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
     dmt_settlement_2025,
@@ -2880,3 +2881,51 @@ def test_usace_seismic_resistance_middle_third_check_passes_for_centered_load():
     )
     assert result["overturning_check_pass"] is True
     assert all(case["overturning_check_pass"] for case in result["cases"])
+
+
+def test_usace_pseudostatic_sliding_evaluates_both_vertical_kv_cases():
+    result = foundation_sliding_pseudostatic_cases(
+        vertical_load_kN=1000.0, uplift_kN=100.0,
+        horizontal_load_kN=100.0, seismic_weight_kN=1200.0,
+        kh=0.2, kv=0.1, area_m2=6.0,
+        friction_angle_deg=30.0, cohesion_kpa=0.0,
+        adhesion_ratio=0.0, active_force_kN=0.0,
+        passive_force_kN=0.0, fs_required=1.1,
+    )
+    assert len(result["cases"]) == 2
+    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0])
+    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([340.0, 340.0])
+    expected_fs = (880.0 - 100.0) * math.tan(math.radians(30.0)) / 340.0
+    assert result["FS_sliding"] == pytest.approx(expected_fs)
+    assert result["governing_case"]["vertical_sign"] == "向下減少"
+    assert result["FS_minimum_required"] == pytest.approx(1.1)
+
+
+def test_usace_pseudostatic_sliding_rejects_zero_or_uplift_vertical_case():
+    with pytest.raises(ValueError, match="V−kvW≤0"):
+        foundation_sliding_pseudostatic_cases(
+            vertical_load_kN=1000.0, uplift_kN=0.0,
+            horizontal_load_kN=100.0, seismic_weight_kN=2500.0,
+            kh=0.2, kv=0.5, area_m2=6.0,
+            friction_angle_deg=30.0, fs_required=1.1,
+        )
+
+
+def test_usace_pseudostatic_sliding_rejects_uplift_at_least_minimum_vertical_load():
+    with pytest.raises(ValueError, match="基底揚壓力"):
+        foundation_sliding_pseudostatic_cases(
+            vertical_load_kN=1000.0, uplift_kN=900.0,
+            horizontal_load_kN=100.0, seismic_weight_kN=1000.0,
+            kh=0.2, kv=0.1, area_m2=6.0,
+            friction_angle_deg=30.0, fs_required=1.1,
+        )
+
+
+def test_usace_pseudostatic_sliding_enforces_minimum_earthquake_fs():
+    with pytest.raises(ValueError, match="不得低於 1.1"):
+        foundation_sliding_pseudostatic_cases(
+            vertical_load_kN=1000.0, uplift_kN=0.0,
+            horizontal_load_kN=100.0, seismic_weight_kN=1000.0,
+            kh=0.2, kv=0.1, area_m2=6.0,
+            friction_angle_deg=30.0, fs_required=1.0,
+        )

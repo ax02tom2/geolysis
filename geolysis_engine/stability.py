@@ -177,6 +177,67 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
         'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
+
+def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
+        horizontal_load_kN, seismic_weight_kN, kh, kv, area_m2,
+        friction_angle_deg, cohesion_kpa=0.0, adhesion_ratio=0.0,
+        active_force_kN=0.0, passive_force_kN=0.0, fs_required=1.1):
+    """Evaluate USACE pseudo-static sliding FS for both vertical kv directions.
+
+    The horizontal driving load is the adverse aligned envelope H + kh·W.
+    The vertical normal force is evaluated as V ± kv·W. The supplied uplift,
+    active force, and passive force are held constant across the two vertical
+    cases; direction-specific earth-pressure actions must be provided as the
+    adverse values by the user when the two sides are not symmetric.
+    """
+    V=_finite('靜態總垂直力 V',vertical_load_kN)
+    U=_finite('基底揚壓力 U',uplift_kN)
+    H=_finite('靜態水平力 H',horizontal_load_kN)
+    W=_finite('有效地震重量 W',seismic_weight_kN)
+    khv=_finite('水平地震係數 kh',kh)
+    kvv=_finite('垂直地震係數 kv',kv)
+    if V<=0 or W<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震滑動輸入不合理：V、W須正，H不可為負，0≤kh≤1、0≤kv≤0.5')
+    Vmin=V-kvv*W
+    if Vmin<=0:
+        raise ValueError('V−kvW≤0，地震組合已達零壓或上拔；不可使用基底摩擦滑動公式')
+    if U<0 or U>=Vmin:
+        raise ValueError('至少一組 V±kvW 組合的基底揚壓力 U 已達總垂直力；須先作抗浮／接觸分析')
+    He=H+khv*W
+    cases=[]
+    for sign in (-1,1):
+        Ve=V+sign*kvv*W
+        result=foundation_sliding_factor_of_safety(
+            vertical_load_kN=Ve,uplift_kN=U,
+            horizontal_load_kN=He,area_m2=area_m2,
+            friction_angle_deg=friction_angle_deg,
+            cohesion_kpa=cohesion_kpa,adhesion_ratio=adhesion_ratio,
+            active_force_kN=active_force_kN,
+            passive_force_kN=passive_force_kN,
+            fs_required=fs_required,load_case='seismic')
+        cases.append({
+            **result,'vertical_load_kN':Ve,'horizontal_load_kN':He,
+            'seismic_weight_kN':W,
+            'vertical_sign':('向下減少' if sign==-1 else '向下增加'),
+        })
+    governing=min(cases,key=lambda row:row['FS_sliding'])
+    return {
+        'cases':cases,'governing_case':governing,
+        'FS_sliding':governing['FS_sliding'],
+        'FS_required':governing['FS_required'],
+        'FS_minimum_required':1.1,
+        'passes':all(row['passes'] for row in cases),
+        'passive_balance_controls':any(row['passive_balance_controls'] for row in cases),
+        'resisting_force_kN':governing['resisting_force_kN'],
+        'driving_force_kN':governing['driving_force_kN'],
+        'governing_vertical_load_kN':governing['vertical_load_kN'],
+        'governing_horizontal_load_kN':He,
+        'seismic_weight_kN':W,
+        'load_case':'seismic',
+        'method':'USACE EM 1110-1-1905 (2025), Table 2-1 Note 2 and Eqs. 5-28/5-29; pseudo-static H+khW, V±kvW',
+        'limitations':'水平地震作用採與靜力 H 同向的不利包絡 H+khW；垂直方向逐一評估 V±kvW，控制值取兩者較小 FS。U 在兩個垂直組合中保持不變。Pa/Pp 及 uplift 由使用者提供或由既有 developed Rankine 模型估算；若結構／回填幾何不對稱，應先分別建立正反向水平作用的 Pa/Pp，並輸入較不利組合。本方法未納入土體慣性、孔壓累積、液化強度損失、基礎接觸區因傾覆而變化及任意水平方位角。FS≥1.1 是 USACE Table 2-1 Note 2 對含地震荷載滑動的最低要求，不適用於承載力或傾覆檢核。'
+    }
+
 def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
         footing_depth_m, footing_length_m, friction_angle_deg,
         cohesion_kpa, fs_sliding=2.0, load_case='static'):

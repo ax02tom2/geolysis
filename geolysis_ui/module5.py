@@ -5,7 +5,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases
 
 
 
@@ -418,9 +418,9 @@ def render_module_5(expanded=False):
             st.caption("依 USACE 2025 式 5-28／5-29。基底摩擦、黏著、揚壓力分別輸入；主動／被動土壓需先以 developed strength 另行計算。")
             sa,sb,sc=st.columns(3)
             with sa:
-                slide_v5=st.number_input("總垂直力 V [kN]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
+                slide_v5=st.number_input("靜力總垂直力 V [kN]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
                 slide_u5=st.number_input("基底揚壓力合力 U [kN]",0.0,1000000.0,0.0,10.0,key="m5x_slide_u")
-                slide_h5=st.number_input("水平驅動力 H [kN]",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
+                slide_h5=st.number_input("靜力水平力 H [kN]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
             with sb:
                 slide_area5=st.number_input("基底接觸面積 A [m²]",0.1,5000.0,float(max(0.1,B5*L5)),0.1,key="m5x_slide_area")
                 slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_phi")
@@ -434,7 +434,7 @@ def render_module_5(expanded=False):
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。")
-            st.caption("注意：選擇「含地震荷載」只切換最低 FS，不會自動產生 kh／kv 或地震慣性力；請先將地震組合下的 H、V 及主動／被動土壓作用納入輸入值。")
+            st.caption("地震模式會自動讀取上方 Module 5 的 kh、kv、W，組合 H_eq=H+khW 與 V_eq=V±kvW，並取兩組垂直方向中較小的滑動 FS。此處 H、V 請輸入未含地震增量的靜力基準值，避免重複計入。基底揚壓 U 與 Pa/Pp 仍須依實際水位及控制水平作用方向另行確認；不對稱回填幾何請輸入正反向中較不利的 Pa/Pp。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
             slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
@@ -454,23 +454,32 @@ def render_module_5(expanded=False):
                         active_used=slide_pa5
                         passive_used=slide_pp5
                         st.session_state["m5x_slide_earth_result"]=None
-                    slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
-                        uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
-                        friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
-                        adhesion_ratio=slide_ar5,active_force_kN=active_used,
-                        passive_force_kN=passive_used,fs_required=slide_req5,
-                        load_case=slide_load_case5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                    if slide_load_case5=="seismic":
+                        slide=foundation_sliding_pseudostatic_cases(
+                            vertical_load_kN=slide_v5,uplift_kN=slide_u5,
+                            horizontal_load_kN=slide_h5,seismic_weight_kN=seismic_weight5,
+                            kh=kh5,kv=kv5,area_m2=slide_area5,
+                            friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
+                            adhesion_ratio=slide_ar5,active_force_kN=active_used,
+                            passive_force_kN=passive_used,fs_required=slide_req5)
+                    else:
+                        slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
+                            uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
+                            friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
+                            adhesion_ratio=slide_ar5,active_force_kN=active_used,
+                            passive_force_kN=passive_used,fs_required=slide_req5,
+                            load_case=slide_load_case5)
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                     delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
-                if slide.get("passive_balance_controls"):
-                    st.warning("被動土壓力已完全抵銷外部驅動力；顯示 ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
+                if slide_load_case5=="seismic" and slide.get("cases"):
+                    st.dataframe(pd.DataFrame(slide["cases"]),hide_index=True,use_container_width=True)
                 if slide.get("passive_balance_controls"):
                     st.warning("被動土壓力已完全抵銷外部驅動力；顯示 FS = ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
                 st.caption("依 USACE EM 1110-1-1905（2025）式 5-28 至 5-30：基底界面抗力使用界面 δ′、c_a/c′（或 c_a/s_u）；牆前／牆後主動與被動土壓力則另以 developed φ_d、c_d 計算。兩者分屬不同剪力區，並非混用安全係數。")
