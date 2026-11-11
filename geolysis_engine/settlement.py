@@ -551,7 +551,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         "deviatoric_settlement_mm": deviatoric_m * 1000.0,
         "spherical_settlement_mm": spherical_m * 1000.0,
         "soft_layer_settlement_mm": soft_total_m * 1000.0,
-        "soft_layer_results": soft_details
+        "soft_layer_results": soft_details,
         "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
