@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -444,25 +444,49 @@ def render_module_4(expanded=False):
                     except Exception as immediate_exc:
                         st.error(f"即時沉陷估算失敗：{immediate_exc}")
                 with st.expander("開挖回彈與基礎再壓縮（選填）",expanded=False):
-                    st.caption("依 USACE 2025 第 7-15 節／表 7-10，以 Cr、Cc 理想化 e-log-p 路徑估算；σ′exc 與 σ′f 應由開挖及載重後有效應力分析取得。")
-                    re_a,re_b=st.columns(2)
-                    with re_a:
-                        sigma_exc4=st.number_input("開挖／降水後有效應力 σ′exc [kPa]",min_value=0.1,max_value=5000.0,value=float(max(0.1,sig0*0.6)),step=5.0,key="m4c_sigma_exc")
-                    with re_b:
-                        sigma_final4=st.number_input("基礎載重後最終有效應力 σ′f [kPa]",min_value=0.1,max_value=10000.0,value=float(max(0.1,sig0*1.2)),step=5.0,key="m4c_sigma_final")
-                    try:
-                        rebound4=excavation_rebound_recompression(layer_thickness_m=Hc,
-                            initial_void_ratio=e0,compression_index=Cc,recompression_index=Cr,
-                            initial_effective_stress_kpa=sig0,preconsolidation_stress_kpa=sigp,
-                            excavation_effective_stress_kpa=sigma_exc4,
-                            final_effective_stress_kpa=sigma_final4)
-                        st.write(f"開挖回彈（隆起）≈ **{abs(rebound4['rebound_mm']):.2f} mm**；基礎再壓縮沉陷≈ **{rebound4['recompression_settlement_mm']:.2f} mm**。")
-                        st.metric("回彈後淨垂直位移（正值為沉陷）",f"{rebound4['net_settlement_mm']:.2f} mm")
-                        st.caption(rebound4['regime']+"；"+rebound4['limitations'])
-                        if layers_text4.strip():
-                            st.warning("目前此回彈／再壓縮面板使用上方單層代表參數 H、e0、Cc、Cr；若地層為多層，需逐層輸入開挖後與載重後有效應力，不可直接代表整個多層剖面。")
-                    except Exception as rebound_exc:
-                        st.error(f"開挖回彈／再壓縮估算失敗：{rebound_exc}")
+                    st.caption("依 USACE 2025 第 7-15 節／表 7-10。若有各層 oedometer e-log-p 曲線，優先輸入逐層 e0、e_exc、e_final；單一 Cr/Cc 模式僅為理想化初估。")
+                    rebound_mode4=st.radio("計算資料型式",["逐層 e-log-p 試驗孔隙比","單層 Cr/Cc 理想化"],horizontal=True,key="m4c_rebound_mode")
+                    if rebound_mode4=="逐層 e-log-p 試驗孔隙比":
+                        rebound_layers_text4=st.text_area(
+                            "逐層 e-log-p CSV（有效應力單位 kPa；厚度單位 m）",
+                            value="",height=120,key="m4c_rebound_layers",
+                            placeholder=(
+                                "Layer,rebound_thickness_m,recompression_thickness_m,initial_effective_stress_kpa,excavation_effective_stress_kpa,final_effective_stress_kpa,e0,e_exc,e_final\n"
+                                "2,2.4384,1.8288,51.7,9.6,135.0,0.947,0.964,0.805\n"
+                                "3,4.2672,2.4384,78.5,55.6,79.4,0.991,0.999,0.983"
+                            ))
+                        if rebound_layers_text4.strip():
+                            try:
+                                rebound_rows4=pd.read_csv(StringIO(rebound_layers_text4)).to_dict("records")
+                                rebound4=excavation_rebound_recompression_layers(layers=rebound_rows4)
+                                st.dataframe(pd.DataFrame(rebound4["layer_results"]),hide_index=True,use_container_width=True)
+                                st.metric("開挖回彈（隆起）",f"{abs(rebound4['rebound_mm']):.2f} mm")
+                                st.metric("基礎再壓縮沉陷",f"{rebound4['recompression_settlement_mm']:.2f} mm")
+                                st.metric("回彈後淨垂直位移（正值為沉陷）",f"{rebound4['net_settlement_mm']:.2f} mm")
+                                st.caption(rebound4["limitations"])
+                            except Exception as rebound_exc:
+                                st.error(f"逐層 e-log-p 回彈／再壓縮估算失敗：{rebound_exc}")
+                        else:
+                            st.info("請貼上各壓縮層的試驗曲線讀值；沒有 e-log-p 資料時，請改用單層 Cr/Cc 理想化模式。")
+                    else:
+                        re_a,re_b=st.columns(2)
+                        with re_a:
+                            sigma_exc4=st.number_input("開挖／降水後有效應力 σ′exc [kPa]",min_value=0.1,max_value=5000.0,value=float(max(0.1,sig0*0.6)),step=5.0,key="m4c_sigma_exc")
+                        with re_b:
+                            sigma_final4=st.number_input("基礎載重後最終有效應力 σ′f [kPa]",min_value=0.1,max_value=10000.0,value=float(max(0.1,sig0*1.2)),step=5.0,key="m4c_sigma_final")
+                        try:
+                            rebound4=excavation_rebound_recompression(layer_thickness_m=Hc,
+                                initial_void_ratio=e0,compression_index=Cc,recompression_index=Cr,
+                                initial_effective_stress_kpa=sig0,preconsolidation_stress_kpa=sigp,
+                                excavation_effective_stress_kpa=sigma_exc4,
+                                final_effective_stress_kpa=sigma_final4)
+                            st.write(f"開挖回彈（隆起）≈ **{abs(rebound4['rebound_mm']):.2f} mm**；基礎再壓縮沉陷≈ **{rebound4['recompression_settlement_mm']:.2f} mm**。")
+                            st.metric("回彈後淨垂直位移（正值為沉陷）",f"{rebound4['net_settlement_mm']:.2f} mm")
+                            st.caption(rebound4['regime']+"；"+rebound4['limitations'])
+                            if layers_text4.strip():
+                                st.warning("目前此模式仍以單層代表參數估算；多層地層應使用逐層 e-log-p 模式。")
+                        except Exception as rebound_exc:
+                            st.error(f"開挖回彈／再壓縮估算失敗：{rebound_exc}")
                 st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
