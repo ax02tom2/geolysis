@@ -445,15 +445,16 @@ def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
 def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_kN,
         footing_area_m2, kh, kv=0.0):
     """Pseudo-static foundation inertia load envelope, not a seismic bearing
-    resistance equation. Returns equivalent actions for use with static
-    bearing/sliding checks; soil inertia, cyclic strength degradation,
-    liquefaction and seismic settlement are not included.
+    resistance equation. ``kv`` is a nonnegative magnitude; both vertical
+    acceleration directions are evaluated internally. Returns equivalent
+    actions for static bearing/sliding checks; soil inertia, cyclic strength
+    degradation, liquefaction and seismic settlement are not included.
     """
     V=_finite('靜態垂直力',vertical_load_kN); H=_finite('靜態水平力',horizontal_load_kN)
     A=_finite('基礎面積',footing_area_m2); khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
-    if V<=0 or A<=0 or H<0 or not 0<=khv<=1 or not -0.5<=kvv<=0.5:
-        raise ValueError('地震分析輸入超出範圍：V、面積須正，H≥0，0≤kh≤1，-0.5≤kv≤0.5')
+    if V<=0 or A<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震分析輸入超出範圍：V、面積須正，H≥0，0≤kh≤1，0≤kv≤0.5')
     cases=[]
     for sign in (-1,1):
         ve=V*(1+sign*kvv)
@@ -461,7 +462,7 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
         cases.append({'vertical_load_kN':ve,'horizontal_load_kN':he,
             'average_contact_pressure_kpa':ve/A,
             'load_angle_deg':math.degrees(math.atan2(he,ve)),
-            'vertical_sign':'向下增加' if sign==1 else '向下減少'})
+            'vertical_sign':('向下增加' if ve>V else '向下減少' if ve<V else '無垂直增減')})
     return {'cases':cases,'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
         'governing_horizontal_load_kN':max(x['horizontal_load_kN'] for x in cases),
         'method':'Pseudo-static inertial action envelope (kh·V, kv·V)',
@@ -505,7 +506,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
-    """Evaluate USACE 2025 seismic Nγ resistance for both pseudo-static load cases.
+    """Evaluate USACE 2025 seismic Nγ resistance for both pseudo-static load cases. kv is a nonnegative magnitude.
 
     Automatically applies Meyerhof-based shape/depth/load-inclination/base/
     ground-inclination factors (Tables 5-2/5-3), groundwater Eq. 5-19, and
@@ -530,8 +531,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     H=_finite('靜態水平力 H',horizontal_load_kN)
     khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
-    if V<=0 or H<0 or not 0<=khv<=1 or not -0.5<=kvv<=0.5:
-        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、-0.5≤kv≤0.5')
+    if V<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、0≤kv≤0.5')
     # The residual-pore-pressure equation is sand-like and uses the USACE
     # Meyerhof-based resistance factors, not whichever classic theory is selected.
     base=bearing_capacity(

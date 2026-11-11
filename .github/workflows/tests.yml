@@ -41,3 +41,4 @@ jobs:
           tests/test_reference_benchmarks.py
           tests/test_appendix_c_consolidation.py
           tests/test_appendix_c_superposition.py
+          tests/test_seismic_kv_sign.py
