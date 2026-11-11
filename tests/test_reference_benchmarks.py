@@ -2852,7 +2852,7 @@ def test_usace_seismic_moment_combinations_preserve_signed_static_biaxial_eccent
     assert by_sign[-1]["moment_L_kNm"] == pytest.approx(0.0)
 
 
-def test_usace_seismic_resistance_flags_middle_third_failure_without_hiding_bearing_resistance():
+def test_usace_seismic_resistance_reports_middle_third_reference_without_hiding_bearing_resistance():
     result = seismic_bearing_capacity_residual_pore_pressure_cases(
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
         kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
