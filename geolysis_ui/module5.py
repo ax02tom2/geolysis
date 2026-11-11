@@ -184,7 +184,8 @@ def render_module_5(expanded=False):
                 width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                 eccentricity_B_m=eB5,eccentricity_L_m=eL5,
                 footing_type="isolated",complete_capacity_model=main_load_complete,
-                incomplete_reason=main_reason,load_confirmed=loads_confirmed5)
+                incomplete_reason=main_reason,load_confirmed=loads_confirmed5,
+                base_inclination_deg=base_ang5,key_prefix="m5_classic")
             factors=pd.DataFrame([
                 {'項目':'凝聚力項 cNc','承載力因子':result5['Nc'],'形狀係數':result5['sc'],'深度係數':result5['dc'],'傾斜係數':result5['ic'],'貢獻(kPa)':result5['term_c']},
                 {'項目':'覆土項 qNq','承載力因子':result5['Nq'],'形狀係數':result5['sq'],'深度係數':result5['dq'],'傾斜係數':result5['iq'],'貢獻(kPa)':result5['term_q']},
@@ -243,7 +244,8 @@ def render_module_5(expanded=False):
                     qult_kpa=slope_result["qu_gross"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     eccentricity_B_m=eB5,eccentricity_L_m=eL5,
-                    footing_type="isolated",complete_capacity_model=True,load_confirmed=loads_confirmed5)
+                    footing_type="isolated",complete_capacity_model=True,load_confirmed=loads_confirmed5,
+                    base_inclination_deg=base_ang5,key_prefix="m5_slope")
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
                 if phi5>0:
@@ -299,7 +301,8 @@ def render_module_5(expanded=False):
                     qult_kpa=layered["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     footing_type=footing_kind5,complete_capacity_model=not layer_check_unsupported,
-                    incomplete_reason="兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5)
+                    incomplete_reason="兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5,
+                    base_inclination_deg=base_ang5,key_prefix="m5_layered")
                 st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
                 st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
                 st.caption(layered["limitations"])
@@ -339,7 +342,8 @@ def render_module_5(expanded=False):
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     eccentricity_B_m=eB5,eccentricity_L_m=eL5,
                     footing_type=footing_kind5,complete_capacity_model=not profile_check_unsupported,
-                    incomplete_reason="多層剖面計算尚未整合水平力及斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5)
+                    incomplete_reason="多層剖面計算尚未整合水平力及斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5,
+                    base_inclination_deg=base_ang5,key_prefix="m5_profile")
                 st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
                 st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
                 st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
@@ -586,7 +590,8 @@ def render_module_5(expanded=False):
                 _render_bearing_safety_check(
                     qult_kpa=insitu_result["qu_gross"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
-                    footing_type=insitu_footing5,complete_capacity_model=True,load_confirmed=loads_confirmed5)
+                    footing_type=insitu_footing5,complete_capacity_model=True,load_confirmed=loads_confirmed5,
+                    base_inclination_deg=base_ang5,key_prefix="m5_insitu")
                 st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
                 r1,r2,r3=st.columns(3)
                 r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
@@ -647,7 +652,8 @@ def render_module_5(expanded=False):
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     footing_type=insitu_layer_footing5,complete_capacity_model=not insitu_layer_unsupported5,
                     incomplete_reason="原位試驗分層穿刺尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",
-                    load_confirmed=loads_confirmed5)
+                    load_confirmed=loads_confirmed5,
+                    base_inclination_deg=base_ang5,key_prefix="m5_insitu_layered")
                 st.write(f"控制模式：{layered_insitu['controlling_mode']}；控制層：第 {layered_insitu['controlling_layer']} 層")
                 punch_candidates=[x for x in layered_insitu["candidates"] if x.get("spread_factor",1.0)>1.0]
                 if punch_candidates:
