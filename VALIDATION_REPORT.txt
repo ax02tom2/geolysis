@@ -415,3 +415,13 @@ USACE Appendix C-5 clay PMT settlement benchmark — PR #34
 - PR #34 merged at 2522620b7c1b3af6779f065a2532e578e656b48b.
 - GitHub Actions run 42963335222: success; Python 3.11 compile passed; full suite 278 passed.
 - Published USACE worked-example coverage is now 58: 53 Appendix B cases plus Appendix C-5, C-7b, C-7c, C-7d and C-7e.
+
+
+
+USACE Appendix C-6b mixed-soil DMT settlement benchmark — PR #35
+
+- Added the published 46-layer DMT mixed-soil profile benchmark using the Table C-6b MDMT, Iσ and layer-thickness values through 30.5 ft below footing base.
+- The row-by-row Eq. 7-10 calculation gives approximately 0.827 in. The individual printed layer settlements sum to approximately 0.812 in, while the printed total states 0.081 in (factor-of-ten discrepancy). The test preserves the table's layer inputs and calculates the total independently.
+- PR #35 merged at b8a8cfbca744cac901f163b9acbd331352fee734.
+- GitHub Actions run 42963545017: success; Python 3.11 compile passed; full suite 279 passed.
+- Published USACE worked-example coverage is now 59: 53 Appendix B cases plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e.
