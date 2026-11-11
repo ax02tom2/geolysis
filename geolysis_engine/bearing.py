@@ -584,6 +584,8 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
                 'vertical_sign':('向下減少' if vsign==-1 else '向下增加'),
                 'moment_B_kNm':M_B,'moment_L_kNm':M_L,
                 'eccentricity_B_m':eB,'eccentricity_L_m':eL,
+                'middle_third_B_limit_m':Bv/6.0,
+                'middle_third_L_limit_m':(Lv/6.0 if footing_type=='spread' else None),
                 'B_effective_m':Be,'L_effective_m':Le,
                 'middle_third_B_pass':middle_B,'middle_third_L_pass':middle_L,
                 'middle_third_pass':middle_pass,
