@@ -40,3 +40,4 @@ jobs:
           tests/test_streamlit_apptest.py
           tests/test_reference_benchmarks.py
           tests/test_appendix_c_consolidation.py
+          tests/test_appendix_c_superposition.py
