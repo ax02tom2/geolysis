@@ -490,14 +490,23 @@ def render_module_5(expanded=False):
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
                     delta=("符合輸入門檻" if slide["passes"] else "低於輸入門檻"))
                 if slide_load_case5=="seismic" and slide.get("cases"):
-                    st.dataframe(pd.DataFrame(slide["cases"]),hide_index=True,use_container_width=True)
+                    slide_cases_df=pd.DataFrame(slide["cases"])
+                    if slide_is_line5:
+                        slide_cases_df=slide_cases_df.rename(columns={
+                            "resisting_force_kN":"resisting_force_kN_per_m",
+                            "driving_force_kN":"driving_force_kN_per_m",
+                            "passive_resistance_used_kN":"passive_resistance_used_kN_per_m",
+                            "horizontal_load_kN":"horizontal_load_kN_per_m",
+                            "vertical_load_kN":"vertical_load_kN_per_m",
+                        })
+                    st.dataframe(slide_cases_df,hide_index=True,use_container_width=True)
                 if slide.get("passive_balance_controls"):
                     st.warning("被動土壓力已完全抵銷外部驅動力；顯示 FS = ∞ 僅代表本式淨驅動力為零，不應與一般有限 FS 數值直接比較。")
                 st.caption("依 USACE EM 1110-1-1905（2025）式 5-28 至 5-30：基底界面抗力使用界面 δ′、c_a/c′（或 c_a/s_u）；牆前／牆後主動與被動土壓力則另以 developed φ_d、c_d 計算。兩者分屬不同剪力區，並非混用安全係數。")
                 st.caption(slide["limitations"])
                 earth_result=st.session_state.get("m5x_slide_earth_result")
                 if earth_result:
-                    st.write(f"developed φd={earth_result['developed_phi_deg']:.2f}°；Ka,d={earth_result['Ka_developed']:.3f}；Kp,d={earth_result['Kp_developed']:.3f}；Pa,d={earth_result['active_force_kN']:.1f} kN；Pp,d={earth_result['passive_force_kN']:.1f} kN")
+                    st.write(f"developed φd={earth_result['developed_phi_deg']:.2f}°；Ka,d={earth_result['Ka_developed']:.3f}；Kp,d={earth_result['Kp_developed']:.3f}；Pa,d={earth_result['active_force_kN']:.1f} {slide_force_unit5}；Pp,d={earth_result['passive_force_kN']:.1f} {slide_force_unit5}")
                     st.caption(earth_result["limitations"])
     
         with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
