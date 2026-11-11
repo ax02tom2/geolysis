@@ -201,6 +201,7 @@ def render_module_4(expanded=False):
             with c:
                 pmtQu=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult")
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
+                pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",1.0,20000.0,300.0,10.0,key="m4_pmt_py")
                 pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
             pmtState=st.selectbox("土層狀態（表 7-6）",["normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
             if pmtRound:
@@ -234,6 +235,7 @@ def render_module_4(expanded=False):
                             pmt_moduli=pmtRows,footing_width_m=pmtB,footing_length_m=pmtL,
                             gross_pressure_kpa=pmtq,base_effective_stress_kpa=pmtSigD,
                             equivalent_net_limit_pressure_kpa=pmtPne,
+                            yield_pressure_kpa=pmtPy,
                             soil_type=pmtSoil,consolidation_state=pmtState,
                             lambda_d=pmtLd,lambda_c=pmtLc,round_footing=pmtRound,
                             ultimate_bearing_kpa=(pmtQu if pmtQu>0 else None),
