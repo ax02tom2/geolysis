@@ -9,6 +9,19 @@ from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bea
 
 
 
+
+def _seismic_case_dataframe(rows, footing_type):
+    frame=pd.DataFrame(rows)
+    if footing_type=="strip":
+        frame=frame.rename(columns={
+            "horizontal_load_kN":"horizontal_load_kN_per_m",
+            "vertical_load_kN":"vertical_load_kN_per_m",
+            "seismic_weight_kN":"seismic_weight_kN_per_m",
+            "moment_B_kNm":"moment_B_kNm_per_m",
+            "moment_L_kNm":"moment_L_kNm_per_m",
+        })
+    return frame
+
 def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
         length_m, depth_m, water_depth_m, eccentricity_B_m=0.0,
         eccentricity_L_m=0.0, footing_type="isolated",
@@ -375,7 +388,7 @@ def render_module_5(expanded=False):
                 st.metric("地震偏心／中間三分點檢核","全部組合符合" if seismic_ecc5["passes"] else "至少一組未符合")
                 if not seismic_ecc5["passes"]:
                     st.error("至少一組地震載重組合超出中間三分點、失去有效壓縮接觸或有效軸向交換；請另作傾覆／接觸壓力／雙向偏心分析。")
-                st.dataframe(pd.DataFrame(seismic_ecc5["cases"]),hide_index=True,use_container_width=True)
+                st.dataframe(_seismic_case_dataframe(seismic_ecc5["cases"],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(seismic_ecc5["limitations"])
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
                 try:
@@ -388,7 +401,7 @@ def render_module_5(expanded=False):
                     st.error(f"地震等效載重計算失敗：{exc}")
             seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5,seismic_weight5))
             if seismic and seismic_is_current:
-                st.dataframe(pd.DataFrame(seismic["cases"]),hide_index=True,use_container_width=True)
+                st.dataframe(_seismic_case_dataframe(seismic["cases"],seismic_footing5),hide_index=True,use_container_width=True)
     
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
@@ -444,7 +457,7 @@ def render_module_5(expanded=False):
                     st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
                 if not sr.get("overturning_check_pass",True):
                     st.error("至少一組地震載重組合的偏心距超出基礎中間三分之一（B/6 或 L/6）。依 USACE EM 1110-1-1905 Table 2-1 Note 3，傾覆／偏心極限狀態不符合；即使仍能計算承載力，也不可視為整體安全通過。")
-                st.dataframe(pd.DataFrame(sr['cases']),hide_index=True,use_container_width=True)
+                st.dataframe(_seismic_case_dataframe(sr['cases'],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
     
