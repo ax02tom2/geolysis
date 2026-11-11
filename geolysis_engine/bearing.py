@@ -279,8 +279,8 @@ def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
         q_vertical=V/Be
     ud=gw*max(Df-Dw,0.0)
     qeq=q_vertical-ud
-    middle_B=(eB < B/6.0 + 1e-12)
-    middle_L=(True if footing_type=='continuous' else eL < L/6.0 + 1e-12)
+    middle_B=(eB < B/6.0)
+    middle_L=(True if footing_type=='continuous' else eL < L/6.0)
     fs_actual=(qult/qeq) if qeq>0 else None
     passes_bearing=(fs_actual is not None and fs_actual+1e-12>=fs_req)
     passes_overturning=middle_B and middle_L
