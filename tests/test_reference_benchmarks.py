@@ -2085,3 +2085,71 @@ def test_usace_2025_pmt_rejects_overlapping_soft_layer_intervals():
                  "E_L_kpa": 8000.0, "pne_kpa": 1000.0, "I_sigma": 0.5},
             ],
         )
+
+
+
+def test_hoek_brown_2002_low_ucs_em_branch():
+    # Hoek, Carranza-Torres & Corkum (2002), Eq. 11a:
+    # Em=(1-D/2)*sqrt(sigma_ci/100)*10^((GSI-10)/40) GPa for sigma_ci<=100 MPa.
+    gsi, mi, sigma_ci, D = 45.0, 10.0, 50.0, 0.5
+    result = hoek_brown_2002(
+        gsi=gsi, mi=mi, sigma_ci_mpa=sigma_ci, disturbance=D,
+        application="general", sigma3_custom_mpa=10.0,
+    )
+    expected = (1.0 - D / 2.0) * math.sqrt(sigma_ci / 100.0) * 10.0 ** ((gsi - 10.0) / 40.0)
+    assert result["Em_gpa"] == pytest.approx(expected, rel=1e-12)
+
+
+def test_hoek_brown_2002_em_formula_is_continuous_at_100_mpa():
+    # Eq. 11a and 11b meet exactly at sigma_ci=100 MPa.
+    gsi, D = 55.0, 0.4
+    expected = (1.0 - D / 2.0) * 10.0 ** ((gsi - 10.0) / 40.0)
+    result = hoek_brown_2002(
+        gsi=gsi, mi=12.0, sigma_ci_mpa=100.0, disturbance=D,
+        application="general", sigma3_custom_mpa=5.0,
+    )
+    assert result["Em_gpa"] == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("pi", "expected"),
+    [(3.0, "ML"), (6.0, "CL-ML"), (8.0, "CL")],
+)
+def test_uscs_cl_ml_borderline_zone(pi, expected):
+    result = classify_uscs_aashto(
+        p4=95, p10=80, p40=60, p200=70,
+        ll=25, pl=25-pi,
+    )
+    assert result["USCS"] == expected
+
+
+@pytest.mark.parametrize(
+    ("fines", "expected"),
+    [(5.0, "SW-SM"), (12.0, "SW-SM"), (13.0, "SM")],
+)
+def test_uscs_fines_dual_symbol_cutoffs(fines, expected):
+    result = classify_uscs_aashto(
+        p4=95, p10=80, p40=60, p200=fines,
+        ll=35, pl=30, d10=0.1, d30=0.3, d60=0.8,
+    )
+    assert result["USCS"] == expected
+
+
+def test_uscs_organic_fines_requires_oven_dried_liquid_limit_confirmation():
+    confirmed = classify_uscs_aashto(
+        p4=95, p10=80, p40=60, p200=70,
+        ll=40, pl=20, organic=True, ll_oven_dried=25,
+    )
+    not_confirmed = classify_uscs_aashto(
+        p4=95, p10=80, p40=60, p200=70,
+        ll=40, pl=20, organic=True, ll_oven_dried=32,
+    )
+    provisional = classify_uscs_aashto(
+        p4=95, p10=80, p40=60, p200=70,
+        ll=40, pl=20, organic=True,
+    )
+    assert confirmed["USCS"] == "OL"
+    assert "符合" in confirmed["organic_note"]
+    assert not_confirmed["USCS"] == "CL"
+    assert "未符合" in not_confirmed["organic_note"]
+    assert "暫定" in provisional["USCS"]
