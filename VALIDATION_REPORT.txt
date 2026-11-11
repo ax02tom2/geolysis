@@ -583,3 +583,17 @@ Module 4 PMT rock rheology — PR #58
 - GitHub Actions run 42985525476: success; Python 3.11 compile passed; full suite 369 passed in 1.73 s.
 - Published worked-example benchmark count remains 59; four tests validate the three tabulated rock cases and missing-input guard, not new published examples.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 7-6.
+
+
+Module 4 Appendix C-2/C-3 superposition and fill consolidation — PR #59
+
+- Added a separate layer-wise consolidation path accepting total per-layer Δσz after the user has completed stress-distribution and load-superposition calculations. This path does not infer footing geometry, compute individual Boussinesq stress fields, or return a bearing-capacity qa.
+- Added Module 4 UI expander for adjacent footings, combined footing/fill loads, and other superimposed load cases. Each CSV row requires layer thickness, e0, Cc, Cr, σ′0, σ′p and the already-summed Δσz.
+- Appendix C-2 point B: reproduced approximately 0.0324 ft (0.39 in). Point E: approximately 0.0235 ft (0.28 in).
+- Appendix C-3a areal fill only: approximately 0.092 ft (1.10 in). C-3b fill plus footing: approximately 0.145 ft (1.74 in). C-3c time to 70% consolidation: approximately 152.8 days using Cv=0.412 ft²/day and Hdr=12.5 ft.
+- Source-table notes: C-2 point B's intermediate summary has an inconsistent layer-6 Δσz (0.18 tsf); 0.08 tsf agrees with the final stress 0.67 tsf and settlement 0.001 ft, so the test uses 0.08 tsf. C-3a/C-3b row-3 depth midpoint overlaps the previous layer when compared with listed thicknesses; tests use the contiguous midpoint derived from the thickness sequence only for depth-order validation, while retaining the published stresses and settlement values. This is not claimed as full validation of the manual's depth-coordinate transcription.
+- Added four regression tests covering C-2 B/E, C-3a, C-3b and C-3c. Added the new test file to GitHub Actions.
+- PR #59 merged to main at 35b1a44a6b24bac32fc1f67f3da0a18c5276e28c.
+- GitHub Actions run 42985828131: success; Python 3.11 compile passed; full suite 373 passed in 1.96 s.
+- Public worked-example coverage is now 66 cases: 53 Appendix B and 13 Appendix C cases (C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-2/C-3a/C-3b/C-3c; Eqs. 6-6, 6-7, 7-8, 7-9 and 7-42.
