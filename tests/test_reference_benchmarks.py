@@ -1317,3 +1317,40 @@ def test_usace_2025_appendix_b7a_drained_meyerhof_bearing_capacity():
     )
     assert demand["qeq_gross_kpa"] / ksf_to_kpa == pytest.approx(6.63, abs=0.02)
     assert demand["FS_bearing"] == pytest.approx(3.8, abs=0.1)
+
+
+
+def test_usace_2025_appendix_c7e_burland_burbidge_settlement_and_pressure_cap():
+    # Appendix C, Example C-7, Table C-7e (printed pp. 386-387).
+    # B=L=8 ft, N60 values 12/15/14 -> Nbar=14, q=3.31 tsf,
+    # mean initial stress=0.35 tsf, preconsolidation stress=3.88 tsf,
+    # Zi=Hs=6.13 ft, t=50 years; published settlement=1.2 in.
+    ft_to_m = 0.3048
+    tsf_to_kpa = 95.7605
+    pressure = usace_settlement_design_pressure(
+        gross_equivalent_pressure_kpa=3.31 * tsf_to_kpa,
+        ultimate_bearing_kpa=25.5 * tsf_to_kpa,
+        factor_of_safety=3.0,
+    )
+    assert pressure["capacity_pressure_limit_kpa"] / tsf_to_kpa == pytest.approx(8.5)
+    assert pressure["design_pressure_kpa"] / tsf_to_kpa == pytest.approx(3.31)
+    assert pressure["capacity_limit_governs"] is False
+
+    result = burland_burbidge_2025_settlement(
+        n60_average=14.0,
+        width_m=8.0 * ft_to_m,
+        length_m=8.0 * ft_to_m,
+        gross_pressure_kpa=pressure["design_pressure_kpa"],
+        initial_effective_stress_kpa=0.35 * tsf_to_kpa,
+        preconsolidation_stress_kpa=3.88 * tsf_to_kpa,
+        granular_layer_thickness_m=6.13 * ft_to_m,
+        years=50.0,
+        load_type="static",
+        overconsolidated=True,
+    )
+    assert result["influence_depth_m"] == pytest.approx(6.13 * ft_to_m, abs=0.01)
+    assert result["C1_shape"] == pytest.approx(1.0)
+    assert result["C2_layer"] == pytest.approx(1.0)
+    assert result["C3_time"] == pytest.approx(1.54, abs=0.01)
+    assert result["regime"] == "超固結且未超過先期固結壓力"
+    assert result["settlement_mm"] == pytest.approx(1.2 * 25.4, abs=0.6)
