@@ -129,11 +129,18 @@ def render_module_4(expanded=False):
                     st.info("請貼上 DMT 分層資料後計算；系統不會用示範模數代替現場試驗。")
                 else:
                     dmt_layers=pd.read_csv(StringIO(dmt_text)).to_dict("records")
-                    result_dmt=dmt_settlement_2025(
-                        layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
-                        gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
-                        ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
-                        factor_of_safety=dmtfs,footing_type=dmt_type)
+                    if dmt_mode=="MDMT":
+                        result_dmt=dmt_modulus_settlement_2025(
+                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
+                            factor_of_safety=dmtfs,footing_type=dmt_type)
+                    else:
+                        result_dmt=dmt_settlement_2025(
+                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
+                            factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
                     st.dataframe(pd.DataFrame(result_dmt["layer_results"]),hide_index=True,use_container_width=True)
