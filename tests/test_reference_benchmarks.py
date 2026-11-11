@@ -2990,3 +2990,12 @@ def test_general_seismic_eccentricity_rejects_strip_long_axis_moment_and_zero_ve
             seismic_weight_kN=2500.0, kh=0.1, kv=0.5,
             footing_type="spread", B=2.0, L=3.0,
         )
+
+
+def test_general_seismic_eccentricity_rejects_spread_footing_with_long_side_shorter_than_width():
+    with pytest.raises(ValueError, match="長邊 L 不可小於短邊 B"):
+        seismic_foundation_eccentricity_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+            seismic_weight_kN=1000.0, kh=0.1, kv=0.0,
+            footing_type="spread", B=3.0, L=2.0,
+        )
