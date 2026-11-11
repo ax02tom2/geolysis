@@ -27,6 +27,7 @@ from geolysis_engine import (
     foundation_sliding_factor_of_safety,
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
+    dmt_settlement_2025,
 )
 
 
@@ -1354,3 +1355,84 @@ def test_usace_2025_appendix_c7e_burland_burbidge_settlement_and_pressure_cap():
     assert result["C3_time"] == pytest.approx(1.54, abs=0.01)
     assert result["regime"] == "超固結且未超過先期固結壓力"
     assert result["settlement_mm"] == pytest.approx(1.2 * 25.4, abs=0.6)
+
+
+
+def test_usace_2025_dmt_settlement_converts_readings_and_sums_incremental_layers():
+    # USACE EM 1110-1-1905 Eqs. 3-41, 4-13 to 4-15 and 7-10.
+    layers = [
+        {"Layer": i + 1, "thickness_m": 0.2, "p0_bar": 2.0,
+         "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for i in range(10)
+    ]
+    result = dmt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        ultimate_bearing_kpa=450.0, factor_of_safety=3.0,
+    )
+    first = result["layer_results"][0]
+    expected_id = (3.0 - 2.0) / (2.0 - 0.5)
+    expected_kd = (2.0 - 0.5) / 1.0
+    expected_ed = 34.7 * (3.0 - 2.0)
+    expected_rm = max(0.85, 0.14 + 0.15 * (expected_id - 0.6)
+                      + (2.5 - (0.14 + 0.15 * (expected_id - 0.6)))
+                      * math.log10(expected_kd))
+    expected_mdmt = expected_rm * expected_ed * 100.0
+    assert first["ID"] == pytest.approx(expected_id)
+    assert first["KD"] == pytest.approx(expected_kd)
+    assert first["ED_bar"] == pytest.approx(expected_ed)
+    assert first["RM"] == pytest.approx(expected_rm)
+    assert first["MDMT_kPa"] == pytest.approx(expected_mdmt)
+    assert result["gross_pressure_used_kpa"] == pytest.approx(150.0)
+    assert result["capacity_limit_governs"] is True
+    assert result["net_pressure_increment_kpa"] == pytest.approx(100.0)
+    expected_settlement = sum(
+        boussinesq_rectangular_center_factor(1.0, 1.0, row["Depth_center_m"])
+        * 100.0 / expected_mdmt * 0.2 * 1000.0
+        for row in result["layer_results"]
+    )
+    assert result["settlement_mm"] == pytest.approx(expected_settlement)
+    assert result["profile_depth_used_m"] == pytest.approx(2.0)
+
+
+def test_usace_2025_dmt_settlement_rejects_incomplete_profile_and_bad_readings():
+    short = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 3.0,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+    ]
+    with pytest.raises(ValueError, match="不可外插"):
+        dmt_settlement_2025(
+            layers=short, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
+    bad = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 1.9,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(10)
+    ]
+    with pytest.raises(ValueError, match="DMT 第 1 層"):
+        dmt_settlement_2025(
+            layers=bad, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
+
+
+
+def test_usace_2025_dmt_strip_footing_uses_infinite_strip_stress_solution():
+    layers = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 3.0,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(30)
+    ]
+    result = dmt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=10.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        footing_type="continuous",
+    )
+    row = result["layer_results"][0]
+    z = row["Depth_center_m"]
+    a = 0.5
+    expected = 2.0 / math.pi * (math.atan(a / z) + a * z / (a*a + z*z))
+    assert row["Stress_factor_I_sigma"] == pytest.approx(expected)
+    assert result["influence_depth_required_m"] == pytest.approx(6.0)
+    assert result["profile_depth_used_m"] == pytest.approx(6.0)

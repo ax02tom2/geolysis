@@ -413,6 +413,113 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
     return result
 
 
+
+def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
+                        gross_pressure_kpa, base_effective_stress_kpa,
+                        ultimate_bearing_kpa=None, factor_of_safety=3.0,
+                        footing_type="isolated"):
+    """USACE 2025 DMT constrained-modulus settlement (Eqs. 3-41, 4-13:15, 7-10).
+
+    Each layer contains thickness_m, p0_bar, p1_bar, u0_bar and
+    sigma_v0_eff_bar. p0/p1 are corrected DMT contact/expansion pressures.
+    """
+    B = _finite("基礎短邊 B", footing_width_m)
+    L = _finite("基礎長邊 L", footing_length_m)
+    q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
+    sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
+    fs = _finite("承載力安全係數", factor_of_safety)
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 0 or not layers:
+        raise ValueError("基礎尺寸、gross 壓力、FS 與 DMT 分層資料不合理")
+    if footing_type not in ("isolated", "continuous"):
+        raise ValueError("基礎型式須為 isolated 或 continuous")
+    if ultimate_bearing_kpa is not None:
+        qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
+        if qult <= 0:
+            raise ValueError("輸入 qult 時必須大於 0")
+        q_used = min(q, qult / fs)
+    else:
+        q_used = q
+    q_net = q_used - sigD
+    if q_net <= 0:
+        raise ValueError("gross q／qeq 不大於基礎底初始有效應力；本方法沒有正的新增垂直應力")
+    required_depth = (6.0 if footing_type == "continuous" else 2.0) * B
+    depth = 0.0
+    results = []
+    for index, row in enumerate(layers, 1):
+        required = {"thickness_m", "p0_bar", "p1_bar", "u0_bar", "sigma_v0_eff_bar"}
+        missing = required - set(row)
+        if missing:
+            raise ValueError("DMT 分層資料缺少欄位：" + ", ".join(sorted(missing)))
+        H = _finite("DMT 層厚", row["thickness_m"])
+        p0 = _finite("DMT corrected p0", row["p0_bar"])
+        p1 = _finite("DMT corrected p1", row["p1_bar"])
+        u0 = _finite("DMT equilibrium u0", row["u0_bar"])
+        sv = _finite("DMT initial effective vertical stress", row["sigma_v0_eff_bar"])
+        if H <= 0 or p1 <= p0 or p0 <= u0 or sv <= 0:
+            raise ValueError(f"DMT 第 {index} 層壓力／厚度不合理；需 H>0、p1>p0>u0 且 σ′v0>0")
+        ID = (p1 - p0) / (p0 - u0)
+        KD = (p0 - u0) / sv
+        if ID <= 0 or KD <= 0:
+            raise ValueError(f"DMT 第 {index} 層 ID、KD 必須大於 0")
+        ED_bar = 34.7 * (p1 - p0)
+        log_kd = math.log10(KD)
+        if KD > 10.0:
+            RM = 0.32 + 2.18 * log_kd
+            rm_branch = "Eq. 3-41d (KD>10)"
+        elif ID <= 0.6:
+            RM = 0.14 + 2.36 * log_kd
+            rm_branch = "Eq. 3-41a (ID≤0.6)"
+        elif ID < 3.0:
+            RM0 = 0.14 + 0.15 * (ID - 0.6)
+            RM = RM0 + (2.5 - RM0) * log_kd
+            rm_branch = "Eq. 3-41b (0.6<ID<3)"
+        else:
+            RM = 0.5 + 2.0 * log_kd
+            rm_branch = "Eq. 3-41c (ID≥3)"
+        RM = max(0.85, RM)
+        ED_kpa = ED_bar * 100.0
+        MDMT_kpa = RM * ED_kpa
+        z = depth + H / 2.0
+        if footing_type == 'continuous':
+            half_width = B / 2.0
+            Iz = (1.0 if z == 0 else
+                  (2.0 / math.pi) * (
+                      math.atan(half_width / z)
+                      + half_width * z / (half_width * half_width + z * z)
+                  ))
+        else:
+            Iz = boussinesq_rectangular_center_factor(B, L, z)
+        delta_sigma = Iz * q_net
+        settlement_mm = delta_sigma / MDMT_kpa * H * 1000.0
+        results.append({
+            "Layer": row.get("Layer", index), "Depth_center_m": z,
+            "Thickness_m": H, "ID": ID, "KD": KD, "ED_bar": ED_bar,
+            "RM": RM, "RM_branch": rm_branch, "MDMT_kPa": MDMT_kpa,
+            "Stress_factor_I_sigma": Iz, "Delta_sigma_kPa": delta_sigma,
+            "Settlement_mm": settlement_mm,
+        })
+        depth += H
+        if depth >= required_depth - 1e-9:
+            break
+    if depth < required_depth - 1e-9:
+        raise ValueError(
+            f"DMT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 表 7-4 至少需涵蓋 "
+            f"{required_depth:.2f} m（{required_depth/B:.0f}B），不可外插未測土層"
+        )
+    return {
+        "settlement_mm": sum(x["Settlement_mm"] for x in results),
+        "gross_pressure_used_kpa": q_used,
+        "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
+        "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "base_effective_stress_kpa": sigD,
+        "net_pressure_increment_kpa": q_net,
+        "influence_depth_required_m": required_depth,
+        "profile_depth_used_m": depth,
+        "layer_results": results,
+        "method": "USACE EM 1110-1-1905 (2025), Eqs. 3-41, 4-13 to 4-15, 7-10; DMT incremental constrained modulus",
+        "limitations": "採 corrected DMT p0/p1 及 u0、σ′v0 計算 MDMT；僅適用 DMT 資料涵蓋完整影響深度的分層一維壓縮估算。採 Boussinesq 矩形基礎中心線應力影響係數；不含基礎剛性、三維修正、蠕變及震陷。"
+    }
+
 def boussinesq_rectangular_center_factor(width_m, length_m, depth_m):
     """Vertical stress influence factor beneath the center of a uniformly loaded rectangle."""
     B=_finite('基礎寬度 B',width_m); L=_finite('基礎長度 L',length_m); z=_finite('深度 z',depth_m)
