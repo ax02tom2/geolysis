@@ -257,10 +257,11 @@ def render_module_4(expanded=False):
             else:
                 x,y=st.columns(2)
                 with x:
-                    pmtLd=st.number_input("λd（依 Figure 7-11 讀值）",0.01,5.0,1.0,0.01,key="m4_pmt_ld")
+                    pmtLd=st.number_input("λd（依 Figure 7-11 讀值）",1.0,2.5,2.35,0.01,key="m4_pmt_ld")
                 with y:
-                    pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",0.01,5.0,1.0,0.01,key="m4_pmt_lc")
-                pmtLambdaConfirmed=st.checkbox("已依 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
+                    pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",1.0,1.5,1.44,0.01,key="m4_pmt_lc")
+                st.caption("Figure 7-11 圖示約 λd=1.1–2.35、λc=1.08–1.44（L/B 約 1–10）；輸入範圍限制在圖表座標內，且 λd 不可小於 λc。預設採圖表高端值作保守起始值，請依實際 L/B 讀圖後調整；若 L/B>10，不可外插，請採圖表 L/B=10 端點並註明。")
+                pmtLambdaConfirmed=st.checkbox("已依實際 L/B 從 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
             pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key="m4_pmt_deep_confirm")
             pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
                 value="",height=90,key="m4_pmt_soft_layers",
