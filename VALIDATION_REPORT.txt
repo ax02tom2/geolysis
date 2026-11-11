@@ -297,3 +297,15 @@ USACE 2025 seismic residual-pore-pressure bearing resistance — PR #23
 - PR #23 merged to main at c02f01ec2e916b98f47082186b0381d1434b21ae.
 - GitHub Actions run 42947562780: success; Python 3.11 compile passed; full suite 257 passed in 2.14 s.
 - Published Appendix B benchmark count remains 50; four additional regression cases validate the seismic factor product, pseudo-static controlling envelope and method applicability.
+
+
+
+Appendix B worked-example coverage completion — PR #24
+
+- Added the missing USACE 2025 Appendix B Example B-5 Table B-5a undrained strength benchmark (USACE qult 21.23 ksf; full-precision implementation 21.2837 ksf). The manual rounds intermediate dc=1.0625 to 1.06 and q0=0.3125 to 0.31, explaining the approximately 0.054 ksf difference. The regression asserts both the full-precision equation result and the rounded manual value within the documented rounding tolerance.
+- Added Example B-5 Table B-5c strong-over-weak undrained punch-through benchmark (weak-layer qult 4.23 ksf; spread factor 4.25; controlling qult 17.98 ksf; FS about 3.6).
+- Added Example B-7 Table B-7a drained Meyerhof benchmark (qult about 25.5 ksf; qeq about 6.63 ksf; FS about 3.8).
+- These additions complete the identified missing Appendix B worked tables; published benchmark count increased from 50 to 53.
+- PR #24 merged to main at bd37686e19dced106c9c4498027cc931b0950f37.
+- GitHub Actions run 42948043639: success; Python 3.11 compile passed; full suite 260 passed in 1.45 s.
+- The published worked-example tests remain separate from equation-level and regression tests; no synthetic tests are counted as published benchmarks.
