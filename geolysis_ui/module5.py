@@ -30,12 +30,12 @@ def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
     qcol,fscol,reqcol=st.columns(3)
     qcol.metric("實際等效壓力 qeq",f"{check['qeq_gross_kpa']:.2f} kPa")
     reqcol.metric("USACE 最低要求 FS","3.00")
-    if not complete_capacity_model:
-        fscol.metric("實際承載力 FS","未計算")
-        st.warning(incomplete_reason or "目前承載力計算未涵蓋所有輸入的載重／幾何修正，因此不顯示完整設計安全係數。")
-    elif check["FS_bearing"] is None:
+    if check["FS_bearing"] is None:
         fscol.metric("實際承載力 FS","無有效值")
         st.error("qeq≤0，表示基底合力已進入淨上拔／浮力主導狀態；不可用承載力 FS 判斷，請另做完整抗浮檢核。")
+    elif not complete_capacity_model:
+        fscol.metric("實際承載力 FS","未計算")
+        st.warning(incomplete_reason or "目前承載力計算未涵蓋所有輸入的載重／幾何修正，因此不顯示完整設計安全係數。")
     else:
         fscol.metric("實際承載力 FS",f"{check['FS_bearing']:.2f}",
             delta=("符合 ≥3.0" if check["passes_bearing"] else "未達 ≥3.0"),
