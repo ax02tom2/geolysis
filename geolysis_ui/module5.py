@@ -408,6 +408,8 @@ def render_module_5(expanded=False):
                     st.error(sr["governing_case"].get("zero_resistance_reason","至少一組地震組合未能維持有效壓縮接觸；請另作接觸壓力／雙向偏心分析。"))
                 else:
                     st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
+                if not sr.get("overturning_check_pass",True):
+                    st.error("至少一組地震載重組合的偏心距超出基礎中間三分之一（B/6 或 L/6）。依 USACE EM 1110-1-1905 Table 2-1 Note 3，傾覆／偏心極限狀態不符合；即使仍能計算承載力，也不可視為整體安全通過。")
                 st.dataframe(pd.DataFrame(sr['cases']),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
