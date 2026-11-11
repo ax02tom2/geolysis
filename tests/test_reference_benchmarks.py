@@ -2753,3 +2753,20 @@ def test_usace_seismic_pore_pressure_cases_reject_inclined_base_or_sloping_groun
     kwargs.update(angle_kwargs)
     with pytest.raises(ValueError, match="僅支援水平基底與水平地表"):
         seismic_bearing_capacity_residual_pore_pressure_cases(**kwargs)
+
+
+
+def test_usace_seismic_residual_cases_use_effective_seismic_weight_not_static_v():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=100.0,
+        kh=0.2, kv=0.1, seismic_weight_kN=1200.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    assert result["seismic_weight_kN"] == pytest.approx(1200.0)
+    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0])
+    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([340.0, 340.0])
+    assert result["governing_case"]["vertical_sign"] == "向下減少"
