@@ -2033,16 +2033,16 @@ def test_usace_2025_settlement_methods_reject_fs_not_greater_than_one(method):
             )
         elif method == "dmt_mdmt":
             dmt_modulus_settlement_2025(
-                layers=[{"thickness_m": 1.0, "depth_center_m": 0.5,
-                         "MDMT_kpa": 10000.0}],
+                layers=[{"thickness_m": 1.0, "depth_center_m": 0.5, "MDMT_kpa": 10000.0},
+                        {"thickness_m": 1.0, "depth_center_m": 1.5, "MDMT_kpa": 10000.0}],
                 footing_width_m=1.0, footing_length_m=1.0,
                 gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
                 factor_of_safety=1.0,
             )
         else:
             dmt_settlement_2025(
-                layers=[{"thickness_m": 1.0, "p0_bar": 2.0, "p1_bar": 3.0,
-                         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}],
+                layers=[{"thickness_m": 1.0, "p0_bar": 2.0, "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0},
+                        {"thickness_m": 1.0, "p0_bar": 2.0, "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}],
                 footing_width_m=1.0, footing_length_m=1.0,
                 gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
                 factor_of_safety=1.0,
