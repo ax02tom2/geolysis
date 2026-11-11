@@ -444,6 +444,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     if consolidation_state not in ("overconsolidated", "normally_consolidated", "weathered_remolded"):
         raise ValueError("未知 PMT 土層狀態")
     if round_footing:
+        if abs(L - B) > 1e-6:
+            raise ValueError("圓形基礎請以等效直徑輸入，需令 L = B")
         ld = lc = 1.0
     else:
         if lambda_d is None or lambda_c is None:
