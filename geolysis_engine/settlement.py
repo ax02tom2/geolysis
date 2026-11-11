@@ -248,8 +248,8 @@ def consolidation_time_rate_layers(*, layer_results, layer_time_parameters,
         t1=optional_number(params.get('t1_days'),'次壓縮起算時間 t1_days')
         t1_source='輸入值'
         if Ca>0:
-            if ep is None or ep<=-1:
-                raise ValueError(f'Layer {key} 的 C_alpha>0 時，必須提供 e_p>-1')
+            if ep is None or ep<0:
+                raise ValueError(f'Layer {key} 的 C_alpha>0 時，必須提供 e_p≥0')
             if t1 is None:
                 t1=tv_secondary_start*Hdr**2/cv
                 t1_source='USACE U=99.4% 近似估算'
