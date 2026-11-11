@@ -72,7 +72,9 @@ def test_usace_2025_appendix_c3a_areal_fill_only_settlement():
 def test_usace_2025_appendix_c3b_areal_fill_plus_footing_settlement():
     # EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-3b.
     h = [2, 1, 2, 2, 3, 3, 3, 4, 5]
-    z = [1, 2.5, 3.5, 6, 8.5, 11.5, 14.5, 18, 22.5]
+    # Depths are measured below the footing base; the first layer begins
+    # 6 ft below grade because compacted structural fill occupies that zone.
+    z = [7, 8.5, 9.5, 12, 14.5, 17.5, 20.5, 24, 28.5]
     s0 = [.06, .15, .21, .33, .40, .49, .59, .69, .84]
     sp = [.70, .79, .85, .97, 1.04, 5.89, 5.99, 6.09, 6.24]
     cc = [.113] * 5 + [.048] * 4
