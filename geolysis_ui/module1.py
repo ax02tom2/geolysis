@@ -6,6 +6,18 @@ import plotly.graph_objects as go
 from geolysis_engine import hoek_brown_parameters, hoek_brown_structure_applicability
 
 
+def _gsi_sensitivity_values(structure_code, lower, upper):
+    """Return GSI sensitivity endpoints that remain within the HB applicability range."""
+    lo, hi = int(lower), int(upper)
+    if lo > hi:
+        raise ValueError("GSI 初判下限不可大於上限")
+    if structure_code == "A":
+        hi = min(hi, 75)
+        if lo > hi:
+            return []
+    return sorted(set((lo, hi)))
+
+
 def render_module_1(expanded=False):
     # ==============================================================================
     # 模組一：Hoek-Brown (2002) 岩體裂隙推估等效 c', phi' (含 GSI 視覺化查表)
@@ -465,10 +477,12 @@ def render_module_1(expanded=False):
             _hb_applicability = hoek_brown_structure_applicability(gsi=gsi, structure_code=_struct_code)
             if _hb_applicability["warning"]:
                 st.warning(_hb_applicability["warning"])
-            if not _hb_applicability["applicable"] or (_struct_code == "A" and gsi_upper > 75.0):
-                raise ValueError(_hb_applicability["warning"] or "完整／巨塊狀岩體的 GSI 區間包含大於 75 的值，不應使用 Hoek–Brown 準則。")
+            if not _hb_applicability["applicable"]:
+                raise ValueError(_hb_applicability["warning"] or "目前 GSI 代表值超出 Hoek–Brown 適用範圍。")
             if gsi_lower > gsi_upper:
                 raise ValueError("GSI 初判下限不可大於上限，請修正區間。")
+            if _struct_code == "A" and gsi_upper > 75.0:
+                st.warning("完整／巨塊狀岩體的 GSI>75 需另作脆性剝落評估；本次代表值若不超過 75，仍可進行 Hoek–Brown 初估，但敏感度分析會排除大於 75 的端點。")
             hb_current = hoek_brown_parameters(gsi=gsi,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
                 application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,
                 sigma3_custom_mpa=sigma3_general)
@@ -499,7 +513,9 @@ def render_module_1(expanded=False):
                 st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
                 if gsi_lower <= gsi_upper:
                     try:
-                        _gsi_values = sorted(set([gsi_lower, gsi_upper]))
+                        _gsi_values = _gsi_sensitivity_values(_struct_code, gsi_lower, gsi_upper)
+                        if not _gsi_values:
+                            raise ValueError("完整／巨塊狀岩體的 GSI 敏感度區間全部高於 75；請重新檢視 GSI 判讀，不計算超出適用範圍的端點。")
                         _mi_values = sorted(set([mi_low, mi_high]))
                         _ucs_values = sorted(set([_ucs_range_low if _ucs_range_low is not None else sig_ci,
                                                    _ucs_range_high if _ucs_range_high is not None else sig_ci]))
@@ -519,7 +535,7 @@ def render_module_1(expanded=False):
                             f"ϕ′ = {min(x['phi_equiv_deg'] for x in _sens_rows):.1f}–{max(x['phi_equiv_deg'] for x in _sens_rows):.1f}°；"
                             f"Em = {min(x['Em_gpa'] for x in _sens_rows):.2f}–{max(x['Em_gpa'] for x in _sens_rows):.2f} GPa。")
                         st.caption(
-                            f"本次採用區間：GSI {gsi_lower}–{gsi_upper}；mi {mi_low:g}–{mi_high:g}；"
+                            f"本次採用區間：GSI 初判 {gsi_lower}–{gsi_upper}（HB 敏感度 {min(_gsi_values)}–{max(_gsi_values)}）；mi {mi_low:g}–{mi_high:g}；"
                             f"UCS {_ucs_range_label or str(sig_ci) + ' MPa'}；"
                             f"D {d_range_low:g}–{d_range_high:g}。"
                             "此為參數端點組合的敏感度範圍，不代表統計信賴區間。")
