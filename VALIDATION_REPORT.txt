@@ -633,3 +633,22 @@ Module 1 GSI=75 applicability boundary — PR #62
 - GitHub Actions run 42986435065: success; Python 3.11 compile passed; full suite 381 passed in 1.87 s.
 - Public worked-example benchmark count remains 66; these are four applicability/guard regression tests, not new worked examples.
 - Reference: Hoek–Brown applicability guidance for intact/massive brittle rock at high GSI; implementation boundary is GSI≤75.
+
+
+Module 4 per-layer stress-factor support — PR #63
+
+- Existing multi-layer consolidation CSV now accepts optional Stress_factor (0–1) per layer. If supplied, the layer uses Δσz=q×Stress_factor; if blank, the selected Boussinesq or 2:1 method computes the factor. Values outside 0–1 are rejected.
+- Module 4 UI labels this as an optional, source-verified input; it is not a substitute for load superposition where the applied load varies by geometry.
+- Added an integrated Appendix C-1 Table C-1 benchmark using the six published layer stress factors, plus a C-3c time-rate/drainage-path check and a stress-factor bounds test.
+- PR #63 merged to main at 213830c1e9d266a250508d347f9eaf27e8aa3bf4.
+
+Module 1 northeastern Taiwan weathered sandstone case — PR #64
+
+- Added the 2020 Taiwan Railways Yilan Line Ruifang section / Taliao Formation weathered sandstone failure case (Shao et al., 2021).
+- mi adopted by the case analysis = 15; initial literature reference 17±4 retained as sensitivity interval 13–21.
+- UCS adopted in the case analysis = 25–35 MPa, after the paper reduced the cited 15–40 MPa test range to omit potentially overly conservative low values. This is an analysis range, not a statistical confidence interval.
+- Back-analysis suggests GSI=20–30 and D=0.8–0.9; the paper's broader initial modelling ranges were GSI=15–40 and D=0.7–0.9. The UI distinguishes these values and does not automatically overwrite field GSI or D inputs.
+- PR #64 merged to main at f3aec6fd4da140c8718849fb1a4df4418a7f49cf.
+- GitHub Actions main run 42986876578: success; Python 3.11 compile passed; full suite 384 passed in 1.27 s.
+- Public worked-example benchmark count remains 66; PR #63 adds stronger integrated checks of existing C-1/C-3c cases, and PR #64 adds a parameter reference case rather than a new worked-example calculation.
+- Reference: Shao et al. (2021), *Investigations of a Weathered and Closely Jointed Rock Slope Failure Using Back Analyses*, Sustainability 13(23), 13452, https://doi.org/10.3390/su132313452.
