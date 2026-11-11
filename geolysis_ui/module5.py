@@ -341,8 +341,8 @@ def render_module_5(expanded=False):
     
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
-            st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。系統會依 USACE 表 5-2／5-3 自動計算形狀、深度、載重傾斜、基底與地表修正，並以式 5-19 計算 γ′。")
-            st.info("本區已將兩個垂直地震加速度方向的偽靜力 V 組合、控制水平 kh·V、Meyerhof 載重傾斜，以及 USACE 表 5-2／5-3 形狀、深度、基底與地表修正納入，計算孔壓折減後極限承載力 qu。仍未納入地震彎矩造成的偏心、基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
+            st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。此地震分支目前僅支援水平基底與水平地表；若上方斜坡／傾斜基底輸入非零，系統會停止計算，避免把未處理方向性的靜力修正套入地震作用。")
+            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·V，並計算兩個垂直地震方向 V(1±kv)，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。仍未納入地震彎矩造成的偏心、基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
@@ -355,7 +355,10 @@ def render_module_5(expanded=False):
             full_shear_zone_confirmed5=st.checkbox("已確認殘餘超額孔隙水壓影響完整承載力剪力區；若僅部分影響，須另依手冊加權有效單位重",value=False,key="m5x_full_shear_zone_confirm")
             if not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5):
                 st.warning("未完成兩項適用性確認前，不執行式 9-3／9-4 計算。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5)):
+            seismic_geometry_unsupported5 = (abs(base_ang5) > 1e-9 or abs(ground_ang5) > 1e-9)
+            if seismic_geometry_unsupported5:
+                st.warning("目前輸入含非零基底或地表傾角。由於地震水平力正反向相對於坡面／基底的方向性尚未建模，已停用地震孔壓折減承載力；請勿將靜力斜坡修正直接視為地震修正。")
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5) or seismic_geometry_unsupported5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
