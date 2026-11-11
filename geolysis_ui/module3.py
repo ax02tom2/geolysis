@@ -75,8 +75,7 @@ def render_module_3(expanded=False):
         st.markdown("**鑽孔逐深度資料（CSV）**")
         st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa；可選填 Rod_Length_m（該深度實際鑽桿長度）、Refusal（true/false）及 Penetration_mm。若提供 Rod_Length_m，逐列依實際鑽桿長度計算 CR；未提供才使用上方共用值。拒錘列會保留但不計算一般 N60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
-        default_csv="Depth_m,N,Effective_Stress_kPa,Rod_Length_m\n5,12,50,6\n10,18,95,11\n15,25,140,16"
-        csv_text=st.text_area("或貼上 CSV 內容",default_csv,height=100,key="m3_profile")
+        csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Rod_Length_m")
         # Clear any previous profile before validating current inputs to prevent stale Module 4 linkage.
         st.session_state.pop("m3_profile_result",None)
         try:
