@@ -416,8 +416,8 @@ def render_module_5(expanded=False):
     
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
-            st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。此地震分支目前僅支援水平基底與水平地表；若上方斜坡／傾斜基底輸入非零，系統會停止計算，避免把未處理方向性的靜力修正套入地震作用。")
-            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。地震彎矩造成的偏心已在本分支逐組合計算，並獨立檢核中三分點；但仍未納入基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
+            st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且經獨立評估確認不液化／無循環強度損失。超額孔隙水壓可選完整剪力區或部分剪力區加權平均；ru 必須依液化／孔壓分析取得，部分區另須提供受影響比例 f 及兩種土層有效單位重。此地震分支目前僅支援水平基底與水平地表；若上方斜坡／傾斜基底輸入非零，系統會停止計算。")
+            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。地震彎矩造成的偏心已逐組合計算並獨立檢核中三分點；部分剪力區可依手冊以使用者輸入的加權比例與兩種有效單位重估算 γ′b，但系統不會自動由地層深度推定比例。仍未納入基底殘餘超額孔壓上拔、土體慣性，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
@@ -426,13 +426,34 @@ def render_module_5(expanded=False):
             with ss3:
                 st.caption("兩組垂直地震係數方向均會計算，並以較低地震極限抗力作控制。")
             nonliquefiable_confirmed5=st.checkbox("已依獨立液化／循環強度評估確認：剪力區砂土不發生液化或循環剪力強度損失（本式只適用不液化但會產生超額孔壓的砂土）",value=False,key="m5x_nonliquefiable_confirm")
-            full_shear_zone_confirmed5=st.checkbox("已確認殘餘超額孔隙水壓影響完整承載力剪力區；若僅部分影響，須另依手冊加權有效單位重",value=False,key="m5x_full_shear_zone_confirm")
-            if not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5):
-                st.warning("未完成兩項適用性確認前，不執行式 9-3／9-4 計算。")
+            shear_zone_mode5=st.selectbox("超額孔隙水壓影響範圍",["unconfirmed","full","partial"],
+                format_func=lambda x:{"unconfirmed":"尚未確認","full":"影響完整承載力剪力區","partial":"僅影響部分剪力區（加權平均）"}[x],
+                key="m5x_shear_zone_mode")
+            full_shear_zone_confirmed5=(shear_zone_mode5=="full")
+            partial_shear_zone_affected_fraction5=None
+            gamma_effective_susceptible5=None
+            gamma_effective_unaffected5=None
+            if shear_zone_mode5=="partial":
+                gamma_effective_default5=float(gamma_below5)*min(0.45+0.55*(max(float(dw5)-float(df5),0.0)/max(float(B5),1e-9)),1.0)
+                pf1,pf2=st.columns(2)
+                with pf1:
+                    partial_shear_zone_affected_fraction5=st.number_input("受影響剪力區加權比例 f",0.01,0.99,0.50,0.01,key="m5x_partial_shear_fraction",
+                        help="依 USACE Figure 5-4 承載力剪力區內，受超額孔隙水壓影響土層的分布／體積比例估算；不是整個鑽孔深度比例。")
+                    gamma_effective_susceptible5=st.number_input("受影響土層有效單位重 γ′sus [kN/m³]",0.1,40.0,float(max(0.1,gamma_effective_default5)),0.1,key="m5x_gamma_sus",
+                        help="輸入受影響土層在相應地下水條件下的有效／浮單位重。")
+                with pf2:
+                    gamma_effective_unaffected5=st.number_input("未受影響土層有效單位重 γ′unaff [kN/m³]",0.1,40.0,float(max(0.1,gamma_effective_default5)),0.1,key="m5x_gamma_unaff",
+                        help="輸入未受超額孔隙水壓影響土層在相應地下水條件下的有效／浮單位重。")
+                st.caption("部分區加權公式：γ′b = f(1−ru)γ′sus + (1−f)γ′unaff。系統不自動推定 f；請依剪力區內土層分布及影響範圍判讀。")
+            shear_zone_ready5=(full_shear_zone_confirmed5 or
+                (shear_zone_mode5=="partial" and partial_shear_zone_affected_fraction5 is not None
+                 and gamma_effective_susceptible5 is not None and gamma_effective_unaffected5 is not None))
+            if not (nonliquefiable_confirmed5 and shear_zone_ready5):
+                st.warning("請先確認剪力區土層不液化／無循環強度損失，並選擇完整或部分剪力區影響範圍；部分區須填妥 f 與兩種有效單位重。")
             seismic_geometry_unsupported5 = (abs(base_ang5) > 1e-9 or abs(ground_ang5) > 1e-9)
             if seismic_geometry_unsupported5:
                 st.warning("目前輸入含非零基底或地表傾角。由於地震水平力正反向相對於坡面／基底的方向性尚未建模，已停用地震孔壓折減承載力；請勿將靜力斜坡修正直接視為地震修正。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5) or seismic_geometry_unsupported5)):
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(not (nonliquefiable_confirmed5 and shear_zone_ready5) or seismic_geometry_unsupported5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
@@ -445,6 +466,9 @@ def render_module_5(expanded=False):
                         residual_excess_pore_pressure_ratio=ru5,
                         non_liquefiable_confirmed=nonliquefiable_confirmed5,
                         full_shear_zone_confirmed=full_shear_zone_confirmed5,
+                        partial_shear_zone_affected_fraction=partial_shear_zone_affected_fraction5,
+                        gamma_effective_susceptible_kn_m3=gamma_effective_susceptible5,
+                        gamma_effective_unaffected_kn_m3=gamma_effective_unaffected5,
                         c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,
                         gamma_sub=gsub5,gamma_below=gamma_below5,
                         B=B5,L=L5,Df=df5,water_depth=dw5,
@@ -454,11 +478,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
+                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
