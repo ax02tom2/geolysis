@@ -1874,8 +1874,8 @@ def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
         net_pressure_kpa=.438*tsf,stress_method="Boussinesq",
     )
     expected_ft = sum(
-        H*(Cr*math.log10((s0+ds)/s0) if s0+ds<=sp
-           else Cr*math.log10(sp/s0)+Cc*math.log10((s0+ds)/sp))
+        H*((Cr/2.0)*math.log10((s0+.438*Iz)/s0) if s0+.438*Iz<=sp
+           else (Cr/2.0)*math.log10(sp/s0)+(Cc/2.0)*math.log10((s0+.438*Iz)/sp))
         for z,H,s0,sp,ds,Iz,Cc,Cr in data
     )
     assert len(result["layer_results"]) == 6
