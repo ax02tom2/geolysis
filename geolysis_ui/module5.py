@@ -335,6 +335,11 @@ def render_module_5(expanded=False):
             with sm2:
                 seismic_moment_L5=st.number_input("地震基礎底彎矩 M_L,E [kN·m]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_L")
             st.caption("請輸入結構耐震分析傳至基礎底面的地震彎矩分量；正負號以 +kh 方向為基準，系統會自動反算 −kh 方向。靜力偏心距 eB/eL 會先換算為靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。")
+            sd1,sd2=st.columns(2)
+            with sd1:
+                static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
+            with sd2:
+                static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
                 try:
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
@@ -374,6 +379,8 @@ def render_module_5(expanded=False):
                         seismic_weight_kN=seismic_weight5,
                         seismic_moment_B_kNm=seismic_moment_B5,
                         seismic_moment_L_kNm=seismic_moment_L5,
+                        static_moment_B_sign=static_moment_B_sign5,
+                        static_moment_L_sign=static_moment_L_sign5,
                         footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
                         non_liquefiable_confirmed=nonliquefiable_confirmed5,
@@ -387,11 +394,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
+                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
