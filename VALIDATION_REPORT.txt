@@ -403,3 +403,15 @@ USACE Appendix C-7b / C-7c / C-7d settlement benchmarks — PR #33
 - PR #33 merged at 9f9c87103875fac01a75c3357a302e7f5a289488.
 - GitHub Actions run 42962997586: success; Python 3.11 compile passed; full suite 277 passed.
 - Three additional published worked-example cases added; USACE Appendix B/C worked-example count is now 57 (53 Appendix B + C-7b/C-7c/C-7d/C-7e).
+
+
+
+USACE Appendix C-5 clay PMT settlement benchmark — PR #34
+
+- Added optional measured/documented I_sigma input for each soft-layer PMT Eq. 7-12 correction; when absent, the engine retains the automatic Boussinesq stress-influence calculation.
+- Added published Appendix C-5 clay PMT worked example using five raw E0 modulus groups and harmonic means: E1=225 tsf, E2≈254.16 tsf, E3/4/5≈68.73 tsf, E6/7/8≈509.08 tsf, E9/16≈1428.86 tsf; Ed≈162.02 tsf and Ec=225 tsf.
+- Table 7-6 automatic alpha selection: αd=1, αc=1, αL=2/3. Soft layer uses EL=33.5 tsf, pne=3.01 tsf, I_sigma=0.129, H=4 ft, z=14 ft.
+- Reproduces approximately 0.47 in deep-deposit settlement + 0.23 in soft-layer increment = 0.70 in total, matching Appendix C-5.
+- PR #34 merged at 2522620b7c1b3af6779f065a2532e578e656b48b.
+- GitHub Actions run 42963335222: success; Python 3.11 compile passed; full suite 278 passed.
+- Published USACE worked-example coverage is now 58: 53 Appendix B cases plus Appendix C-5, C-7b, C-7c, C-7d and C-7e.
