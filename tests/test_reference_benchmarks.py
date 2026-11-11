@@ -16,6 +16,7 @@ from geolysis_engine import (
     hoek_brown_parameters,
     bearing_capacity,
     bearing_capacity_in_situ,
+    bearing_pressure_safety_check,
     bearing_capacity_slope_base_corrections,
     layered_bearing_capacity_punching,
     layered_bearing_capacity_profile,
@@ -909,4 +910,76 @@ def test_usace_2025_appendix_b5_undrained_pmt_bearing_capacity():
     assert result["q_surcharge_kpa"] / ksf_to_kpa == pytest.approx(0.3125, abs=1e-8)
     # The engine retains full precision; the manual rounds dc to 1.06.
     assert result["qu_gross"] / ksf_to_kpa == pytest.approx(14.38, abs=0.05)
+
+def test_usace_2025_equations_5_2_to_5_8_and_5_23_eccentric_uplift_check():
+    # Independently calculate the manual equations: A'=B'L', qeq=V/A'-uD,
+    # FS=qult/qeq. V includes Q+Wf; groundwater lies 1.0 m above footing base.
+    result = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=800.0,
+        vertical_load_kN=1200.0,
+        footing_width_m=2.0,
+        footing_length_m=3.0,
+        footing_depth_m=1.5,
+        water_depth_m=0.5,
+        eccentricity_B_m=0.1,
+        eccentricity_L_m=0.2,
+        required_fs=3.0,
+    )
+    b_eff = 2.0 - 2 * 0.1
+    l_eff = 3.0 - 2 * 0.2
+    qeq = 1200.0 / (b_eff * l_eff) - 9.81 * (1.5 - 0.5)
+    assert result["B_effective_m"] == pytest.approx(b_eff)
+    assert result["L_effective_m"] == pytest.approx(l_eff)
+    assert result["effective_area_m2"] == pytest.approx(b_eff * l_eff)
+    assert result["water_uplift_pressure_kpa"] == pytest.approx(9.81)
+    assert result["qeq_gross_kpa"] == pytest.approx(qeq)
+    assert result["FS_bearing"] == pytest.approx(800.0 / qeq)
+    assert result["passes_middle_third"] is True
+    assert result["passes_all_checks"] is True
+
+
+def test_usace_2025_continuous_footing_qeq_uses_line_load_and_effective_width():
+    result = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=900.0,
+        vertical_load_kN=500.0,  # kN/m for a continuous footing
+        footing_width_m=2.0,
+        footing_length_m=1.0,   # unused finite length for strip footing
+        footing_depth_m=1.5,
+        water_depth_m=2.0,
+        eccentricity_B_m=0.1,
+        footing_type="continuous",
+    )
+    assert result["B_effective_m"] == pytest.approx(1.8)
+    assert result["qeq_gross_kpa"] == pytest.approx(500.0 / 1.8)
+    assert result["passes_middle_third"] is True
+
+
+def test_usace_2025_bearing_check_flags_middle_third_and_zero_effective_pressure():
+    eccentric = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=500.0, vertical_load_kN=100.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        footing_depth_m=0.0, water_depth_m=0.0,
+        eccentricity_B_m=0.34,
+    )
+    assert eccentric["FS_bearing"] is not None
+    assert eccentric["passes_middle_third"] is False
+    assert eccentric["passes_all_checks"] is False
+    uplift = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=500.0, vertical_load_kN=10.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        footing_depth_m=2.0, water_depth_m=0.0,
+    )
+    assert uplift["qeq_gross_kpa"] < 0
+    assert uplift["FS_bearing"] is None
+    assert uplift["passes_all_checks"] is False
+
+def test_usace_2025_middle_third_boundary_is_strictly_inside():
+    result = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=800.0, vertical_load_kN=1200.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        footing_depth_m=0.0, water_depth_m=0.0,
+        eccentricity_B_m=2.0 / 6.0,
+    )
+    assert result["passes_middle_third"] is False
+    assert result["passes_all_checks"] is False
 

@@ -235,6 +235,72 @@ def bearing_capacity(*, theory, c_kpa, phi_deg, gamma_moist, gamma_sub, B, L, Df
             'qu_gross':qu,'qu_net':qnet,'qu_gross_over_FS':qu/FS,'qa_gross_direct_FS':qu/FS,'qa_net':qallow_net,'qa_gross':qallow_gross,
             'FS':FS,'B_effective':Be,'L_effective':Le,'footing_type':footing_type,'eccentricity_B':eB,'eccentricity_L':eL,'c_used':c_use,'phi_used':phi_use,'failure_mode':failure_mode,'adhesion_ratio':adhesion_ratio,'limitations':'水平基底、水平地表、淺基礎靜力分析；未含斜坡地表、基底傾斜、地震及分層地盤。偏心載重以 B′=B−2eB、L′=L−2eL 有效尺寸處理；Terzaghi 模式不接受偏心距。水平力僅納入 Hansen／Vesic 承載力傾斜係數，未計算基底滑動安全係數、被動土壓或整體穩定；本模組亦不取代沉陷檢核。'}
 
+
+def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
+        footing_width_m, footing_length_m, footing_depth_m, water_depth_m,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+        footing_type='isolated', gamma_water_kn_m3=9.81,
+        required_fs=3.0):
+    """USACE EM 1110-1-1905 (2025), Eqs. 5-2 to 5-8 and 5-23.
+
+    Computes gross equivalent applied pressure q_eq = V/A' - u_D for
+    isolated footings, or V/B' - u_D for continuous strip footings.
+    V is the total downward foundation load Q + W_f (kN for isolated,
+    kN/m for continuous); it must already include footing and overburden
+    weight. Water uplift u_D is hydrostatic pressure at the footing base.
+    """
+    qult=_finite('極限承載力 qult',ultimate_bearing_kpa)
+    V=_finite('總垂直力 V=Q+Wf',vertical_load_kN)
+    B=_finite('基礎寬度 B',footing_width_m)
+    L=_finite('基礎長度 L',footing_length_m)
+    Df=_finite('基礎埋深 Df',footing_depth_m)
+    Dw=_finite('地下水位深度 Dw',water_depth_m)
+    eB=_finite('短邊偏心距 eB',eccentricity_B_m)
+    eL=_finite('長邊偏心距 eL',eccentricity_L_m)
+    gw=_finite('水單位重 gamma_w',gamma_water_kn_m3)
+    fs_req=_finite('要求承載力安全係數',required_fs)
+    if footing_type not in ('isolated','continuous'):
+        raise ValueError('基礎型式須為 isolated 或 continuous')
+    if qult<=0 or V<=0 or B<=0 or L<=0 or Df<0 or Dw<0 or eB<0 or eL<0 or gw<=0 or fs_req<=1:
+        raise ValueError('承載力檢核輸入不合理；qult、V、尺寸及水單位重須為正，深度與偏心距不可為負')
+    if footing_type=='continuous' and eL>0:
+        raise ValueError('連續條形基礎不支援沿條形長度方向偏心；請以短邊方向偏心距表示')
+    if footing_type=='isolated' and L<B:
+        raise ValueError('獨立／矩形基礎須 L≥B')
+    Be=B-2*eB
+    Le=L-2*eL
+    if Be<=0 or (footing_type=='isolated' and Le<=0):
+        raise ValueError('偏心距使有效基礎尺寸小於或等於零')
+    if footing_type=='isolated':
+        Aeff=Be*Le
+        q_vertical=V/Aeff
+    else:
+        Aeff=None
+        q_vertical=V/Be
+    ud=gw*max(Df-Dw,0.0)
+    qeq=q_vertical-ud
+    middle_B=(eB < B/6.0)
+    middle_L=(True if footing_type=='continuous' else eL < L/6.0)
+    fs_actual=(qult/qeq) if qeq>0 else None
+    passes_bearing=(fs_actual is not None and fs_actual+1e-12>=fs_req)
+    passes_overturning=middle_B and middle_L
+    return {
+        'qult_gross_kpa':qult,'vertical_load_kN':V,
+        'footing_type':footing_type,'B_m':B,'L_m':L,
+        'B_effective_m':Be,'L_effective_m':Le,'effective_area_m2':Aeff,
+        'vertical_pressure_before_uplift_kpa':q_vertical,
+        'water_uplift_pressure_kpa':ud,'qeq_gross_kpa':qeq,
+        'FS_bearing':fs_actual,'FS_required':fs_req,
+        'passes_bearing':passes_bearing,
+        'eccentricity_B_m':eB,'eccentricity_L_m':eL,
+        'middle_third_B_limit_m':B/6.0,
+        'middle_third_L_limit_m':(L/6.0 if footing_type=='isolated' else None),
+        'passes_middle_third':passes_overturning,
+        'passes_all_checks':passes_bearing and passes_overturning,
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-2 to 5-8 and 5-23; Table 2-1',
+        'limitations':'V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已包含基礎自重及基礎底以上覆土；獨立基礎單位 kN，連續條形基礎單位 kN/m。qeq=V/A′−uD（獨立基礎）或 V/B′−uD（連續基礎），uD=γw·max(Df−Dw,0)。承載力 FS=qult,gross/qeq，USACE 2025 Table 2-1 最低值 3.0。偏心距另須位於中三分點內；本函式不取代滑動、整體穩定、地震及沉陷檢核。'
+    }
+
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
