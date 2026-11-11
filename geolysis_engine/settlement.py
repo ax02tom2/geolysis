@@ -542,8 +542,13 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             raise ValueError("非圓形基礎須依 USACE Figure 7-11 輸入 λd 與 λc；本工具不以未經數位化的圖表猜值")
         ld = _finite("λd", lambda_d)
         lc = _finite("λc", lambda_c)
-        if ld <= 0 or lc <= 0:
-            raise ValueError("λd 與 λc 必須大於 0")
+        # USACE 2025 Figure 7-11 chart bounds: λd is plotted on 1.0–2.5;
+        # λc curve remains approximately 1.0–1.5. The λd curve is above λc.
+        if not 1.0 <= ld <= 2.5 or not 1.0 <= lc <= 1.5:
+            raise ValueError("USACE Figure 7-11 範圍：λd 須介於 1.0–2.5，λc 須介於 1.0–1.5；不可外插")
+        if ld < lc:
+            raise ValueError("USACE Figure 7-11 中 λd 曲線高於 λc；請核對兩個讀值與 L/B")
+
     if ultimate_bearing_kpa is not None:
         qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
         if qult <= 0:
