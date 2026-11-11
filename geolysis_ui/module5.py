@@ -78,6 +78,11 @@ def render_module_5(expanded=False):
             theory5=st.selectbox("理論",['Terzaghi','Meyerhof','Hansen','Vesic'],key='m5_theory')
             B5=st.number_input("基礎短邊 B [m]",0.2,50.0,2.0,0.1,key='m5_b')
             L5=st.number_input("基礎長邊 L [m]",0.2,100.0,3.0,0.1,key='m5_l')
+            main_footing_type5=st.selectbox("主承載力分析基礎型式",["isolated","continuous"],
+                format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",
+                key="m5_main_footing_type")
+            if main_footing_type5=="continuous":
+                st.caption("主承載力與 qeq 檢核採連續條形基礎 strip 極限；V、H 使用 kN/m，qeq=V/B′。長邊方向偏心不適用。")
         with b:
             src5=st.selectbox("參數來源",['手動輸入','模組一 Hoek-Brown 等效參數'],key='m5_src')
             use_hb5='模組一' in src5
@@ -125,17 +130,20 @@ def render_module_5(expanded=False):
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
             st.session_state['m5_eB']=0.0
+        if main_footing_type5=="continuous":
+            st.session_state['m5_eL']=0.0
+            st.session_state['m5_load_dir']="parallel_B"
         excol,eycol=st.columns(2)
         with eycol: eB5=st.number_input("短邊方向偏心距 eB [m]",0.0,max(0.0,B5/2-0.001),0.0,0.01,key='m5_eB',disabled=(theory5=='Terzaghi'))
         eL_max5=max(0.0,min(L5/2-0.001,(L5-(B5-2*eB5))/2-0.001))
-        eL_disabled5=(theory5=='Terzaghi' or eL_max5<0.001)
+        eL_disabled5=(theory5=='Terzaghi' or main_footing_type5=='continuous' or eL_max5<0.001)
         with excol: eL5=st.number_input("長邊方向偏心距 eL [m]",0.0,max(0.001,eL_max5),0.0,0.01,key='m5_eL',disabled=eL_disabled5)
         if theory5=='Terzaghi': st.caption("Terzaghi 本頁不支援偏心荷載；切換至 Terzaghi 時偏心距會重設為 0。")
-        load_dir5=st.selectbox("水平力方向（Vesic 公式）",['parallel_B','parallel_L'],format_func=lambda x:'平行短邊 B' if x=='parallel_B' else '平行長邊 L',disabled=(theory5!='Vesic'),key='m5_load_dir')
+        load_dir5=st.selectbox("水平力方向（Vesic 公式）",['parallel_B','parallel_L'],format_func=lambda x:'平行短邊 B' if x=='parallel_B' else '平行長邊 L',disabled=(theory5!='Vesic' or main_footing_type5=='continuous'),key='m5_load_dir')
         adhesion5=st.number_input("基底黏著係數 ca/c（Hansen／Vesic）",0.0,1.0,0.6,0.1,key='m5_adhesion',disabled=(theory5 not in ('Hansen','Vesic')))
         st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi)) if use_hb5 else ()
-        m5_input_signature=(theory5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
+        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature)
         if st.button("計算極限承載力",key='m5_run'):
             clear_result_state(st.session_state, 'm5_result', 'm5_result_signature')
             if use_hb5 and (hb_current is None or phi_hb_deg>50):
@@ -144,7 +152,7 @@ def render_module_5(expanded=False):
                 try:
                     if abs(math.degrees(math.atan2(H5,V5))-beta5)>2.0 and H5>0 and theory5=='Meyerhof':
                         st.warning("載重傾角 β 與 H/V 計算角度差異超過 2°；H/V 為 Hansen/Vesic 計算依據，請核對輸入。")
-                    result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5)
+                    result5=bearing_capacity(theory=theory5,c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,load_angle=(beta5 if theory5=='Meyerhof' else 0.0),horizontal_load=(H5 if theory5 in ('Hansen','Vesic') else 0.0),vertical_load=(V5 if theory5 in ('Hansen','Vesic') else None),failure_mode=(failure_mode5 if theory5=='Terzaghi' else 'general'),load_direction=load_dir5,adhesion_ratio=adhesion5,eccentricity_B=eB5,eccentricity_L=eL5,footing_type=main_footing_type5)
                     store_result_state(st.session_state, 'm5_result', 'm5_result_signature', result5, m5_input_signature)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
@@ -167,7 +175,7 @@ def render_module_5(expanded=False):
                 qult_kpa=result5["qu_gross"],vertical_load_kN=V5,
                 width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                 eccentricity_B_m=eB5,eccentricity_L_m=eL5,
-                footing_type="isolated",complete_capacity_model=main_load_complete,
+                footing_type=main_footing_type5,complete_capacity_model=main_load_complete,
                 incomplete_reason=main_reason,load_confirmed=loads_confirmed5)
             factors=pd.DataFrame([
                 {'項目':'凝聚力項 cNc','承載力因子':result5['Nc'],'形狀係數':result5['sc'],'深度係數':result5['dc'],'傾斜係數':result5['ic'],'貢獻(kPa)':result5['term_c']},
@@ -175,7 +183,10 @@ def render_module_5(expanded=False):
                 {'項目':'單位重項 0.5γBNγ','承載力因子':result5['Ngamma'],'形狀係數':result5['sg'],'深度係數':result5['dg'],'傾斜係數':result5['ig'],'貢獻(kPa)':result5['term_gamma']}])
             st.dataframe(factors,hide_index=True,use_container_width=True)
             q_label5="基礎底總覆土壓力 q₀（不排水總應力）" if result5['phi_used']==0 else "基礎底有效覆土壓力 q′₀（排水有效應力）"
-            st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
+            if main_footing_type5=="continuous":
+                st.write(f"有效寬度 B′ = {result5['B_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
+            else:
+                st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
             st.caption(f"供模組四比較：qa,gross（以淨承載力除 FS 後加回覆土）= {result5['qa_gross']:.1f} kPa；qa,net = {result5['qa_net']:.1f} kPa。砂土／礫土模組四採總壓力，使用前者；黏土主固結模組採淨壓力，使用後者。")
             st.caption(f"qult/FS 的參考換算值為 {result5['qa_gross_direct_FS']:.1f} kPa；這不是工址實際安全係數。實際 FS 必須以本頁下方 qeq=V/A′−uD 與 qult 比較，不能以容許承載力欄位取代。")
             if theory5=='Terzaghi': st.caption(f"Terzaghi {result5['failure_mode']}：採用 c = {result5['c_used']:.2f} kPa、ϕ = {result5['phi_used']:.2f}°；承載力因子依 USACE 表列值線性插值。")
@@ -207,7 +218,7 @@ def render_module_5(expanded=False):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
-                        B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,
+                        B=B5,L=L5,Df=df5,water_depth=dw5,fs=fs5,footing_type=main_footing_type5,
                         load_angle=beta5,eccentricity_B=eB5,eccentricity_L=eL5)
                     slope_result=bearing_capacity_slope_base_corrections(
                         base_result=base_for_slope,c_kpa=c5,phi_deg=phi5,
@@ -215,11 +226,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         horizontal_load=H5,vertical_load=V5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
+            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
 
@@ -227,7 +238,7 @@ def render_module_5(expanded=False):
                     qult_kpa=slope_result["qu_gross"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     eccentricity_B_m=eB5,eccentricity_L_m=eL5,
-                    footing_type="isolated",complete_capacity_model=True,load_confirmed=loads_confirmed5)
+                    footing_type=main_footing_type5,complete_capacity_model=True,load_confirmed=loads_confirmed5)
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
                 if phi5>0:
