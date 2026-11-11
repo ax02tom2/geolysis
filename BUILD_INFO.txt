@@ -1,15 +1,15 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: 538a6afb60ffc0d8111cfabeaa65f877b7f4690a
+Validated main code commit: 9f9c87103875fac01a75c3357a302e7f5a289488
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 274 passed
-GitHub Actions validation run: 42961299758 (success; Python 3.11 compile passed; 274 passed; includes Module 4 DMT, Schmertmann CPT and Ménard-Rousseau PMT settlement methods, qeq/qult-FS pressure cap, Appendix C-7e Burland–Burbidge benchmark, Module 3-to-4 N60 profile linkage, Module 5 seismic residual-pore-pressure resistance envelope and factors, qeq/actual FS, in-situ layered punch-through, Figure 7-16 consolidation and 53 published Appendix B worked-example benchmarks)
+Latest verified automated suite: 277 passed
+GitHub Actions validation run: 42962997586 (success; Python 3.11 compile passed; 277 passed; includes direct DMT MDMT and corrected-reading methods, Appendix C-7b/c/d/e settlement benchmarks, Schmertmann CPT and Ménard-Rousseau PMT, qeq/qult-FS pressure cap, Module 3-to-4 N60 profile linkage, Module 5 seismic residual-pore-pressure resistance envelope and factors, qeq/actual FS, in-situ layered punch-through, Figure 7-16 consolidation and 57 published USACE Appendix B/C worked-example benchmarks)
 Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 54 published worked-example benchmarks (53 Appendix B plus Appendix C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 57 published worked-example benchmarks (53 Appendix B plus Appendix C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
 Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
@@ -32,3 +32,4 @@ Module 4 CPT: added USACE 2025 Schmertmann CPT Eqs. 7-16 to 7-26, Iz distributio
 Module 1 Hoek-Brown: validated published 2002 tunnel and slope subcases; added rock-mass tensile strength σt output.
 Module 4 PMT: implemented USACE 2025 Eq. 7-11 and soft-layer Eq. 7-12, Table 7-6 alpha applicability, Figure 7-11 shape-factor guard, Py limit and qult/FS pressure cap. Latest suite: 274 passed.
 Module 3: SPT single-point and borehole profile values require current-data confirmation; sample profile auto-fill removed. Module 2: soil classification now requires current laboratory data confirmation; gradation inputs default off.
+Module 4 published validation: added Appendix C-7b DMT, C-7c PMT and C-7d CPT row-by-row benchmarks; direct MDMT input and independent αd/αc Table 7-6 selection added. Published USACE Appendix B/C cases: 57. Latest suite: 277 passed.\n
