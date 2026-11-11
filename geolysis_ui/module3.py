@@ -46,8 +46,10 @@ def render_module_3(expanded=False):
             st.warning("拒錘或未達標準貫入深度不能直接當作一般 N 值計算 N60／(N1)60；請保留每段擊數與實際貫入量，另依試驗紀錄判讀。")
             st.session_state.pop("m3_current_n60",None)
             st.session_state.pop("m3_current_n160",None)
-        else:
+        elif single_confirm:
             try:
+                if n_measured <= 0:
+                    raise ValueError("一般貫入 N 值必須大於 0；若為拒錘／部分貫入請勾選相應選項")
                 current=spt_correct(n_measured,er,cb,cs,rod_len,sigma_v,cn_method,cn_cap,
                     soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
                 r1,r2,r3=st.columns(3)
