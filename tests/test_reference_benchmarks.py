@@ -1415,3 +1415,24 @@ def test_usace_2025_dmt_settlement_rejects_incomplete_profile_and_bad_readings()
             layers=bad, footing_width_m=1.0, footing_length_m=1.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         )
+
+
+
+def test_usace_2025_dmt_strip_footing_uses_infinite_strip_stress_solution():
+    layers = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 3.0,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(30)
+    ]
+    result = dmt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=10.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        footing_type="continuous",
+    )
+    row = result["layer_results"][0]
+    z = row["Depth_center_m"]
+    a = 0.5
+    expected = 2.0 / math.pi * (math.atan(a / z) + a * z / (a*a + z*z))
+    assert row["Stress_factor_I_sigma"] == pytest.approx(expected)
+    assert result["influence_depth_required_m"] == pytest.approx(6.0)
+    assert result["profile_depth_used_m"] == pytest.approx(6.0)
