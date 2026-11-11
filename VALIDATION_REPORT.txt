@@ -544,3 +544,17 @@ Module 4 Schmertmann CPT applicability gate — PR #54
 - GitHub Actions run 42984935565: success; Python 3.11 compile passed; full suite 361 passed in 2.14 s.
 - Published worked-example benchmark count remains 59; one additional regression test covers method applicability, not a new published example.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §7-12, Eqs. 7-16 to 7-26.
+
+
+Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
+
+- Added an Appendix C-1 six-layer e-log-p benchmark. The six published settlement rows sum to approximately 0.0309 ft (0.37 in).
+- Added a layer-specific e-log-p rebound/recompression engine method using each stratum's e0, e_exc and e_final values. Rebound and recompression thicknesses are separate because the excavation/recompression influence zones need not match.
+- Added Appendix C-4 validation from Table C-4. Using the table-rounded void ratios, rebound is approximately 0.126 ft (1.51 in), recompression approximately 0.550 ft (6.60 in), and net settlement approximately 0.424 ft (5.08 in). The small difference from the printed rebound 0.13 ft (1.56 in) is consistent with the table's rounded void ratios.
+- Module 4 now exposes a multi-layer measured e-log-p CSV input; the original single-layer Cr/Cc path remains explicitly labeled as idealized.
+- The new calculation requires effective stresses and e-log-p void ratios to be supplied per layer. It does not itself calculate groundwater drawdown, excavation stress relief or foundation-induced stress distribution; those must be established separately per USACE Table 7-10.
+- Added three regression tests: Appendix C-1, Appendix C-4 and invalid void-ratio path rejection. Added the new test file to GitHub Actions.
+- PR #56 merged to main at 6d90cbd63676ee7ad9d723ee18091938c56c73a0.
+- GitHub Actions run 42985106615: success; Python 3.11 compile passed; full suite 364 passed in 1.91 s.
+- Published USACE Appendix B/C benchmark coverage is now 61: 53 Appendix B and eight Appendix C cases (C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
