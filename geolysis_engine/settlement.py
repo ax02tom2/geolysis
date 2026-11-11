@@ -480,7 +480,15 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
         ED_kpa = ED_bar * 100.0
         MDMT_kpa = RM * ED_kpa
         z = depth + H / 2.0
-        Iz = boussinesq_rectangular_center_factor(B, L, z)
+        if footing_type == 'continuous':
+            half_width = B / 2.0
+            Iz = (1.0 if z == 0 else
+                  (2.0 / math.pi) * (
+                      math.atan(half_width / z)
+                      + half_width * z / (half_width * half_width + z * z)
+                  ))
+        else:
+            Iz = boussinesq_rectangular_center_factor(B, L, z)
         delta_sigma = Iz * q_net
         settlement_mm = delta_sigma / MDMT_kpa * H * 1000.0
         results.append({
