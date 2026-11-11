@@ -1722,10 +1722,10 @@ def test_usace_2025_appendix_c7c_menard_rousseau_pmt_settlement():
     tsf = 95.7605
     pmt = [
         {"group":"E1","E0_kpa":78*tsf},
-        {"group":"E2","E0_kpa":118*tsf},
-        {"group":"E345","E0_kpa":351*tsf},
-        {"group":"E678","E0_kpa":1217*tsf},
-        {"group":"E916","E0_kpa":1346*tsf},
+        {"group":"E2","E0_kpa":78*tsf}, {"group":"E2","E0_kpa":238*tsf},
+        {"group":"E345","E0_kpa":238*tsf}, {"group":"E345","E0_kpa":320*tsf}, {"group":"E345","E0_kpa":826*tsf},
+        {"group":"E678","E0_kpa":1419*tsf}, {"group":"E678","E0_kpa":1065*tsf},
+        {"group":"E916","E0_kpa":2508*tsf}, {"group":"E916","E0_kpa":1059*tsf}, {"group":"E916","E0_kpa":1128*tsf},
     ]
     result = menard_rousseau_pmt_settlement_2025(
         pmt_moduli=pmt,footing_width_m=8*ft,footing_length_m=8*ft,
