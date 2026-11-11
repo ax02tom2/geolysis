@@ -271,3 +271,29 @@ USACE 2025 settlement pressure consistency — PR #21
 - GitHub Actions run 42946825884: success; Python 3.11 compile passed; full suite 251 passed in 1.44 s.
 - Published Appendix B benchmark count remains 50; four additional pytest cases cover the pressure-cap helper and input validation. The two governing cases are equation-level regression tests, not new published worked examples.
 - The PR source tree was validated before merge; this validation-report/build-info update is documentation-only and is not a separate calculation-code change.
+
+
+
+Module 3 SPT profile linked to Module 4 Burland–Burbidge settlement — PR #22
+
+- Added `burland_burbidge_average_n60_from_ground_profile()` to convert Module 3 ground-referenced depths to footing-base depths using Df; only the corrected N60 column is used, never (N1)60.
+- Refusal / partial-penetration rows without a usable N60 are excluded. The existing Burland–Burbidge influence-depth filter then selects only measurements within Zi and calculates the arithmetic mean.
+- Module 4 now offers direct reuse of the current valid Module 3 SPT profile, while retaining manual depth-below-base CSV and single-average N60 input.
+- Module 3 clears stale profile state before validating current data, preventing an earlier valid profile from being silently reused after the current input becomes invalid.
+- Gravel and saturated fine-sand adjustments are applied once only; the linked Module 3 route does not apply them again downstream.
+- PR #22 merged to main at 1db739d29d06332b52825298b0af676db4095d0c.
+- GitHub Actions run 42947137432: success; Python 3.11 compile passed; full suite 253 passed in 1.45 s.
+- Published Appendix B benchmark count remains 50; two additional regression tests validate depth conversion, influence-depth filtering, N60 averaging and refusal-row exclusion.
+
+
+USACE 2025 seismic residual-pore-pressure bearing resistance — PR #23
+
+- Added `seismic_bearing_capacity_residual_pore_pressure_cases()` to evaluate both vertical pseudo-static load directions, using H = Hstatic + kh·V and V = Vstatic(1 ± kv).
+- Automatically rebuilds Meyerhof-based shape and depth factors from effective B′/L′ and Df/B′; calculates the seismic load inclination factor iγ for each H/V case; applies base inclination bγ and ground inclination gγ from Table 5-3; and calculates effective unit weight using groundwater Eq. 5-19.
+- Applies residual excess pore-pressure resistance reduction (1−ru) and the appropriate 0.4 spread-footing / 0.5 strip-footing coefficient from Eqs. 9-3/9-4. The lower ultimate resistance from the two vertical acceleration directions controls.
+- Module 5 no longer asks the user to guess Nγ, γ′ or a combined correction-factor product. It derives these values from the selected footing geometry, soil, groundwater, seismic H/V, base inclination and adjacent-slope inputs.
+- Applicability is restricted to sand-like drained soils (c′≈0, φ′>0). Adjacent-slope corrections require the Table 5-3 global-slope stability prerequisite FS>1.3.
+- The UI explicitly reports ultimate resistance only; it does not display seismic qeq/FS or a pass/fail result. Earthquake-induced moment/eccentricity, soil inertia, liquefaction consequences, residual strength, lateral spreading and seismic settlement remain outside this calculation.
+- PR #23 merged to main at c02f01ec2e916b98f47082186b0381d1434b21ae.
+- GitHub Actions run 42947562780: success; Python 3.11 compile passed; full suite 257 passed in 2.14 s.
+- Published Appendix B benchmark count remains 50; four additional regression cases validate the seismic factor product, pseudo-static controlling envelope and method applicability.
