@@ -33,7 +33,7 @@ def render_module_4(expanded=False):
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
-            profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；欄位 Depth_below_base_m、N60）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60\n0.5,18\n1.0,20\n1.5,22")
+            profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
             m3_profile_data4=st.session_state.get('m3_profile_result')
             use_m3_spt4=st.checkbox("直接使用模組三已校正 SPT 剖面（N60）",
                 value=False,disabled=(m3_profile_data4 is None),key='m4_bb_use_m3_spt')
@@ -46,7 +46,7 @@ def render_module_4(expanded=False):
             with e:
                 fine_sat4=st.checkbox("地下水位以下飽和細砂／粉土（逐點 N60 > 15 套用膨脹修正）",key='m4_bb_finesat')
                 ndecrease4=st.checkbox("N60 隨深度下降（Zi 改採 min(2B, 鬆弱層底深度)）",key='m4_bb_decrease')
-            st.caption("礫土與飽和細砂／粉土修正勾選，假設影響深度 Zi 內所有測點均屬該類土；混合地層請勿對整份剖面套用單一修正，可在 CSV 逐筆先行修正 N60 後取消兩項勾選。此處細砂膨脹修正依 USACE 第 7-13 節直接修正 N60，不使用模組三供液化評估的 (N1)60。")
+            st.caption("若整個影響深度 Zi 均為同一材料，可使用全剖面修正勾選。混合地層可在模組三／手動 CSV 逐點填 Burland_Material：standard、fine_sand_silt_saturated 或 gravel_sandy_gravel；系統會依 USACE 第 7-13 節逐點修正 N60，再取算術平均。逐點分類與全剖面勾選不可同時使用。此處修正直接作用於 N60，不使用液化評估用的 (N1)60。")
             loose_layer4=None
             if ndecrease4:
                 loose_layer4=st.number_input("鬆弱層底深度（自基礎底向下）[m]",min_value=0.1,max_value=100.0,value=float(hs4),step=0.1,key="m4_bb_loose_layer_depth")
@@ -55,25 +55,45 @@ def render_module_4(expanded=False):
             try:
                 n60_used4=n4
                 if use_m3_spt4:
+                    m3_has_burland_material4=('Burland_Material' in m3_profile_data4.columns and
+                        m3_profile_data4['Burland_Material'].notna().any() and
+                        m3_profile_data4['Burland_Material'].fillna('').astype(str).str.strip().ne('').any())
                     avg_bb=burland_burbidge_average_n60_from_ground_profile(
                         m3_profile_data4.to_dict('records'),foundation_depth_m=df_bb4,
                         width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
-                         loose_layer_thickness_m=loose_layer4,
-                        gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
+                        loose_layer_thickness_m=loose_layer4,
+                        gravel_adjustment=(gravel4 if not m3_has_burland_material4 else False),
+                        fine_sand_saturated=(fine_sat4 if not m3_has_burland_material4 else False))
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"已由模組三地表深度扣除 Df={df_bb4:.2f} m，依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆有效 N60；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    if m3_has_burland_material4 and (gravel4 or fine_sat4):
+                        st.warning("本次使用模組三逐點 Burland_Material；全剖面礫土／細砂勾選不套用，避免重複修正。")
                     for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
-                    st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
+                    st.dataframe(pd.DataFrame([
+                        {'基礎底下深度 z [m]':row[0],'原始 N60':row[1],
+                         '逐點修正後 N60':row[2],'Burland 修正':adj}
+                        for row,adj in zip(avg_bb['selected_profile'],avg_bb.get('selected_adjustments',[]))
+                    ]),hide_index=True,use_container_width=True)
                 elif profile_text4.strip():
                     prof_bb=pd.read_csv(StringIO(profile_text4))
+                    manual_has_burland_material4=('Burland_Material' in prof_bb.columns and
+                        prof_bb['Burland_Material'].notna().any() and
+                        prof_bb['Burland_Material'].fillna('').astype(str).str.strip().ne('').any())
                     avg_bb=burland_burbidge_average_n60_from_profile(prof_bb.to_dict('records'),
                         width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
-                         loose_layer_thickness_m=loose_layer4,
-                        gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
+                        loose_layer_thickness_m=loose_layer4,
+                        gravel_adjustment=(gravel4 if not manual_has_burland_material4 else False),
+                        fine_sand_saturated=(fine_sat4 if not manual_has_burland_material4 else False))
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆測點；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    if manual_has_burland_material4 and (gravel4 or fine_sat4):
+                        st.warning("本次使用 CSV 逐點 Burland_Material；全剖面礫土／細砂勾選不套用，避免重複修正。")
                     for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
-                    st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
+                    st.dataframe(pd.DataFrame([
+                        {'基礎底下深度 z [m]':row[0],'原始 N60':row[1],
+                         '逐點修正後 N60':row[2],'Burland 修正':adj}
+                        for row,adj in zip(avg_bb['selected_profile'],avg_bb.get('selected_adjustments',[]))
+                    ]),hide_index=True,use_container_width=True)
                 elif gravel4 or fine_sat4:
                     st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
                 zi_bb4=1.43*(width4/0.3048)**0.7*0.3048

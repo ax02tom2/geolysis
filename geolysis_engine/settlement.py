@@ -367,20 +367,33 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
                                                 fine_sand_saturated=False):
     """Compute arithmetic mean adjusted N60 within the 2025 USACE influence zone.
 
-    Profile depths are measured downward from the footing base. Adjustments are
-    applied to each individual N60 before averaging, as directed by §7-13.
-    The method-specific fine-sand correction is applied to raw N60 (not the
-    liquefaction-normalized (N1)60 profile) and only when explicitly confirmed.
+    Optional row-wise Burland_Material values are:
+      standard, fine_sand_silt_saturated, gravel_sandy_gravel.
+    If any row is tagged, every selected row must be tagged and global
+    material switches must be off. Otherwise the legacy global switches apply.
     """
     B=_finite('基礎寬度 B',width_m); Hs=_finite('砂／礫層厚度',granular_layer_thickness_m)
     if B<=0 or Hs<=0 or not profile: raise ValueError('需提供正值 B、層厚及至少一筆 N60 剖面資料')
     if gravel_adjustment and fine_sand_saturated:
         raise ValueError('礫土修正與飽和細砂／粉土膨脹修正不可同時套用，請依土壤粒徑組成選擇')
+    def has_material_value(value):
+        if value is None or not str(value).strip():
+            return False
+        try:
+            if math.isnan(float(value)):
+                return False
+        except (TypeError, ValueError):
+            pass
+        return True
+    row_material_mode=any(has_material_value(row.get('Burland_Material')) for row in profile)
+    if row_material_mode and (gravel_adjustment or fine_sand_saturated):
+        raise ValueError('已提供逐點 Burland_Material；請關閉全剖面礫土／細砂修正，避免重複套用')
     zi=_burland_influence_depth_m(
         width_m=B,granular_layer_thickness_m=Hs,
         n_decreases_with_depth=n_decreases_with_depth,
         loose_layer_thickness_m=loose_layer_thickness_m)
     selected=[]
+    selected_adjustments=[]
     seen_depths=[]
     valid_profile_depths=[]
     for row in profile:
@@ -395,26 +408,54 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
         valid_profile_depths.append(z)
         if z<=zi:
             raw_n=n
-            if fine_sand_saturated and n>15: n=15+0.5*(n-15)
-            if gravel_adjustment: n*=1.25
+            if row_material_mode:
+                material=row.get('Burland_Material')
+                if not has_material_value(material):
+                    raise ValueError(f'深度 {z:g} m 位於影響深度 Zi 內，但未填 Burland_Material；請逐點指定 standard、fine_sand_silt_saturated 或 gravel_sandy_gravel')
+                material=str(material).strip().lower()
+                if material not in ('standard','fine_sand_silt_saturated','gravel_sandy_gravel'):
+                    raise ValueError(f'深度 {z:g} m 的 Burland_Material 值無效；僅接受 standard、fine_sand_silt_saturated 或 gravel_sandy_gravel')
+                if material=='fine_sand_silt_saturated':
+                    if n>15: n=15+0.5*(n-15)
+                    adjustment='飽和細砂／粉土；N60>15 時依式 4-7 修正'
+                elif material=='gravel_sandy_gravel':
+                    n*=1.25
+                    adjustment='礫土／砂礫土；N60×1.25'
+                else:
+                    adjustment='一般土層；未另作粒料修正'
+            else:
+                if fine_sand_saturated and n>15:
+                    n=15+0.5*(n-15)
+                if gravel_adjustment:
+                    n*=1.25
+                adjustment=('飽和細砂／粉土；逐點 N60>15 依式 4-7 修正' if fine_sand_saturated else
+                            '礫土／砂礫土；逐點 N60×1.25' if gravel_adjustment else '未另作粒料修正')
             selected.append((z,raw_n,n))
+            selected_adjustments.append(adjustment)
     if not selected: raise ValueError(f'影響深度 Zi={zi:.2f} m 內沒有 SPT 測點')
-    selected.sort(key=lambda x:x[0])
-    adjustment_notes = []
-    if fine_sand_saturated:
-        adjustment_notes.append('飽和極細砂／粉土：逐點 N60>15 依 USACE 式 4-7 修正')
-    if gravel_adjustment:
-        adjustment_notes.append('礫土／砂礫土：逐點 N60×1.25')
-    quality_warnings = []
-    profile_bottom = max(valid_profile_depths)
-    if len(selected) == 1:
+    ordered=sorted(zip(selected,selected_adjustments),key=lambda item:item[0][0])
+    selected=[item[0] for item in ordered]
+    selected_adjustments=[item[1] for item in ordered]
+    adjustment_notes=[]
+    if row_material_mode:
+        used=sorted({x for x in selected_adjustments if x!='一般土層；未另作粒料修正'})
+        if used: adjustment_notes.extend(used)
+        adjustment_notes.append('逐點依 Burland_Material 分類修正')
+    else:
+        if fine_sand_saturated:
+            adjustment_notes.append('飽和極細砂／粉土：逐點 N60>15 依 USACE 式 4-7 修正')
+        if gravel_adjustment:
+            adjustment_notes.append('礫土／砂礫土：逐點 N60×1.25')
+    quality_warnings=[]
+    profile_bottom=max(valid_profile_depths)
+    if len(selected)==1:
         quality_warnings.append('影響深度內僅有 1 個有效 SPT 測點；算術平均代表性有限，應補充資料或採保守判斷。')
-    if profile_bottom < zi - 1e-9:
+    if profile_bottom<zi-1e-9:
         quality_warnings.append(f'有效 SPT 剖面最深僅 {profile_bottom:.2f} m，未達影響深度 Zi={zi:.2f} m；本結果屬資料深度不足的暫估。')
     return {'N60_average':sum(adjusted for _,_,adjusted in selected)/len(selected),
             'influence_depth_m':zi,'selected_count':len(selected),
-            'selected_profile':selected,'profile_bottom_m':profile_bottom,
-            'data_quality_warnings':quality_warnings,
+            'selected_profile':selected,'selected_adjustments':selected_adjustments,
+            'profile_bottom_m':profile_bottom,'data_quality_warnings':quality_warnings,
             'adjustments':'；'.join(adjustment_notes)+'；逐點修正後算術平均' if adjustment_notes else '未另作粒料修正'}
 
 def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_depth_m,
@@ -444,7 +485,7 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
         if raw_n is None or (isinstance(raw_n,(int,float)) and math.isnan(float(raw_n))):
             continue
         n=_finite('N60',raw_n)
-        converted.append({'Depth_below_base_m':max(0.0,z),'N60':n})
+        converted.append({'Depth_below_base_m':max(0.0,z),'N60':n, **({'Burland_Material':row.get('Burland_Material')} if 'Burland_Material' in row else {})})
     if not converted:
         raise ValueError('基礎底以下沒有可用的 N60 測點；拒錘／部分貫入列不納入平均')
     result=burland_burbidge_average_n60_from_profile(
