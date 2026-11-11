@@ -16,7 +16,7 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
             'USCS':'PT','AASHTO':'A-8','GI':0,'PI':None,'Cu':None,'Cc':None,
             'gravel_pct':None,'sand_pct':None,'fines_pct':None,
             'organic_note':'依現場辨識為泥炭／高度有機土；PT 與 A-8 屬視覺辨識分類，不以篩分析或液塑限數值判定。',
-            'A_line_PI':None,'peat':True
+            'A_line_PI':None,'U_line_PI':None,'plasticity_warning':'','peat':True
         }
     p4,p10,p40,p200=(_pct(n,v) for n,v in [('P4',p4),('P10',p10),('P40',p40),('P200',p200)])
     ll=_finite('LL',ll)
