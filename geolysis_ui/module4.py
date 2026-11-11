@@ -33,7 +33,7 @@ def render_module_4(expanded=False):
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
-            profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；欄位 Depth_below_base_m、N60）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60\n0.5,18\n1.0,20\n1.5,22")
+            profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
             m3_profile_data4=st.session_state.get('m3_profile_result')
             use_m3_spt4=st.checkbox("直接使用模組三已校正 SPT 剖面（N60）",
                 value=False,disabled=(m3_profile_data4 is None),key='m4_bb_use_m3_spt')
@@ -66,6 +66,8 @@ def render_module_4(expanded=False):
                         fine_sand_saturated=(fine_sat4 if not m3_has_burland_material4 else False))
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"已由模組三地表深度扣除 Df={df_bb4:.2f} m，依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆有效 N60；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    if m3_has_burland_material4 and (gravel4 or fine_sat4):
+                        st.warning("本次使用模組三逐點 Burland_Material；全剖面礫土／細砂勾選不套用，避免重複修正。")
                     for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
                     st.dataframe(pd.DataFrame([
                         {'基礎底下深度 z [m]':row[0],'原始 N60':row[1],
@@ -84,6 +86,8 @@ def render_module_4(expanded=False):
                         fine_sand_saturated=(fine_sat4 if not manual_has_burland_material4 else False))
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆測點；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    if manual_has_burland_material4 and (gravel4 or fine_sat4):
+                        st.warning("本次使用 CSV 逐點 Burland_Material；全剖面礫土／細砂勾選不套用，避免重複修正。")
                     for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
                     st.dataframe(pd.DataFrame([
                         {'基礎底下深度 z [m]':row[0],'原始 N60':row[1],
