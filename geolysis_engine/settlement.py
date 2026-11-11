@@ -446,7 +446,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B／6B 內有軟弱層或鬆散夾層，須輸入軟弱層資料改用式 7-12")
     if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat"):
         raise ValueError("PMT 土類須為 clay、silt、sand、sand_gravel 或 peat")
-    if consolidation_state not in ("overconsolidated", "normally_consolidated", "weathered_remolded"):
+    if consolidation_state not in ("auto", "overconsolidated", "normally_consolidated", "weathered_remolded"):
         raise ValueError("未知 PMT 土層狀態")
     if round_footing:
         if abs(L - B) > 1e-6:
@@ -494,6 +494,23 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     Ec = E1
 
     def _alpha(E, ratio):
+        if consolidation_state == "auto":
+            if soil_type == "peat":
+                return 1.0
+            if soil_type == "clay":
+                if ratio > 16.0: return 1.0
+                if 9.0 <= ratio <= 16.0: return 2.0/3.0
+                if 7.0 <= ratio < 9.0: return 0.5
+            elif soil_type == "silt":
+                if ratio > 14.0: return 2.0/3.0
+                if 8.0 <= ratio <= 14.0: return 0.5
+            elif soil_type == "sand":
+                if ratio > 12.0: return 0.5
+                if 7.0 <= ratio <= 12.0: return 1.0/3.0
+            elif soil_type == "sand_gravel":
+                if ratio > 10.0: return 1.0/3.0
+                if 6.0 <= ratio <= 10.0: return 0.25
+            raise ValueError(f"USACE Table 7-6：{soil_type} 的 E/pne={ratio:.2f} 不在列示範圍；不外插 α")
         if soil_type == "peat":
             if consolidation_state != "normally_consolidated":
                 raise ValueError("USACE Table 7-6 僅列 NC peat 的 α=1；其他 peat 狀態不外插")
