@@ -469,7 +469,8 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
 
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
-        residual_excess_pore_pressure_ratio, shape_depth_inclination_factor=1.0):
+        residual_excess_pore_pressure_ratio, shape_depth_inclination_factor=1.0,
+        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
     """USACE EM 1110-1-1905 (2025) Eqs. 9-3/9-4 for sand-like soil with
     earthquake-induced excess pore pressure affecting the full shear zone.
     The surcharge term is omitted as specified for potential punching failure.
@@ -481,6 +482,10 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
     if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
         raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數乘積須大於 0')
+    if not non_liquefiable_confirmed:
+        raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
+    if not full_shear_zone_confirmed:
+        raise ValueError('目前實作僅適用超額孔隙水壓影響完整承載力剪力區；部分剪力區須依手冊加權有效單位重另算')
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
     coeff=0.5 if footing_type=='strip' else 0.4
@@ -498,7 +503,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
         water_depth, eccentricity_B=0.0, eccentricity_L=0.0,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
-        slope_distance_m=0.0, adjacent_slope_fs=None):
+        slope_distance_m=0.0, adjacent_slope_fs=None,
+        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
     """Evaluate USACE 2025 seismic Nγ resistance for both pseudo-static load cases.
 
     Automatically applies Meyerhof-based shape/depth/load-inclination/base/
@@ -510,6 +516,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     phi=_finite('有效摩擦角 φ′',phi_deg)
     if c<0 or c>1e-9 or phi<=0:
         raise ValueError('式 9-3／9-4 僅供砂狀排水土使用；需 c′≈0 且 φ′>0，不可套用不排水黏土或含顯著凝聚力土層')
+    if not non_liquefiable_confirmed:
+        raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
+    if not full_shear_zone_confirmed:
+        raise ValueError('目前實作僅適用超額孔隙水壓影響完整承載力剪力區；部分剪力區須依手冊加權有效單位重另算')
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     if not 0<=ru<1:
         raise ValueError('殘餘超額孔隙水壓比須符合 0≤ru<1')
