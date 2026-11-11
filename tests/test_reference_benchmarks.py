@@ -1848,3 +1848,123 @@ def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
     assert result["profile_depth_used_m"] > 30*ft
     assert result["settlement_mm"]/25.4 == pytest.approx(expected_in,abs=1e-6)
     assert result["settlement_mm"]/25.4 == pytest.approx(.827,abs=.002)
+
+
+
+def test_spt_field_corrections_apply_to_cohesive_soil_but_cn_does_not():
+    # USACE EM 1110-1-1905 (2025), Eqs. 4-4a/4-4b and Table 4-6:
+    # field procedure corrections apply to both soil behaviors; cohesive CB=1.
+    result = spt_correct(
+        12.0, 75.0, 1.15, 1.20, 5.0, 50.0,
+        "Skempton", 2.0, soil_behavior="cohesive",
+    )
+    expected_n60 = 12.0 * (75.0 / 60.0) * 1.0 * 1.20 * 0.85
+    assert result["CE"] == pytest.approx(1.25)
+    assert result["CB_input"] == pytest.approx(1.15)
+    assert result["CB"] == pytest.approx(1.0)
+    assert result["CR"] == pytest.approx(0.85)
+    assert result["CS"] == pytest.approx(1.20)
+    assert result["N60"] == pytest.approx(expected_n60)
+    assert result["CN"] == pytest.approx(1.0)
+    assert result["N1_60"] == pytest.approx(expected_n60)
+
+
+@pytest.mark.parametrize(
+    ("method", "cap", "expected_cn"),
+    [
+        ("Liao & Whitman", 2.0, 2.0),
+        ("Seed & Idriss", 2.0, 1.7),
+        ("Skempton", 2.0, 1.6),
+    ],
+)
+def test_spt_overburden_correction_methods_and_caps(method, cap, expected_cn):
+    # Pa=101.3 kPa; sigma'v=25.325 kPa. L&W/Seed use sqrt(Pa/sigma');
+    # Skempton uses 2/(1+sigma'/Pa). Seed & Idriss cap is 1.7.
+    result = spt_correct(
+        10.0, 60.0, 1.0, 1.0, 10.0, 25.325,
+        method, cap, soil_behavior="cohesionless",
+    )
+    assert result["N60"] == pytest.approx(10.0)
+    assert result["CN_raw"] == pytest.approx(
+        2.0 if method != "Skempton" else 1.6
+    )
+    assert result["CN"] == pytest.approx(expected_cn)
+    assert result["N1_60"] == pytest.approx(10.0 * expected_cn)
+
+
+def test_spt_profile_uses_per_row_rod_length_and_preserves_refusal_rows():
+    from geolysis_engine import spt_profile
+
+    rows = [
+        {"Depth_m": 3.0, "N": 50, "Effective_Stress_kPa": 101.3,
+         "Refusal": "true", "Penetration_mm": 80},
+        {"Depth_m": 2.0, "N": 10, "Effective_Stress_kPa": 101.3,
+         "Rod_Length_m": 2.0, "Refusal": "false"},
+    ]
+    result = spt_profile(
+        rows, energy_ratio_pct=60, borehole_factor=1.0,
+        sampler_factor=1.0, rod_length_m=10.0,
+        cn_method="Liao & Whitman", soil_behavior="cohesionless",
+    )
+    assert [row["Depth_m"] for row in result] == [2.0, 3.0]
+    assert result[0]["CR"] == pytest.approx(0.75)
+    assert result[0]["N60"] == pytest.approx(7.5)
+    assert result[1]["N60"] is None
+    assert "拒錘" in result[1]["Correction_status"]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        ({"p4": 40, "p10": 25, "p40": 10, "p200": 2,
+          "ll": 25, "pl": 20, "d10": 0.1, "d30": 0.3, "d60": 0.6}, "GW"),
+        ({"p4": 40, "p10": 25, "p40": 10, "p200": 2,
+          "ll": 25, "pl": 20, "d10": 0.1, "d30": 0.1, "d60": 0.6}, "GP"),
+        ({"p4": 95, "p10": 80, "p40": 60, "p200": 2,
+          "ll": 25, "pl": 20, "d10": 0.1, "d30": 0.3, "d60": 0.8}, "SW"),
+        ({"p4": 95, "p10": 80, "p40": 60, "p200": 2,
+          "ll": 25, "pl": 20, "d10": 0.1, "d30": 0.1, "d60": 0.8}, "SP"),
+        ({"p4": 95, "p10": 80, "p40": 60, "p200": 20,
+          "ll": 35, "pl": 30, "d10": 0.1, "d30": 0.3, "d60": 0.8}, "SM"),
+        ({"p4": 95, "p10": 80, "p40": 60, "p200": 20,
+          "ll": 35, "pl": 15, "d10": 0.1, "d30": 0.3, "d60": 0.8}, "SC"),
+        ({"p4": 95, "p10": 90, "p40": 80, "p200": 70,
+          "ll": 35, "pl": 15}, "CL"),
+        ({"p4": 95, "p10": 90, "p40": 80, "p200": 70,
+          "ll": 35, "pl": 31}, "ML"),
+        ({"p4": 95, "p10": 90, "p40": 80, "p200": 70,
+          "ll": 60, "pl": 30}, "CH"),
+        ({"p4": 95, "p10": 90, "p40": 80, "p200": 70,
+          "ll": 60, "pl": 55}, "MH"),
+        ({"peat": True}, "PT"),
+    ],
+)
+def test_uscs_major_group_symbols_match_astm_d2487_criteria(kwargs, expected):
+    result = classify_uscs_aashto(**kwargs)
+    assert result["USCS"] == expected
+
+
+@pytest.mark.parametrize(
+    ("fines", "p10", "p40", "ll", "pi", "expected"),
+    [
+        (10, 40, 20, 25, 5, "A-1-a"),
+        (20, 60, 40, 30, 5, "A-1-b"),
+        (5, 80, 60, 30, 0, "A-3"),
+        (20, 80, 60, 35, 5, "A-2-4"),
+        (20, 80, 60, 50, 5, "A-2-5"),
+        (20, 80, 60, 35, 15, "A-2-6"),
+        (20, 80, 60, 50, 20, "A-2-7"),
+        (50, 80, 60, 35, 10, "A-4"),
+        (50, 80, 60, 50, 10, "A-5"),
+        (50, 80, 60, 35, 20, "A-6"),
+        (50, 80, 60, 60, 20, "A-7-5"),
+        (50, 80, 60, 60, 40, "A-7-6"),
+    ],
+)
+def test_aashto_m145_group_boundaries(fines, p10, p40, ll, pi, expected):
+    # AASHTO M 145 Table 1: representative group/subgroup limits.
+    result = classify_uscs_aashto(
+        p4=95, p10=p10, p40=p40, p200=fines,
+        ll=ll, pl=ll-pi, np_flag=(pi == 0),
+    )
+    assert result["AASHTO"] == expected
