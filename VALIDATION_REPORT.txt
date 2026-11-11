@@ -652,3 +652,15 @@ Module 1 northeastern Taiwan weathered sandstone case — PR #64
 - GitHub Actions main run 42986876578: success; Python 3.11 compile passed; full suite 384 passed in 1.27 s.
 - Public worked-example benchmark count remains 66; PR #63 adds stronger integrated checks of existing C-1/C-3c cases, and PR #64 adds a parameter reference case rather than a new worked-example calculation.
 - Reference: Shao et al. (2021), *Investigations of a Weathered and Closely Jointed Rock Slope Failure Using Back Analyses*, Sustainability 13(23), 13452, https://doi.org/10.3390/su132313452.
+
+
+Module 4 pressure consistency for consolidation time-rate and secondary compression — PR #65
+
+- Audit confirmed the secondary-compression UI already exists; no duplicate panel was added. The actual issue was that the time-rate/secondary block reused the settlement at the settlement-based allowable pressure even when the Module 5 qa,net cap governed.
+- The single-layer clay workflow now retains the exact stress influence factor used in the allowable-pressure calculation and recomputes primary consolidation settlement at the final controlling net pressure qa_clay_final before calculating degree-of-consolidation settlement and adding secondary compression.
+- This prevents overstating long-term settlement when the bearing-capacity pressure cap is lower than the settlement-based pressure.
+- Multi-layer time-rate/secondary calculations remain blocked until each layer has its own Cv, drainage path, Cα and end-of-primary void ratio, as required for a defensible common-time integration.
+- Added a regression test verifying that a capacity cap below the settlement-based pressure produces primary settlement below the target settlement.
+- PR #65 merged to main at d9e58cb26ebca528552fd936484d41ca2f16d7fc.
+- GitHub Actions run 42987296496: success; Python 3.11 compile passed; full suite 385 passed in 2.31 s.
+- Public worked-example benchmark count remains 66.
