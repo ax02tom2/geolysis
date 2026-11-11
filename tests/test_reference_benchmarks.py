@@ -15,6 +15,7 @@ from geolysis_engine import (
     consolidation_time_rate,
     classify_uscs_aashto,
     hoek_brown_parameters,
+    hoek_brown_structure_applicability,
     bearing_capacity,
     bearing_capacity_in_situ,
     layered_bearing_capacity_in_situ_profile,
@@ -2153,3 +2154,25 @@ def test_uscs_organic_fines_requires_oven_dried_liquid_limit_confirmation():
     assert not_confirmed["USCS"] == "CL"
     assert "未達有機土判別條件" in not_confirmed["organic_note"]
     assert "暫定" in provisional["USCS"]
+
+
+
+def test_hoek_brown_high_gsi_intact_massive_rock_is_not_applicable():
+    boundary = hoek_brown_structure_applicability(gsi=75.0, structure_code="A")
+    high = hoek_brown_structure_applicability(gsi=75.01, structure_code="A")
+    assert boundary["applicable"] is True
+    assert high["applicable"] is False
+    assert "脆性剝落" in high["warning"]
+    assert "不應使用 Hoek" in high["warning"]
+
+
+def test_hoek_brown_high_gsi_blocky_rock_requires_brittle_failure_review():
+    result = hoek_brown_structure_applicability(gsi=80.0, structure_code="B")
+    assert result["applicable"] is True
+    assert "脆性剝落" in result["warning"]
+    assert "楔形" in result["warning"]
+
+
+def test_hoek_brown_gsi_applicability_rejects_invalid_structure_code():
+    with pytest.raises(ValueError, match="A–F"):
+        hoek_brown_structure_applicability(gsi=50.0, structure_code="Z")

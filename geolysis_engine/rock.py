@@ -3,6 +3,33 @@ from __future__ import annotations
 import math
 from ._common import _finite
 
+def hoek_brown_structure_applicability(*, gsi, structure_code):
+    """Check the GSI chart's high-GSI applicability limits.
+
+    FHWA-NHI-16-072 Figure 9-24 cautions that for intact/massive rock with
+    GSI > 75, brittle spalling must be checked and the Hoek-Brown criterion
+    should not be used; sparsely jointed high-GSI rock is controlled by
+    structural blocks/wedges rather than an equivalent continuum.
+    """
+    G = _finite("GSI", gsi)
+    code = str(structure_code).strip().upper()
+    if not 0.0 <= G <= 100.0:
+        raise ValueError("GSI 應介於 0–100")
+    if code not in {"A", "B", "C", "D", "E", "F"}:
+        raise ValueError("岩體結構代碼須為 A–F")
+    if G > 75.0 and code == "A":
+        return {
+            "applicable": False,
+            "warning": "此組合為完整／巨塊狀岩體且 GSI>75。FHWA-NHI-16-072 Figure 9-24 指出須檢查脆性剝落，且此類完整／巨塊狀高 GSI 岩體不應使用 Hoek–Brown 準則；請改做完整岩石強度與結構面／楔形破壞分析。",
+        }
+    if G > 75.0:
+        return {
+            "applicable": True,
+            "warning": "GSI>75 屬高品質岩體，仍須檢查脆性剝落與少數控制性結構面；若破壞由少數節理控制，應改採結構面／楔形分析，不可僅依 Hoek–Brown 等效連續體。",
+        }
+    return {"applicable": True, "warning": None}
+
+
 def hoek_brown_parameters(*, gsi, mi, sigma_ci_mpa, disturbance, application='slope',
                           gamma_rock_kn_m3=23.0, height_m=20.0, sigma3_custom_mpa=None):
     """Hoek-Brown (2002) generalized criterion and equivalent Mohr-Coulomb parameters.
