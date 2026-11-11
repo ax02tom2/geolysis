@@ -231,6 +231,7 @@ def test_residual_pore_pressure_bearing_reduction_matches_usace_equations_9_3_an
         bearing_factor_ngamma=20,
         residual_excess_pore_pressure_ratio=0.25,
         shape_depth_inclination_factor=0.8,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     expected = 0.4 * (1 - 0.25) * 18 * 2 * 20 * 0.8
     assert result["qu_seismic_kpa"] == pytest.approx(expected)
@@ -1135,6 +1136,7 @@ def test_usace_seismic_residual_pore_pressure_allows_shape_depth_factor_product_
         bearing_factor_ngamma=20.0,
         residual_excess_pore_pressure_ratio=0.2,
         shape_depth_inclination_factor=1.25,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     assert result["other_correction_product"] == pytest.approx(1.25)
     assert result["qu_seismic_kpa"] == pytest.approx(0.4 * 0.8 * 18.0 * 2.0 * 20.0 * 1.25)
@@ -1149,6 +1151,7 @@ def test_usace_seismic_residual_pore_pressure_rejects_nonpositive_factor_product
             bearing_factor_ngamma=20.0,
             residual_excess_pore_pressure_ratio=0.2,
             shape_depth_inclination_factor=0.0,
+            non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
         )
 
 
@@ -1170,6 +1173,7 @@ def test_usace_seismic_pore_pressure_cases_auto_apply_table_factors_and_control_
         L=3.0,
         Df=1.5,
         water_depth=5.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     assert len(result["cases"]) == 2
     controlling = result["governing_case"]
@@ -2305,3 +2309,20 @@ def test_burland_burbidge_spt_profile_warns_when_valid_data_do_not_reach_zi():
     )
     assert result["profile_bottom_m"] == pytest.approx(0.9)
     assert any("未達影響深度" in warning for warning in result["data_quality_warnings"])
+
+
+
+def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations():
+    with pytest.raises(ValueError, match="不液化／無循環剪力強度損失"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread", effective_unit_weight_kn_m3=18.0,
+            effective_width_m=2.0, bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+        )
+    with pytest.raises(ValueError, match="完整承載力剪力區"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread", effective_unit_weight_kn_m3=18.0,
+            effective_width_m=2.0, bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+            non_liquefiable_confirmed=True,
+        )
