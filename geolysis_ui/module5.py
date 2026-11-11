@@ -354,7 +354,7 @@ def render_module_5(expanded=False):
                 ngamma_seismic5=st.number_input("承載力因子 Nγ（依目前 φ 與 Meyerhof 自動帶入）",0.0,2000.0,float(seismic_reference5["Ngamma"]),0.5,key="m5x_seismic_ng")
                 gamma_seismic5=st.number_input("剪力區有效單位重 γb [kN/m³]（依地下水計算自動帶入）",1.0,25.0,float(max(1.0,min(25.0,seismic_reference5["gamma_effective"]))),0.5,key="m5x_seismic_gamma")
             with ss3:
-                corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積（可大於 1）",0.01,10.0,1.0,0.01,key="m5x_seismic_corr")
+                corr_seismic5=st.number_input("形狀／深度／傾斜等修正係數乘積（可大於 1）",0.01,1000.0,1.0,0.01,key="m5x_seismic_corr")
             if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure(
