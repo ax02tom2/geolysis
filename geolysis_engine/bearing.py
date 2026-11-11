@@ -509,6 +509,99 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
 
 
 
+
+def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_kN,
+        seismic_weight_kN, kh, kv, footing_type, B, L,
+        eccentricity_B=0.0, eccentricity_L=0.0,
+        seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
+        static_moment_B_sign=1, static_moment_L_sign=1):
+    """Evaluate seismic base-moment eccentricity and middle-third combinations.
+
+    Static eccentricities are converted to signed moments V·e. Seismic
+    moment components are signed for the +kh direction and reverse with the
+    horizontal earthquake direction. Both V±kvW combinations are evaluated.
+    This helper is independent of the residual-pore-pressure applicability
+    checks and does not calculate bearing resistance or a seismic FS.
+    """
+    V=_finite('靜態垂直力 V',vertical_load_kN)
+    H=_finite('靜態水平力 H',horizontal_load_kN)
+    W=_finite('有效地震重量 W',seismic_weight_kN)
+    khv=_finite('水平地震係數 kh',kh)
+    kvv=_finite('垂直地震係數 kv',kv)
+    Bv=_finite('基礎短邊 B',B)
+    Lv=_finite('基礎長邊 L',L)
+    eB0=_finite('靜力短邊偏心距 eB',eccentricity_B)
+    eL0=_finite('靜力長邊偏心距 eL',eccentricity_L)
+    MBe=_finite('水平地震短邊彎矩 M_B,E',seismic_moment_B_kNm)
+    MLe=_finite('水平地震長邊彎矩 M_L,E',seismic_moment_L_kNm)
+    sign_MB=_finite('靜力短邊彎矩方向',static_moment_B_sign)
+    sign_ML=_finite('靜力長邊彎矩方向',static_moment_L_sign)
+    if footing_type not in ('spread','strip'):
+        raise ValueError('基礎型式須為 spread 或 strip')
+    if V<=0 or W<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0:
+        raise ValueError('地震偏心輸入不合理：V、W、B、L須正；H與偏心距不可為負')
+    if not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震係數須符合 0≤kh≤1、0≤kv≤0.5')
+    if sign_MB not in (-1,1) or sign_ML not in (-1,1):
+        raise ValueError('靜力彎矩方向只能為 +1 或 -1')
+    if footing_type=='strip' and (eL0>1e-9 or abs(MLe)>1e-9):
+        raise ValueError('連續條形基礎不支援長邊方向偏心或彎矩')
+    if V-kvv*W<=0:
+        raise ValueError('V−kvW≤0，地震垂直組合已達零壓或上拔，無法計算壓縮接觸偏心距')
+    static_MB=sign_MB*V*eB0
+    static_ML=sign_ML*V*eL0
+    hsigns=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
+    cases=[]
+    for hsign in hsigns:
+        He=abs(H+hsign*khv*W)
+        for vsign in (-1,1):
+            Ve=V+vsign*kvv*W
+            M_B=static_MB+hsign*MBe
+            M_L=static_ML+hsign*MLe
+            eB=abs(M_B)/Ve
+            eL=abs(M_L)/Ve
+            Be=Bv-2.0*eB
+            Le=Lv-2.0*eL
+            contact_pass=(Be>0 and (footing_type=='strip' or Le>0))
+            axis_pass=(footing_type=='strip' or Le>=Be)
+            middle_B=eB<=Bv/6.0+1e-9
+            middle_L=(footing_type=='strip' or eL<=Lv/6.0+1e-9)
+            middle_pass=middle_B and middle_L
+            if not contact_pass:
+                status='有效壓縮接觸尺寸非正'
+            elif not axis_pass:
+                status='有效長短軸交換，需雙向偏心分析'
+            elif not middle_pass:
+                status='超出中間三分之一，傾覆／偏心檢核不符合'
+            else:
+                status='有效接觸且中間三分之一符合'
+            cases.append({
+                'horizontal_earthquake_sign':hsign,
+                'horizontal_load_direction':('靜力 H 與地震 kh·W 同向' if hsign==1 else '靜力 H 與地震 kh·W 反向'),
+                'horizontal_load_kN':He,'vertical_load_kN':Ve,
+                'vertical_sign':('向下減少' if vsign==-1 else '向下增加'),
+                'moment_B_kNm':M_B,'moment_L_kNm':M_L,
+                'eccentricity_B_m':eB,'eccentricity_L_m':eL,
+                'B_effective_m':Be,'L_effective_m':Le,
+                'middle_third_B_pass':middle_B,'middle_third_L_pass':middle_L,
+                'middle_third_pass':middle_pass,
+                'compression_contact_pass':contact_pass,
+                'effective_axis_order_pass':axis_pass,
+                'overturning_utilization':max(eB/(Bv/6.0),eL/(Lv/6.0) if footing_type=='spread' else 0.0),
+                'overall_eccentricity_pass':contact_pass and axis_pass and middle_pass,
+                'status':status,
+            })
+    governing=max(cases,key=lambda row:row['overturning_utilization'])
+    return {
+        'cases':cases,'governing_case':governing,
+        'passes':all(row['overall_eccentricity_pass'] for row in cases),
+        'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
+        'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
+        'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
+        'method':'USACE EM 1110-1-1905 (2025), §5-4, Eqs. 5-4 to 5-8 and Table 2-1 Note 3',
+        'limitations':'此工具只檢核地震載重組合的偏心距、中間三分點及有效接觸尺寸，不計算承載力或 FS。M_B,E/M_L,E 為 +kh 方向的帶符號水平地震基礎底彎矩，反向地震作用假設彎矩線性反號；若有非線性、扭轉或方向性結構分析，應分別輸入各方向結果而非套用此假設。未處理任意水平方位角、雙向同時地震、基底／地表傾斜及土體慣性。'
+    }
+
 def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         horizontal_load_kN, kh, kv, footing_type, residual_excess_pore_pressure_ratio,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
