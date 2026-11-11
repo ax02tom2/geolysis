@@ -101,8 +101,8 @@ def render_module_5(expanded=False):
         failure_mode5=st.selectbox("Terzaghi 剪力破壞模式",['general','local'],format_func=lambda x:'一般剪力破壞' if x=='general' else '局部剪力破壞（c、ϕ 折減）',disabled=(theory5!='Terzaghi'),key='m5_failure_mode')
         st.markdown("**載重分量（供 Hansen／Vesic 傾斜係數使用）**")
         hcol,vcol=st.columns(2)
-        with hcol: H5=st.number_input("水平載重 H [kN]",0.0,1000000.0,0.0,10.0,key='m5_h')
-        with vcol: V5=st.number_input("垂直載重 V [kN]（Q+Wf，含基礎自重及覆土）",0.1,1000000.0,1000.0,10.0,key='m5_v')
+        with hcol: H5=st.number_input("水平載重 H [kN；連續基礎請用 kN/m]",0.0,1000000.0,0.0,10.0,key='m5_h')
+        with vcol: V5=st.number_input("垂直載重 V [kN；連續基礎請用 kN/m]（Q+Wf）",0.1,1000000.0,1000.0,10.0,key='m5_v')
         st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力 Q+Wf，包含結構荷載、基礎自重及基礎上覆土重。連續條形基礎的 V、H 應採每延米線荷載（kN/m）。請勿直接以任意預設值作設計輸入。")
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
@@ -158,7 +158,7 @@ def render_module_5(expanded=False):
             q_label5="基礎底總覆土壓力 q₀（不排水總應力）" if result5['phi_used']==0 else "基礎底有效覆土壓力 q′₀（排水有效應力）"
             st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
             st.caption(f"供模組四比較：qa,gross（以淨承載力除 FS 後加回覆土）= {result5['qa_gross']:.1f} kPa；qa,net = {result5['qa_net']:.1f} kPa。砂土／礫土模組四採總壓力，使用前者；黏土主固結模組採淨壓力，使用後者。")
-            st.caption(f"另依 USACE EM 1110-1-1905 式 5-23，以總極限承載力直接除 FS 的總壓力值為 {result5['qa_gross_direct_FS']:.1f} kPa；兩種 FS 定義不同，不可混用，須與設計規範及載重定義一致。")
+            st.caption(f"qult/FS 的參考換算值為 {result5['qa_gross_direct_FS']:.1f} kPa；這不是工址實際安全係數。實際 FS 必須以本頁下方 qeq=V/A′−uD 與 qult 比較，不能以容許承載力欄位取代。")
             if theory5=='Terzaghi': st.caption(f"Terzaghi {result5['failure_mode']}：採用 c = {result5['c_used']:.2f} kPa、ϕ = {result5['phi_used']:.2f}°；承載力因子依 USACE 表列值線性插值。")
             if '模組一' in src5:
                 st.warning(f"本次使用模組一等效 Mohr–Coulomb 參數；其 c′、ϕ′係在 σ3,max={sig3_max:.3f} MPa 範圍內擬合，須確認與淺基礎破壞應力範圍相符。若不相符，請改用試驗參數或重新設定模組一圍壓範圍。")
@@ -237,7 +237,7 @@ def render_module_5(expanded=False):
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
                 footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
             if footing_kind5=="continuous": st.caption("連續條形基礎按 L/B→∞ 的 strip 極限計算形狀係數；不採用目前 L 欄位的有限長寬比。")
-            layer_check_unsupported=(H5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
+            layer_check_unsupported=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if layer_check_unsupported:
                 st.warning("目前簡化兩層穿刺路徑尚未整合水平力、偏心及斜坡／傾斜基底修正；請先將這些作用設為 0，否則不會把結果當成完整設計檢核。")
             if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=layer_check_unsupported):
@@ -256,7 +256,7 @@ def render_module_5(expanded=False):
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
+            layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
@@ -298,7 +298,7 @@ def render_module_5(expanded=False):
             mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_sig)
             if mr and mr_is_current:
 
-                profile_check_unsupported=(H5>0 or base_ang5>0 or ground_ang5>0)
+                profile_check_unsupported=(H5>0 or beta5>0 or base_ang5>0 or ground_ang5>0)
                 _render_bearing_safety_check(
                     qult_kpa=mr["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
@@ -544,10 +544,10 @@ def render_module_5(expanded=False):
                 st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
                 r1,r2,r3=st.columns(3)
                 r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
-                r2.metric("容許承載力 qa,gross",f"{insitu_result['qa_gross_direct_FS']:.1f} kPa")
-                r3.metric("容許承載力 qa,net",f"{insitu_result['qa_net_direct_FS']:.1f} kPa")
+                r2.metric("qult / FS 參考值",f"{insitu_result['qa_gross_direct_FS']:.1f} kPa")
+                r3.metric("qu,net / FS 參考值",f"{insitu_result['qa_net_direct_FS']:.1f} kPa")
                 st.caption(f"形狀係數={insitu_result['shape_factor']:.3f}；深度係數={insitu_result['depth_factor']:.3f}；基礎底覆土壓力 q0={insitu_result['q_surcharge_kpa']:.1f} kPa。")
-                st.caption(insitu_result["limitations"])
+                st.caption("上列 qult/FS 是參考換算，不代表已完成實際設計檢核；上方 qeq 與 FS 才是依實際總垂直力及基底水壓計算的檢核值。")\n                st.caption(insitu_result["limitations"])
 
 
         with st.expander("擴充分析公式依據與適用限制",expanded=False):
