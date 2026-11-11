@@ -45,14 +45,20 @@ def render_module_4(expanded=False):
                 gravel4=st.checkbox("礫土／砂礫土（逐點 N60 × 1.25）",key='m4_bb_gravel')
             with e:
                 fine_sat4=st.checkbox("地下水位以下飽和細砂／粉土（逐點 N60 > 15 套用膨脹修正）",key='m4_bb_finesat')
-                ndecrease4=st.checkbox("N60 隨深度持續下降（影響深度改採 min(2B, 鬆弱層厚度)）",key='m4_bb_decrease')
+                ndecrease4=st.checkbox("N60 隨深度下降（Zi 改採 min(2B, 鬆弱層底深度)）",key='m4_bb_decrease')
             st.caption("礫土與飽和細砂／粉土修正勾選，假設影響深度 Zi 內所有測點均屬該類土；混合地層請勿對整份剖面套用單一修正，可在 CSV 逐筆先行修正 N60 後取消兩項勾選。此處細砂膨脹修正依 USACE 第 7-13 節直接修正 N60，不使用模組三供液化評估的 (N1)60。")
+            loose_layer4=None
+            if ndecrease4:
+                loose_layer4=st.number_input("鬆弱層底深度（自基礎底向下）[m]",min_value=0.1,max_value=100.0,value=float(hs4),step=0.1,key="m4_bb_loose_layer_depth")
+                st.caption("此深度與砂／礫層總厚度 Hs 是不同參數；只有鬆弱層底恰好等於砂／礫層底時兩者才相同。預設值僅供起始輸入，請依 N60 剖面確認。影響深度 Zi=min(2B,鬆弱層底深度)，而 C2 仍使用總砂／礫層厚度 Hs。")
+                st.caption("若使用單一平均 N60 輸入，請自行確認該平均值只取自基礎底至上述 Zi 的有效測點；若使用剖面 CSV 或模組三連結，系統會依 Zi 自動篩選。")
             try:
                 n60_used4=n4
                 if use_m3_spt4:
                     avg_bb=burland_burbidge_average_n60_from_ground_profile(
                         m3_profile_data4.to_dict('records'),foundation_depth_m=df_bb4,
                         width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
+                         loose_layer_thickness_m=loose_layer4,
                         gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"已由模組三地表深度扣除 Df={df_bb4:.2f} m，依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆有效 N60；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
@@ -62,6 +68,7 @@ def render_module_4(expanded=False):
                     prof_bb=pd.read_csv(StringIO(profile_text4))
                     avg_bb=burland_burbidge_average_n60_from_profile(prof_bb.to_dict('records'),
                         width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
+                         loose_layer_thickness_m=loose_layer4,
                         gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆測點；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
@@ -70,15 +77,15 @@ def render_module_4(expanded=False):
                 elif gravel4 or fine_sat4:
                     st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
                 zi_bb4=1.43*(width4/0.3048)**0.7*0.3048
-                if ndecrease4: zi_bb4=min(2.0*width4,hs4)
+                if ndecrease4: zi_bb4=min(2.0*width4,loose_layer4)
                 if hs4 < zi_bb4-1e-9 and not ndecrease4:
-                    st.warning("Hs 小於 Zi，C2 有限厚度修正會降低預估沉陷；請確認砂／礫層下方確為明顯較硬、可視為不易壓縮的地層。若下伏層仍可壓縮或較軟，不應直接採用此折減，應改用分層 CPT／DMT／固結沉陷分析。")
+                    st.warning("Hs 小於 Zi，依 USACE 式 7-33 套用有限厚度修正 C2。請確認下伏層的變形特性與有限厚度修正假設相符；若下伏層仍有顯著壓縮或較軟，C2 折減可能低估沉陷，應改用分層 CPT／DMT／固結沉陷分析。")
                 bb_args=dict(n60_average=n60_used4,width_m=width4,length_m=length4,
                     initial_effective_stress_kpa=sig04,preconsolidation_stress_kpa=sigp4,
                     granular_layer_thickness_m=hs4,years=years4,load_type=loadtype4,
                     overconsolidated=oc4,gravel_adjustment=(gravel4 if not profile_text4.strip() and not use_m3_spt4 else False),
                     fine_sand_saturated=(fine_sat4 if not profile_text4.strip() and not use_m3_spt4 else False),
-                    n_decreases_with_depth=ndecrease4)
+                    n_decreases_with_depth=ndecrease4,loose_layer_thickness_m=loose_layer4)
                 pressure_check4=None
                 if qult4>0:
                     pressure_check4=usace_settlement_design_pressure(
