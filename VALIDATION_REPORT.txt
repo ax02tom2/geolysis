@@ -616,7 +616,7 @@ Module 5 vertical seismic coefficient sign envelope — PR #61
 - kv is now defined as a nonnegative magnitude (0–0.5); both vertical directions remain evaluated automatically. The Module 5 UI now enforces the same range and describes the convention.
 - Case labels are derived from the actual resulting vertical load; kv=0 is labeled as no vertical increment rather than incorrectly implying an increase/decrease.
 - Added four regression tests for positive kv, zero kv, negative-kv rejection in the pseudo-static function, and negative-kv rejection in the residual-pore-pressure workflow.
-- No seismic FS or complete seismic design verdict was added. Soil inertia, seismic moment/eccentricity, liquefaction, cyclic strength degradation, residual strength, lateral spreading, settlement and layered punching remain outside this specific resistance calculation and must be assessed separately.
+- No seismic FS or complete seismic design verdict was added. At the PR #61 stage, seismic moment/eccentricity remained outside the resistance calculation; PR #73 subsequently added a restricted per-case seismic base-moment/effective-dimension calculation. Soil inertia, liquefaction, cyclic strength degradation, residual strength, lateral spreading, settlement and layered punching remain outside this specific resistance calculation and must be assessed separately.
 - PR #61 merged to main at 20b38487a3ea364d9e1b56c4be92c1f2cb5a1184.
 - GitHub Actions run 42986106339: success; Python 3.11 compile passed; full suite 377 passed in 1.75 s.
 - Public worked-example benchmark count remains 66; these are four engineering guard/regression tests, not new worked examples.
@@ -659,7 +659,7 @@ Module 4 pressure consistency for consolidation time-rate and secondary compress
 - Audit confirmed the secondary-compression UI already exists; no duplicate panel was added. The actual issue was that the time-rate/secondary block reused the settlement at the settlement-based allowable pressure even when the Module 5 qa,net cap governed.
 - The single-layer clay workflow now retains the exact stress influence factor used in the allowable-pressure calculation and recomputes primary consolidation settlement at the final controlling net pressure qa_clay_final before calculating degree-of-consolidation settlement and adding secondary compression.
 - This prevents overstating long-term settlement when the bearing-capacity pressure cap is lower than the settlement-based pressure.
-- Multi-layer time-rate/secondary calculations remain blocked until each layer has its own Cv, drainage path, Cα and end-of-primary void ratio, as required for a defensible common-time integration.
+- At the PR #65 validation stage, multi-layer time-rate/secondary calculations were still blocked pending per-layer Cv, drainage path, Cα and end-of-primary void ratio. PR #71 subsequently added the required per-layer inputs and an independent 1-D layer time-rate approximation.
 - Added a regression test verifying that a capacity cap below the settlement-based pressure produces primary settlement below the target settlement.
 - PR #65 merged to main at d9e58cb26ebca528552fd936484d41ca2f16d7fc.
 - GitHub Actions run 42987296496: success; Python 3.11 compile passed; full suite 385 passed in 2.31 s.
@@ -721,3 +721,19 @@ Module 4 multi-layer consolidation time-rate and secondary compression — PR #7
 - GitHub Actions run 42991126306: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 400 passed in 1.96 s.
 - Public USACE Appendix B/C worked-example benchmark count remains 66; this feature adds time-rate/secondary regression tests, not additional worked-example benchmarks.
 - References: USACE EM 1110-1-1905 (31 Jul 2025), §7-18, Eqs. 7-41/7-42, Figure 7-16, Table 7-11; §7-19 / Eq. 7-47.
+
+
+Module 5 seismic overturning moment and eccentricity — PR #73
+
+- Added signed seismic base-moment inputs M_B,E and M_L,E to the residual-pore-pressure bearing resistance branch. These values must be obtained from structural seismic analysis and transferred to the foundation base; the engine does not infer a force application height.
+- Existing static eccentricities are converted to static base moments V·e. The user can select the sign of the static B- and L-direction eccentricities independently.
+- The seismic moment components are signed for the +kh direction. The engine evaluates both horizontal directions, H±khW, and both vertical directions, V±kvW, for four combinations whenever a seismic moment component is nonzero.
+- For each combination, eB=|M_B|/V_eq and eL=|M_L|/V_eq are recalculated, followed by B′=B−2eB and L′=L−2eL. Meyerhof-based USACE shape/depth/inclination and groundwater correction factors are then rebuilt using the combination-specific effective dimensions and H/V.
+- If any combination has non-positive effective dimensions, or if L′ becomes smaller than B′ (axis exchange not supported by the present rectangular-footing model), the app suppresses the numeric governing resistance and directs the user to separate contact-pressure / biaxial eccentricity analysis.
+- The UI explicitly warns if both seismic moment components are left at zero while kh>0. Zero is not treated as proof that seismic overturning moment is absent.
+- This does not constitute a complete seismic foundation design. The current scalar horizontal action model does not resolve arbitrary azimuth, torsion, simultaneous biaxial earthquake loading, or inclined base/ground directionality. No seismic qeq/FS, soil inertia, liquefaction residual strength, lateral spreading or seismic settlement is calculated.
+- Added four regression tests: reversed horizontal seismic moment sign with vertical kv combinations; moment-induced loss of compression contact; strip footing long-axis moment rejection; and signed biaxial static eccentricity combination.
+- PR #73 merged to main at d123ea997c247e0e04e345a57aa6d4b57d1f177c.
+- GitHub Actions run 42996975023: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 404 passed in 2.15 s.
+- Public USACE Appendix B/C worked-example benchmark count remains 66; the four new tests are engineering guard/regression tests, not additional published worked-example benchmarks.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-4, Eqs. 5-4 to 5-8, Figure 5-4; §5-5, Eqs. 5-15/5-16.
