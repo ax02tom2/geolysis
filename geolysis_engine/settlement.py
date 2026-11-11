@@ -423,7 +423,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
                                          soil_type="sand", consolidation_state="normally_consolidated",
                                          lambda_d=None, lambda_c=None, round_footing=False,
                                          ultimate_bearing_kpa=None, factor_of_safety=3.0,
-                                         deep_uniform_deposit_confirmed=False):
+                                         deep_uniform_deposit_confirmed=False, soft_layers=None,
+                                         soft_layer_profile_reviewed=False):
     """USACE 2025 Ménard-Rousseau PMT settlement for deep uniform deposits (Eq. 7-11).
 
     pmt_moduli is a list of {group: E1|E2|E345|E678|E916, E0_kpa}.
@@ -437,8 +438,11 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     fs = _finite("承載力安全係數", factor_of_safety)
     if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or fs <= 0 or not pmt_moduli:
         raise ValueError("基礎尺寸、壓力、PMT pne、FS 或模數資料不合理")
-    if not deep_uniform_deposit_confirmed:
-        raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B 內有軟弱層或鬆散夾層，須改用式 7-12 專門評估")
+    if soft_layers:
+        if not soft_layer_profile_reviewed:
+            raise ValueError("使用式 7-12 前，必須確認已辨識完整 2B／6B 範圍內的所有軟弱／鬆散層")
+    elif not deep_uniform_deposit_confirmed:
+        raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B／6B 內有軟弱層或鬆散夾層，須輸入軟弱層資料改用式 7-12")
     if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat"):
         raise ValueError("PMT 土類須為 clay、silt、sand、sand_gravel 或 peat")
     if consolidation_state not in ("overconsolidated", "normally_consolidated", "weathered_remolded"):
@@ -513,10 +517,41 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     B0 = 0.6096
     deviatoric_m = (2.0 / (9.0 * Ed)) * q_net * B0 * (ld * B / B0) ** alpha_d
     spherical_m = (alpha_c / (9.0 * Ec)) * q_net * lc * B
+    soft_details = []
+    soft_total_m = 0.0
+    if soft_layers:
+        soft_limit = (6.0 if L / B > 10.0 else 2.0) * B
+        for index, row in enumerate(soft_layers, 1):
+            H = _finite("軟弱層厚度", row.get("thickness_m"))
+            z = _finite("軟弱層中心深度", row.get("depth_center_m"))
+            EL = _finite("軟弱層 PMT 模數 EL", row.get("E_L_kpa"))
+            pneL = _finite("軟弱層等效淨極限壓力 pne", row.get("pne_kpa"))
+            if H <= 0 or z <= 0 or EL <= 0 or pneL <= 0:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆厚度、深度、EL、pne 必須大於 0")
+            if z + H / 2.0 > soft_limit + 1e-9:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆超出式 7-12 適用深度 {soft_limit:.2f} m")
+            if EL >= Ed:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆 EL 必須小於深層等效 Ed")
+            alpha_L = _alpha(EL, EL / pneL)
+            if L / B > 10.0:
+                a = B / 2.0
+                Iz = (2.0 / math.pi) * (math.atan(a / z) + a * z / (a*a + z*z))
+            else:
+                Iz = boussinesq_rectangular_center_factor(B, L, z)
+            component_m = alpha_L * (1.0 / EL - 1.0 / Ed) * Iz * q_net * H
+            if component_m < 0:
+                raise ValueError("PMT 軟弱層計算出負沉陷增量，請檢查 EL、Ed 及試驗資料")
+            soft_total_m += component_m
+            soft_details.append({"Layer": row.get("Layer", index), "Depth_center_m": z,
+                "Thickness_m": H, "E_L_kPa": EL, "pne_kPa": pneL,
+                "alpha_L": alpha_L, "I_sigma": Iz, "Settlement_mm": component_m * 1000.0})
+    total_m = deviatoric_m + spherical_m + soft_total_m
     return {
-        "settlement_mm": (deviatoric_m + spherical_m) * 1000.0,
+        "settlement_mm": total_m * 1000.0,
         "deviatoric_settlement_mm": deviatoric_m * 1000.0,
         "spherical_settlement_mm": spherical_m * 1000.0,
+        "soft_layer_settlement_mm": soft_total_m * 1000.0,
+        "soft_layer_results": soft_details
         "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
@@ -526,8 +561,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         "Ed_kpa": Ed, "Ec_kpa": Ec, "alpha_d": alpha_d,
         "alpha_c": alpha_c, "lambda_d": ld, "lambda_c": lc,
         "group_harmonic_means_kpa": harmonic,
-        "method": "USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eq. 7-11 and Table 7-5",
-        "limitations": "僅適用深層、相對均質土層；2B 範圍內如有軟弱／鬆散層，須改用 Eq. 7-12，本功能不計算該分支。非圓形基礎 λd/λc 必須由 Figure 7-11 讀取。PMT 設計壓力不可超過屈服壓力 Py；未包含地震沉陷。"
+        "method": ("USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eqs. 7-11/7-12, Tables 7-5/7-6" if soft_layers else "USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eq. 7-11 and Table 7-5"),
+        "limitations": "深層均質部分依 Eq. 7-11；若有軟弱／鬆散夾層，僅計入輸入且位於矩形基礎 2B 或條形基礎 6B 範圍內的 Eq. 7-12 修正。非圓形基礎 λd/λc 必須由 Figure 7-11 讀取。PMT 設計壓力不可超過屈服壓力 Py；未包含地震沉陷。"
     }
 
 def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m,
