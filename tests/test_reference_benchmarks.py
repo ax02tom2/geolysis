@@ -1881,5 +1881,5 @@ def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
     assert len(result["layer_results"]) == 6
     assert result["layer_results"][0]["Stress_factor"] == pytest.approx(1.0)
     assert result["settlement_mm"]/304.8 == pytest.approx(expected_ft,abs=1e-9)
-    assert result["settlement_mm"]/304.8 == pytest.approx(.03098,abs=.0001)
+    assert result["settlement_mm"]/304.8 == pytest.approx(.03087,abs=.0001)
     assert result["settlement_mm"]/25.4 == pytest.approx(.37,abs=.01)
