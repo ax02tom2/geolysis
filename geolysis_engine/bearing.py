@@ -481,34 +481,62 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
         residual_excess_pore_pressure_ratio, shape_depth_inclination_factor=1.0,
-        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
-    """USACE EM 1110-1-1905 (2025) Eqs. 9-3/9-4 for sand-like soil with
-    earthquake-induced excess pore pressure affecting the full shear zone.
-    The surcharge term is omitted as specified for potential punching failure.
+        non_liquefiable_confirmed=False, full_shear_zone_confirmed=False,
+        partial_shear_zone_affected_fraction=None,
+        effective_unit_weight_unaffected_kn_m3=None):
+    """USACE EM 1110-1-1905 (2025) Eqs. 9-3/9-4.
+
+    Full-zone case: q uses (1-ru)*gamma_susceptible.
+    Partial-zone case: gamma_b is the weighted average
+      f*(1-ru)*gamma_susceptible + (1-f)*gamma_unaffected,
+    where f is the user's weighted share of the bearing shear zone affected by
+    excess pore pressure. The two gamma values must be effective/buoyant unit
+    weights appropriate to the shear zone.
     """
-    gamma=_finite('剪力區有效單位重',effective_unit_weight_kn_m3)
+    gamma_sus=_finite('受超額孔隙水壓影響土層有效單位重',effective_unit_weight_kn_m3)
     B=_finite('有效基礎寬度',effective_width_m)
     Ng=_finite('Nγ',bearing_factor_ngamma)
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
-    if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
+    if gamma_sus<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
         raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數乘積須大於 0')
     if not non_liquefiable_confirmed:
         raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
-    if not full_shear_zone_confirmed:
-        raise ValueError('目前實作僅適用超額孔隙水壓影響完整承載力剪力區；部分剪力區須依手冊加權有效單位重另算')
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
+    if full_shear_zone_confirmed:
+        if partial_shear_zone_affected_fraction is not None or effective_unit_weight_unaffected_kn_m3 is not None:
+            raise ValueError('完整剪力區模式不可同時輸入部分剪力區加權參數')
+        fraction=1.0
+        gamma_unaff=None
+        gamma_b=(1.0-ru)*gamma_sus
+        method_suffix='full shear zone'
+    else:
+        if partial_shear_zone_affected_fraction is None or effective_unit_weight_unaffected_kn_m3 is None:
+            raise ValueError('部分剪力區模式必須提供受影響加權比例 f 與未受影響土層有效單位重')
+        fraction=_finite('受超額孔隙水壓影響剪力區加權比例 f',partial_shear_zone_affected_fraction)
+        gamma_unaff=_finite('未受超額孔隙水壓影響土層有效單位重',effective_unit_weight_unaffected_kn_m3)
+        if not 0.0<fraction<1.0 or gamma_unaff<=0:
+            raise ValueError('部分剪力區加權比例須介於 0 與 1，兩種有效單位重均須大於 0')
+        gamma_b=fraction*(1.0-ru)*gamma_sus+(1.0-fraction)*gamma_unaff
+        method_suffix='weighted partial shear zone'
     coeff=0.5 if footing_type=='strip' else 0.4
-    q=coeff*(1-ru)*gamma*B*Ng*corr
-    return {'qu_seismic_kpa':q,'ru':ru,'pore_pressure_resistance_factor':1-ru,
-        'base_coefficient':coeff,'gamma_effective_kn_m3':gamma,'B_effective_m':B,
-        'Ngamma':Ng,'other_correction_product':corr,
-        'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012)',
-        'limitations':'適用砂狀土且地震超額孔隙水壓影響完整承載力剪力區之情境；依手冊移除覆土 Nq 項，並以 (1−ru) 折減 Nγ 項。ru 應依 FSliq／孔壓評估取得，不可任意假設。若土層可液化、邊際液化或顯著強度損失，USACE 原則上不建議使用淺基礎；此式是補充評估，不代表可接受液化場址。未含分層穿刺、側向擴展與地震沉陷。'}
-
-
-
+    q=coeff*gamma_b*B*Ng*corr
+    unweighted_gamma=(fraction*gamma_sus+(1.0-fraction)*gamma_unaff) if gamma_unaff is not None else gamma_sus
+    reduction=gamma_b/unweighted_gamma
+    return {
+        'qu_seismic_kpa':q,'ru':ru,
+        'pore_pressure_resistance_factor':reduction,
+        'pore_pressure_affected_fraction':fraction,
+        'gamma_susceptible_kn_m3':gamma_sus,
+        'gamma_unaffected_kn_m3':gamma_unaff,
+        'gamma_effective_weighted_kn_m3':gamma_b,
+        'base_coefficient':coeff,'gamma_effective_kn_m3':gamma_b,
+        'B_effective_m':B,'Ngamma':Ng,
+        'other_correction_product':corr,
+        'method':f'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012), {method_suffix}',
+        'limitations':'完整剪力區時採 (1−ru)γ′sus；部分剪力區依 USACE 2025 §9-10(c)(3)(b) 將受影響土層與未受影響土層的有效單位重加權：γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected。f 必須依 Figure 5-4 剪力區內受影響土層的實際分布／體積比例估算，不可直接以全孔深度比例代替；γ′sus 與 γ′unaffected 必須為相應水位下的有效／浮單位重。ru 應依孔壓或液化評估取得，不可任意假設。若土層可液化、邊際液化或有顯著循環強度損失，應改用殘餘／折減剪力強度與穿刺破壞分析；此式不代表可接受液化場址。未含側向擴展、地震沉陷及完整地震 qeq／FS。'
+    }
 
 def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_kN,
         seismic_weight_kN, kh, kv, footing_type, B, L,
