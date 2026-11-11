@@ -372,11 +372,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
+                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
+            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
