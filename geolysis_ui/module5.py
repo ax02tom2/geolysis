@@ -376,9 +376,12 @@ def render_module_5(expanded=False):
                 static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
             with sd2:
                 static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
+            seismic_qallow5=st.number_input("地震設計容許承載壓力 q_allow [kPa]（0＝未提供，不判定整體通過）",
+                min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow")
+            seismic_qallow_value5=(seismic_qallow5 if seismic_qallow5>0 else None)
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
-                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5)
-            if st.button("計算地震偏心與中間三分點",key="m5x_seismic_ecc_run"):
+                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5)
+            if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run"):
                 try:
                     seismic_ecc5=seismic_foundation_eccentricity_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,
@@ -388,17 +391,27 @@ def render_module_5(expanded=False):
                         seismic_moment_B_kNm=seismic_moment_B5,
                         seismic_moment_L_kNm=seismic_moment_L5,
                         static_moment_B_sign=static_moment_B_sign5,
-                        static_moment_L_sign=static_moment_L_sign5)
+                        static_moment_L_sign=static_moment_L_sign5,
+                        allowable_bearing_pressure_kpa=seismic_qallow_value5)
                     store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
                 except Exception as ecc_exc:
                     logging.exception("Unhandled application calculation error")
-                    st.error(f"地震偏心／中間三分點檢核失敗：{ecc_exc}")
+                    st.error(f"地震傾覆幾何／有效承載壓力檢核失敗：{ecc_exc}")
             seismic_ecc5,seismic_ecc_current5=read_result_state(
                 st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc_sig5)
             if seismic_ecc5 and seismic_ecc_current5:
-                st.metric("地震偏心／中間三分點檢核","全部組合符合" if seismic_ecc5["passes"] else "至少一組未符合")
-                if not seismic_ecc5["passes"]:
-                    st.error("至少一組地震載重組合超出中間三分點、失去有效壓縮接觸或有效軸向交換；請另作傾覆／接觸壓力／雙向偏心分析。")
+                st.metric("地震合力位置／有效接觸檢核","全部組合位於基礎範圍內" if seismic_ecc5["geometry_passes"] else "有組合超出基礎範圍")
+                if not seismic_ecc5["geometry_passes"]:
+                    st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；須另作接觸／抗拔／雙向偏心分析。")
+                if not seismic_ecc5["middle_third_passes"]:
+                    st.info("部分組合超出靜力中間三分點。依 USACE §9-10(e)，地震極端事件的判斷不以靜力中三分點作唯一標準；仍須確認 qeq 不超過適用的地震容許承載壓力，若專案規範另要求中三分點則仍應遵守。")
+                if seismic_ecc5["bearing_pressure_check_complete"]:
+                    st.metric("地震有效承載壓力 qeq ≤ q_allow",
+                        "全部組合符合" if seismic_ecc5["bearing_pressure_passes"] else "有組合超過")
+                    if seismic_ecc5["overall_seismic_overturning_passes"] is False:
+                        st.error("地震傾覆／承載整體檢核未通過：合力位置或有效承載壓力至少一項不符合。")
+                else:
+                    st.warning("尚未提供適用規範／專案的地震 q_allow；目前只有合力位置與有效尺寸幾何檢核，不代表整體地震傾覆／承載通過。")
                 st.dataframe(_seismic_case_dataframe(seismic_ecc5["cases"],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(seismic_ecc5["limitations"])
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
