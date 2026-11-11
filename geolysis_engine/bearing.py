@@ -456,17 +456,21 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
     if V<=0 or A<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
         raise ValueError('地震分析輸入超出範圍：V、面積須正，H≥0，0≤kh≤1，0≤kv≤0.5')
     cases=[]
+    # Envelope the horizontal earthquake action in the adverse direction:
+    # the existing static H and kh·V are aligned. For level base/ground,
+    # the Meyerhof inclination factor depends on the magnitude of H/V.
+    he=H+khv*V
     for sign in (-1,1):
         ve=V*(1+sign*kvv)
-        he=H+khv*V
         cases.append({'vertical_load_kN':ve,'horizontal_load_kN':he,
+            'horizontal_load_direction':'靜力 H 與地震 kh·V 同向（不利包絡）',
             'average_contact_pressure_kpa':ve/A,
             'load_angle_deg':math.degrees(math.atan2(he,ve)),
             'vertical_sign':('向下增加' if ve>V else '向下減少' if ve<V else '無垂直增減')})
     return {'cases':cases,'governing_vertical_load_kN':min(x['vertical_load_kN'] for x in cases),
         'governing_horizontal_load_kN':max(x['horizontal_load_kN'] for x in cases),
-        'method':'Pseudo-static inertial action envelope (kh·V, kv·V)',
-        'limitations':'僅將結構／基礎慣性作用轉為等效靜力載重包絡；不得視為完整地震承載力公式。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
+        'method':'Pseudo-static adverse horizontal action envelope (H + kh·V; V·(1±kv))',
+        'limitations':'水平作用採既有靜力 H 與地震 kh·V 同向的不利包絡 H+khV；兩組垂直地震方向均計算。此包絡只提供作用量大小，不代表已建立水平力方位角。對水平基底與水平地表，Meyerhof 載重傾斜係數使用 H/V 大小；若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
 
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
@@ -533,6 +537,14 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     kvv=_finite('垂直地震係數 kv',kv)
     if V<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
         raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、0≤kv≤0.5')
+    # Directional interaction between reversed earthquake shear and an
+    # inclined base / sloping ground is not represented by the current
+    # scalar Meyerhof inclination-factor implementation. Refuse the
+    # combination rather than silently applying one assumed direction.
+    ab=_finite('基底傾角',base_inclination_deg)
+    ag=_finite('地表坡角',ground_inclination_deg)
+    if abs(ab)>1e-9 or abs(ag)>1e-9:
+        raise ValueError('目前地震孔壓折減承載力僅支援水平基底與水平地表；非零基底／地表傾角涉及地震水平力正反向與坡面方位的交互作用，尚未建立方向性模型，請勿將靜力斜坡修正直接套入地震承載力')
     # The residual-pore-pressure equation is sand-like and uses the USACE
     # Meyerhof-based resistance factors, not whichever classic theory is selected.
     base=bearing_capacity(
