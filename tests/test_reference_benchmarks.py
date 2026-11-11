@@ -2104,7 +2104,7 @@ def test_hoek_brown_2002_em_formula_is_continuous_at_100_mpa():
     # Eq. 11a and 11b meet exactly at sigma_ci=100 MPa.
     gsi, D = 55.0, 0.4
     expected = (1.0 - D / 2.0) * 10.0 ** ((gsi - 10.0) / 40.0)
-    result = hoek_brown_2002(
+    result = hoek_brown_parameters(
         gsi=gsi, mi=12.0, sigma_ci_mpa=100.0, disturbance=D,
         application="general", sigma3_custom_mpa=5.0,
     )
