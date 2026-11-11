@@ -320,7 +320,7 @@ def render_module_5(expanded=False):
     
         with st.expander("④ 地震等效靜力載重包絡（偽靜力）",expanded=False):
             st.warning("此面板將 kh、kv 轉成基礎慣性等效作用，並非完整地震承載力分析；不包含土體慣性、液化、循環強度折減或震陷。")
-            st.caption("此處 H5 視為地震前既有靜力水平力（不含 khV）；系統採 H+khV 作為不利同向包絡。khV 暫以輸入 V5 作為地震重量代理值，須確認與結構耐震分析的有效地震重量一致；若 H5 已含地震慣性力，不可重複加入。")
+            st.caption("H5 為地震前既有靜力水平力（不含地震慣性力）；W 為有效地震重量，系統採 H+khW 及 V±kvW。W 預設等於 V5 供初步估算；若結構耐震分析已提供有效地震重量，請改填該值。")
             ea,eb,ec=st.columns(3)
             with ea:
                 kh5=st.number_input("水平地震係數 kh",0.0,1.0,0.15,0.01,key="m5x_kh")
@@ -328,28 +328,30 @@ def render_module_5(expanded=False):
                 kv5=st.number_input("垂直地震係數 kv（輸入正值大小；自動計算向下增／減）",0.0,0.5,0.0,0.01,key="m5x_kv")
             with ec:
                 area5=st.number_input("基礎有效面積 A′ [m²]",0.1,5000.0,float(max(0.1,(B5-2*eB5)*(L5-2*eL5))),0.1,key="m5x_area")
+                seismic_weight5=st.number_input("有效地震重量 W [kN]（預設 V）",0.1,1000000.0,float(max(0.1,V5)),10.0,key="m5x_seismic_weight")
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
                 try:
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
-                        horizontal_load_kN=H5,footing_area_m2=area5,kh=kh5,kv=kv5)
-                    store_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", seismic, (V5,H5,area5,kh5,kv5))
+                        horizontal_load_kN=H5,footing_area_m2=area5,kh=kh5,kv=kv5,
+                        seismic_weight_kN=seismic_weight5)
+                    store_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", seismic, (V5,H5,area5,kh5,kv5,seismic_weight5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震等效載重計算失敗：{exc}")
-            seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5))
+            seismic, seismic_is_current = read_result_state(st.session_state, "m5x_seismic_result", "m5x_seismic_signature", (V5,H5,area5,kh5,kv5,seismic_weight5))
             if seismic and seismic_is_current:
                 st.dataframe(pd.DataFrame(seismic["cases"]),hide_index=True,use_container_width=True)
     
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
             st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。此地震分支目前僅支援水平基底與水平地表；若上方斜坡／傾斜基底輸入非零，系統會停止計算，避免把未處理方向性的靜力修正套入地震作用。")
-            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·V，並計算兩個垂直地震方向 V(1±kv)，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。仍未納入地震彎矩造成的偏心、基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
+            st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。仍未納入地震彎矩造成的偏心、基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
                 seismic_footing5=st.selectbox("基礎型式",["spread","strip"],format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",key="m5x_seismic_footing")
             with ss2:
-                st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震 H/V 組合自動計算，不再要求手動猜測係數。")
+                st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震合力 H_eq/V_eq 組合自動計算，不再要求手動猜測係數。")
             with ss3:
                 st.caption("兩組垂直地震係數方向均會計算，並以較低地震極限抗力作控制。")
             nonliquefiable_confirmed5=st.checkbox("已依獨立液化／循環強度評估確認：剪力區砂土不發生液化或循環剪力強度損失（本式只適用不液化但會產生超額孔壓的砂土）",value=False,key="m5x_nonliquefiable_confirm")
@@ -363,6 +365,7 @@ def render_module_5(expanded=False):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
+                        seismic_weight_kN=seismic_weight5,
                         footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
                         non_liquefiable_confirmed=nonliquefiable_confirmed5,
@@ -376,11 +379,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
+                        (V5,H5,kh5,kv5,seismic_weight5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")

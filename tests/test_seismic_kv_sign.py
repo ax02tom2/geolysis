@@ -78,3 +78,30 @@ def test_pseudostatic_horizontal_action_uses_adverse_direction_envelope():
     assert [row["horizontal_load_kN"] for row in result["cases"]] == pytest.approx([300.0, 300.0])
     assert all("同向（不利包絡）" in row["horizontal_load_direction"] for row in result["cases"])
     assert result["governing_horizontal_load_kN"] == pytest.approx(300.0)
+
+
+
+def test_pseudostatic_separates_effective_seismic_weight_from_static_vertical_load():
+    result = seismic_bearing_capacity_pseudostatic(
+        vertical_load_kN=1000.0,
+        horizontal_load_kN=100.0,
+        footing_area_m2=10.0,
+        kh=0.2,
+        kv=0.1,
+        seismic_weight_kN=1200.0,
+    )
+    assert [row["vertical_load_kN"] for row in result["cases"]] == pytest.approx([880.0, 1120.0])
+    assert [row["horizontal_load_kN"] for row in result["cases"]] == pytest.approx([340.0, 340.0])
+    assert result["seismic_weight_kN"] == pytest.approx(1200.0)
+
+
+def test_pseudostatic_rejects_vertical_seismic_case_that_reaches_uplift():
+    with pytest.raises(ValueError, match="零壓或上拔"):
+        seismic_bearing_capacity_pseudostatic(
+            vertical_load_kN=100.0,
+            horizontal_load_kN=0.0,
+            footing_area_m2=10.0,
+            kh=0.2,
+            kv=0.5,
+            seismic_weight_kN=1000.0,
+        )
