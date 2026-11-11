@@ -46,6 +46,7 @@ def render_module_4(expanded=False):
             with e:
                 fine_sat4=st.checkbox("地下水位以下飽和細砂／粉土（逐點 N60 > 15 套用膨脹修正）",key='m4_bb_finesat')
                 ndecrease4=st.checkbox("N60 隨深度持續下降（影響深度改採 min(2B, 鬆弱層厚度)）",key='m4_bb_decrease')
+            st.caption("礫土與飽和細砂／粉土修正勾選，假設影響深度 Zi 內所有測點均屬該類土；混合地層請勿對整份剖面套用單一修正，可在 CSV 逐筆先行修正 N60 後取消兩項勾選。此處細砂膨脹修正依 USACE 第 7-13 節直接修正 N60，不使用模組三供液化評估的 (N1)60。")
             try:
                 n60_used4=n4
                 if use_m3_spt4:
