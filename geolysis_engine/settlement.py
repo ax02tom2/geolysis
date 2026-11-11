@@ -346,7 +346,9 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
     """Compute arithmetic mean adjusted N60 within the 2025 USACE influence zone.
 
     Profile depths are measured downward from the footing base. Adjustments are
-    applied to each individual test before averaging, as required by §7-13.
+    applied to each individual N60 before averaging, as directed by §7-13.
+    The method-specific fine-sand correction is applied to raw N60 (not the
+    liquefaction-normalized (N1)60 profile) and only when explicitly confirmed.
     """
     B=_finite('基礎寬度 B',width_m); Hs=_finite('砂／礫層厚度',granular_layer_thickness_m)
     if B<=0 or Hs<=0 or not profile: raise ValueError('需提供正值 B、層厚及至少一筆 N60 剖面資料')
@@ -371,10 +373,15 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
             selected.append((z,raw_n,n))
     if not selected: raise ValueError(f'影響深度 Zi={zi:.2f} m 內沒有 SPT 測點')
     selected.sort(key=lambda x:x[0])
+    adjustment_notes = []
+    if fine_sand_saturated:
+        adjustment_notes.append('飽和極細砂／粉土：逐點 N60>15 依 USACE 式 4-7 修正')
+    if gravel_adjustment:
+        adjustment_notes.append('礫土／砂礫土：逐點 N60×1.25')
     return {'N60_average':sum(adjusted for _,_,adjusted in selected)/len(selected),
             'influence_depth_m':zi,'selected_count':len(selected),
             'selected_profile':selected,
-            'adjustments':'逐點修正後平均' if (gravel_adjustment or fine_sand_saturated) else '未另作粒料修正'}
+            'adjustments':'；'.join(adjustment_notes)+'；逐點修正後算術平均' if adjustment_notes else '未另作粒料修正'}
 
 def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_depth_m,
         width_m, granular_layer_thickness_m, n_decreases_with_depth=False,
