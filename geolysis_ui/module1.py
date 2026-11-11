@@ -370,12 +370,12 @@ def render_module_1(expanded=False):
             st.error(f"Hoek–Brown 參數計算未完成：{hb_error}。請檢查 GSI、UCS、擾動因子與 σ3,max 適用範圍。")
         if hb_current is not None:
             mb=hb_current['mb']; s_hb=hb_current['s']; a_hb=hb_current['a']
-            sig_cm=hb_current['sigma_cm_mpa']; sig_c_mass=hb_current['sigma_c_mass_mpa']
+            sig_cm=hb_current['sigma_cm_mpa']; sig_c_mass=hb_current['sigma_c_mass_mpa']; sig_t_mass=hb_current['sigma_t_mass_mpa']
             sig3_max=hb_current['sigma3_max_mpa']; sig3n=hb_current['sigma3n']
             phi_hb_deg=hb_current['phi_equiv_deg']; sin_phi=math.sin(math.radians(phi_hb_deg)); c_hb_mpa=hb_current['c_equiv_mpa']
             c_hb_kpa=hb_current['c_equiv_kpa']; em_gpa=hb_current['Em_gpa']
         else:
-            mb=s_hb=a_hb=sig_cm=sig_c_mass=sig3_max=sig3n=phi_hb_deg=sin_phi=c_hb_mpa=c_hb_kpa=em_gpa=0.0
+            mb=s_hb=a_hb=sig_cm=sig_c_mass=sig_t_mass=sig3_max=sig3n=phi_hb_deg=sin_phi=c_hb_mpa=c_hb_kpa=em_gpa=0.0
     
         with hb_col3:
             st.markdown("##### 3. 等效莫耳－庫倫與岩體參數成果")
@@ -386,6 +386,7 @@ def render_module_1(expanded=False):
     #### 等效內摩擦角 $\phi'$：`{phi_hb_deg:.2f}°`""")
                 st.metric("岩體變形模數 $E_m$", f"{em_gpa:.2f} GPa ({em_gpa*1000:.0f} MPa)")
                 st.metric(r"岩體整體抗壓強度 $\sigma_{cm}$", f"{sig_cm:.2f} MPa ({sig_cm*1000:.0f} kPa)")
+                st.metric(r"岩體抗拉強度 $\sigma_t$", f"{sig_t_mass:.3f} MPa（負值代表拉應力）")
                 st.caption(rf"**Hoek-Brown 準則常數**：$m_b = {mb:.3f}$ ｜ $s = {s_hb:.5f}$ ｜ $a = {a_hb:.3f}$ ｜ $\sigma_{{3,max}}={sig3_max:.3f}$ MPa")
                 st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
                 if gsi_lower <= gsi_upper:
