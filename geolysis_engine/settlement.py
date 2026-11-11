@@ -202,6 +202,49 @@ def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
             'method':'USACE EM 1110-1-1905 (2025) §7-15 / Table 7-10; idealized e-log-p path',
             'limitations':'以 Cr/Cc 理想化 e-log-p 曲線估算；實際開挖回彈量可能小於理論值，需以卸載－再載重固結試驗曲線校核。'}
 
+
+def excavation_rebound_recompression_layers(*, layers):
+    """USACE 2025 Eqs. 7-38 and 7-40 using measured e-log-p void ratios per layer.
+
+    Each layer provides rebound_thickness_m, e_initial, e_excavated,
+    recompression_thickness_m and e_final. Thicknesses may differ because only
+    the portion within the footing stress-influence zone recompresses.
+    """
+    if not layers:
+        raise ValueError("至少需要一筆 e-log-p 分層資料")
+    results = []
+    total_rebound_m = 0.0
+    total_recompression_m = 0.0
+    for index, row in enumerate(layers, 1):
+        Hr = _finite("回彈影響層厚", row.get("rebound_thickness_m"))
+        Hc = _finite("再壓縮影響層厚", row.get("recompression_thickness_m"))
+        e0 = _finite("開挖前孔隙比", row.get("e_initial"))
+        eexc = _finite("開挖後孔隙比", row.get("e_excavated"))
+        ef = _finite("基礎載重後孔隙比", row.get("e_final"))
+        if Hr <= 0 or Hc < 0 or Hc > Hr or e0 <= 0 or eexc < e0 or ef > eexc or ef <= 0:
+            raise ValueError(f"第 {index} 層厚度或孔隙比不合理；需 Hrebound>0、0≤Hrecompression≤Hrebound、eexc≥e0、0<ef≤eexc")
+        rebound_m = Hr * (eexc - e0) / (1.0 + e0)
+        recompression_m = Hc * (eexc - ef) / (1.0 + eexc)
+        total_rebound_m += rebound_m
+        total_recompression_m += recompression_m
+        results.append({
+            "Layer": row.get("Layer", index),
+            "Rebound_thickness_m": Hr,
+            "Recompression_thickness_m": Hc,
+            "e_initial": e0, "e_excavated": eexc, "e_final": ef,
+            "Rebound_mm": rebound_m * 1000.0,
+            "Recompression_mm": recompression_m * 1000.0,
+        })
+    net_m = total_recompression_m - total_rebound_m
+    return {
+        "rebound_mm": total_rebound_m * 1000.0,
+        "recompression_settlement_mm": total_recompression_m * 1000.0,
+        "net_settlement_mm": net_m * 1000.0,
+        "layer_results": results,
+        "method": "USACE EM 1110-1-1905 (2025), Eqs. 7-38 and 7-40; measured e-log-p void-ratio path",
+        "limitations": "需由代表性卸載－再載重固結試驗曲線取得各層 e0、eexc、ef；Hrecompression 僅輸入基礎應力影響範圍內的厚度。此法不自行推估開挖後孔隙比或基礎應力，須先完成 Table 7-10 的應力路徑分析。"
+    }
+
 def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
     """Compute differential settlement and angular distortion between two points."""
     a=_finite('位置 A 總沉陷',settlement_a_mm)
