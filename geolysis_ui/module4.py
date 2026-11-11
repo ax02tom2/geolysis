@@ -69,6 +69,10 @@ def render_module_4(expanded=False):
                     st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
                 elif gravel4 or fine_sat4:
                     st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
+                zi_bb4=1.43*(width4/0.3048)**0.7*0.3048
+                if ndecrease4: zi_bb4=min(2.0*width4,hs4)
+                if hs4 < zi_bb4-1e-9 and not ndecrease4:
+                    st.warning("Hs 小於 Zi，C2 有限厚度修正會降低預估沉陷；請確認砂／礫層下方確為明顯較硬、可視為不易壓縮的地層。若下伏層仍可壓縮或較軟，不應直接採用此折減，應改用分層 CPT／DMT／固結沉陷分析。")
                 bb_args=dict(n60_average=n60_used4,width_m=width4,length_m=length4,
                     initial_effective_stress_kpa=sig04,preconsolidation_stress_kpa=sigp4,
                     granular_layer_thickness_m=hs4,years=years4,load_type=loadtype4,
