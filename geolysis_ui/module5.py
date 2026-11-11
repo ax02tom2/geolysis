@@ -394,7 +394,11 @@ def render_module_5(expanded=False):
             sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
-                st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
+                if sr["qu_seismic_governing_kpa"] is None:
+                    st.metric("控制地震孔壓折減極限承載力","無有效值")
+                    st.error(sr["governing_case"].get("zero_resistance_reason","至少一組地震組合未能維持有效壓縮接觸；請另作接觸壓力／雙向偏心分析。"))
+                else:
+                    st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
                 st.dataframe(pd.DataFrame(sr['cases']),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
