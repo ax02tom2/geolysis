@@ -2947,6 +2947,7 @@ def test_general_seismic_eccentricity_evaluates_four_signed_load_combinations():
     assert plus["horizontal_load_kN"] == pytest.approx(150.0)
     assert minus["horizontal_load_kN"] == pytest.approx(50.0)
     assert plus["eccentricity_B_m"] == pytest.approx(100.0 / 900.0)
+    assert plus["middle_third_B_limit_m"] == pytest.approx(2.0 / 6.0)
     assert minus["eccentricity_B_m"] == pytest.approx(0.0)
     assert result["passes"] is True
     assert result["seismic_moment_included"] is True
