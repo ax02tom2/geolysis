@@ -240,7 +240,8 @@ def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
         footing_width_m, footing_length_m, footing_depth_m, water_depth_m,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0,
         footing_type='isolated', gamma_water_kn_m3=9.81,
-        required_fs=3.0):
+        required_fs=3.0, uplift_resisting_weight_kN=None,
+        base_inclination_deg=0.0, required_uplift_fs=1.5):
     """USACE EM 1110-1-1905 (2025), Eqs. 5-2 to 5-8 and 5-23.
 
     Computes gross equivalent applied pressure q_eq = V/A' - u_D for
@@ -259,9 +260,11 @@ def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
     eL=_finite('長邊偏心距 eL',eccentricity_L_m)
     gw=_finite('水單位重 gamma_w',gamma_water_kn_m3)
     fs_req=_finite('要求承載力安全係數',required_fs)
+    base_angle=_finite('基底傾斜角',base_inclination_deg)
+    uplift_fs_req=_finite('要求抗浮安全係數',required_uplift_fs)
     if footing_type not in ('isolated','continuous'):
         raise ValueError('基礎型式須為 isolated 或 continuous')
-    if qult<=0 or V<=0 or B<=0 or L<=0 or Df<0 or Dw<0 or eB<0 or eL<0 or gw<=0 or fs_req<=1:
+    if qult<=0 or V<=0 or B<=0 or L<=0 or Df<0 or Dw<0 or eB<0 or eL<0 or gw<=0 or fs_req<=1 or abs(base_angle)>=90 or uplift_fs_req<=1:
         raise ValueError('承載力檢核輸入不合理；qult、V、尺寸及水單位重須為正，深度與偏心距不可為負')
     if footing_type=='continuous' and eL>0:
         raise ValueError('連續條形基礎不支援沿條形長度方向偏心；請以短邊方向偏心距表示')
@@ -279,6 +282,28 @@ def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
         q_vertical=V/Be
     ud=gw*max(Df-Dw,0.0)
     qeq=q_vertical-ud
+    base_area = B*L if footing_type=='isolated' else B
+    uplift_force = ud*base_area
+    uplift_required = uplift_force > 1e-12
+    uplift_supported = (not uplift_required) or abs(base_angle) <= 1e-9
+    uplift_weight = None
+    uplift_fs = None
+    if not uplift_required:
+        uplift_completed = True
+        passes_uplift = True
+    elif not uplift_supported:
+        uplift_completed = False
+        passes_uplift = False
+    elif uplift_resisting_weight_kN is None:
+        uplift_completed = False
+        passes_uplift = False
+    else:
+        uplift_weight = _finite('抗浮永久向下重量 Wf+Ws+Wc', uplift_resisting_weight_kN)
+        if uplift_weight < 0:
+            raise ValueError('抗浮永久向下重量不可為負')
+        uplift_fs = uplift_weight/uplift_force
+        uplift_completed = True
+        passes_uplift = uplift_fs+1e-12 >= uplift_fs_req
     middle_B=(eB < B/6.0)
     middle_L=(True if footing_type=='continuous' else eL < L/6.0)
     fs_actual=(qult/qeq) if qeq>0 else None
@@ -296,9 +321,13 @@ def bearing_pressure_safety_check(*, ultimate_bearing_kpa, vertical_load_kN,
         'middle_third_B_limit_m':B/6.0,
         'middle_third_L_limit_m':(L/6.0 if footing_type=='isolated' else None),
         'passes_middle_third':passes_overturning,
-        'passes_all_checks':passes_bearing and passes_overturning,
+        'passes_all_checks':passes_bearing and passes_overturning and passes_uplift,
+        'uplift_force_kN':uplift_force,'uplift_resisting_weight_kN':uplift_weight,
+        'FS_uplift':uplift_fs,'FS_uplift_required':uplift_fs_req,
+        'uplift_check_required':uplift_required,'uplift_check_supported':uplift_supported,
+        'uplift_check_completed':uplift_completed,'passes_uplift':passes_uplift,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-2 to 5-8 and 5-23; Table 2-1',
-        'limitations':'V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已包含基礎自重及基礎底以上覆土；獨立基礎單位 kN，連續條形基礎單位 kN/m。qeq=V/A′−uD（獨立基礎）或 V/B′−uD（連續基礎），uD=γw·max(Df−Dw,0)。承載力 FS=qult,gross/qeq，USACE 2025 Table 2-1 最低值 3.0。偏心距另須位於中三分點內；本函式不取代滑動、整體穩定、地震及沉陷檢核。'
+        'limitations':'V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已包含基礎自重及基礎底以上覆土；獨立基礎單位 kN，連續條形基礎單位 kN/m。qeq=V/A′−uD（獨立基礎）或 V/B′−uD（連續基礎），uD=γw·max(Df−Dw,0)。承載力 FS=qult,gross/qeq，USACE 2025 Table 2-1 最低值 3.0。若 uD>0，另依式 5-36 檢核 FS_uplift=(Wf+Ws+Wc)/U，Table 2-1 最低 1.5；抗浮重量須獨立輸入，不能直接以可能含活載的 V 代替。本函式不計側面土體抗拔剪力；傾斜基底的抗浮力方向未在此簡化式處理。偏心距另須位於中三分點內；本函式不取代滑動、整體穩定、地震及沉陷檢核。'
     }
 
 def bearing_capacity_slope_base_corrections(*, base_result, c_kpa, phi_deg,
