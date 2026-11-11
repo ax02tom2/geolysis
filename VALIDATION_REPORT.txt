@@ -321,3 +321,18 @@ Appendix C-7e Burland–Burbidge settlement benchmark — PR #25
 - PR #25 merged to main at 9d447b10112df63cbdea381008a6beed85809036.
 - GitHub Actions run 42948248967: success; Python 3.11 compile passed; full suite 261 passed in 1.51 s.
 - Published worked-example benchmark count is now 54: 53 Appendix B cases plus this Appendix C-7e settlement case.
+
+
+
+USACE 2025 DMT incremental constrained-modulus settlement — PR #26
+
+- Added `dmt_settlement_2025()` implementing Eqs. 3-41a–d, 4-13 to 4-15 and 7-10 with Table 7-4 workflow.
+- Converts corrected DMT p0/p1, equilibrium u0 and pre-insertion vertical effective stress to ID, KD, ED and MDMT. Applies the KD/ID-specific RM branch and the USACE minimum RM=0.85.
+- Sums layer settlement using Boussinesq rectangular-center stress influence for isolated/rectangular footings and the infinite-strip centerline solution for continuous footings.
+- Applies gross q / gross qeq capped by qult/FS. Requires measured DMT profile to cover at least 2B for rectangular/isolated footings and 6B for continuous footings; it refuses extrapolation beyond the supplied profile.
+- Module 4 now offers a DMT method accepting corrected DMT pressures in bar and layer thicknesses; raw uncorrected A/B readings are explicitly not accepted.
+- Limitations are stated: ordinary 1-D constrained-modulus method only; no foundation rigidity, 3-D, creep, stress-history-special or seismic settlement corrections.
+- PR #26 merged to main at 08da196355a316907579660c9c8df911e77ebc33.
+- GitHub Actions run 42959903162: success; Python 3.11 compile passed; full suite 264 passed.
+- Three new equation/regression tests validate DMT parameter conversion, pressure cap, layer summation, strip-footing stress influence and rejection of incomplete or invalid DMT profiles. These are not counted as published Appendix C benchmarks.
+- Published worked-example benchmark count remains 54.
