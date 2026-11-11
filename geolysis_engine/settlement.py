@@ -414,6 +414,104 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
 
 
 
+
+def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m,
+                                    gross_pressure_kpa, base_effective_stress_kpa,
+                                    peak_effective_stress_kpa, years=50.0,
+                                    ultimate_bearing_kpa=None, factor_of_safety=3.0,
+                                    footing_type="isolated"):
+    """USACE 2025 Schmertmann CPT settlement, Eqs. 7-16 to 7-26.
+
+    Each layer contains thickness_m and measured cone tip resistance qc_kpa.
+    The peak effective stress is supplied at the peak Iz depth (B/2 for
+    axisymmetric, B for plane strain; interpolated for rectangular footings).
+    """
+    B = _finite("基礎短邊 B", footing_width_m)
+    L = _finite("基礎長邊 L", footing_length_m)
+    q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
+    sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
+    sigP = _finite("Iz 峰值深度初始有效應力", peak_effective_stress_kpa)
+    t = _finite("載重作用時間", years)
+    fs = _finite("承載力安全係數", factor_of_safety)
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or sigP <= 0 or t <= 0 or fs <= 0 or not layers:
+        raise ValueError("基礎尺寸、壓力、有效應力、時間、FS 或 CPT 分層資料不合理")
+    if footing_type not in ("isolated", "continuous"):
+        raise ValueError("基礎型式須為 isolated 或 continuous")
+    if ultimate_bearing_kpa is not None:
+        qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
+        if qult <= 0:
+            raise ValueError("輸入 qult 時必須大於 0")
+        q_used = min(q, qult / fs)
+    else:
+        q_used = q
+    q_net = q_used - sigD
+    if q_net <= 0:
+        raise ValueError("gross q／qeq 不大於基礎底初始有效應力，無正的新增應力")
+    ratio = (10.0 if footing_type == "continuous" else min(L / B, 10.0))
+    if ratio < 1.0:
+        raise ValueError("矩形基礎須 L/B≥1")
+    peak_depth = B * (0.5 + 0.5 * (ratio - 1.0) / 9.0)
+    Izp = 0.5 + 0.1 * math.sqrt(q_net / sigP)
+    C1 = max(0.5, 1.0 - 0.5 * sigD / q_net)
+    C2 = 1.0 + 0.2 * math.log10(t / 0.1) if t >= 0.1 else 1.0
+    influence_depth = B * (2.0 + 2.0 * (ratio - 1.0) / 9.0)
+    depth = 0.0
+    rows = []
+    for index, row in enumerate(layers, 1):
+        required = {"thickness_m", "qc_kpa"}
+        missing = required - set(row)
+        if missing:
+            raise ValueError("CPT 分層資料缺少欄位：" + ", ".join(sorted(missing)))
+        H = _finite("CPT 層厚", row["thickness_m"])
+        qc = _finite("CPT qc", row["qc_kpa"])
+        if H <= 0 or qc <= 0:
+            raise ValueError(f"CPT 第 {index} 層厚度與 qc 必須大於 0")
+        if depth >= influence_depth - 1e-9:
+            break
+        H_used = min(H, influence_depth - depth)
+        z = depth + H_used / 2.0
+        x = z / B
+        if x <= 0.5:
+            Iza = 0.1 + x * (2.0 * Izp - 0.2)
+        else:
+            Iza = 0.667 * Izp * (2.0 - x) if x <= 2.0 else 0.0
+        if x <= 1.0:
+            Izc = 0.2 + x * (Izp - 0.2)
+        else:
+            Izc = 0.331 * Izp * (4.0 - x) if x <= 4.0 else 0.0
+        Iz = Izc if footing_type == "continuous" else (
+            Iza + 0.111 * (Izc - Iza) * (ratio - 1.0)
+        )
+        Es_factor = 3.5 if footing_type == "continuous" else (
+            2.5 + (ratio - 1.0) / 9.0
+        )
+        Es = Es_factor * qc
+        settlement_component = Iz * H_used / Es
+        rows.append({
+            "Layer": row.get("Layer", index), "Depth_center_m": z,
+            "Thickness_used_m": H_used, "qc_kPa": qc, "Es_kPa": Es,
+            "Iz_axisymmetric": Iza, "Iz_plane_strain": Izc,
+            "Iz_used": Iz, "IzH_over_Es": settlement_component,
+        })
+        depth += H_used
+    if depth < influence_depth - 1e-8:
+        raise ValueError(
+            f"CPT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 Schmertmann 法需涵蓋 "
+            f"{influence_depth:.2f} m（依 L/B 與基礎型式計算），不可外插未測土層"
+        )
+    settlement_mm = C1 * C2 * q_net * sum(x["IzH_over_Es"] for x in rows) * 1000.0
+    return {
+        "settlement_mm": settlement_mm, "gross_pressure_used_kpa": q_used,
+        "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
+        "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "net_pressure_increment_kpa": q_net, "Iz_peak": Izp,
+        "peak_depth_m": peak_depth, "C1_embedment": C1, "C2_creep": C2,
+        "influence_depth_required_m": influence_depth, "profile_depth_used_m": depth,
+        "layer_results": rows,
+        "method": "USACE EM 1110-1-1905 (2025), Schmertmann CPT, Eqs. 7-16 to 7-26",
+        "limitations": "適用年輕（<100 年）、正常固結、潔淨矽砂的經驗模數關係；其他土類須有適用性判斷。CPT qc 為實測錐尖阻抗。矩形基礎依 L/B 線性內插 Es 與 Iz；連續基礎採平面應變。未包含地震沉陷或非均質三維土-結構互制。"
+    }
+
 def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
                         gross_pressure_kpa, base_effective_stress_kpa,
                         ultimate_bearing_kpa=None, factor_of_safety=3.0,
