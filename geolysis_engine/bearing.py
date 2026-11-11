@@ -513,15 +513,17 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         horizontal_load_kN, kh, kv, footing_type, residual_excess_pore_pressure_ratio,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
         water_depth, seismic_weight_kN=None, eccentricity_B=0.0, eccentricity_L=0.0,
+        seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
+        static_moment_B_sign=1, static_moment_L_sign=1,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
         slope_distance_m=0.0, adjacent_slope_fs=None,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False):
-    """Evaluate USACE 2025 seismic Nγ resistance for both pseudo-static load cases. kv is a nonnegative magnitude.
+    """USACE 2025 residual-pore-pressure bearing resistance for level geometry.
 
-    Automatically applies Meyerhof-based shape/depth/load-inclination/base/
-    ground-inclination factors (Tables 5-2/5-3), groundwater Eq. 5-19, and
-    residual pore-pressure reduction (Eqs. 9-3/9-4). This returns resistance
-    only, not a seismic qeq/FS or a complete seismic design verdict.
+    Static eccentricities are converted to static base moments using V·e.
+    Seismic overturning moment components are signed for the +kh direction;
+    the opposite horizontal earthquake direction reverses both components.
+    Each horizontal direction is combined with both vertical kv directions.
     """
     c=_finite('有效凝聚力 c′',c_kpa)
     phi=_finite('有效摩擦角 φ′',phi_deg)
@@ -541,84 +543,129 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     H=_finite('靜態水平力 H',horizontal_load_kN)
     khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
-    if V<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
-        raise ValueError('地震載重輸入不合理：V>0、H≥0、0≤kh≤1、0≤kv≤0.5')
-    # Directional interaction between reversed earthquake shear and an
-    # inclined base / sloping ground is not represented by the current
-    # scalar Meyerhof inclination-factor implementation. Refuse the
-    # combination rather than silently applying one assumed direction.
+    Bv=_finite('基礎短邊 B',B)
+    Lv=_finite('基礎長邊 L',L)
+    eB0=_finite('靜力短邊偏心距 eB',eccentricity_B)
+    eL0=_finite('靜力長邊偏心距 eL',eccentricity_L)
+    MBe=_finite('地震短邊方向彎矩 M_B,E',seismic_moment_B_kNm)
+    MLe=_finite('地震長邊方向彎矩 M_L,E',seismic_moment_L_kNm)
+    sign_MB=_finite('靜力短邊彎矩方向',static_moment_B_sign)
+    sign_ML=_finite('靜力長邊彎矩方向',static_moment_L_sign)
+    if sign_MB not in (-1,1) or sign_ML not in (-1,1):
+        raise ValueError('靜力彎矩方向只能為 +1 或 -1')
+    if V<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
+        raise ValueError('地震載重輸入不合理：V、B、L須正；H、偏心距不可為負；0≤kh≤1、0≤kv≤0.5')
     ab=_finite('基底傾角',base_inclination_deg)
     ag=_finite('地表坡角',ground_inclination_deg)
     if abs(ab)>1e-9 or abs(ag)>1e-9:
         raise ValueError('目前地震孔壓折減承載力僅支援水平基底與水平地表；非零基底／地表傾角涉及地震水平力正反向與坡面方位的交互作用，尚未建立方向性模型，請勿將靜力斜坡修正直接套入地震承載力')
-    # The residual-pore-pressure equation is sand-like and uses the USACE
-    # Meyerhof-based resistance factors, not whichever classic theory is selected.
-    base=bearing_capacity(
-        theory='Meyerhof',c_kpa=0.0,phi_deg=phi,gamma_moist=gamma_moist,
-        gamma_sub=gamma_sub,gamma_below=gamma_below,B=B,L=L,Df=Df,
-        water_depth=water_depth,fs=3.0,eccentricity_B=eccentricity_B,
-        eccentricity_L=eccentricity_L,footing_type=footing_map[footing_type])
+    if footing_type=='strip' and (eL0>1e-9 or abs(MLe)>1e-9):
+        raise ValueError('連續條形基礎不支援長邊方向偏心或彎矩；請將荷載轉換為短邊方向彎矩，或改用矩形基礎分析')
     action=seismic_bearing_capacity_pseudostatic(
         vertical_load_kN=V,horizontal_load_kN=H,footing_area_m2=1.0,
         kh=khv,kv=kvv,seismic_weight_kN=seismic_weight_kN)
+    W=action['seismic_weight_kN']
+    static_MB=sign_MB*V*eB0
+    static_ML=sign_ML*V*eL0
+    horizontal_signs=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
     cases=[]
-    for case in action['cases']:
-        corrected=bearing_capacity_slope_base_corrections(
-            base_result=base,c_kpa=0.0,phi_deg=phi,
-            base_inclination_deg=base_inclination_deg,
-            ground_inclination_deg=ground_inclination_deg,
-            slope_distance_m=slope_distance_m,
-            adjacent_slope_fs=adjacent_slope_fs,
-            horizontal_load=case['horizontal_load_kN'],
-            vertical_load=case['vertical_load_kN'])
-        factors={
-            'shape_s_gamma':corrected['sg'],
-            'depth_d_gamma':corrected['dg'],
-            'inclination_i_gamma':corrected['load_factor_gamma_2025'],
-            'base_b_gamma':corrected['base_factor_gamma'],
-            'ground_g_gamma':corrected['ground_factor_gamma'],
-        }
-        product=math.prod(factors.values())
-        if product<=0:
-            qu=0.0
-            resistance=None
-            reason='地震載重傾角 β≥φ′，Meyerhof iγ=0，無正值 Nγ 承載力貢獻'
-        else:
-            resistance=seismic_bearing_capacity_residual_pore_pressure(
-                footing_type=footing_type,
-                effective_unit_weight_kn_m3=corrected['gamma_effective'],
-                effective_width_m=base['B_effective'],
-                bearing_factor_ngamma=base['Ngamma'],
-                residual_excess_pore_pressure_ratio=ru,
-                shape_depth_inclination_factor=product,
-                non_liquefiable_confirmed=non_liquefiable_confirmed,
-                full_shear_zone_confirmed=full_shear_zone_confirmed)
-            qu=resistance['qu_seismic_kpa']
-            reason=None
-        cases.append({
-            **case,
-            'load_inclination_beta_deg':corrected['load_inclination_beta_2025_deg'],
-            **factors,
-            'correction_product':product,
-            'gamma_effective_eq_5_19_kn_m3':corrected['gamma_effective'],
-            'effective_width_m':base['B_effective'],
-            'Ngamma_meyerhof':base['Ngamma'],
-            'qu_seismic_kpa':qu,
-            'zero_resistance_reason':reason,
-            'method':(resistance['method'] if resistance else 'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3 and Eqs. 9-3/9-4'),
-        })
-    governing=min(cases,key=lambda x:x['qu_seismic_kpa'])
+    for hsign in horizontal_signs:
+        He=abs(H+hsign*khv*W)
+        for vsign in (-1,1):
+            Ve=V+vsign*kvv*W
+            if Ve<=0:
+                raise ValueError('地震垂直組合 V±kvW≤0，已達零壓或上拔；須另作接觸／抗浮分析')
+            M_B=static_MB+hsign*MBe
+            M_L=static_ML+hsign*MLe
+            eB_case=abs(M_B)/Ve
+            eL_case=abs(M_L)/Ve
+            Be=Bv-2.0*eB_case
+            Le=Lv-2.0*eL_case
+            common={
+                'vertical_load_kN':Ve,'horizontal_load_kN':He,
+                'seismic_weight_kN':W,
+                'horizontal_load_direction':('靜力 H 與地震 kh·W 同向' if hsign==1 else '靜力 H 與地震 kh·W 反向'),
+                'horizontal_earthquake_sign':hsign,
+                'vertical_sign':('向下增加' if Ve>V else '向下減少' if Ve<V else '無垂直增減'),
+                'moment_B_kNm':M_B,'moment_L_kNm':M_L,
+                'eccentricity_B_m':eB_case,'eccentricity_L_m':eL_case,
+                'B_effective_m':Be,'L_effective_m':Le,
+                'average_contact_pressure_kpa':None,
+            }
+            invalid_reason=None
+            if Be<=0 or (footing_type=='spread' and Le<=0):
+                invalid_reason='地震彎矩使有效基礎尺寸≤0；已超出壓縮接觸有效尺寸法適用範圍，須另作接觸／抗拔分析'
+            elif footing_type=='spread' and Le<Be:
+                invalid_reason='偏心後有效長邊 L′ 小於有效短邊 B′；目前矩形基礎模型不自動旋轉／交換軸向，須改用專用雙向偏心分析'
+            if invalid_reason:
+                cases.append({**common,'qu_seismic_kpa':None,'zero_resistance_reason':invalid_reason,
+                    'method':'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4; no valid compression-contact dimensions'})
+                continue
+            base=bearing_capacity(
+                theory='Meyerhof',c_kpa=0.0,phi_deg=phi,
+                gamma_moist=gamma_moist,gamma_sub=gamma_sub,
+                gamma_below=gamma_below,B=Bv,L=Lv,Df=Df,
+                water_depth=water_depth,fs=3.0,
+                eccentricity_B=eB_case,eccentricity_L=eL_case,
+                footing_type=footing_map[footing_type])
+            corrected=bearing_capacity_slope_base_corrections(
+                base_result=base,c_kpa=0.0,phi_deg=phi,
+                base_inclination_deg=0.0,ground_inclination_deg=0.0,
+                slope_distance_m=slope_distance_m,
+                adjacent_slope_fs=None,
+                horizontal_load=He,vertical_load=Ve)
+            factors={
+                'shape_s_gamma':corrected['sg'],
+                'depth_d_gamma':corrected['dg'],
+                'inclination_i_gamma':corrected['load_factor_gamma_2025'],
+                'base_b_gamma':corrected['base_factor_gamma'],
+                'ground_g_gamma':corrected['ground_factor_gamma'],
+            }
+            product=math.prod(factors.values())
+            if product<=0:
+                qu=0.0
+                resistance=None
+                reason='地震載重傾角 β≥φ′，Meyerhof iγ=0，無正值 Nγ 承載力貢獻'
+            else:
+                resistance=seismic_bearing_capacity_residual_pore_pressure(
+                    footing_type=footing_type,
+                    effective_unit_weight_kn_m3=corrected['gamma_effective'],
+                    effective_width_m=base['B_effective'],
+                    bearing_factor_ngamma=base['Ngamma'],
+                    residual_excess_pore_pressure_ratio=ru,
+                    shape_depth_inclination_factor=product,
+                    non_liquefiable_confirmed=non_liquefiable_confirmed,
+                    full_shear_zone_confirmed=full_shear_zone_confirmed)
+                qu=resistance['qu_seismic_kpa']
+                reason=None
+            cases.append({
+                **common,
+                'average_contact_pressure_kpa':Ve/(Be*Le if footing_type=='spread' else Be),
+                'load_inclination_beta_deg':corrected['load_inclination_beta_2025_deg'],
+                **factors,'correction_product':product,
+                'gamma_effective_eq_5_19_kn_m3':corrected['gamma_effective'],
+                'effective_width_m':base['B_effective'],
+                'Ngamma_meyerhof':base['Ngamma'],
+                'qu_seismic_kpa':qu,'zero_resistance_reason':reason,
+                'method':(resistance['method'] if resistance else 'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3 and Eqs. 9-3/9-4'),
+            })
+    invalid_cases=[case for case in cases if case['qu_seismic_kpa'] is None]
+    if invalid_cases:
+        governing=invalid_cases[0]
+        qu_governing=None
+    else:
+        governing=min(cases,key=lambda x:x['qu_seismic_kpa'])
+        qu_governing=governing['qu_seismic_kpa']
     return {
-        'cases':cases,
-        'seismic_weight_kN':action['seismic_weight_kN'],
-        'governing_case':governing,
-        'qu_seismic_governing_kpa':governing['qu_seismic_kpa'],
-        'footing_type':footing_type,
-        'ru':ru,
-        'method':'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4',
-        'limitations':'已自動依兩組偽靜力 V/H 組合計算 Meyerhof sγ、dγ、iγ、bγ、gγ，並以 Eq. 5-19 取得剪力區有效單位重，再套用 (1−ru) 折減。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、結構地震彎矩引致之額外偏心、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。'
+        'cases':cases,'seismic_weight_kN':W,
+        'governing_case':governing,'qu_seismic_governing_kpa':qu_governing,
+        'footing_type':footing_type,'ru':ru,
+        'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
+        'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
+        'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
+        'method':'USACE EM 1110-1-1905 (2025), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。若兩分量均為 0，代表本次未納入地震彎矩，結果僅為不含地震傾覆效應的初步抗力估算，不可視為已完成地震偏心分析。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
     }
-
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
         gamma_moist, gamma_sub, water_depth, fs=3.0, footing_type='isolated'):

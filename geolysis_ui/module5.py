@@ -329,6 +329,19 @@ def render_module_5(expanded=False):
             with ec:
                 area5=st.number_input("基礎有效面積 A′ [m²]",0.1,5000.0,float(max(0.1,(B5-2*eB5)*(L5-2*eL5))),0.1,key="m5x_area")
                 seismic_weight5=st.number_input("有效地震重量 W [kN]（預設 V）",0.1,1000000.0,float(max(0.1,V5)),10.0,key="m5x_seismic_weight")
+            sm1,sm2=st.columns(2)
+            with sm1:
+                seismic_moment_B5=st.number_input("地震基礎底彎矩 M_B,E [kN·m]（短邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_B")
+            with sm2:
+                seismic_moment_L5=st.number_input("地震基礎底彎矩 M_L,E [kN·m]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_L")
+            st.caption("請輸入結構耐震分析傳至基礎底面的地震彎矩分量；正負號以 +kh 方向為基準，系統會自動反算 −kh 方向。靜力偏心距 eB/eL 會先換算為靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。此兩個彎矩輸入僅用於下方地震孔壓折減承載力，不會改變上方單純 H/V 等效載重表。")
+            if kh5>0 and abs(seismic_moment_B5)<1e-9 and abs(seismic_moment_L5)<1e-9:
+                st.warning("目前兩個地震基礎底彎矩均為 0；系統不會由 khW 自行猜測作用高度。若結構分析已有地震彎矩，請輸入其傳至基礎底面的帶符號分量；未輸入時結果不包含地震傾覆偏心。")
+            sd1,sd2=st.columns(2)
+            with sd1:
+                static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
+            with sd2:
+                static_moment_L_sign5=st.selectbox("靜力長邊偏心方向",options=[1,-1],format_func=lambda x:"+L 方向" if x==1 else "−L 方向",key="m5x_static_moment_L_sign")
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
                 try:
                     seismic=seismic_bearing_capacity_pseudostatic(vertical_load_kN=V5,
@@ -366,6 +379,10 @@ def render_module_5(expanded=False):
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
                         seismic_weight_kN=seismic_weight5,
+                        seismic_moment_B_kNm=seismic_moment_B5,
+                        seismic_moment_L_kNm=seismic_moment_L5,
+                        static_moment_B_sign=static_moment_B_sign5,
+                        static_moment_L_sign=static_moment_L_sign5,
                         footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
                         non_liquefiable_confirmed=nonliquefiable_confirmed5,
@@ -379,14 +396,18 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
+                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
-                st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
+                if sr["qu_seismic_governing_kpa"] is None:
+                    st.metric("控制地震孔壓折減極限承載力","無有效值")
+                    st.error(sr["governing_case"].get("zero_resistance_reason","至少一組地震組合未能維持有效壓縮接觸；請另作接觸壓力／雙向偏心分析。"))
+                else:
+                    st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
                 st.dataframe(pd.DataFrame(sr['cases']),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
