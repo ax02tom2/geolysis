@@ -556,6 +556,73 @@ def render_module_5(expanded=False):
                 st.caption(insitu_result["limitations"])
 
 
+
+        with st.expander("⑧ 原位試驗分層承載力與弱層穿刺整合",expanded=False):
+            st.caption("依 USACE 2025 式 5-25／5-26、表 5-5 分別計算各層原位試驗承載力，再依式 5-17／5-18 檢查強上層覆蓋弱下層的 2V:1H 穿刺。每列厚度是自基礎底面向下的該層厚度；各層可使用不同試驗種類與排水條件。")
+            st.caption("CSV 欄位：thickness_m,test_type,drainage,measurements。SPT 輸入 N60（blows/ft）；CPT 輸入 qne（kPa）；PMT 輸入 pne（kPa）。measurements 欄以分號分隔多筆試驗值。drainage 使用 drained 或 undrained。")
+            insitu_layer_footing5=st.selectbox("分層基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_insitu_layer_footing")
+            insitu_layer_csv5=st.text_area(
+                "各層原位試驗資料（CSV）",
+                value="thickness_m,test_type,drainage,measurements\\n1.5,SPT,drained,20;22;18\\n2.0,SPT,undrained,4;5;4",
+                height=125,key="m5x_insitu_layer_csv")
+            insitu_layer_unsupported5=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
+            if insitu_layer_unsupported5:
+                st.warning("此原位試驗分層穿刺路徑目前僅支援置中垂直載重、水平基底及水平地表；請先將水平力、偏心、傾斜基底及坡角設為 0，否則不會執行。")
+            if st.button("計算原位試驗分層穿刺",key="m5x_insitu_layer_run",disabled=insitu_layer_unsupported5):
+                try:
+                    frame=pd.read_csv(StringIO(insitu_layer_csv5))
+                    required_cols={"thickness_m","test_type","drainage","measurements"}
+                    if not required_cols.issubset(frame.columns):
+                        raise ValueError("CSV 必須包含 thickness_m、test_type、drainage、measurements 四欄")
+                    layer_rows=[]
+                    for row in frame.to_dict("records"):
+                        raw=str(row["measurements"]).replace("；",";").replace("，",";").replace("|",";")
+                        values=[float(x.strip()) for x in raw.split(";") if x.strip()]
+                        layer_rows.append({
+                            "thickness_m":float(row["thickness_m"]),
+                            "test_type":str(row["test_type"]).strip().upper(),
+                            "drainage":str(row["drainage"]).strip().lower(),
+                            "measurements":values,
+                        })
+                    layered_insitu=layered_bearing_capacity_in_situ_profile(
+                        layers=layer_rows,footing_width_m=B5,footing_length_m=L5,
+                        footing_depth_m=df5,water_depth_m=dw5,
+                        gamma_moist_kn_m3=gamma5,gamma_sub_kn_m3=gsub5,
+                        footing_type=insitu_layer_footing5,fs=fs5)
+                    insitu_layer_sig=(insitu_layer_csv5,insitu_layer_footing5,B5,L5,df5,dw5,
+                        gamma5,gsub5,fs5,V5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+                    store_result_state(st.session_state,"m5x_insitu_layer_result",
+                        "m5x_insitu_layer_signature",layered_insitu,insitu_layer_sig)
+                except Exception as exc:
+                    logging.exception("Unhandled application calculation error")
+                    st.error(f"原位試驗分層穿刺計算失敗：{exc}")
+            insitu_layer_sig=(insitu_layer_csv5,insitu_layer_footing5,B5,L5,df5,dw5,
+                gamma5,gsub5,fs5,V5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+            layered_insitu,insitu_layer_current=read_result_state(
+                st.session_state,"m5x_insitu_layer_result","m5x_insitu_layer_signature",insitu_layer_sig)
+            if layered_insitu and insitu_layer_current:
+                _render_bearing_safety_check(
+                    qult_kpa=layered_insitu["qult_kpa"],vertical_load_kN=V5,
+                    width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                    footing_type=insitu_layer_footing5,complete_capacity_model=not insitu_layer_unsupported5,
+                    incomplete_reason="原位試驗分層穿刺尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",
+                    load_confirmed=loads_confirmed5)
+                st.write(f"控制模式：{layered_insitu['controlling_mode']}；控制層：第 {layered_insitu['controlling_layer']} 層")
+                punch_candidates=[x for x in layered_insitu["candidates"] if x.get("spread_factor",1.0)>1.0]
+                if punch_candidates:
+                    st.write("穿刺擴散係數："+ "；".join(f"第 {x['controlling_layer']} 層：{x['spread_factor']:.3f}" for x in punch_candidates))
+                layer_view=pd.DataFrame(layered_insitu["layers"]).rename(columns={
+                    "layer":"層次","thickness_m":"層厚 (m)","top_depth_m":"層頂深度 (m)",
+                    "test_type":"試驗類型","drainage":"排水條件","measurement_count":"試驗點數",
+                    "geometric_mean":"幾何平均","s_parameter_kpa":"等效參數 s (kPa)",
+                    "k":"k","qult_kpa":"該層極限承載力 (kPa)"})
+                st.dataframe(layer_view,hide_index=True,use_container_width=True)
+                if layered_insitu.get("warning"):
+                    st.warning(layered_insitu["warning"])
+                st.caption(layered_insitu["limitations"])
+            elif layered_insitu:
+                st.warning("輸入已變更，請重新執行原位試驗分層穿刺計算。")
+
         with st.expander("擴充分析公式依據與適用限制",expanded=False):
             st.markdown("""
     - **斜坡地表／傾斜基底**：USACE [EM 1110-1-1905（2025）](https://publibrary.sec.usace.army.mil/api/download?filename=EM+1110-1-1905_Geotechincal+Design+of+Shallow+Foundations+on+Soils_2025+07+22+-+Final.pdf&id=54658636-77d2-48df-f26b-5295a01899a7&preview=true)，Table 5-3、5-4、Eqs. 5-21／5-22。
