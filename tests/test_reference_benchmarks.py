@@ -973,3 +973,13 @@ def test_usace_2025_bearing_check_flags_middle_third_and_zero_effective_pressure
     assert uplift["FS_bearing"] is None
     assert uplift["passes_all_checks"] is False
 
+def test_usace_2025_middle_third_boundary_is_strictly_inside():
+    result = bearing_pressure_safety_check(
+        ultimate_bearing_kpa=800.0, vertical_load_kN=1200.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        footing_depth_m=0.0, water_depth_m=0.0,
+        eccentricity_B_m=2.0 / 6.0,
+    )
+    assert result["passes_middle_third"] is False
+    assert result["passes_all_checks"] is False
+
