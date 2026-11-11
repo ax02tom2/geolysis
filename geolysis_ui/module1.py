@@ -178,6 +178,10 @@ def render_module_1(expanded=False):
                 mi = float(mi_default)
                 mi = st.number_input("mi（可直接調整）", min_value=1.0, max_value=50.0, value=float(mi_default), step=0.5, key=f"hb_mi_{rock_preset}")
                 st.caption(f"mi 初估：{mi_low}–{mi_high}；採用 {mi:g}。{mi_source}。")
+                if rock_preset == "砂岩 Sandstone（台灣南莊層三軸案例）":
+                    st.markdown("[查看南莊層砂岩三軸反算案例](https://www.thb.gov.tw/FileResource.axd?path=html%2Fdoc%2F%E5%87%BA%E7%89%88%E5%93%81-%E5%8F%B0%E7%81%A3%E5%85%AC%E8%B7%AF%E5%B7%A5%E7%A8%8B%2F%E7%AC%AC40%E5%8D%B7%E7%AC%AC1%E6%9C%9F.pdf)")
+                elif rock_preset == "片岩 Schist（蘇花公路案例）":
+                    st.markdown("[查看蘇花公路片岩工程參數來源](https://dptrc.sinotech.org.tw/chinese/02_about/download.php%40f%3Dmenu01361588416.pdf)")
     
             st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
             st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
@@ -267,7 +271,7 @@ def render_module_1(expanded=False):
             for _label, _lithology, _ucs_value, _location in _ucs_2025_samples:
                 _ucs_case_data[_label] = (
                     _ucs_value, _ucs_value, _ucs_value,
-                    f"表 5 單一試體 UCS={_ucs_value:.2f} MPa；{_location}。非地層統計範圍；使用前須核對試體風化、含水狀態與代表性。",
+                    f"表 5 彙整之單一試體 UCS={_ucs_value:.2f} MPa；{_location}。該文係彙整前人試驗資料，非作者於 2025 年新採樣；非地層統計範圍，使用前須核對試體風化、含水狀態與代表性。",
                     _ucs_2025_source,
                 )
 
