@@ -357,15 +357,18 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
     zi=1.43*(B/0.3048)**0.7*0.3048
     if n_decreases_with_depth: zi=min(2.0*B,Hs)
     selected=[]
-    seen=set()
+    seen_depths=[]
+    valid_profile_depths=[]
     for row in profile:
         if 'Depth_below_base_m' not in row or 'N60' not in row:
             raise ValueError('SPT 剖面 CSV 必須包含 Depth_below_base_m、N60 欄位')
         z=_finite('Depth_below_base_m',row['Depth_below_base_m'])
         n=_finite('N60',row['N60'])
         if z<0 or n<=0: raise ValueError('SPT 剖面深度不可為負，N60 必須大於 0')
-        if z in seen: raise ValueError(f'SPT 剖面深度 {z:g} m 重複')
-        seen.add(z)
+        if any(abs(z - prior) <= 0.001 for prior in seen_depths):
+            raise ValueError(f'SPT 剖面深度 {z:g} m 與既有測點相距不超過 1 mm，視為重複深度')
+        seen_depths.append(z)
+        valid_profile_depths.append(z)
         if z<=zi:
             raw_n=n
             if fine_sand_saturated and n>15: n=15+0.5*(n-15)
@@ -378,9 +381,16 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
         adjustment_notes.append('飽和極細砂／粉土：逐點 N60>15 依 USACE 式 4-7 修正')
     if gravel_adjustment:
         adjustment_notes.append('礫土／砂礫土：逐點 N60×1.25')
+    quality_warnings = []
+    profile_bottom = max(valid_profile_depths)
+    if len(selected) == 1:
+        quality_warnings.append('影響深度內僅有 1 個有效 SPT 測點；算術平均代表性有限，應補充資料或採保守判斷。')
+    if profile_bottom < zi - 1e-9:
+        quality_warnings.append(f'有效 SPT 剖面最深僅 {profile_bottom:.2f} m，未達影響深度 Zi={zi:.2f} m；本結果屬資料深度不足的暫估。')
     return {'N60_average':sum(adjusted for _,_,adjusted in selected)/len(selected),
             'influence_depth_m':zi,'selected_count':len(selected),
-            'selected_profile':selected,
+            'selected_profile':selected,'profile_bottom_m':profile_bottom,
+            'data_quality_warnings':quality_warnings,
             'adjustments':'；'.join(adjustment_notes)+'；逐點修正後算術平均' if adjustment_notes else '未另作粒料修正'}
 
 def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_depth_m,
