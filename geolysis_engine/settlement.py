@@ -376,10 +376,16 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
     if B<=0 or Hs<=0 or not profile: raise ValueError('需提供正值 B、層厚及至少一筆 N60 剖面資料')
     if gravel_adjustment and fine_sand_saturated:
         raise ValueError('礫土修正與飽和細砂／粉土膨脹修正不可同時套用，請依土壤粒徑組成選擇')
-    row_material_mode=any(
-        row.get('Burland_Material') is not None and str(row.get('Burland_Material')).strip()
-        for row in profile
-    )
+    def has_material_value(value):
+        if value is None or not str(value).strip():
+            return False
+        try:
+            if math.isnan(float(value)):
+                return False
+        except (TypeError, ValueError):
+            pass
+        return True
+    row_material_mode=any(has_material_value(row.get('Burland_Material')) for row in profile)
     if row_material_mode and (gravel_adjustment or fine_sand_saturated):
         raise ValueError('已提供逐點 Burland_Material；請關閉全剖面礫土／細砂修正，避免重複套用')
     zi=_burland_influence_depth_m(
@@ -404,7 +410,7 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
             raw_n=n
             if row_material_mode:
                 material=row.get('Burland_Material')
-                if material is None or not str(material).strip():
+                if not has_material_value(material):
                     raise ValueError(f'深度 {z:g} m 位於影響深度 Zi 內，但未填 Burland_Material；請逐點指定 standard、fine_sand_silt_saturated 或 gravel_sandy_gravel')
                 material=str(material).strip().lower()
                 if material not in ('standard','fine_sand_silt_saturated','gravel_sandy_gravel'):
@@ -427,7 +433,9 @@ def burland_burbidge_average_n60_from_profile(profile, *, width_m, granular_laye
             selected.append((z,raw_n,n))
             selected_adjustments.append(adjustment)
     if not selected: raise ValueError(f'影響深度 Zi={zi:.2f} m 內沒有 SPT 測點')
-    selected.sort(key=lambda x:x[0])
+    ordered=sorted(zip(selected,selected_adjustments),key=lambda item:item[0][0])
+    selected=[item[0] for item in ordered]
+    selected_adjustments=[item[1] for item in ordered]
     adjustment_notes=[]
     if row_material_mode:
         used=sorted({x for x in selected_adjustments if x!='一般土層；未另作粒料修正'})
