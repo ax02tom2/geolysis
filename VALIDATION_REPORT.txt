@@ -517,3 +517,17 @@ Module 3 → Module 4 Burland–Burbidge row-wise material corrections — PR #5
 - GitHub Actions run 42984034614: success; Python 3.11 compile passed; full suite 359 passed in 2.27 s.
 - Published worked-example benchmark count remains 59 (53 Appendix B plus six Appendix C cases); four new tests are equation/integration regressions, not new published examples.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §7-13, Table 7-9 and Eq. 4-7.
+
+
+
+Module 4 PMT shape-factor applicability — PR #53
+
+- Constrained non-circular footing λd and λc to the USACE 2025 Figure 7-11 plotted chart domain: λd=1.0–2.5 and λc=1.0–1.5.
+- Rejects λd<λc, inconsistent with the Figure 7-11 curves.
+- Replaced the UI's previous 0.01–5.0 ranges with chart bounds. Defaults use the conservative high end (λd=2.35, λc=1.44); users must read and adjust for actual L/B. For L/B>10, the UI explicitly prohibits extrapolation and directs use of the chart endpoint.
+- Circular footing remains λd=λc=1.0.
+- Added two regression cases for out-of-chart factors and reversed λd/λc.
+- PR #53 merged to main at 4c0a34b9675c58fa884c68823c2dcef5b42ce5dd.
+- GitHub Actions run 42984431701: success; Python 3.11 compile passed; full suite 360 passed in 1.66 s.
+- Published worked-example benchmark count remains 59; two additional tests validate chart-domain and curve-order applicability, not new published examples.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Figure 7-11.
