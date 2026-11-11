@@ -2326,7 +2326,7 @@ def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations
             effective_width_m=2.0, bearing_factor_ngamma=20.0,
             residual_excess_pore_pressure_ratio=0.2,
         )
-    with pytest.raises(ValueError, match="完整承載力剪力區"):
+    with pytest.raises(ValueError, match="部分剪力區模式必須提供"):
         seismic_bearing_capacity_residual_pore_pressure(
             footing_type="spread", effective_unit_weight_kn_m3=18.0,
             effective_width_m=2.0, bearing_factor_ngamma=20.0,
@@ -2340,7 +2340,7 @@ def test_usace_seismic_pore_pressure_method_requires_applicability_confirmations
     ("non_liquefiable_confirmed", "full_shear_zone_confirmed", "message"),
     [
         (False, True, "不液化／無循環剪力強度損失"),
-        (True, False, "完整承載力剪力區"),
+        (True, False, "部分剪力區模式必須提供"),
     ],
 )
 def test_usace_seismic_cases_require_both_applicability_confirmations(
