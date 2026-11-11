@@ -1,15 +1,15 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: 6d90cbd63676ee7ad9d723ee18091938c56c73a0
+Validated main code commit: 35b1a44a6b24bac32fc1f67f3da0a18c5276e28c
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 364 passed
-GitHub Actions validation run: 42985106615 (success; Python 3.11 compile passed; 364 passed in 1.91 s; includes PR #56 Appendix C-1/C-4 layer-specific e-log-p calculation and Module 4 UI)
-Runtime smoke: latest PR #56 CI ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
+Latest verified automated suite: 373 passed
+GitHub Actions validation run: 42985828131 (success; Python 3.11 compile passed; 373 passed in 1.96 s; includes PR #59 Appendix C-2/C-3 superposition and fill benchmarks plus Module 4 UI)
+Runtime smoke: latest PR #59 CI ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
-Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 61 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
+Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
 Module 4: consolidation time-rate mapping aligned to USACE 2025 Figure 7-16; multilayer time-rate and secondary-compression shortcut disabled until per-layer Cv/drainage inputs are available.
 Module 5: drained and undrained USACE 2025 Meyerhof load-inclination factors now use actual H/V; independent Table 5-3 and Table 5-4 benchmarks added.
@@ -59,3 +59,16 @@ Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
 Module 4 PMT peat: auto state no longer assumes NC; requires explicit normally consolidated selection per Table 7-6. One regression test added. Latest suite 362 passed.
 Module 4 PMT rock: implemented all three Table 7-6 rock rheological α categories with explicit rock-condition input; four regression tests. Latest suite 369 passed.
+
+
+Module 4 Appendix C-2/C-3 superposition and fill consolidation — PR #59
+- Added a separate layer-wise consolidation path accepting total per-layer Δσz after the user has completed stress-distribution and load-superposition calculations. This path does not infer footing geometry, compute individual Boussinesq stress fields, or return a bearing-capacity qa.
+- Added Module 4 UI expander for adjacent footings, combined footing/fill loads, and other superimposed load cases. Each CSV row requires layer thickness, e0, Cc, Cr, σ′0, σ′p and the already-summed Δσz.
+- Appendix C-2 point B: reproduced approximately 0.0324 ft (0.39 in). Point E: approximately 0.0235 ft (0.28 in).
+- Appendix C-3a areal fill only: approximately 0.092 ft (1.10 in). C-3b fill plus footing: approximately 0.145 ft (1.74 in). C-3c time to 70% consolidation: approximately 152.8 days using Cv=0.412 ft²/day and Hdr=12.5 ft.
+- Source-table notes: C-2 point B's intermediate summary has an inconsistent layer-6 Δσz (0.18 tsf); 0.08 tsf agrees with the final stress 0.67 tsf and settlement 0.001 ft, so the test uses 0.08 tsf. C-3a/C-3b row-3 depth midpoint overlaps the previous layer when compared with listed thicknesses; tests use the contiguous midpoint derived from the thickness sequence only for depth-order validation, while retaining the published stresses and settlement values. This is not claimed as full validation of the manual's depth-coordinate transcription.
+- Added four regression tests covering C-2 B/E, C-3a, C-3b and C-3c. Added the new test file to GitHub Actions.
+- PR #59 merged to main at 35b1a44a6b24bac32fc1f67f3da0a18c5276e28c.
+- GitHub Actions run 42985828131: success; Python 3.11 compile passed; full suite 373 passed in 1.96 s.
+- Public worked-example coverage is now 66 cases: 53 Appendix B and 13 Appendix C cases (C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-2/C-3a/C-3b/C-3c; Eqs. 6-6, 6-7, 7-8, 7-9 and 7-42.
