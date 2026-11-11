@@ -529,8 +529,13 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             raise ValueError("使用式 7-12 前，必須確認已辨識完整 2B／6B 範圍內的所有軟弱／鬆散層")
     elif not deep_uniform_deposit_confirmed:
         raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B／6B 內有軟弱層或鬆散夾層，須輸入軟弱層資料改用式 7-12")
-    if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat"):
-        raise ValueError("PMT 土類須為 clay、silt、sand、sand_gravel 或 peat")
+    if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat", "rock"):
+        raise ValueError("PMT 土類須為 clay、silt、sand、sand_gravel、peat 或 rock")
+    if soil_type == "rock":
+        if rock_condition not in ("extremely_fractured", "other", "slightly_fractured_or_extremely_weathered"):
+            raise ValueError("USACE Table 7-6 岩石 PMT 須選 extremely_fractured、other 或 slightly_fractured_or_extremely_weathered")
+    elif rock_condition is not None:
+        raise ValueError("rock_condition 僅適用 soil_type='rock'")
     if consolidation_state not in ("auto", "overconsolidated", "normally_consolidated", "weathered_remolded"):
         raise ValueError("未知 PMT 土層狀態")
     if round_footing:
@@ -584,6 +589,12 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     Ec = E1
 
     def _alpha(E, ratio):
+        if soil_type == "rock":
+            return {
+                "extremely_fractured": 1.0/3.0,
+                "other": 0.5,
+                "slightly_fractured_or_extremely_weathered": 2.0/3.0,
+            }[rock_condition]
         if consolidation_state == "auto":
             if soil_type == "peat":
                 raise ValueError("USACE Table 7-6 僅列正常固結泥炭 α=1；請先確認泥炭為正常固結後選擇 normally_consolidated，不可由 E/pne 自動推定")
@@ -684,7 +695,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         "net_pressure_increment_kpa": q_net,
         "E1_kpa": E1, "E2_kpa": E2, "E345_kpa": E345,
         "E678_kpa": E678, "E916_kpa": E916,
-        "Ed_kpa": Ed, "Ec_kpa": Ec, "alpha_d": alpha_d,
+        "Ed_kpa": Ed, "Ec_kpa": Ec, "alpha_d": alpha_d, "rock_condition": rock_condition,
         "alpha_c": alpha_c, "lambda_d": ld, "lambda_c": lc,
         "group_harmonic_means_kpa": harmonic,
         "method": ("USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eqs. 7-11/7-12, Tables 7-5/7-6" if soft_layers else "USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eq. 7-11 and Table 7-5"),
