@@ -2726,3 +2726,30 @@ def test_consolidation_layer_stress_factor_must_be_between_zero_and_one():
             layers=layers, footing_width_m=2.0, footing_length_m=3.0,
             net_pressure_kpa=100.0,
         )
+
+
+
+@pytest.mark.parametrize(
+    ("angle_kwargs", "angle_name"),
+    [
+        ({"base_inclination_deg": 10.0}, "基底傾角"),
+        ({"ground_inclination_deg": 10.0}, "地表坡角"),
+    ],
+)
+def test_usace_seismic_pore_pressure_cases_reject_inclined_base_or_sloping_ground(
+    angle_kwargs, angle_name
+):
+    # The current scalar Meyerhof inclination model does not resolve
+    # reversed earthquake shear relative to an inclined base or slope.
+    kwargs = dict(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.2, kv=0.1, footing_type="spread",
+        residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=5.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    kwargs.update(angle_kwargs)
+    with pytest.raises(ValueError, match="僅支援水平基底與水平地表"):
+        seismic_bearing_capacity_residual_pore_pressure_cases(**kwargs)

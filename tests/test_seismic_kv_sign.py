@@ -62,3 +62,19 @@ def test_residual_pore_pressure_cases_reject_negative_kv_magnitude():
             non_liquefiable_confirmed=True,
             full_shear_zone_confirmed=True,
         )
+
+
+
+def test_pseudostatic_horizontal_action_uses_adverse_direction_envelope():
+    result = seismic_bearing_capacity_pseudostatic(
+        vertical_load_kN=1000.0,
+        horizontal_load_kN=100.0,
+        footing_area_m2=10.0,
+        kh=0.2,
+        kv=0.1,
+    )
+    # Static H and the adverse horizontal earthquake component align:
+    # max(|H + khV|, |H - khV|) = H + khV for H, kh, V >= 0.
+    assert [row["horizontal_load_kN"] for row in result["cases"]] == pytest.approx([300.0, 300.0])
+    assert all("同向（不利包絡）" in row["horizontal_load_direction"] for row in result["cases"])
+    assert result["governing_horizontal_load_kN"] == pytest.approx(300.0)
