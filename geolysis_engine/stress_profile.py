@@ -8,8 +8,9 @@ from .settlement import consolidation_settlement_1d
 def consolidation_settlement_layers_from_stress_profile(*, layers):
     """Calculate primary consolidation from per-layer total Δσz after superposition.
 
-    Each row must include Depth_center_m, Thickness_m, e0, Cc, Cr,
-    Sigma0_kPa, SigmaP_kPa and Delta_sigma_kPa. Delta_sigma_kPa is the
+    Each row must include Depth_center_m (measured below the chosen profile datum),
+    Thickness_m, e0, Cc, Cr, Sigma0_kPa, SigmaP_kPa and Delta_sigma_kPa.
+    Delta_sigma_kPa is the
     already-summed stress increment from all applicable loads (e.g. adjacent
     footings plus fill). This function intentionally does not infer load
     geometry or calculate Boussinesq influence factors.
