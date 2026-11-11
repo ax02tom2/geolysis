@@ -5,7 +5,49 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure
+
+
+
+def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
+        length_m, depth_m, water_depth_m, eccentricity_B_m=0.0,
+        eccentricity_L_m=0.0, footing_type="isolated",
+        complete_capacity_model=True, incomplete_reason=None):
+    """Display USACE 2025 qeq / bearing FS beside a capacity result."""
+    check=bearing_pressure_safety_check(
+        ultimate_bearing_kpa=qult_kpa,vertical_load_kN=vertical_load_kN,
+        footing_width_m=width_m,footing_length_m=length_m,
+        footing_depth_m=depth_m,water_depth_m=water_depth_m,
+        eccentricity_B_m=eccentricity_B_m,eccentricity_L_m=eccentricity_L_m,
+        footing_type=footing_type,required_fs=3.0)
+    st.markdown("**實際承載力安全檢核（USACE 2025 式 5-2／5-3／5-23）**")
+    if footing_type=="isolated":
+        st.write(f"有效尺寸 B′ × L′ = {check['B_effective_m']:.3f} × {check['L_effective_m']:.3f} m；有效面積 A′ = {check['effective_area_m2']:.3f} m²")
+    else:
+        st.write(f"有效寬度 B′ = {check['B_effective_m']:.3f} m")
+    load_unit="kN/m（連續基礎線荷載）" if footing_type=="continuous" else "kN"
+    st.write(f"V = {vertical_load_kN:.2f} {load_unit}；基底揚壓 uD = {check['water_uplift_pressure_kpa']:.2f} kPa")
+    qcol,fscol,reqcol=st.columns(3)
+    qcol.metric("實際等效壓力 qeq",f"{check['qeq_gross_kpa']:.2f} kPa")
+    reqcol.metric("USACE 最低要求 FS","3.00")
+    if not complete_capacity_model:
+        fscol.metric("實際承載力 FS","未計算")
+        st.warning(incomplete_reason or "目前承載力計算未涵蓋所有輸入的載重／幾何修正，因此不顯示完整設計安全係數。")
+    elif check["FS_bearing"] is None:
+        fscol.metric("實際承載力 FS","無有效值")
+        st.error("qeq≤0，表示基底合力已進入淨上拔／浮力主導狀態；不可用承載力 FS 判斷，請另做完整抗浮檢核。")
+    else:
+        fscol.metric("實際承載力 FS",f"{check['FS_bearing']:.2f}",
+            delta=("符合 ≥3.0" if check["passes_bearing"] else "未達 ≥3.0"),
+            delta_color=("normal" if check["passes_bearing"] else "inverse"))
+    if not check["passes_middle_third"]:
+        st.error("偏心距超出基礎中三分點限制（eB<B/6、eL<L/6）；依 USACE 2025 表 2-1，傾覆／偏心檢核不合格。")
+    elif complete_capacity_model and check["passes_all_checks"]:
+        st.success("承載力 FS 與中三分點偏心限制均符合目前 USACE 2025 最低要求。")
+    elif complete_capacity_model and not check["passes_bearing"]:
+        st.error("承載力安全係數低於 USACE 2025 最低要求 3.0。")
+    st.caption("V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已含基礎自重及基礎底以上覆土；不要只填柱載重 Q。地下水位高於基礎底時，依 uD=γw(Df−Dw) 扣除基底水壓。此項只檢核承載力與中三分點偏心，不取代滑動、抗浮、整體穩定及沉陷檢核。")
+    return check
 
 
 def render_module_5(expanded=False):
@@ -60,8 +102,8 @@ def render_module_5(expanded=False):
         st.markdown("**載重分量（供 Hansen／Vesic 傾斜係數使用）**")
         hcol,vcol=st.columns(2)
         with hcol: H5=st.number_input("水平載重 H [kN]",0.0,1000000.0,0.0,10.0,key='m5_h')
-        with vcol: V5=st.number_input("垂直載重 V [kN]（含基礎自重及覆土）",0.1,1000000.0,1000.0,10.0,key='m5_v')
-        st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力，包含結構荷載、基礎自重及基礎上覆土重。請勿直接以任意預設值作設計輸入。")
+        with vcol: V5=st.number_input("垂直載重 V [kN]（Q+Wf，含基礎自重及覆土）",0.1,1000000.0,1000.0,10.0,key='m5_v')
+        st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力 Q+Wf，包含結構荷載、基礎自重及基礎上覆土重。連續條形基礎的 V、H 應採每延米線荷載（kN/m）。請勿直接以任意預設值作設計輸入。")
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
             st.session_state['m5_eB']=0.0
@@ -98,6 +140,16 @@ def render_module_5(expanded=False):
             r1.metric("總極限承載力 qu",f"{result5['qu_gross']:.1f} kPa")
             r2.metric("淨容許承載力 qa,net",f"{result5['qa_net']:.1f} kPa")
             r3.metric("總容許承載力 qa,gross",f"{result5['qa_gross']:.1f} kPa")
+
+            main_load_complete=(H5<=0 or theory5 in ("Hansen","Vesic") or
+                (theory5=="Meyerhof" and abs(beta5-math.degrees(math.atan2(H5,V5)))<=0.1))
+            main_reason=("目前 H>0，但所選理論沒有套用與 H/V 相符的載重傾斜修正；請選 Hansen／Vesic，或在 Meyerhof 中將 β 設為 atan(H/V)。" if not main_load_complete else None)
+            _render_bearing_safety_check(
+                qult_kpa=result5["qu_gross"],vertical_load_kN=V5,
+                width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                eccentricity_B_m=eB5,eccentricity_L_m=eL5,
+                footing_type="isolated",complete_capacity_model=main_load_complete,
+                incomplete_reason=main_reason)
             factors=pd.DataFrame([
                 {'項目':'凝聚力項 cNc','承載力因子':result5['Nc'],'形狀係數':result5['sc'],'深度係數':result5['dc'],'傾斜係數':result5['ic'],'貢獻(kPa)':result5['term_c']},
                 {'項目':'覆土項 qNq','承載力因子':result5['Nq'],'形狀係數':result5['sq'],'深度係數':result5['dq'],'傾斜係數':result5['iq'],'貢獻(kPa)':result5['term_q']},
@@ -151,6 +203,12 @@ def render_module_5(expanded=False):
             slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
+
+                _render_bearing_safety_check(
+                    qult_kpa=slope_result["qu_gross"],vertical_load_kN=V5,
+                    width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                    eccentricity_B_m=eB5,eccentricity_L_m=eL5,
+                    footing_type="isolated",complete_capacity_model=True)
                 st.metric("修正後總極限承載力",f"{slope_result['qu_gross']:.1f} kPa")
                 st.write(f"形狀係數：sc={slope_result['sc']:.3f}、sq={slope_result['sq']:.3f}、sγ={slope_result['sg']:.3f}；深度係數：dc={slope_result['dc']:.3f}、dq={slope_result['dq']:.3f}、dγ={slope_result['dg']:.3f}")
                 if phi5>0:
