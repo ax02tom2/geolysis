@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -12,7 +12,7 @@ def render_module_4(expanded=False):
     # ==============================================================================
     with st.expander("📏 模組四：容許承載力與沉陷控制", expanded):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
-        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
+        method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
         if method4.startswith('砂土／礫土'):
             st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；使用基礎底至影響深度內的平均 N60，不是 (N1)60。可直接連結模組三剖面，並依基礎埋深將地表深度換算為基礎底下深度。")
             a,b,c=st.columns(3)
@@ -105,6 +105,48 @@ def render_module_4(expanded=False):
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
                 st.error(f"Burland–Burbidge 沉陷估算失敗：{exc}")
+        elif method4.startswith('DMT：'):
+            st.caption("依 USACE EM 1110-1-1905（2025）式 3-41、4-13～4-15、7-10 及表 7-4。輸入經儀器校正後的 DMT corrected p0、p1、u0 與原位初始有效應力；系統逐層計算 ID、KD、ED、修正係數 RM、MDMT，再以 Boussinesq 中心線應力增量計算沉陷。")
+            a,b,c=st.columns(3)
+            with a:
+                dmtB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_dmt_b")
+                dmtL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_dmt_l")
+                dmt_type=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續基礎（條形）",key="m4_dmt_type")
+            with b:
+                dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
+                dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
+                dmtqult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult")
+            with c:
+                dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
+                dmtTarget=st.number_input("參考容許總沉陷 [mm]",1.0,200.0,25.0,1.0,key="m4_dmt_target")
+            dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下；壓力單位 bar）",
+                value="",height=130,key="m4_dmt_layers",
+                placeholder="Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\n1,0.20,2.0,3.0,0.5,1.0\n2,0.20,2.2,3.2,0.5,1.1\n…（資料需至少涵蓋 2B；條形基礎至少 6B）")
+            st.caption("p0、p1 必須是依 DMT 校正公式取得的 corrected readings，不是未校正的原始 A、B 讀值。壓力值以 bar 輸入；u0 為膜片中心深度的平衡孔隙水壓；σ′v0 為 DMT 試驗前的原位垂直有效應力。")
+            try:
+                if not dmt_text.strip():
+                    st.info("請貼上 DMT 分層資料後計算；系統不會用示範模數代替現場試驗。")
+                else:
+                    dmt_layers=pd.read_csv(StringIO(dmt_text)).to_dict("records")
+                    result_dmt=dmt_settlement_2025(
+                        layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                        gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                        ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
+                        factor_of_safety=dmtfs,footing_type=dmt_type)
+                    st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
+                    st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
+                    st.dataframe(pd.DataFrame(result_dmt["layer_results"]),hide_index=True,use_container_width=True)
+                    if result_dmt["settlement_mm"]>dmtTarget:
+                        st.warning("估算沉陷超過目前設定的參考容許值；實際容許值仍須依結構型式、使用需求及差異沉陷共同決定。")
+                    else:
+                        st.caption("估算沉陷未超過目前設定的參考值；不代表整體服務性或承載力檢核已通過。")
+                    if dmtqult<=0:
+                        st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
+                    st.caption(result_dmt["method"])
+                    st.warning(result_dmt["limitations"])
+            except Exception as exc:
+                logging.exception("DMT settlement calculation failed")
+                st.error(f"DMT 沉陷估算失敗：{exc}")
         elif method4.startswith('砂土：'):
             st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
             a,b,c=st.columns(3)
