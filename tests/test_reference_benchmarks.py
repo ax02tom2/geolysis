@@ -2006,3 +2006,82 @@ def test_usace_2025_dmt_direct_mdmt_profile_must_start_at_footing_base():
             layers=layers, footing_width_m=1.0, footing_length_m=1.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         )
+
+
+
+@pytest.mark.parametrize("method", ["pmt", "cpt", "dmt_mdmt", "dmt_readings"])
+def test_usace_2025_settlement_methods_reject_fs_not_greater_than_one(method):
+    with pytest.raises(ValueError, match="FS 必須大於 1.0"):
+        if method == "pmt":
+            menard_rousseau_pmt_settlement_2025(
+                pmt_moduli=[
+                    {"group": group, "E0_kpa": 12000.0}
+                    for group in ("E1", "E2", "E345", "E678", "E916")
+                ],
+                footing_width_m=2.0, footing_length_m=2.0,
+                gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+                equivalent_net_limit_pressure_kpa=1100.0,
+                yield_pressure_kpa=300.0, factor_of_safety=1.0,
+                round_footing=True, deep_uniform_deposit_confirmed=True,
+            )
+        elif method == "cpt":
+            schmertmann_cpt_settlement_2025(
+                layers=[{"thickness_m": 1.0, "qc_kpa": 1000.0}],
+                footing_width_m=1.0, footing_length_m=1.0,
+                gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+                peak_effective_stress_kpa=100.0, factor_of_safety=1.0,
+            )
+        elif method == "dmt_mdmt":
+            dmt_modulus_settlement_2025(
+                layers=[{"thickness_m": 1.0, "depth_center_m": 0.5, "MDMT_kpa": 10000.0},
+                        {"thickness_m": 1.0, "depth_center_m": 1.5, "MDMT_kpa": 10000.0}],
+                footing_width_m=1.0, footing_length_m=1.0,
+                gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+                factor_of_safety=1.0,
+            )
+        else:
+            dmt_settlement_2025(
+                layers=[{"thickness_m": 1.0, "p0_bar": 2.0, "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0},
+                        {"thickness_m": 1.0, "p0_bar": 2.0, "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}],
+                footing_width_m=1.0, footing_length_m=1.0,
+                gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+                factor_of_safety=1.0,
+            )
+
+
+def test_usace_settlement_pressure_reports_static_fs_compliance():
+    compliant = usace_settlement_design_pressure(
+        gross_equivalent_pressure_kpa=150.0,
+        ultimate_bearing_kpa=600.0,
+        factor_of_safety=3.0,
+    )
+    comparison_only = usace_settlement_design_pressure(
+        gross_equivalent_pressure_kpa=150.0,
+        ultimate_bearing_kpa=600.0,
+        factor_of_safety=2.5,
+    )
+    assert compliant["minimum_usace_static_bearing_fs"] == pytest.approx(3.0)
+    assert compliant["meets_usace_static_bearing_fs"] is True
+    assert comparison_only["meets_usace_static_bearing_fs"] is False
+
+
+def test_usace_2025_pmt_rejects_overlapping_soft_layer_intervals():
+    pmt = [
+        {"group": group, "E0_kpa": 12000.0}
+        for group in ("E1", "E2", "E345", "E678", "E916")
+    ]
+    with pytest.raises(ValueError, match="軟弱層.*重疊"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=1100.0,
+            yield_pressure_kpa=300.0, soil_type="sand",
+            consolidation_state="normally_consolidated",
+            round_footing=True, soft_layer_profile_reviewed=True,
+            soft_layers=[
+                {"Layer": 1, "thickness_m": 1.0, "depth_center_m": 1.5,
+                 "E_L_kpa": 8000.0, "pne_kpa": 1000.0, "I_sigma": 0.5},
+                {"Layer": 2, "thickness_m": 1.0, "depth_center_m": 1.8,
+                 "E_L_kpa": 8000.0, "pne_kpa": 1000.0, "I_sigma": 0.5},
+            ],
+        )

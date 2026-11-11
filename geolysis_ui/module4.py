@@ -25,6 +25,7 @@ def render_module_4(expanded=False):
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
                 qult4=st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult')
                 fs_bb4=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key='m4_bb_fs')
+                if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
                 sigp4=st.number_input("先期固結壓力 σ′p [kPa]（正常固結時採 σ′0）",1.0,5000.0,100.0,5.0,key='m4_bb_sigp')
             with c:
@@ -118,6 +119,7 @@ def render_module_4(expanded=False):
                 dmtqult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult")
             with c:
                 dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
+                if dmtqult>0 and dmtfs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 dmtTarget=st.number_input("參考容許總沉陷 [mm]",1.0,200.0,25.0,1.0,key="m4_dmt_target")
             dmt_mode=st.selectbox("DMT 輸入資料型式",["corrected","MDMT"],format_func=lambda x:"corrected p0／p1／u0 讀值（由系統推算 MDMT）" if x=="corrected" else "直接輸入試驗解讀後 MDMT",key="m4_dmt_mode")
             dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下）",
@@ -169,6 +171,7 @@ def render_module_4(expanded=False):
             with c:
                 cptQult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult")
                 cptFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_cpt_fs")
+                if cptQult>0 and cptFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 cptYears=st.number_input("載重作用時間 [年]",0.01,100.0,50.0,0.5,key="m4_cpt_years")
             cptText=st.text_area("CPT 分層 CSV（由基礎底開始，逐層向下；qc 為實測錐尖阻抗）",
                 value="",height=120,key="m4_cpt_layers",
@@ -209,6 +212,7 @@ def render_module_4(expanded=False):
             with c:
                 pmtQu=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult")
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
+                if pmtQu>0 and pmtFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
                 pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
             pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
