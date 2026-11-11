@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -119,20 +119,28 @@ def render_module_4(expanded=False):
             with c:
                 dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
                 dmtTarget=st.number_input("參考容許總沉陷 [mm]",1.0,200.0,25.0,1.0,key="m4_dmt_target")
-            dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下；壓力單位 bar）",
+            dmt_mode=st.selectbox("DMT 輸入資料型式",["corrected","MDMT"],format_func=lambda x:"corrected p0／p1／u0 讀值（由系統推算 MDMT）" if x=="corrected" else "直接輸入試驗解讀後 MDMT",key="m4_dmt_mode")
+            dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下）",
                 value="",height=130,key="m4_dmt_layers",
-                placeholder="Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\n1,0.20,2.0,3.0,0.5,1.0\n2,0.20,2.2,3.2,0.5,1.1\n…（資料需至少涵蓋 2B；條形基礎至少 6B）")
-            st.caption("p0、p1 必須是依 DMT 校正公式取得的 corrected readings，不是未校正的原始 A、B 讀值。壓力值以 bar 輸入；u0 為膜片中心深度的平衡孔隙水壓；σ′v0 為 DMT 試驗前的原位垂直有效應力。")
+                placeholder="corrected：Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar；MDMT：Layer,depth_center_m,thickness_m,MDMT_kpa,I_sigma")
+            st.caption("corrected 模式須輸入儀器校正後 p0/p1、u0、σ′v0（bar）；MDMT 模式直接輸入試驗解讀後拘束模數（kPa），可選填 I_sigma 以採用已核對的文獻／圖表值。")
             try:
                 if not dmt_text.strip():
                     st.info("請貼上 DMT 分層資料後計算；系統不會用示範模數代替現場試驗。")
                 else:
                     dmt_layers=pd.read_csv(StringIO(dmt_text)).to_dict("records")
-                    result_dmt=dmt_settlement_2025(
-                        layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
-                        gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
-                        ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
-                        factor_of_safety=dmtfs,footing_type=dmt_type)
+                    if dmt_mode=="MDMT":
+                        result_dmt=dmt_modulus_settlement_2025(
+                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
+                            factor_of_safety=dmtfs,footing_type=dmt_type)
+                    else:
+                        result_dmt=dmt_settlement_2025(
+                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
+                            factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
                     st.dataframe(pd.DataFrame(result_dmt["layer_results"]),hide_index=True,use_container_width=True)

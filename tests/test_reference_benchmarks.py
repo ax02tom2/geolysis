@@ -28,6 +28,7 @@ from geolysis_engine import (
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
     dmt_settlement_2025,
+    dmt_modulus_settlement_2025,
     schmertmann_cpt_settlement_2025,
     menard_rousseau_pmt_settlement_2025,
 )
@@ -1679,3 +1680,96 @@ def test_usace_2025_menard_pmt_rejects_design_pressure_above_yield_pressure():
             soil_type="sand", consolidation_state="normally_consolidated",
             round_footing=True, deep_uniform_deposit_confirmed=True,
         )
+
+
+
+def test_usace_2025_appendix_c7b_dmt_modulus_settlement_table_rows():
+    # Appendix C-7b, Table C-7a/C-7b (printed pp. 377-380).
+    # The manual's row settlements sum to about 0.344 in; its printed total
+    # says 0.034 in, a factor-of-ten arithmetic/transcription discrepancy.
+    ft = 0.3048
+    tsf = 95.7605
+    data = [
+        (0.7,0.7,769,.998),(1.3,.6,770,.984),(2.0,.7,920,.941),
+        (2.6,.6,158,.882),(3.3,.7,717,.796),(3.9,.6,917,.718),
+        (4.6,.7,898,.629),(5.2,.6,985,.559),(5.9,.7,2264,.486),
+        (6.6,.7,2132,.423),(7.2,.6,2266,.377),(7.9,.7,1487,.331),
+        (8.5,.6,1740,.297),(9.2,.7,1760,.263),(9.8,.6,2138,.238),
+        (10.5,.7,2220,.212),(11.2,.7,2212,.190),(11.8,.6,2284,.174),
+        (12.5,.7,2134,.158),(13.1,.6,2076,.145),(13.8,.7,2583,.132),
+        (14.4,.6,2357,.123),(15.1,.7,2343,.113),(15.7,.6,1842,.105),
+        (16.4,.7,1570,.097),
+    ]
+    layers = [
+        {"Layer": i+1, "depth_center_m": z*ft, "thickness_m": h*ft,
+         "MDMT_kpa": M*tsf, "I_sigma": Iz}
+        for i,(z,h,M,Iz) in enumerate(data)
+    ]
+    result = dmt_modulus_settlement_2025(
+        layers=layers,footing_width_m=8*ft,footing_length_m=8*ft,
+        gross_pressure_kpa=3.31*tsf,base_effective_stress_kpa=.156*tsf,
+        ultimate_bearing_kpa=25.5*47.88025898,factor_of_safety=3.0,
+    )
+    assert result["gross_pressure_used_kpa"] == pytest.approx(3.31*tsf)
+    assert result["layer_results"][0]["Stress_factor_I_sigma"] == pytest.approx(.998)
+    assert result["profile_depth_used_m"] >= 16*ft
+    assert result["settlement_mm"] / 25.4 == pytest.approx(.3437,abs=.002)
+
+
+def test_usace_2025_appendix_c7c_menard_rousseau_pmt_settlement():
+    # Appendix C-7c, Table C-7a/C-7c (printed pp. 377, 381-382).
+    ft = 0.3048
+    tsf = 95.7605
+    pmt = [
+        {"group":"E1","E0_kpa":78*tsf},
+        {"group":"E2","E0_kpa":78*tsf}, {"group":"E2","E0_kpa":238*tsf},
+        {"group":"E345","E0_kpa":238*tsf}, {"group":"E345","E0_kpa":320*tsf}, {"group":"E345","E0_kpa":826*tsf},
+        {"group":"E678","E0_kpa":1419*tsf}, {"group":"E678","E0_kpa":1065*tsf},
+        {"group":"E916","E0_kpa":2508*tsf}, {"group":"E916","E0_kpa":1059*tsf}, {"group":"E916","E0_kpa":1128*tsf},
+    ]
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt,footing_width_m=8*ft,footing_length_m=8*ft,
+        gross_pressure_kpa=3.31*tsf,base_effective_stress_kpa=.156*tsf,
+        equivalent_net_limit_pressure_kpa=8.5*tsf,
+        yield_pressure_kpa=3.31*tsf,
+        soil_type="sand",consolidation_state="auto",
+        lambda_d=1.1,lambda_c=1.1,deep_uniform_deposit_confirmed=True,
+    )
+    assert result["E1_kpa"]/tsf == pytest.approx(78.0)
+    assert result["E2_kpa"]/tsf == pytest.approx(117.494,abs=.002)
+    assert result["E345_kpa"]/tsf == pytest.approx(351.398,abs=.002)
+    assert result["E678_kpa"]/tsf == pytest.approx(1216.775,abs=.002)
+    assert result["E916_kpa"]/tsf == pytest.approx(1345.571,abs=.002)
+    assert result["Ed_kpa"]/tsf == pytest.approx(152.060,abs=.002)
+    assert result["alpha_d"] == pytest.approx(.5)
+    assert result["alpha_c"] == pytest.approx(1/3)
+    assert result["settlement_mm"]/25.4 == pytest.approx(.38,abs=.02)
+
+
+def test_usace_2025_appendix_c7d_schmertmann_cpt_settlement_table_rows():
+    # Appendix C-7d, Table C-7d (printed pp. 384-385).
+    # The printed row values sum to Σ(Iz H/Es)=0.0194 ft^3/ton, not the
+    # printed 0.0266; the row-by-row equation result is about 1.10 in,
+    # not the printed final 1.5 in. We preserve the row data and equation.
+    ft = 0.3048
+    tsf = 95.7605
+    data = [
+        (1.5,100,.227),(1.0,100,.439),(1.5,160,.651),
+        (3.5,100,.665),(2.0,300,.489),(3.0,160,.324),(3.5,200,.114),
+    ]
+    layers = [
+        {"Layer":i+1,"thickness_m":H*ft,"qc_kpa":qc*tsf}
+        for i,(H,qc,Iz) in enumerate(data)
+    ]
+    result = schmertmann_cpt_settlement_2025(
+        layers=layers,footing_width_m=8*ft,footing_length_m=8*ft,
+        gross_pressure_kpa=3.31*tsf,base_effective_stress_kpa=.156*tsf,
+        peak_effective_stress_kpa=.40625*tsf,years=50.0,
+        ultimate_bearing_kpa=25.5*2*47.88025898,factor_of_safety=3.0,
+    )
+    assert result["Iz_peak"] == pytest.approx(.779,abs=.001)
+    assert result["C1_embedment"] == pytest.approx(.975,abs=.001)
+    assert result["C2_creep"] == pytest.approx(1.539,abs=.001)
+    assert result["layer_results"][0]["Iz_used"] == pytest.approx(.227,abs=.001)
+    assert result["layer_results"][3]["Iz_used"] == pytest.approx(.665,abs=.001)
+    assert result["settlement_mm"]/25.4 == pytest.approx(1.10,abs=.02)
