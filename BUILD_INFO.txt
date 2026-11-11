@@ -7,7 +7,7 @@ Pandas: 3.1.1
 Plotly: 7.1.0
 Latest verified automated suite: 355 passed
 GitHub Actions validation run: 42983198348 (success; Python 3.11 compile passed; 355 passed in 2.08 s; includes PR #51 mixed-layer SPT corrections on top of PR #47 seismic applicability gates and PR #48 eastern Taiwan rock-reference data)
-Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception
+Runtime smoke: Streamlit AppTest loaded the orchestrator and all five UI modules without uncaught exception on the PR #49 code state (commit 3198911f381b2d32e14549aeb1c87a45404b509d); PR #51 CI validates compileall and pytest, but did not rerun AppTest
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 59 published worked-example benchmarks (53 Appendix B plus Appendix C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
