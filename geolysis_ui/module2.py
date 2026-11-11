@@ -31,11 +31,11 @@ def render_module_2(expanded=False):
             ll_od=st.number_input("烘乾後 LL [%]（有機土確認用）",0.0,200.0,25.0,1.0,key="m2_llod",disabled=(not organic or not organic_test_done or peat))
         with c:
             coarse_soil=(p200<50) and not peat
-            use_grad=st.checkbox("輸入粒徑曲線 D10/D30/D60（僅粗粒土級配判定）",value=True,key="m2_use_grad",disabled=not coarse_soil)
+            use_grad=st.checkbox("輸入粒徑曲線 D10/D30/D60（僅粗粒土級配判定）",value=False,key="m2_use_grad",disabled=not coarse_soil)
             if use_grad and coarse_soil:
-                d10=st.number_input("D10 [mm]",min_value=0.0001,value=0.15,format="%.4f",key="m2_d10")
-                d30=st.number_input("D30 [mm]",min_value=0.0001,value=0.60,format="%.4f",key="m2_d30")
-                d60=st.number_input("D60 [mm]",min_value=0.0001,value=1.80,format="%.4f",key="m2_d60")
+                d10=st.number_input("D10 [mm]",min_value=0.0,value=0.0,format="%.4f",key="m2_d10")
+                d30=st.number_input("D30 [mm]",min_value=0.0,value=0.0,format="%.4f",key="m2_d30")
+                d60=st.number_input("D60 [mm]",min_value=0.0,value=0.0,format="%.4f",key="m2_d60")
             else:
                 d10=d30=d60=None
             if not peat and p200>=50:
@@ -45,7 +45,8 @@ def render_module_2(expanded=False):
             None if d10 is None else float(d10),None if d30 is None else float(d30),
             None if d60 is None else float(d60),bool(organic),
             bool(organic_test_done),float(ll_od),bool(peat))
-        if st.button("執行土壤分類",key="m2_run"):
+        data_confirm=st.checkbox("已確認上方為本次試驗數據（非預設示範值）",value=False,key="m2_data_confirm")
+        if st.button("執行土壤分類",key="m2_run",disabled=not data_confirm):
             clear_result_state(st.session_state, 'm2_result', 'm2_result_signature')
             try:
                 result=classify_uscs_aashto(p4=p4,p10=p10,p40=p40,p200=p200,ll=ll,pl=pl,np_flag=np_flag,
