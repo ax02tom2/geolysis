@@ -155,7 +155,7 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
                 "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
                 "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
-                "安山岩 Andesite", "花崗岩 Granite", "砂岩 Sandstone（台灣南莊層三軸案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
+                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
             ], key="hb_rock_type_for_mi")
             # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
             mi_reference = {
@@ -169,6 +169,8 @@ def render_module_1(expanded=False):
                 "石灰岩 Limestone": (10, 8, 12, "Marinos & Hoek：10 ± 2"),
                 "安山岩 Andesite": (20, 2, 38, "USGS 2022：不同安山岩實測 mi 約 2–38；以 20 作區間中點初估，離散性極高"),
                 "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3；一般文獻初估，非台灣特定工址值"),
+                "片麻岩 Gneiss": (28, 23, 33, "Hoek：28 ± 5；完整試體垂直片理方向的典型值，片理方向會影響。"),
+                "大理岩 Marble": (9, 6, 12, "Hoek/Marinos：9 ± 3；一般完整岩石文獻值，非特定工址試驗值。"),
                 "砂岩 Sandstone（台灣南莊層三軸案例）": (7.752, 7.752, 7.752, "台灣南莊層單一完整岩心案例三軸反算 mi=7.752；不是砂岩通用值。"),
                 "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。")
             }
@@ -308,12 +310,27 @@ def render_module_1(expanded=False):
                     _ucs_regional_source),
             })
 
-            st.caption("地區適用性：2025 年論文方法段稱彙整 31 筆資料，但表 5 逐列可辨識 32 個試體編號；系統依表 5 原列逐筆登錄，並保留單一試體性質，不將其視為統計區間。案例涵蓋台灣北部與中部西部麓山帶；2009 年區域彙整另提供東部中央山脈東翼變質岩與大理岩概略範圍。平原沖積層屬土壤，不適用完整岩石 UCS；海岸山脈亦缺少可直接套用的本批 UCS 數據，勿以其他地區案例代替。")
+            # 台電 SNFD-AR2021 表 3-24：台灣本島東部結晶岩彙整統計。
+            # 報告提醒鑽井分布有限，僅宜用於特定小範圍，不可泛化為整個東部山區。
+            _ucs_east_source = "https://nbmi.taipower.com.tw/downloads/file_info/20240726111202.pdf"
+            _ucs_case_data.update({
+                "東部結晶岩花崗片麻岩｜台電 SNFD-AR2021 統計 n=84": (
+                    28.9, 153.6, 103.3,
+                    "單軸壓縮試驗 n=84；最小 28.9、最大 153.6、Q1 79.1、中位數 108.3、Q3 132.0、平均 103.3 MPa。資料彙整範圍有限，僅宜作相似小範圍工址參考。",
+                    _ucs_east_source),
+                "東部結晶岩大理岩｜台電 SNFD-AR2021 統計 n=29": (
+                    19.1, 148.9, 105.7,
+                    "單軸壓縮試驗 n=29；最小 19.1、最大 148.9、Q1 83.0、中位數 113.4、Q3 132.1、平均 105.7 MPa。資料彙整範圍有限，僅宜作相似小範圍工址參考。",
+                    _ucs_east_source),
+            })
+            st.caption("地區適用性：2025 年論文方法段稱彙整 31 筆資料，但表 5 逐列可辨識 32 個試體編號；系統依表 5 原列逐筆登錄，並保留單一試體性質，不將其視為統計區間。案例涵蓋台灣北部與中部西部麓山帶；台電 SNFD-AR2021 表 3-24 另提供東部花崗片麻岩與大理岩統計（n=84／29），但報告提醒鑽井分布有限，僅宜作特定小範圍參考；2009 年區域彙整保留作概略對照。平原沖積層屬土壤，不適用完整岩石 UCS；海岸山脈亦缺少可直接套用的本批 UCS 數據，勿以其他地區案例代替。")
             _sandstone_cases = [k for k in _ucs_case_data if "砂岩" in k and "互層" not in k]
             _case_by_rock = {
                 "砂岩 Sandstone": _sandstone_cases,
                 "安山岩 Andesite": [k for k in _ucs_case_data if "安山岩" in k],
                 "花崗岩 Granite": [k for k in _ucs_case_data if "花崗岩" in k],
+                "片麻岩 Gneiss": [k for k in _ucs_case_data if "片麻岩" in k],
+                "大理岩 Marble": [k for k in _ucs_case_data if "大理岩" in k],
                 "砂岩 Sandstone（台灣南莊層三軸案例）": [k for k in _ucs_case_data if "南莊層砂岩｜隧道" in k],
                 "片岩 Schist（蘇花公路案例）": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
                 "頁岩 Shale": [k for k in _ucs_case_data if "頁岩" in k and "砂頁岩互層" not in k],
