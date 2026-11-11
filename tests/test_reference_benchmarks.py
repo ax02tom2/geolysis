@@ -2151,5 +2151,5 @@ def test_uscs_organic_fines_requires_oven_dried_liquid_limit_confirmation():
     assert confirmed["USCS"] == "OL"
     assert "符合" in confirmed["organic_note"]
     assert not_confirmed["USCS"] == "CL"
-    assert "未符合" in not_confirmed["organic_note"]
+    assert "未達有機土判別條件" in not_confirmed["organic_note"]
     assert "暫定" in provisional["USCS"]
