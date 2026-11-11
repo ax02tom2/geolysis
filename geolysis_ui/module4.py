@@ -122,7 +122,7 @@ def render_module_4(expanded=False):
             dmt_mode=st.selectbox("DMT 輸入資料型式",["corrected","MDMT"],format_func=lambda x:"corrected p0／p1／u0 讀值（由系統推算 MDMT）" if x=="corrected" else "直接輸入試驗解讀後 MDMT",key="m4_dmt_mode")
             dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下）",
                 value="",height=130,key="m4_dmt_layers",
-                placeholder="corrected：Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar；MDMT：Layer,depth_center_m,thickness_m,MDMT_kpa,I_sigma（選填）")
+                placeholder="corrected：Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar；MDMT：Layer,depth_center_m,thickness_m,MDMT_kpa,I_sigma")
             st.caption("corrected 模式須輸入儀器校正後 p0/p1、u0、σ′v0（bar）；MDMT 模式直接輸入試驗解讀後拘束模數（kPa），可選填 I_sigma 以採用已核對的文獻／圖表值。")
             try:
                 if not dmt_text.strip():
