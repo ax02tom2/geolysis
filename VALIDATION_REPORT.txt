@@ -501,5 +501,5 @@ Module 3 mixed-layer SPT profile corrections — PR #51
 - Added three regression tests covering mixed sand/clay profiles, row-specific equipment factors, row-specific dilatancy, refusal rows, invalid combinations, and fallback behavior.
 - PR #51 merged to main at 2c1dc2c9f3157eb5984db0b71548846ec5784c15.
 - GitHub Actions run 42983198348: success; Python 3.11 compile passed; full suite 355 passed in 2.08 s.
-- Published worked-example benchmark count remains 54; this PR adds three equation/applicability regression tests, not new published examples.
+- Published worked-example benchmark count remains 59 (53 Appendix B plus six Appendix C cases); this PR adds three equation/applicability regression tests, not new published examples.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Table 4-6 and Eqs. 4-4 to 4-7.
