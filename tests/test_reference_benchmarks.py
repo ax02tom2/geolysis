@@ -1708,7 +1708,7 @@ def test_usace_2025_appendix_c7b_dmt_modulus_settlement_table_rows():
     result = dmt_modulus_settlement_2025(
         layers=layers,footing_width_m=8*ft,footing_length_m=8*ft,
         gross_pressure_kpa=3.31*tsf,base_effective_stress_kpa=.156*tsf,
-        ultimate_bearing_kpa=25.5*2*47.88025898,factor_of_safety=3.0,
+        ultimate_bearing_kpa=25.5*47.88025898,factor_of_safety=3.0,
     )
     assert result["gross_pressure_used_kpa"] == pytest.approx(3.31*tsf)
     assert result["layer_results"][0]["Stress_factor_I_sigma"] == pytest.approx(.998)
