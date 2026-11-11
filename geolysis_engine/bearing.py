@@ -562,6 +562,109 @@ def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
     }
 
 
+
+def layered_bearing_capacity_in_situ_profile(*, layers, footing_width_m,
+        footing_length_m, footing_depth_m, water_depth_m, gamma_moist_kn_m3,
+        gamma_sub_kn_m3, footing_type='isolated', fs=3.0):
+    """USACE 2025 in-situ bearing capacity for layered profiles.
+
+    Each layer supplies thickness_m, test_type (SPT/CPT/PMT), drainage
+    (drained/undrained), and measurements from that layer's bearing shear zone.
+    Per-layer ultimate resistances use Eqs. 5-25/5-26 and Table 5-5; weaker
+    underlying layers are checked using Eqs. 5-17/5-18 and 2V:1H spreading.
+    This initial implementation is for centered vertical load, level base and
+    level ground; horizontal/inclined/seismic corrections are not included.
+    """
+    if not isinstance(layers,(list,tuple)) or len(layers)<2:
+        raise ValueError('原位試驗分層穿刺至少需要兩層')
+    if footing_type not in ('isolated','continuous'):
+        raise ValueError('基礎型式須為 isolated 或 continuous')
+    B=_finite('基礎寬度 B',footing_width_m)
+    L=_finite('基礎長度 L',footing_length_m)
+    Df=_finite('基礎埋深 Df',footing_depth_m)
+    Dw=_finite('地下水深度 Dw',water_depth_m)
+    gamma=_finite('基礎底以上天然單位重',gamma_moist_kn_m3)
+    gsub=_finite('基礎底以下有效單位重',gamma_sub_kn_m3)
+    FS=_finite('安全係數 FS',fs)
+    if B<=0 or L<=0 or (footing_type=='isolated' and L<B) or Df<0 or Dw<0:
+        raise ValueError('基礎尺寸或深度不合理')
+    if gamma<=0 or gsub<=0 or FS<=1:
+        raise ValueError('單位重須為正，安全係數須大於 1')
+    results=[]
+    cumulative=0.0
+    for i,layer in enumerate(layers,1):
+        if not isinstance(layer,dict):
+            raise ValueError(f'第 {i} 層資料格式錯誤')
+        for key in ('thickness_m','test_type','drainage','measurements'):
+            if key not in layer:
+                raise ValueError(f'第 {i} 層缺少 {key}')
+        thickness=_finite(f'第 {i} 層厚度',layer['thickness_m'])
+        if thickness<=0:
+            raise ValueError('各層厚度須大於零')
+        result=bearing_capacity_in_situ(
+            test_type=layer['test_type'],measurements=layer['measurements'],
+            drainage=layer['drainage'],B=B,L=L,Df=Df,
+            gamma_moist=gamma,gamma_sub=gsub,water_depth=Dw,
+            fs=FS,footing_type=footing_type)
+        results.append({
+            'layer':i,'thickness_m':thickness,'top_depth_m':cumulative,
+            'test_type':result['test_type'],'drainage':result['drainage'],
+            'measurement_count':result['measurement_count'],
+            'geometric_mean':result['geometric_mean'],
+            's_parameter_kpa':result['s_parameter_kpa'],
+            'k':result['k'],'qult_kpa':result['qu_gross'],
+            'q_surcharge_kpa':result['q_surcharge_kpa'],
+        })
+        cumulative+=thickness
+    lower_depth=0.5*B if footing_type=='isolated' else 1.0*B
+    upper_depth=2.0*B if footing_type=='isolated' else 4.0*B
+    candidates=[{
+        'mode':'上層一般承載力','controlling_layer':1,
+        'capacity_kpa':results[0]['qult_kpa'],'spread_factor':1.0,
+    }]
+    unchecked=[]
+    for idx,item in enumerate(results[1:],start=1):
+        hs=item['top_depth_m']
+        cover=min(x['qult_kpa'] for x in results[:idx])
+        if item['qult_kpa']>=cover:
+            continue
+        if hs<lower_depth:
+            candidates.append({
+                'mode':'剪力區弱層直接控制','controlling_layer':item['layer'],
+                'capacity_kpa':item['qult_kpa'],'spread_factor':1.0,
+                'weak_layer_top_depth_m':hs,
+            })
+        elif hs<=upper_depth:
+            if item['drainage']!='undrained':
+                raise ValueError(
+                    f"第 {item['layer']} 層弱層位於穿刺檢核深度範圍，但 USACE 2025 §5-5a(2) 的 2V:1H 穿刺案例為強層覆蓋弱黏土；此層需以 undrained 條件評估，否則請改用土壤強度參數式 5-22 並另行評估破壞機制"
+                )
+            spread=((B+hs)*(L+hs)/(B*L)
+                    if footing_type=='isolated' else (B+hs)/B)
+            candidates.append({
+                'mode':'原位試驗弱層穿刺控制','controlling_layer':item['layer'],
+                'capacity_kpa':min(cover,spread*item['qult_kpa']),
+                'spread_factor':spread,'cover_capacity_kpa':cover,
+                'underlying_layer_qult_kpa':item['qult_kpa'],
+                'strong_cover_thickness_m':hs,
+            })
+        else:
+            unchecked.append(item['layer'])
+    control=min(candidates,key=lambda x:x['capacity_kpa'])
+    warning=('以下弱層超出 USACE 穿刺檢核深度範圍，未套用 2V:1H 穿刺式：'
+             +', '.join(map(str,unchecked))+'。' if unchecked else None)
+    return {
+        'qult_kpa':control['capacity_kpa'],
+        'controlling_mode':control['mode'],
+        'controlling_layer':control['controlling_layer'],
+        'layers':results,'candidates':candidates,
+        'unchecked_deep_layers':unchecked,'warning':warning,
+        'footing_type':footing_type,
+        'punching_depth_range_m':(lower_depth,upper_depth),
+        'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-17/5-18 and 5-25/5-26; Table 5-5',
+        'limitations':'各層分別以該層剪力區原位試驗值幾何平均計算 q_ult,1、q_ult,2，再依 USACE 2V:1H 式檢查弱層穿刺。SPT 輸入 N60，CPT 輸入 qne，PMT 輸入 pne；各層排水條件須符合預期設計載重時的排水狀態。僅支援置中垂直載重、水平基底與水平地表；未計入偏心、水平載重、基底／地表傾斜及地震修正。若各層排水條件與實際載重條件不一致，應改用土壤強度參數式 5-22，不應直接套用此原位試驗法。'
+    }
+
 def layered_bearing_capacity_profile(*, layers, footing_width_m, footing_length_m,
         footing_depth_m, water_depth_m, fs=3.0, footing_type='isolated',
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
