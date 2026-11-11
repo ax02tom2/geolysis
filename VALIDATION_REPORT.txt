@@ -739,11 +739,11 @@ Module 5 seismic overturning moment and eccentricity — PR #73
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-4, Eqs. 5-4 to 5-8, Figure 5-4; §5-5, Eqs. 5-15/5-16.
 
 
-Module 5 seismic overturning middle-third check — PR #75
+Module 5 seismic middle-third reference check — PR #75 (criterion clarified by PR #89)
 
 - Added per-case eccentricity limits eB≤B/6 and eL≤L/6 (for spread footings) to the residual-pore-pressure seismic bearing combinations.
-- The middle-third check is separate from bearing resistance: where B′ and L′ remain positive, the app still reports the computed resistance but flags the overturning/eccentricity ULS as not passing. This avoids implying that a numeric bearing resistance means the overall foundation is safe.
-- Each case exposes B/L middle-third booleans and maximum eccentricity utilization; the aggregate result reports whether every evaluated case satisfies the check.
+- PR #75 initially used the Table 2-1 Note 3 middle-third limit as a seismic overturning pass/fail check. PR #89 corrected this after review of USACE §9-10(e): for seismic extreme events, the resultant-within-footprint and positive-effective-dimensions criterion is used; the static middle-third result remains informational unless the governing project criteria explicitly require it.
+- Each case exposes B/L middle-third booleans and utilization separately from the seismic footprint geometry result. The aggregate seismic geometry check is no longer failed solely because e exceeds B/6 or L/6.
 - Added two regression tests: a case outside B/6 with positive effective width and a centered case that passes.
 - PR #75 merged to main at 104622effd33c2de6569f918361e69c516e31205.
 - GitHub Actions run 42997530733: success; Python 3.11 compile passed; Streamlit AppTest included; 406 passed in 1.99 s.
@@ -788,12 +788,12 @@ Module 5 seismic applicability caption correction — PR #81
 - PR #81 merged at aa6dbb0d27e7ba631c4372f71bce9185f4094bc5.
 - GitHub Actions run 42999188372: success; full suite 410 passed.
 
-Module 5 general seismic eccentricity envelope — PR #82
+Module 5 general seismic eccentricity envelope — PR #82 (extreme-event criterion clarified by PR #89)
 
 - Added seismic_foundation_eccentricity_cases, which is independent of the residual-pore-pressure resistance method and its non-liquefiable/full-shear-zone confirmations.
 - For nonzero seismic moment components, evaluates both horizontal directions and both vertical combinations V±kvW. Converts static eB/eL to signed static moments V·e, adds signed seismic moments, then calculates eB/eL and effective dimensions B′/L′ for each case.
-- Reports positive compression-contact dimensions, effective axis ordering, middle-third limits eB≤B/6 and eL≤L/6, and the governing eccentricity utilization. It does not calculate bearing resistance or a seismic FS.
-- UI now offers a standalone seismic eccentricity/middle-third calculation before the residual pore-pressure branch. The result is available even when the user cannot confirm the special pore-pressure method's applicability.
+- Reports resultant-within-footprint status, positive compression-contact dimensions, effective axis ordering and the static middle-third reference separately. PR #89 changed the seismic geometry pass/fail to follow §9-10(e), not the static B/6/L/6 rule.
+- UI offers a standalone seismic eccentricity/footprint check before the residual pore-pressure branch. PR #89 added optional per-case qeq≤user-supplied seismic q_allow comparison; without q_allow the UI explicitly reports geometry only, not an overall seismic pass.
 - Continuous-footing seismic inputs use W/V/H in kN/m, A′ in m²/m and M_B,E/M_L,E in kN·m/m. Seismic case tables relabel force/moment columns per metre. Type-specific widget keys prevent carrying a kN value into a kN/m input when switching footing type.
 - Added five regression tests covering signed four-case combinations, middle-third failure with positive contact, loss of contact, strip long-axis restriction, zero-compression and spread-footing dimension order.
 - PR #82 merged at 4501e66e2573c121e761cf33636ea2421663cd42.
@@ -825,3 +825,16 @@ Module 5 partial shear-zone pore-pressure weighting — PR #85
 - PR #85 merged at a10e5e957921f5bd0980c5ff53543229b6549529.
 - GitHub Actions run 43001923263: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 423 passed in 1.57 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(c)(3)(b), Figure 5-4 and Eqs. 9-3/9-4.
+
+
+Module 5 seismic extreme-event overturning criterion correction — PR #89
+
+- Corrected the prior use of the static middle-third limit as a seismic extreme-event pass/fail criterion.
+- USACE EM 1110-1-1905 (31 Jul 2025) §9-10(e) states that seismic overturning criteria can differ from static criteria. In the absence of project-specific criteria, the resultant should remain within the foundation footprint, effective dimensions are determined from eccentricity, and effective bearing pressure must not exceed allowable bearing pressure.
+- The app now reports the static middle-third check separately as informational. Seismic geometry passes when the resultant remains within the footprint, effective dimensions are positive, and the effective axes remain valid.
+- The general seismic eccentricity helper accepts optional user-supplied seismic q_allow. It calculates qeq for each V±kvW / signed moment case and checks qeq≤q_allow. The app does not derive q_allow from static qult/FS or automatically apply seismic allowable-stress increases. Without q_allow, only geometry is reported; no overall seismic overturning/bearing pass is declared.
+- The residual-pore-pressure branch now uses the same footprint geometry criterion, reports qeq per case, and keeps middle-third status separate. Its pore-pressure-reduced ultimate resistance is still not a seismic FS.
+- Updated UI warnings, result fields and regression tests. A case outside B/6 but inside the footprint is not automatically rejected; it is accepted only when the supplied seismic q_allow is also satisfied.
+- PR #89 merged at ffd7ec90827bfb54a94b54dc1f522e1d434698df.
+- GitHub Actions run 43004121928: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 425 passed in 2.38 s.
+- References: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(e); Table 2-1 Note 3 remains a separate static middle-third reference.
