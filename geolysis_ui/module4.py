@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -449,6 +449,36 @@ def render_module_4(expanded=False):
                         st.caption(immediate4['method']+"；"+immediate4['limitations'])
                     except Exception as immediate_exc:
                         st.error(f"即時沉陷估算失敗：{immediate_exc}")
+                with st.expander("多重荷載疊加／大面積填土（逐層 Δσz）",expanded=False):
+                    st.caption("適用於相鄰基礎、獨立基礎＋連續基礎、填土＋基礎等多重荷載。請先依 USACE 第 6 章完成各荷載的應力分布與疊加，再輸入每層合計 Δσz；本區只計算固結沉陷，不會自行推算荷載幾何或反算 qa。")
+                    super_layers_text4=st.text_area(
+                        "逐層總應力增量 CSV（kPa；必須是所有荷載疊加後的總 Δσz）",
+                        value="",height=130,key="m4c_superposition_layers",
+                        placeholder=(
+                            "Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Delta_sigma_kPa\n"
+                            "1,1.0,2.0,0.8,0.30,0.05,60,100,25\n"
+                            "2,3.0,2.0,0.9,0.40,0.06,100,150,18"
+                        ))
+                    super_target4=st.number_input(
+                        "主固結沉陷比較目標 [mm]",min_value=1.0,max_value=200.0,
+                        value=float(target4),step=1.0,key="m4c_superposition_target")
+                    if super_layers_text4.strip():
+                        try:
+                            super_rows4=pd.read_csv(StringIO(super_layers_text4)).to_dict("records")
+                            super_result4=consolidation_settlement_layers_from_stress_profile(layers=super_rows4)
+                            st.dataframe(pd.DataFrame(super_result4["layer_results"]),hide_index=True,use_container_width=True)
+                            st.metric("多重荷載下總主固結沉陷",f"{super_result4['settlement_mm']:.2f} mm")
+                            if super_result4["settlement_mm"]>super_target4:
+                                st.warning("計算沉陷高於目前設定的比較目標；這不是自動的承載力或整體安全判定。")
+                            else:
+                                st.info("目前計算沉陷低於設定的比較目標；仍須另行完成承載力、差異沉陷及施工階段檢核。")
+                            if qcap_clay4>0:
+                                st.warning("此模式使用逐層總 Δσz，不能直接反推單一基礎 qa,net；模組五承載力上限未套用，請另行檢核。")
+                            st.caption(super_result4["limitations"])
+                        except Exception as super_exc:
+                            st.error(f"多重荷載逐層固結估算失敗：{super_exc}")
+                    else:
+                        st.info("請貼上逐層資料；每一列的 Delta_sigma_kPa 必須是所有荷載完成疊加後的總應力增量。")
                 with st.expander("開挖回彈與基礎再壓縮（選填）",expanded=False):
                     st.caption("依 USACE 2025 第 7-15 節／表 7-10。若有各層 oedometer e-log-p 曲線，優先輸入逐層 e0、e_exc、e_final；單一 Cr/Cc 模式僅為理想化初估。")
                     rebound_mode4=st.radio("計算資料型式",["逐層 e-log-p 試驗孔隙比","單層 Cr/Cc 理想化"],horizontal=True,key="m4c_rebound_mode")
