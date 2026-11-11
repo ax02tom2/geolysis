@@ -2492,7 +2492,7 @@ def test_burland_burbidge_applies_material_adjustments_per_spt_depth():
         {"Depth_below_base_m": 1.0, "N60": 24.0, "Burland_Material": "gravel_sandy_gravel"},
     ]
     result = burland_burbidge_average_n60_from_profile(
-        profile, width_m=1.0, granular_layer_thickness_m=5.0,
+        profile, width_m=2.0, granular_layer_thickness_m=5.0,
     )
     assert result["selected_count"] == 3
     assert [row[0] for row in result["selected_profile"]] == pytest.approx([0.5, 1.0, 1.4])
@@ -2531,7 +2531,7 @@ def test_burland_burbidge_module3_link_preserves_row_material_tags():
             {"Depth_m": 1.5, "N60": 24.0, "Burland_Material": "gravel_sandy_gravel"},
             {"Depth_m": 1.9, "N60": 12.0, "Burland_Material": "standard"},
         ],
-        foundation_depth_m=0.5, width_m=1.0,
+        foundation_depth_m=0.5, width_m=2.0,
         granular_layer_thickness_m=5.0,
     )
     assert result["selected_count"] == 3
