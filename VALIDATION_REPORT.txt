@@ -1,13 +1,13 @@
-Validation report — 2026-11-10 Asia/Taipei (UTC+08:00)
+Validation report — 2026-11-11 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 2ca48151a8006e539c834eaf9c918ed51838b583
-Latest validation run: 42787544017 (PR #18 source tree before squash merge; success)
+Validated main code commit: 2a9dd397d355ac6baf5549fb559a7ccc7b892099
+Latest validation run: 42934667714 (PR #19 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42783002026
+- Run ID: 42934667714
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 239 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 243 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -214,7 +214,7 @@ USACE 2025 in-situ SPT/CPT/PMT bearing-capacity method — PR #17
 - Uses Flow Number N=3 where no friction-angle estimate is supplied; applies the corresponding USACE Meyerhof-based shape and depth factors, including strip-footing shape factor 1.0.
 - Module 5 now provides a dedicated input/results panel. It blocks calculation when horizontal load, load inclination, eccentricity, base inclination or ground inclination is selected, because those factors are not included in this first in-situ implementation.
 - Added three published Appendix B-7 benchmarks: SPT (N60=12,12,15,14; qult≈21.9 ksf), CPT (qne=200,200,320,200 ksf; qult≈31.0 ksf), and PMT (pne=17 ksf; qult≈21.2 ksf), plus a strip-footing shape-factor regression.
-- Scope limitations remain explicit: this path does not yet apply seismic corrections, combine with layered punch-through checks, or calculate structural column/foundation demand qeq and the resulting actual design FS. It reports ultimate and allowable resistance only.
+- Scope limitations at the time of PR #17: this path did not apply seismic corrections or automatically combine in-situ strength with layered punch-through. PR #19 subsequently adds the shared static qeq / actual bearing FS demand-side check; seismic in-situ integration and automatic in-situ layered punch-through remain outstanding.
 - PR #17 merged to main at 4ba81989ff3e465f3dc0165aa1851d8012f9a23e.
 - GitHub Actions run 42787292516: success; Python 3.11 compile passed; full suite 238 passed in 1.60 s.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
@@ -227,4 +227,19 @@ USACE Appendix B-5 undrained PMT benchmark — PR #18
 - PR #18 merged to main at 2ca48151a8006e539c834eaf9c918ed51838b583.
 - GitHub Actions run 42787544017: success; Python 3.11 compile passed; full suite 239 passed in 1.31 s.
 - Published reference benchmark count is now 50. The in-situ method supports SPT/CPT/PMT drained and undrained Table 5-5 factors, but PMT-based punch-through is not automatically combined with a weak underlying layer; assess that mechanism separately.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
+
+
+USACE 2025 gross equivalent bearing pressure and actual bearing safety check — PR #19
+
+- Implemented USACE EM 1110-1-1905 (31 Jul 2025) Eqs. 5-2/5-3 and 5-4 to 5-8: qeq = V/A′ − uD for isolated spread footings and qeq = V/B′ − uD for continuous strip footings; eccentric effective dimensions B′ and L′ are used.
+- Implemented Eq. 5-23: actual FS_bearing = qult,gross / qeq. The minimum bearing-capacity FS is 3.0 per Table 2-1. The UI separately checks the strict middle-third eccentricity limits eB < B/6 and eL < L/6; equality at the boundary is rejected.
+- Base uplift pressure is computed as uD = γw · max(Df − Dw, 0). A non-positive qeq is treated as an uplift-dominated condition; the bearing FS is not reported and a separate uplift check is required.
+- The total vertical input V is explicitly Q + Wf and must include foundation weight and soil above the footing base. Isolated footings use kN; continuous footings use line loads kN/m. The UI requires the user to confirm the design load before displaying qeq or actual FS, preventing the 1,000 kN demonstration default from being mistaken for a project load.
+- Integrated the actual qeq / FS display into the classic bearing, USACE 2025 slope/base, two-layer punching, multilayer profile and SPT/CPT/PMT in-situ result panels. Where the selected capacity path does not account for entered horizontal-load, inclination or eccentricity effects, the UI withholds the actual FS instead of presenting an incomplete check.
+- Corrected the multilayer profile UI to pass the selected continuous/isolated footing type and to invalidate stale results when geometry, layer type, loads or inclination inputs change.
+- Added independent equation-level tests for eccentric rectangular footing with uplift, continuous strip footing, uplift-dominated qeq, and the strict middle-third boundary. These are equation/regression benchmarks, not additional published Appendix B cases.
+- PR #19 merged to main at 2a9dd397d355ac6baf5549fb559a7ccc7b892099.
+- GitHub Actions run 42934667714: success; Python 3.11 compile passed; full suite 243 passed in 1.77 s.
+- Published reference benchmark count remains 50; four new tests validate the qeq/FS equations and boundary behavior.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
