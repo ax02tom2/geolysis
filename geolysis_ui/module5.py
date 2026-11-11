@@ -327,13 +327,22 @@ def render_module_5(expanded=False):
             with eb:
                 kv5=st.number_input("垂直地震係數 kv（輸入正值大小；自動計算向下增／減）",0.0,0.5,0.0,0.01,key="m5x_kv")
             with ec:
-                area5=st.number_input("基礎有效面積 A′ [m²]",0.1,5000.0,float(max(0.1,(B5-2*eB5)*(L5-2*eL5))),0.1,key="m5x_area")
-                seismic_weight5=st.number_input("有效地震重量 W [kN]（預設 V）",0.1,1000000.0,float(max(0.1,V5)),10.0,key="m5x_seismic_weight")
+                seismic_footing5=st.selectbox("地震偏心／孔壓承載力基礎型式",["spread","strip"],
+                    index=0 if footing_kind5=="isolated" else 1,
+                    format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",
+                    key="m5x_seismic_footing")
+                seismic_area_default5=max(0.1,(B5-2*eB5) if seismic_footing5=="strip" else (B5-2*eB5)*(L5-2*eL5))
+                seismic_area_unit5="m²/m" if seismic_footing5=="strip" else "m²"
+                seismic_force_unit5="kN/m" if seismic_footing5=="strip" else "kN"
+                seismic_moment_unit5="kN·m/m" if seismic_footing5=="strip" else "kN·m"
+                area5=st.number_input(f"基礎有效面積 A′ [{seismic_area_unit5}]",0.1,5000.0,float(seismic_area_default5),0.1,key=f"m5x_area_{seismic_footing5}")
+                seismic_weight5=st.number_input(f"有效地震重量 W [{seismic_force_unit5}]（預設 V）",0.1,1000000.0,float(max(0.1,V5)),10.0,key=f"m5x_seismic_weight_{seismic_footing5}")
+                st.caption("連續條形基礎請使用每延米：V、H、W 為 kN/m，A′ 為 m²/m（數值按 B′×1 m），彎矩為 kN·m/m。切換基礎型式後，面積、重量及彎矩欄位會使用各自的單位狀態。")
             sm1,sm2=st.columns(2)
             with sm1:
-                seismic_moment_B5=st.number_input("地震基礎底彎矩 M_B,E [kN·m]（短邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_B")
+                seismic_moment_B5=st.number_input(f"地震基礎底彎矩 M_B,E [{seismic_moment_unit5}]（短邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key=f"m5x_seismic_moment_B_{seismic_footing5}")
             with sm2:
-                seismic_moment_L5=st.number_input("地震基礎底彎矩 M_L,E [kN·m]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_L")
+                seismic_moment_L5=st.number_input(f"地震基礎底彎矩 M_L,E [{seismic_moment_unit5}]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key=f"m5x_seismic_moment_L_{seismic_footing5}")
             st.markdown("**地震彎矩與偏心檢核（一般地震載重適用，不依賴孔壓折減條件）**")
             st.caption("請輸入結構耐震分析傳至基礎底面的水平地震彎矩分量；正負號以 +kh 方向為基準，系統假設反向作用時彎矩線性反號。靜力偏心距 eB/eL 會先換算為帶方向的靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。此兩個彎矩輸入會供本區一般地震偏心檢核及下方地震孔壓折減承載力使用，不會改變上方單純 H/V 等效載重表。")
             if kh5>0 and abs(seismic_moment_B5)<1e-9 and abs(seismic_moment_L5)<1e-9:
@@ -388,7 +397,6 @@ def render_module_5(expanded=False):
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
-                seismic_footing5=st.selectbox("基礎型式",["spread","strip"],format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",key="m5x_seismic_footing")
             with ss2:
                 st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震合力 H_eq/V_eq 組合自動計算，不再要求手動猜測係數。")
             with ss3:
