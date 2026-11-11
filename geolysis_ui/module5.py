@@ -324,7 +324,7 @@ def render_module_5(expanded=False):
             with ea:
                 kh5=st.number_input("水平地震係數 kh",0.0,1.0,0.15,0.01,key="m5x_kh")
             with eb:
-                kv5=st.number_input("垂直地震係數 kv（正值代表向下增加）",-0.5,0.5,0.0,0.01,key="m5x_kv")
+                kv5=st.number_input("垂直地震係數 kv（輸入正值大小；自動計算向下增／減）",0.0,0.5,0.0,0.01,key="m5x_kv")
             with ec:
                 area5=st.number_input("基礎有效面積 A′ [m²]",0.1,5000.0,float(max(0.1,(B5-2*eB5)*(L5-2*eL5))),0.1,key="m5x_area")
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
