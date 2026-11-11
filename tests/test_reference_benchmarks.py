@@ -1883,3 +1883,20 @@ def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
     assert result["settlement_mm"]/304.8 == pytest.approx(expected_ft,abs=1e-9)
     assert result["settlement_mm"]/304.8 == pytest.approx(.03087,abs=.0001)
     assert result["settlement_mm"]/25.4 == pytest.approx(.37,abs=.01)
+
+
+
+def test_usace_2025_appendix_c3c_consolidation_time_rate():
+    # Appendix C-3c: U=70%, Tv=0.403, Hdr=25/2 ft, Cv=0.412 ft²/day.
+    ft = 0.3048
+    cv_m2_day = 0.412 * (0.3048**2)
+    result = consolidation_time_rate(
+        primary_settlement_mm=1.10*25.4,
+        layer_thickness_m=25*ft,
+        cv_m2_per_day=cv_m2_day,
+        target_degree_percent=70.0,
+        drainage="double",
+    )
+    assert result["time_factor_target"] == pytest.approx(.403,abs=.001)
+    assert result["drainage_path_m"] == pytest.approx(12.5*ft)
+    assert result["time_to_target_days"] == pytest.approx(152.8,abs=.5)
