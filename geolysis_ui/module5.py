@@ -335,6 +335,8 @@ def render_module_5(expanded=False):
             with sm2:
                 seismic_moment_L5=st.number_input("地震基礎底彎矩 M_L,E [kN·m]（長邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key="m5x_seismic_moment_L")
             st.caption("請輸入結構耐震分析傳至基礎底面的地震彎矩分量；正負號以 +kh 方向為基準，系統會自動反算 −kh 方向。靜力偏心距 eB/eL 會先換算為靜力彎矩 V·e。連續基礎請使用每延米彎矩（kN·m/m），且不支援長邊方向彎矩。")
+            if kh5>0 and abs(seismic_moment_B5)<1e-9 and abs(seismic_moment_L5)<1e-9:
+                st.warning("目前兩個地震基礎底彎矩均為 0；系統不會由 khW 自行猜測作用高度。若結構分析已有地震彎矩，請輸入其傳至基礎底面的帶符號分量；未輸入時結果不包含地震傾覆偏心。")
             sd1,sd2=st.columns(2)
             with sd1:
                 static_moment_B_sign5=st.selectbox("靜力短邊偏心方向",options=[1,-1],format_func=lambda x:"+B 方向" if x==1 else "−B 方向",key="m5x_static_moment_B_sign")
