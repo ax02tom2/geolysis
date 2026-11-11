@@ -342,7 +342,7 @@ def render_module_5(expanded=False):
                 st.caption(seismic["limitations"])
             st.markdown("**地震超額孔隙水壓／強度損失之承載力折減（USACE 2025 式 9-3／9-4）**")
             st.caption("僅適用砂狀排水土（c′≈0、φ′>0）且殘餘超額孔隙水壓影響完整承載力剪力區；ru 必須依液化／孔壓分析取得。系統會依 USACE 表 5-2／5-3 自動計算形狀、深度、載重傾斜、基底與地表修正，並以式 5-19 計算 γ′。")
-            st.info("本區只計算孔壓折減後極限承載力 qu，不會自動將偽靜力 kh／kv 載重包絡合併成地震 qeq 與 FS。因地震水平力、傾斜修正、地震彎矩／偏心及土體慣性尚未完整整合，這裡不顯示地震安全係數或通過判定。")
+            st.info("本區已將兩個垂直地震加速度方向的偽靜力 V 組合、控制水平 kh·V、Meyerhof 載重傾斜，以及 USACE 表 5-2／5-3 形狀、深度、基底與地表修正納入，計算孔壓折減後極限承載力 qu。仍未納入地震彎矩造成的偏心、基底殘餘超額孔壓上拔、土體慣性及部分剪力區孔壓的加權單位重，因此不顯示地震 qeq／FS 或通過判定。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
                 ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
@@ -351,12 +351,18 @@ def render_module_5(expanded=False):
                 st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震 H/V 組合自動計算，不再要求手動猜測係數。")
             with ss3:
                 st.caption("兩組垂直地震係數方向均會計算，並以較低地震極限抗力作控制。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run"):
+            nonliquefiable_confirmed5=st.checkbox("已依獨立液化／循環強度評估確認：剪力區砂土不發生液化或循環剪力強度損失（本式只適用不液化但會產生超額孔壓的砂土）",value=False,key="m5x_nonliquefiable_confirm")
+            full_shear_zone_confirmed5=st.checkbox("已確認殘餘超額孔隙水壓影響完整承載力剪力區；若僅部分影響，須另依手冊加權有效單位重",value=False,key="m5x_full_shear_zone_confirm")
+            if not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5):
+                st.warning("未完成兩項適用性確認前，不執行式 9-3／9-4 計算。")
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=not (nonliquefiable_confirmed5 and full_shear_zone_confirmed5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
                         footing_type=seismic_footing5,
                         residual_excess_pore_pressure_ratio=ru5,
+                        non_liquefiable_confirmed=nonliquefiable_confirmed5,
+                        full_shear_zone_confirmed=full_shear_zone_confirmed5,
                         c_kpa=c5,phi_deg=phi5,gamma_moist=gamma5,
                         gamma_sub=gsub5,gamma_below=gamma_below5,
                         B=B5,L=L5,Df=df5,water_depth=dw5,
@@ -366,11 +372,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5))
+                        (V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5)
+            sr_sig=(V5,H5,kh5,kv5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,full_shear_zone_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 st.metric("控制地震孔壓折減極限承載力",f"{sr['qu_seismic_governing_kpa']:.1f} kPa")
