@@ -392,6 +392,8 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
         if 'Depth_m' not in row or 'N60' not in row:
             raise ValueError('模組三 SPT 剖面必須包含 Depth_m、N60 欄位')
         depth=_finite('SPT 地表下深度',row['Depth_m'])
+        if depth<0:
+            raise ValueError('SPT 地表下深度不可為負')
         z=depth-Df
         if z < -1e-9:
             continue
