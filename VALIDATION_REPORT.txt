@@ -664,3 +664,14 @@ Module 4 pressure consistency for consolidation time-rate and secondary compress
 - PR #65 merged to main at d9e58cb26ebca528552fd936484d41ca2f16d7fc.
 - GitHub Actions run 42987296496: success; Python 3.11 compile passed; full suite 385 passed in 2.31 s.
 - Public worked-example benchmark count remains 66.
+
+
+Module 2 independent USCS/AASHTO classification benchmark — PR #66
+
+- Added Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2 and 2-5: P3in=100%, P10=93.2%, P40=81%, P200=60.2%, LL=42, PL=16, PI=26.
+- The independent sample classifies as USCS CL and AASHTO A-7-6.
+- Under AASHTO M145 (2021) §3.1, fractional limiting values are rounded to whole numbers for classification; §6.1 defines F as a whole number. F=60 gives raw GI=12.45 and reported GI=12. The textbook's graph estimate (~12.8 -> 13) is approximate; the regression follows the normative M145 equation and rounding convention.
+- Added one independent public soil-classification sample; it does not change the separate 66-case USACE Appendix B/C benchmark count.
+- PR #66 merged to main at 8a79fee2cf04f9b161ff2276195d6b6b8d8ee491.
+- GitHub Actions run 42987676198: success; Python 3.11 compile passed; full suite 386 passed in 2.49 s.
+- References: Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2/2-5; AASHTO M145 (2021), §§3.1, 6.1–6.1.2.
