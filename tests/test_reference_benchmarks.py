@@ -28,6 +28,7 @@ from geolysis_engine import (
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
     dmt_settlement_2025,
+    schmertmann_cpt_settlement_2025,
 )
 
 
@@ -1436,3 +1437,56 @@ def test_usace_2025_dmt_strip_footing_uses_infinite_strip_stress_solution():
     assert row["Stress_factor_I_sigma"] == pytest.approx(expected)
     assert result["influence_depth_required_m"] == pytest.approx(6.0)
     assert result["profile_depth_used_m"] == pytest.approx(6.0)
+
+
+
+def test_usace_2025_schmertmann_cpt_settlement_matches_equations_7_16_to_7_26():
+    layers = [
+        {"Layer": i + 1, "thickness_m": 0.25, "qc_kpa": 1000.0}
+        for i in range(8)
+    ]
+    result = schmertmann_cpt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        peak_effective_stress_kpa=100.0, years=50.0,
+        ultimate_bearing_kpa=450.0, factor_of_safety=3.0,
+    )
+    qnet = 150.0 - 50.0
+    expected_izp = 0.5 + 0.1 * math.sqrt(qnet / 100.0)
+    expected_c1 = 1.0 - 0.5 * 50.0 / qnet
+    expected_c2 = 1.0 + 0.2 * math.log10(50.0 / 0.1)
+    assert result["gross_pressure_used_kpa"] == pytest.approx(150.0)
+    assert result["Iz_peak"] == pytest.approx(expected_izp)
+    assert result["C1_embedment"] == pytest.approx(expected_c1)
+    assert result["C2_creep"] == pytest.approx(expected_c2)
+    assert result["influence_depth_required_m"] == pytest.approx(2.0)
+    assert result["capacity_limit_governs"] is True
+    expected_sum = 0.0
+    for row in result["layer_results"]:
+        x = row["Depth_center_m"]
+        iz = 0.1 + x * (2.0 * expected_izp - 0.2) if x <= 0.5 else (
+            0.667 * expected_izp * (2.0 - x))
+        expected_sum += iz * 0.25 / 2500.0
+    expected_settlement = expected_c1 * expected_c2 * qnet * expected_sum * 1000.0
+    assert result["settlement_mm"] == pytest.approx(expected_settlement)
+
+
+def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
+    layers = [
+        {"thickness_m": 0.25, "qc_kpa": 1000.0}
+        for _ in range(16)
+    ]
+    result = schmertmann_cpt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=10.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        peak_effective_stress_kpa=100.0, footing_type="continuous",
+    )
+    assert result["influence_depth_required_m"] == pytest.approx(4.0)
+    assert result["profile_depth_used_m"] == pytest.approx(4.0)
+    assert result["layer_results"][0]["Es_kPa"] == pytest.approx(3500.0)
+    with pytest.raises(ValueError, match="不可外插"):
+        schmertmann_cpt_settlement_2025(
+            layers=layers[:4], footing_width_m=1.0, footing_length_m=10.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+            peak_effective_stress_kpa=100.0, footing_type="continuous",
+        )
