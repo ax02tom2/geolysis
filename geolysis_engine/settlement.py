@@ -415,6 +415,163 @@ def burland_burbidge_average_n60_from_ground_profile(profile, *, foundation_dept
 
 
 
+def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
+                                         footing_length_m, gross_pressure_kpa,
+                                         base_effective_stress_kpa,
+                                         equivalent_net_limit_pressure_kpa,
+                                         yield_pressure_kpa,
+                                         soil_type="sand", consolidation_state="normally_consolidated",
+                                         lambda_d=None, lambda_c=None, round_footing=False,
+                                         ultimate_bearing_kpa=None, factor_of_safety=3.0,
+                                         deep_uniform_deposit_confirmed=False, soft_layers=None,
+                                         soft_layer_profile_reviewed=False):
+    """USACE 2025 Ménard-Rousseau PMT settlement for deep uniform deposits (Eq. 7-11).
+
+    pmt_moduli is a list of {group: E1|E2|E345|E678|E916, E0_kpa}.
+    The five groups follow Figure 7-12/Table 7-5; each group uses a harmonic mean.
+    """
+    B = _finite("基礎寬度 B", footing_width_m)
+    L = _finite("基礎長度 L", footing_length_m)
+    q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
+    sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
+    pne = _finite("PMT 等效淨極限壓力 pne", equivalent_net_limit_pressure_kpa)
+    py = _finite("PMT 屈服壓力 Py", yield_pressure_kpa)
+    fs = _finite("承載力安全係數", factor_of_safety)
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or py <= 0 or fs <= 0 or not pmt_moduli:
+        raise ValueError("基礎尺寸、壓力、PMT pne、FS 或模數資料不合理")
+    if soft_layers:
+        if not soft_layer_profile_reviewed:
+            raise ValueError("使用式 7-12 前，必須確認已辨識完整 2B／6B 範圍內的所有軟弱／鬆散層")
+    elif not deep_uniform_deposit_confirmed:
+        raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B／6B 內有軟弱層或鬆散夾層，須輸入軟弱層資料改用式 7-12")
+    if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat"):
+        raise ValueError("PMT 土類須為 clay、silt、sand、sand_gravel 或 peat")
+    if consolidation_state not in ("overconsolidated", "normally_consolidated", "weathered_remolded"):
+        raise ValueError("未知 PMT 土層狀態")
+    if round_footing:
+        if abs(L - B) > 1e-6:
+            raise ValueError("圓形基礎請以等效直徑輸入，需令 L = B")
+        ld = lc = 1.0
+    else:
+        if lambda_d is None or lambda_c is None:
+            raise ValueError("非圓形基礎須依 USACE Figure 7-11 輸入 λd 與 λc；本工具不以未經數位化的圖表猜值")
+        ld = _finite("λd", lambda_d)
+        lc = _finite("λc", lambda_c)
+        if ld <= 0 or lc <= 0:
+            raise ValueError("λd 與 λc 必須大於 0")
+    if ultimate_bearing_kpa is not None:
+        qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
+        if qult <= 0:
+            raise ValueError("輸入 qult 時必須大於 0")
+        q_used = min(q, qult / fs)
+    else:
+        q_used = q
+    if q_used > py:
+        raise ValueError(f"採用 gross q／qeq={q_used:.1f} kPa 超過 PMT 屈服壓力 Py={py:.1f} kPa；須改用對應壓力的割線模數")
+    q_net = q_used - sigD
+    if q_net <= 0:
+        raise ValueError("gross q／qeq 不大於基礎底初始有效應力，無正的新增壓力")
+    groups = {"E1": [], "E2": [], "E345": [], "E678": [], "E916": []}
+    for row in pmt_moduli:
+        group = str(row.get("group", "")).strip().upper()
+        if group not in groups:
+            raise ValueError("PMT group 僅接受 E1、E2、E345、E678、E916")
+        E0 = _finite("PMT E0", row.get("E0_kpa"))
+        if E0 <= 0:
+            raise ValueError("PMT E0 必須大於 0")
+        groups[group].append(E0)
+    missing = [name for name, values in groups.items() if not values]
+    if missing:
+        raise ValueError("PMT 剖面缺少 Figure 7-12 分組：" + ", ".join(missing))
+    harmonic = {name: len(values) / sum(1.0 / value for value in values)
+                for name, values in groups.items()}
+    E1, E2, E345, E678, E916 = (harmonic[x] for x in ("E1", "E2", "E345", "E678", "E916"))
+    inv_Ed = 0.25 * (
+        1.0 / E1 + 1.0 / (0.85 * E2) + 1.0 / E345
+        + 1.0 / (2.5 * E678) + 1.0 / (2.5 * E916)
+    )
+    Ed = 1.0 / inv_Ed
+    Ec = E1
+
+    def _alpha(E, ratio):
+        if soil_type == "peat":
+            if consolidation_state != "normally_consolidated":
+                raise ValueError("USACE Table 7-6 僅列 NC peat 的 α=1；其他 peat 狀態不外插")
+            return 1.0
+        if consolidation_state == "weathered_remolded":
+            if soil_type == "clay":
+                if not 7.0 <= ratio <= 9.0:
+                    raise ValueError(f"USACE Table 7-6：weathered/remolded clay 的 E/pne 適用範圍 7–9，目前 {ratio:.2f}；不外插 α")
+                return 0.5
+            return {"silt": 0.5, "sand": 1.0/3.0, "sand_gravel": 0.25}[soil_type]
+        threshold = {
+            "clay": (16.0, 9.0, 16.0, 2.0/3.0, 1.0),
+            "silt": (14.0, 8.0, 14.0, 0.5, 2.0/3.0),
+            "sand": (12.0, 7.0, 12.0, 1.0/3.0, 0.5),
+            "sand_gravel": (10.0, 6.0, 10.0, 0.25, 1.0/3.0),
+        }[soil_type]
+        oc_limit, nc_low, nc_high, alpha_nc, alpha_oc = threshold
+        if consolidation_state == "overconsolidated":
+            if ratio <= oc_limit:
+                raise ValueError(f"USACE Table 7-6：{soil_type} OC 要求 E/pne > {oc_limit:g}，目前 {ratio:.2f}；不外插 α")
+            return alpha_oc
+        if not nc_low <= ratio <= nc_high:
+            raise ValueError(f"USACE Table 7-6：{soil_type} NC 的 E/pne 適用範圍 {nc_low:g}–{nc_high:g}，目前 {ratio:.2f}；不外插 α")
+        return alpha_nc
+
+    alpha_d = _alpha(Ed, Ed / pne)
+    alpha_c = _alpha(Ec, Ec / pne)
+    B0 = 0.6096
+    deviatoric_m = (2.0 / (9.0 * Ed)) * q_net * B0 * (ld * B / B0) ** alpha_d
+    spherical_m = (alpha_c / (9.0 * Ec)) * q_net * lc * B
+    soft_details = []
+    soft_total_m = 0.0
+    if soft_layers:
+        soft_limit = (6.0 if L / B > 10.0 else 2.0) * B
+        for index, row in enumerate(soft_layers, 1):
+            H = _finite("軟弱層厚度", row.get("thickness_m"))
+            z = _finite("軟弱層中心深度", row.get("depth_center_m"))
+            EL = _finite("軟弱層 PMT 模數 EL", row.get("E_L_kpa"))
+            pneL = _finite("軟弱層等效淨極限壓力 pne", row.get("pne_kpa"))
+            if H <= 0 or z < H / 2.0 or EL <= 0 or pneL <= 0:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆厚度、深度、EL、pne 不合理；深度需完全位於基礎底以下")
+            if z + H / 2.0 > soft_limit + 1e-9:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆超出式 7-12 適用深度 {soft_limit:.2f} m")
+            if EL >= Ed:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆 EL 必須小於深層等效 Ed")
+            alpha_L = _alpha(EL, EL / pneL)
+            if L / B > 10.0:
+                a = B / 2.0
+                Iz = (2.0 / math.pi) * (math.atan(a / z) + a * z / (a*a + z*z))
+            else:
+                Iz = boussinesq_rectangular_center_factor(B, L, z)
+            component_m = alpha_L * (1.0 / EL - 1.0 / Ed) * Iz * q_net * H
+            if component_m < 0:
+                raise ValueError("PMT 軟弱層計算出負沉陷增量，請檢查 EL、Ed 及試驗資料")
+            soft_total_m += component_m
+            soft_details.append({"Layer": row.get("Layer", index), "Depth_center_m": z,
+                "Thickness_m": H, "E_L_kPa": EL, "pne_kPa": pneL,
+                "alpha_L": alpha_L, "I_sigma": Iz, "Settlement_mm": component_m * 1000.0})
+    total_m = deviatoric_m + spherical_m + soft_total_m
+    return {
+        "settlement_mm": total_m * 1000.0,
+        "deviatoric_settlement_mm": deviatoric_m * 1000.0,
+        "spherical_settlement_mm": spherical_m * 1000.0,
+        "soft_layer_settlement_mm": soft_total_m * 1000.0,
+        "soft_layer_results": soft_details,
+        "gross_pressure_used_kpa": q_used,
+        "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
+        "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "net_pressure_increment_kpa": q_net,
+        "E1_kpa": E1, "E2_kpa": E2, "E345_kpa": E345,
+        "E678_kpa": E678, "E916_kpa": E916,
+        "Ed_kpa": Ed, "Ec_kpa": Ec, "alpha_d": alpha_d,
+        "alpha_c": alpha_c, "lambda_d": ld, "lambda_c": lc,
+        "group_harmonic_means_kpa": harmonic,
+        "method": ("USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eqs. 7-11/7-12, Tables 7-5/7-6" if soft_layers else "USACE EM 1110-1-1905 (2025), Ménard-Rousseau PMT, Eq. 7-11 and Table 7-5"),
+        "limitations": "深層均質部分依 Eq. 7-11；若有軟弱／鬆散夾層，僅計入輸入且位於矩形基礎 2B 或條形基礎 6B 範圍內的 Eq. 7-12 修正。非圓形基礎 λd/λc 必須由 Figure 7-11 讀取。PMT 設計壓力不可超過屈服壓力 Py；未包含地震沉陷。"
+    }
+
 def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m,
                                     gross_pressure_kpa, base_effective_stress_kpa,
                                     peak_effective_stress_kpa, years=50.0,
