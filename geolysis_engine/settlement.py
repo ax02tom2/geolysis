@@ -586,7 +586,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     def _alpha(E, ratio):
         if consolidation_state == "auto":
             if soil_type == "peat":
-                return 1.0
+                raise ValueError("USACE Table 7-6 僅列正常固結泥炭 α=1；請先確認泥炭為正常固結後選擇 normally_consolidated，不可由 E/pne 自動推定")
             if soil_type == "clay":
                 if ratio > 16.0: return 1.0
                 if 9.0 <= ratio <= 16.0: return 2.0/3.0
