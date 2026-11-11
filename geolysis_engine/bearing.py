@@ -570,7 +570,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                 effective_width_m=base['B_effective'],
                 bearing_factor_ngamma=base['Ngamma'],
                 residual_excess_pore_pressure_ratio=ru,
-                shape_depth_inclination_factor=product)
+                shape_depth_inclination_factor=product,
+                non_liquefiable_confirmed=non_liquefiable_confirmed,
+                full_shear_zone_confirmed=full_shear_zone_confirmed)
             qu=resistance['qu_seismic_kpa']
             reason=None
         cases.append({
