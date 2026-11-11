@@ -2398,3 +2398,19 @@ def test_burland_settlement_uses_loose_layer_depth_for_zi_but_hs_for_c2():
     )
     assert result["influence_depth_m"] == pytest.approx(0.8)
     assert result["C2_layer"] == pytest.approx(1.0)
+
+
+
+@pytest.mark.parametrize(
+    ("layer_ratio", "expected_c2"),
+    [(0.5, 0.75), (1.0, 1.0), (1.5, 1.0), (2.0, 1.0)],
+)
+def test_burland_c2_only_reduces_when_granular_layer_is_thinner_than_zi(layer_ratio, expected_c2):
+    zi_m = 1.43 * (1.0 / 0.3048) ** 0.7 * 0.3048
+    result = burland_burbidge_2025_settlement(
+        n60_average=20.0, width_m=1.0, length_m=1.0,
+        gross_pressure_kpa=150.0, initial_effective_stress_kpa=50.0,
+        preconsolidation_stress_kpa=80.0,
+        granular_layer_thickness_m=layer_ratio * zi_m,
+    )
+    assert result["C2_layer"] == pytest.approx(expected_c2)
