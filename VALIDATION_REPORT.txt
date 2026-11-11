@@ -391,3 +391,15 @@ Module 2 soil classification input guard
 - The particle-size curve option now defaults off; D10/D30/D60 fields start at zero and cannot be treated as a real gradation curve until entered.
 - Classification execution is disabled until the user confirms that the displayed values are the current laboratory test data. This prevents the example defaults from being accidentally classified as a real soil sample.
 - Main commit: 538a6afb60ffc0d8111cfabeaa65f877b7f4690a. Included in the next full CI verification.
+
+
+
+USACE Appendix C-7b / C-7c / C-7d settlement benchmarks — PR #33
+
+- Added a direct DMT MDMT profile path alongside corrected p0/p1/u0 conversion. The direct path accepts per-layer MDMT and optional documented Iσ values; Module 4 exposes both modes.
+- Appendix C-7b: validates all 25 listed DMT MDMT/Iσ/thickness rows and Eq. 7-10. The row settlements sum to approximately 0.343 in, while the manual prints 0.034 in (factor-of-ten discrepancy); the benchmark preserves the listed row values.
+- Appendix C-7c: validates the five PMT modulus groups from raw E0 readings, using harmonic means and Eq. 7-14. Automatically selects αd and αc independently from Ed/pne and Ec/pne per Table 7-6. The printed ratios 152/8.5=9.5 and 78/8.5=4.9 are arithmetic errors; actual ratios are about 17.9 and 9.18. The printed component sum 0.028 ft equals 0.336 in, while the final reported 0.38 in is consistent with the equation-based result (about 0.39 in).
+- Appendix C-7d: validates the seven listed CPT layers and Eq. 7-16 to 7-26. The printed row-7 Iz·H/Es should be 0.0008, not 0.008; the listed layer data sum to about 0.0194 ft³/ton and produce about 1.10 in, rather than the printed 0.0266 and 1.5 in.
+- PR #33 merged at 9f9c87103875fac01a75c3357a302e7f5a289488.
+- GitHub Actions run 42962997586: success; Python 3.11 compile passed; full suite 277 passed.
+- Three additional published worked-example cases added; USACE Appendix B/C worked-example count is now 57 (53 Appendix B + C-7b/C-7c/C-7d/C-7e).
