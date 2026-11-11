@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-11 Asia/Taipei (UTC+08:00)
-Validated main code commit: d9e58cb26ebca528552fd936484d41ca2f16d7fc
+Validated main code commit: 8a79fee2cf04f9b161ff2276195d6b6b8d8ee491
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 385 passed
-GitHub Actions validation run: 42987296496 (success; Python 3.11 compile passed; 385 passed in 2.31 s; includes PR #65 capacity-limited primary settlement for time-rate/secondary calculations)
-Runtime smoke: PR #65 CI run 42987296496 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
+Latest verified automated suite: 386 passed
+GitHub Actions validation run: 42987676198 (success; Python 3.11 compile passed; 386 passed in 2.49 s; includes PR #66 independent USCS/AASHTO soil classification example)
+Runtime smoke: PR #66 CI run 42987676198 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -124,3 +124,13 @@ Module 4 pressure consistency for consolidation time-rate and secondary compress
 - PR #65 merged to main at d9e58cb26ebca528552fd936484d41ca2f16d7fc.
 - GitHub Actions run 42987296496: success; Python 3.11 compile passed; full suite 385 passed in 2.31 s.
 - Public worked-example benchmark count remains 66.
+
+
+Module 2 independent USCS/AASHTO classification benchmark — PR #66
+- Added Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2 and 2-5: P3in=100%, P10=93.2%, P40=81%, P200=60.2%, LL=42, PL=16, PI=26.
+- The independent sample classifies as USCS CL and AASHTO A-7-6.
+- Under AASHTO M145 (2021) §3.1, fractional limiting values are rounded to whole numbers for classification; §6.1 defines F as a whole number. F=60 gives raw GI=12.45 and reported GI=12. The textbook's graph estimate (~12.8 -> 13) is approximate; the regression follows the normative M145 equation and rounding convention.
+- Added one independent public soil-classification sample; it does not change the separate 66-case USACE Appendix B/C benchmark count.
+- PR #66 merged to main at 8a79fee2cf04f9b161ff2276195d6b6b8d8ee491.
+- GitHub Actions run 42987676198: success; Python 3.11 compile passed; full suite 386 passed in 2.49 s.
+- References: Liu & Evett, *Soils and Foundations*, 7th ed., Examples 2-2/2-5; AASHTO M145 (2021), §§3.1, 6.1–6.1.2.
