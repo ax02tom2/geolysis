@@ -705,3 +705,19 @@ Module 5 effective seismic weight separated from static foundation reaction — 
 - GitHub Actions run 42990267495: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 392 passed in 2.22 s.
 - Public USACE Appendix B/C worked-example benchmark count remains 66; these are additional load-model regression checks, not new worked-example benchmarks.
 - References: USACE EM 1110-1-1905 (31 Jul 2025), §5-2a and Eq. 5-1; ASCE/SEI 7-22 §12.7.2 (effective seismic weight).
+
+
+
+Module 4 multi-layer consolidation time-rate and secondary compression — PR #71
+
+- Replaced the prior multi-layer time-rate/secondary-compression block that only displayed a warning with a per-layer parameter workflow.
+- The engine takes each layer's final primary settlement at the actual capacity-limited qa,net, layer thickness, Cv, and drainage path. It evaluates the USACE Figure 7-16 U–Tv relationship for every layer at one common elapsed time and sums the layer primary-settlement contributions.
+- The displayed overall average degree of consolidation is derived from total primary settlement at time divided by the sum of ultimate primary settlements (settlement-weighted); it is not a separately tabulated USACE factor. The time to a target overall degree is solved by bisection.
+- Each layer may specify Drainage=single/double or a direct Hdr_m. Optional C_alpha and e_p calculate layer-specific secondary compression. If t1_days is blank, the app estimates t1 using the USACE Figure 7-16 U=99.4% (Tv≈2.0) point and labels it approximate; test-derived t1 should be used for formal design.
+- The UI recomputes per-layer primary settlement at the final pressure after the Module 5 capacity cap, avoiding reuse of settlement-target results.
+- Model limitation: each layer is treated as an independent 1-D consolidation unit. This is not a fully coupled layered drainage model and does not model interlayer hydraulic resistance, vertical drains, staged construction, or coupled pore-pressure redistribution. Cv and Hdr must be based on appropriate test data and drainage boundaries.
+- Added eight automated regression cases covering single-layer equivalence, common-time aggregation, per-layer secondary compression, estimated t1, layer matching, and drainage-path validation.
+- PR #71 merged to main at 4c16c34afdff72d9ea74bf9ad753e91f20923300.
+- GitHub Actions run 42991126306: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 400 passed in 1.96 s.
+- Public USACE Appendix B/C worked-example benchmark count remains 66; this feature adds time-rate/secondary regression tests, not additional worked-example benchmarks.
+- References: USACE EM 1110-1-1905 (31 Jul 2025), §7-18, Eqs. 7-41/7-42, Figure 7-16, Table 7-11; §7-19 / Eq. 7-47.
