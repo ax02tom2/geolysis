@@ -256,6 +256,8 @@ def usace_settlement_design_pressure(*, gross_equivalent_pressure_kpa,
         'capacity_pressure_limit_kpa':limit,
         'design_pressure_kpa':used,
         'capacity_limit_governs':limit<q,
+        'minimum_usace_static_bearing_fs':3.0,
+        'meets_usace_static_bearing_fs':fs>=3.0,
         'method':'USACE EM 1110-1-1905 (2025), §7-2 and settlement method procedures',
         'limitations':'輸入 q 應為適用的 gross bearing pressure；偏心基礎應輸入 qeq。沉陷計算採 min(q 或 qeq, qult/FS)。本函式只執行壓力上限控制，不代替模組五的實際承載力、偏心、滑動、抗浮及整體穩定檢核。'
     }
@@ -437,8 +439,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     pne = _finite("PMT 等效淨極限壓力 pne", equivalent_net_limit_pressure_kpa)
     py = _finite("PMT 屈服壓力 Py", yield_pressure_kpa)
     fs = _finite("承載力安全係數", factor_of_safety)
-    if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or py <= 0 or fs <= 0 or not pmt_moduli:
-        raise ValueError("基礎尺寸、壓力、PMT pne、FS 或模數資料不合理")
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or pne <= 0 or py <= 0 or fs <= 1.0 or not pmt_moduli:
+        raise ValueError("基礎尺寸、壓力或 PMT 模數資料不合理；承載力安全係數 FS 必須大於 1.0")
     if soft_layers:
         if not soft_layer_profile_reviewed:
             raise ValueError("使用式 7-12 前，必須確認已辨識完整 2B／6B 範圍內的所有軟弱／鬆散層")
@@ -545,6 +547,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     soft_total_m = 0.0
     if soft_layers:
         soft_limit = (6.0 if L / B > 10.0 else 2.0) * B
+        soft_intervals = []
         for index, row in enumerate(soft_layers, 1):
             H = _finite("軟弱層厚度", row.get("thickness_m"))
             z = _finite("軟弱層中心深度", row.get("depth_center_m"))
@@ -552,6 +555,10 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             pneL = _finite("軟弱層等效淨極限壓力 pne", row.get("pne_kpa"))
             if H <= 0 or z < H / 2.0 or EL <= 0 or pneL <= 0:
                 raise ValueError(f"PMT 軟弱層第 {index} 筆厚度、深度、EL、pne 不合理；深度需完全位於基礎底以下")
+            interval = (z - H / 2.0, z + H / 2.0)
+            if any(interval[0] < previous[1] - 1e-9 and interval[1] > previous[0] + 1e-9 for previous in soft_intervals):
+                raise ValueError(f"PMT 軟弱層第 {index} 筆與其他輸入層重疊；同一土層不可重複計算")
+            soft_intervals.append(interval)
             if z + H / 2.0 > soft_limit + 1e-9:
                 raise ValueError(f"PMT 軟弱層第 {index} 筆超出式 7-12 適用深度 {soft_limit:.2f} m")
             if EL >= Ed:
@@ -584,6 +591,8 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "minimum_usace_static_bearing_fs": 3.0,
+        "meets_usace_static_bearing_fs": fs >= 3.0,
         "net_pressure_increment_kpa": q_net,
         "E1_kpa": E1, "E2_kpa": E2, "E345_kpa": E345,
         "E678_kpa": E678, "E916_kpa": E916,
@@ -612,8 +621,8 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
     sigP = _finite("Iz 峰值深度初始有效應力", peak_effective_stress_kpa)
     t = _finite("載重作用時間", years)
     fs = _finite("承載力安全係數", factor_of_safety)
-    if B <= 0 or L < B or q <= 0 or sigD < 0 or sigP <= 0 or t <= 0 or fs <= 0 or not layers:
-        raise ValueError("基礎尺寸、壓力、有效應力、時間、FS 或 CPT 分層資料不合理")
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or sigP <= 0 or t <= 0 or fs <= 1.0 or not layers:
+        raise ValueError("基礎尺寸、壓力、有效應力、時間或 CPT 分層資料不合理；承載力安全係數 FS 必須大於 1.0")
     if footing_type not in ("isolated", "continuous"):
         raise ValueError("基礎型式須為 isolated 或 continuous")
     if ultimate_bearing_kpa is not None:
@@ -683,6 +692,8 @@ def schmertmann_cpt_settlement_2025(*, layers, footing_width_m, footing_length_m
         "settlement_mm": settlement_mm, "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "minimum_usace_static_bearing_fs": 3.0,
+        "meets_usace_static_bearing_fs": fs >= 3.0,
         "net_pressure_increment_kpa": q_net, "Iz_peak": Izp,
         "peak_depth_m": peak_depth, "C1_embedment": C1, "C2_creep": C2,
         "influence_depth_required_m": influence_depth, "profile_depth_used_m": depth,
@@ -708,7 +719,7 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
     sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
     fs = _finite("承載力安全係數", factor_of_safety)
     if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 0 or not layers:
-        raise ValueError("基礎尺寸、gross 壓力、FS 與 DMT 模數剖面不合理")
+        raise ValueError("基礎尺寸、gross 壓力或 DMT 模數剖面不合理；承載力安全係數 FS 必須大於 1.0")
     if footing_type not in ("isolated", "continuous"):
         raise ValueError("基礎型式須為 isolated 或 continuous")
     if ultimate_bearing_kpa is not None:
@@ -771,6 +782,8 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
         "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "minimum_usace_static_bearing_fs": 3.0,
+        "meets_usace_static_bearing_fs": fs >= 3.0,
         "base_effective_stress_kpa": sigD, "net_pressure_increment_kpa": q_net,
         "influence_depth_required_m": required_depth,
         "profile_depth_used_m": profile_bottom, "layer_results": rows,
@@ -793,7 +806,7 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
     sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
     fs = _finite("承載力安全係數", factor_of_safety)
     if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 0 or not layers:
-        raise ValueError("基礎尺寸、gross 壓力、FS 與 DMT 分層資料不合理")
+        raise ValueError("基礎尺寸、gross 壓力與 DMT 分層資料不合理；承載力安全係數 FS 必須大於 1.0")
     if footing_type not in ("isolated", "continuous"):
         raise ValueError("基礎型式須為 isolated 或 continuous")
     if ultimate_bearing_kpa is not None:
@@ -875,6 +888,8 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
         "gross_pressure_used_kpa": q_used,
         "capacity_pressure_limit_kpa": (qult / fs if ultimate_bearing_kpa is not None else None),
         "capacity_limit_governs": bool(ultimate_bearing_kpa is not None and qult / fs < q),
+        "minimum_usace_static_bearing_fs": 3.0,
+        "meets_usace_static_bearing_fs": fs >= 3.0,
         "base_effective_stress_kpa": sigD,
         "net_pressure_increment_kpa": q_net,
         "influence_depth_required_m": required_depth,
