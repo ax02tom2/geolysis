@@ -718,7 +718,7 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
     q = _finite("基礎底 gross q／qeq", gross_pressure_kpa)
     sigD = _finite("基礎底初始有效應力", base_effective_stress_kpa)
     fs = _finite("承載力安全係數", factor_of_safety)
-    if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 0 or not layers:
+    if B <= 0 or L < B or q <= 0 or sigD < 0 or fs <= 1.0 or not layers:
         raise ValueError("基礎尺寸、gross 壓力或 DMT 模數剖面不合理；承載力安全係數 FS 必須大於 1.0")
     if footing_type not in ("isolated", "continuous"):
         raise ValueError("基礎型式須為 isolated 或 continuous")
