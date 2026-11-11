@@ -237,7 +237,10 @@ def render_module_5(expanded=False):
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
                 footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
             if footing_kind5=="continuous": st.caption("連續條形基礎按 L/B→∞ 的 strip 極限計算形狀係數；不採用目前 L 欄位的有限長寬比。")
-            if st.button("計算多層穿刺承載力",key="m5x_layer_run"):
+            layer_check_unsupported=(H5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
+            if layer_check_unsupported:
+                st.warning("目前簡化兩層穿刺路徑尚未整合水平力、偏心及斜坡／傾斜基底修正；請先將這些作用設為 0，否則不會把結果當成完整設計檢核。")
+            if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=layer_check_unsupported):
                 try:
                     top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,footing_type=footing_kind5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
@@ -256,6 +259,12 @@ def render_module_5(expanded=False):
             layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
+
+                _render_bearing_safety_check(
+                    qult_kpa=layered["qult_kpa"],vertical_load_kN=V5,
+                    width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                    footing_type=footing_kind5,complete_capacity_model=not layer_check_unsupported,
+                    incomplete_reason="兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。")
                 st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
                 st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
                 st.caption(layered["limitations"])
@@ -278,13 +287,24 @@ def render_module_5(expanded=False):
                     layer_rows[0]["gamma_sub_kn_m3"]=gsub5
                     mr=layered_bearing_capacity_profile(layers=layer_rows,
                         footing_width_m=B5,footing_length_m=L5,footing_depth_m=df5,
-                        water_depth_m=dw5,fs=fs5,eccentricity_B_m=eB5,eccentricity_L_m=eL5)
-                    store_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", mr, multi_layer_csv5)
+                        water_depth_m=dw5,fs=fs5,footing_type=footing_kind5,
+                        eccentricity_B_m=eB5,eccentricity_L_m=eL5)
+                    multi_layer_sig=(multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+                    store_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", mr, multi_layer_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層地盤分析失敗：{exc}")
-            mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_csv5)
+            multi_layer_sig=(multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+            mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_sig)
             if mr and mr_is_current:
+
+                profile_check_unsupported=(H5>0 or base_ang5>0 or ground_ang5>0)
+                _render_bearing_safety_check(
+                    qult_kpa=mr["qult_kpa"],vertical_load_kN=V5,
+                    width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                    eccentricity_B_m=eB5,eccentricity_L_m=eL5,
+                    footing_type=footing_kind5,complete_capacity_model=not profile_check_unsupported,
+                    incomplete_reason="多層剖面計算尚未整合水平力及斜坡／傾斜基底修正。")
                 st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
                 st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
                 st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
@@ -516,6 +536,11 @@ def render_module_5(expanded=False):
                 st.session_state,"m5x_insitu_result","m5x_insitu_signature",insitu_sig)
             if insitu_result and insitu_current:
                 mean_unit5="blows/ft" if insitu_type5=="SPT" else "kPa"
+
+                _render_bearing_safety_check(
+                    qult_kpa=insitu_result["qu_gross"],vertical_load_kN=V5,
+                    width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
+                    footing_type=insitu_footing5,complete_capacity_model=True)
                 st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
                 r1,r2,r3=st.columns(3)
                 r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
