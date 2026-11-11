@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -119,7 +119,8 @@ def render_module_4(expanded=False):
             with c:
                 dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
                 dmtTarget=st.number_input("參考容許總沉陷 [mm]",1.0,200.0,25.0,1.0,key="m4_dmt_target")
-            dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下；壓力單位 bar）",
+            dmt_mode=st.selectbox("DMT 輸入資料型式",["corrected","MDMT"],format_func=lambda x:"corrected p0／p1／u0 讀值（由系統推算 MDMT）" if x=="corrected" else "直接輸入試驗解讀後 MDMT",key="m4_dmt_mode")
+            dmt_text=st.text_area("DMT 分層 CSV（由基礎底開始，逐層向下）",
                 value="",height=130,key="m4_dmt_layers",
                 placeholder="Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\n1,0.20,2.0,3.0,0.5,1.0\n2,0.20,2.2,3.2,0.5,1.1\n…（資料需至少涵蓋 2B；條形基礎至少 6B）")
             st.caption("p0、p1 必須是依 DMT 校正公式取得的 corrected readings，不是未校正的原始 A、B 讀值。壓力值以 bar 輸入；u0 為膜片中心深度的平衡孔隙水壓；σ′v0 為 DMT 試驗前的原位垂直有效應力。")
