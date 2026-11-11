@@ -648,10 +648,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         gamma_effective_unaffected_kn_m3=None):
     """USACE 2025 residual-pore-pressure bearing resistance for level geometry.
 
-    Static eccentricities are converted to static base moments using V·e.
-    Seismic overturning moment components are signed for the +kh direction;
-    the opposite horizontal earthquake direction reverses both components.
-    Each horizontal direction is combined with both vertical kv directions.
+    Supports full shear-zone influence or a user-weighted partial shear-zone
+    effective unit weight. It remains restricted to sand-like, non-liquefiable
+    soils without cyclic strength loss and is not a seismic factor of safety.
     """
     c=_finite('有效凝聚力 c′',c_kpa)
     phi=_finite('有效摩擦角 φ′',phi_deg)
