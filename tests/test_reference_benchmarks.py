@@ -24,6 +24,7 @@ from geolysis_engine import (
     seismic_bearing_capacity_residual_pore_pressure,
     foundation_sliding_factor_of_safety,
     bishop_simplified_factor_of_safety,
+    usace_settlement_design_pressure,
 )
 
 
@@ -1049,3 +1050,38 @@ def test_usace_in_situ_layered_profile_rejects_drained_weak_layer_punching():
             gamma_moist_kn_m3=18.0,gamma_sub_kn_m3=9.0,
         )
 
+
+
+
+def test_usace_2025_settlement_pressure_uses_lower_of_qeq_and_qult_over_fs():
+    # USACE EM 1110-1-1905 (2025), §7-2 and settlement procedures:
+    # use gross q/qeq, capped by qult/FS.
+    governed = usace_settlement_design_pressure(
+        gross_equivalent_pressure_kpa=240.0,
+        ultimate_bearing_kpa=600.0,
+        factor_of_safety=3.0,
+    )
+    assert governed["capacity_pressure_limit_kpa"] == pytest.approx(200.0)
+    assert governed["design_pressure_kpa"] == pytest.approx(200.0)
+    assert governed["capacity_limit_governs"] is True
+
+    load_governs = usace_settlement_design_pressure(
+        gross_equivalent_pressure_kpa=150.0,
+        ultimate_bearing_kpa=600.0,
+        factor_of_safety=3.0,
+    )
+    assert load_governs["design_pressure_kpa"] == pytest.approx(150.0)
+    assert load_governs["capacity_limit_governs"] is False
+
+
+@pytest.mark.parametrize(
+    "q,qult,fs",
+    [(0.0, 500.0, 3.0), (100.0, 0.0, 3.0), (100.0, 500.0, 1.0)],
+)
+def test_usace_2025_settlement_pressure_rejects_invalid_inputs(q, qult, fs):
+    with pytest.raises(ValueError):
+        usace_settlement_design_pressure(
+            gross_equivalent_pressure_kpa=q,
+            ultimate_bearing_kpa=qult,
+            factor_of_safety=fs,
+        )
