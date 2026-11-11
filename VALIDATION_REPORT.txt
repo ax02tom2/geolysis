@@ -621,3 +621,15 @@ Module 5 vertical seismic coefficient sign envelope — PR #61
 - GitHub Actions run 42986106339: success; Python 3.11 compile passed; full suite 377 passed in 1.75 s.
 - Public worked-example benchmark count remains 66; these are four engineering guard/regression tests, not new worked examples.
 - Reference: USACE EM 1110-1-1905 (2025), pseudo-static action combination convention used by the Module 5 load envelope.
+
+
+Module 1 GSI=75 applicability boundary — PR #62
+
+- The GSI matrix's intact/massive + fair surface-condition row recommends 70–80 with representative value 75. The engine correctly allows GSI=75 and blocks GSI>75 for structure A, but the UI previously blocked the entire range because its upper endpoint was 80.
+- The UI now allows the valid representative GSI=75 calculation, displays a warning that GSI>75 requires a separate brittle-spalling assessment, and caps only the sensitivity-analysis upper endpoint at 75. It does not relax the high-GSI applicability restriction.
+- If the entire intact/massive interval is above 75, the sensitivity analysis is skipped instead of extrapolating outside the criterion's applicability.
+- Added four regression tests for A 70–80, A entirely above 75, B 75–85 and invalid interval ordering.
+- PR #62 merged to main at 78d670b5845f499d28b98b2c4bb06fbeda83280f.
+- GitHub Actions run 42986435065: success; Python 3.11 compile passed; full suite 381 passed in 1.87 s.
+- Public worked-example benchmark count remains 66; these are four applicability/guard regression tests, not new worked examples.
+- Reference: Hoek–Brown applicability guidance for intact/massive brittle rock at high GSI; implementation boundary is GSI≤75.
