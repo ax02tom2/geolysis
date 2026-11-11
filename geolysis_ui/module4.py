@@ -213,7 +213,11 @@ def render_module_4(expanded=False):
                 with y:
                     pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",0.01,5.0,1.0,0.01,key="m4_pmt_lc")
                 pmtLambdaConfirmed=st.checkbox("已依 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
-            pmtDeepConfirmed=st.checkbox("已確認為深層且相對均質土層，且基礎下方 2B 內沒有軟弱／鬆散夾層",value=False,key="m4_pmt_deep_confirm")
+            pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key="m4_pmt_deep_confirm")
+            pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
+                value="",height=90,key="m4_pmt_soft_layers",
+                placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa\n1.0,0.5,5000,600")
+            pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方 2B（條形基礎 6B）範圍內所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
             pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
                 value="",height=130,key="m4_pmt_layers",
                 placeholder="group,E0_kpa\nE1,12000\nE2,15000\nE345,18000\nE678,22000\nE916,25000\n…（每組可有多筆試驗值）")
