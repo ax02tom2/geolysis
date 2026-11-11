@@ -225,7 +225,7 @@ def render_module_4(expanded=False):
             pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key="m4_pmt_deep_confirm")
             pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
                 value="",height=90,key="m4_pmt_soft_layers",
-                placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa\n1.0,0.5,5000,600")
+                placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n1.0,0.5,5000,600,0.129")
             pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方 2B（條形基礎 6B）範圍內所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
             pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
                 value="",height=130,key="m4_pmt_layers",

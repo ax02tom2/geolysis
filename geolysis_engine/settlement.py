@@ -557,11 +557,16 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             if EL >= Ed:
                 raise ValueError(f"PMT 軟弱層第 {index} 筆 EL 必須小於深層等效 Ed")
             alpha_L = _alpha(EL, EL / pneL)
-            if L / B > 10.0:
+            raw_iz = row.get("I_sigma")
+            if raw_iz is not None and not (isinstance(raw_iz, float) and math.isnan(raw_iz)):
+                Iz = _finite("軟弱層應力影響係數 I_sigma", raw_iz)
+            elif L / B > 10.0:
                 a = B / 2.0
                 Iz = (2.0 / math.pi) * (math.atan(a / z) + a * z / (a*a + z*z))
             else:
                 Iz = boussinesq_rectangular_center_factor(B, L, z)
+            if not 0.0 <= Iz <= 1.0:
+                raise ValueError(f"PMT 軟弱層第 {index} 筆 I_sigma 必須介於 0 與 1")
             component_m = alpha_L * (1.0 / EL - 1.0 / Ed) * Iz * q_net * H
             if component_m < 0:
                 raise ValueError("PMT 軟弱層計算出負沉陷增量，請檢查 EL、Ed 及試驗資料")
