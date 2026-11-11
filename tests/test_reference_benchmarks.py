@@ -2092,7 +2092,7 @@ def test_hoek_brown_2002_low_ucs_em_branch():
     # Hoek, Carranza-Torres & Corkum (2002), Eq. 11a:
     # Em=(1-D/2)*sqrt(sigma_ci/100)*10^((GSI-10)/40) GPa for sigma_ci<=100 MPa.
     gsi, mi, sigma_ci, D = 45.0, 10.0, 50.0, 0.5
-    result = hoek_brown_2002(
+    result = hoek_brown_parameters(
         gsi=gsi, mi=mi, sigma_ci_mpa=sigma_ci, disturbance=D,
         application="general", sigma3_custom_mpa=10.0,
     )
@@ -2117,7 +2117,7 @@ def test_hoek_brown_2002_em_formula_is_continuous_at_100_mpa():
 )
 def test_uscs_cl_ml_borderline_zone(pi, expected):
     result = classify_uscs_aashto(
-        p4=95, p10=80, p40=60, p200=70,
+        p4=95, p10=90, p40=80, p200=70,
         ll=25, pl=25-pi,
     )
     assert result["USCS"] == expected
@@ -2137,15 +2137,15 @@ def test_uscs_fines_dual_symbol_cutoffs(fines, expected):
 
 def test_uscs_organic_fines_requires_oven_dried_liquid_limit_confirmation():
     confirmed = classify_uscs_aashto(
-        p4=95, p10=80, p40=60, p200=70,
+        p4=95, p10=90, p40=80, p200=70,
         ll=40, pl=20, organic=True, ll_oven_dried=25,
     )
     not_confirmed = classify_uscs_aashto(
-        p4=95, p10=80, p40=60, p200=70,
+        p4=95, p10=90, p40=80, p200=70,
         ll=40, pl=20, organic=True, ll_oven_dried=32,
     )
     provisional = classify_uscs_aashto(
-        p4=95, p10=80, p40=60, p200=70,
+        p4=95, p10=90, p40=80, p200=70,
         ll=40, pl=20, organic=True,
     )
     assert confirmed["USCS"] == "OL"
