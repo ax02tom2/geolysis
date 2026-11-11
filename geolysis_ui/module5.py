@@ -12,14 +12,17 @@ from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bea
 def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
         length_m, depth_m, water_depth_m, eccentricity_B_m=0.0,
         eccentricity_L_m=0.0, footing_type="isolated",
-        complete_capacity_model=True, incomplete_reason=None, load_confirmed=True):
-    """Display USACE 2025 qeq / bearing FS beside a capacity result."""
-    check=bearing_pressure_safety_check(
+        complete_capacity_model=True, incomplete_reason=None, load_confirmed=True,
+        base_inclination_deg=0.0, key_prefix="m5_bearing"):
+    """Display USACE 2025 qeq, bearing FS and hydrostatic uplift FS."""
+    check_args=dict(
         ultimate_bearing_kpa=qult_kpa,vertical_load_kN=vertical_load_kN,
         footing_width_m=width_m,footing_length_m=length_m,
         footing_depth_m=depth_m,water_depth_m=water_depth_m,
         eccentricity_B_m=eccentricity_B_m,eccentricity_L_m=eccentricity_L_m,
-        footing_type=footing_type,required_fs=3.0)
+        footing_type=footing_type,required_fs=3.0,
+        base_inclination_deg=base_inclination_deg)
+    check=bearing_pressure_safety_check(**check_args)
     st.markdown("**實際承載力安全檢核（USACE 2025 式 5-2／5-3／5-23）**")
     if not load_confirmed:
         st.warning("V 目前仍是示範預設值。請先輸入並確認本次設計總垂直力 V=Q+Wf（包含基礎自重及基礎底以上覆土），確認後才會顯示 qeq 與實際 FS。")
@@ -32,10 +35,10 @@ def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
     st.write(f"V = {vertical_load_kN:.2f} {load_unit}；基底揚壓 uD = {check['water_uplift_pressure_kpa']:.2f} kPa")
     qcol,fscol,reqcol=st.columns(3)
     qcol.metric("實際等效壓力 qeq",f"{check['qeq_gross_kpa']:.2f} kPa")
-    reqcol.metric("USACE 最低要求 FS","3.00")
+    reqcol.metric("USACE 最低承載力 FS","3.00")
     if check["FS_bearing"] is None:
         fscol.metric("實際承載力 FS","無有效值")
-        st.error("qeq≤0，表示基底合力已進入淨上拔／浮力主導狀態；不可用承載力 FS 判斷，請另做完整抗浮檢核。")
+        st.error("qeq≤0，表示基底合力已進入淨上拔／浮力主導狀態；不可用承載力 FS 判斷。")
     elif not complete_capacity_model:
         fscol.metric("實際承載力 FS","未計算")
         st.warning(incomplete_reason or "目前承載力計算未涵蓋所有輸入的載重／幾何修正，因此不顯示完整設計安全係數。")
@@ -43,13 +46,39 @@ def _render_bearing_safety_check(*, qult_kpa, vertical_load_kN, width_m,
         fscol.metric("實際承載力 FS",f"{check['FS_bearing']:.2f}",
             delta=("符合 ≥3.0" if check["passes_bearing"] else "未達 ≥3.0"),
             delta_color=("normal" if check["passes_bearing"] else "inverse"))
+    if check["uplift_check_required"]:
+        if not check["uplift_check_supported"]:
+            st.warning("基底存在水壓且輸入了傾斜基底；目前式 5-36 簡化抗浮檢核僅處理水平基底，請另做傾斜基底抗浮分析。")
+        else:
+            st.info("基底存在水壓，USACE 表 2-1 要求抗浮 FS≥1.5。依式 5-36 輸入 Wf+Ws+Wc（基礎及覆土重量、結構重量、必要時結構內水重）；不要直接以可能含活載的 V=Q+Wf 代替。此簡化檢核不計土體側面抗拔剪力。")
+            uplift_unit="kN/m" if footing_type=="continuous" else "kN"
+            uplift_weight=st.number_input(
+                f"抗浮永久向下重量 Wf+Ws+Wc [{uplift_unit}]",
+                min_value=0.0,max_value=1.0e7,value=0.0,step=10.0,
+                key=f"{key_prefix}_uplift_weight")
+            uplift_confirmed=st.checkbox(
+                "已確認上述重量依 USACE 式 5-36 組成，且未重複計入或納入不適用的暫時活載",
+                value=False,key=f"{key_prefix}_uplift_confirm")
+            if uplift_confirmed:
+                check=bearing_pressure_safety_check(
+                    **check_args,uplift_resisting_weight_kN=uplift_weight)
+            else:
+                st.warning("尚未確認抗浮永久重量；抗浮 FS 暫不計算，整體檢核仍未完成。")
+        if check["FS_uplift"] is None:
+            st.metric("抗浮安全係數 FS_uplift","未完成")
+        else:
+            st.metric("抗浮安全係數 FS_uplift",f"{check['FS_uplift']:.2f}",
+                delta=("符合 ≥1.5" if check["passes_uplift"] else "未達 ≥1.5"),
+                delta_color=("normal" if check["passes_uplift"] else "inverse"))
+            if not check["passes_uplift"]:
+                st.error("抗浮安全係數低於 USACE 2025 Table 2-1 最低要求 1.5。")
     if not check["passes_middle_third"]:
         st.error("偏心距超出基礎中三分點限制（eB<B/6、eL<L/6）；依 USACE 2025 表 2-1，傾覆／偏心檢核不合格。")
     elif complete_capacity_model and check["passes_all_checks"]:
-        st.success("承載力 FS 與中三分點偏心限制均符合目前 USACE 2025 最低要求。")
+        st.success("承載力 FS、中三分點偏心及適用的抗浮檢核均符合目前 USACE 2025 最低要求。")
     elif complete_capacity_model and not check["passes_bearing"]:
         st.error("承載力安全係數低於 USACE 2025 最低要求 3.0。")
-    st.caption("V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已含基礎自重及基礎底以上覆土；不要只填柱載重 Q。地下水位高於基礎底時，依 uD=γw(Df−Dw) 扣除基底水壓。此項只檢核承載力與中三分點偏心，不取代滑動、抗浮、整體穩定及沉陷檢核。qult 抗力端仍依上方所選理論計算；選用 1992 經典理論時，這是與 USACE 2025 需求端公式組合的檢核，不代表整套抗力係數已改為 2025 Meyerhof-based 方法。")
+    st.caption("V 必須是傳至基礎底面的總向下垂直力 Q+Wf，已含基礎自重及基礎底以上覆土；不要只填柱載重 Q。地下水位高於基礎底時，依 uD=γw(Df−Dw) 扣除基底水壓，並另依式 5-36 檢核抗浮 FS≥1.5。若為承壓水／非靜水壓或傾斜基底，需另行評估；此項亦不取代滑動、整體穩定、地震及沉陷檢核。qult 抗力端仍依上方所選理論計算；選用 1992 經典理論時，這是與 USACE 2025 需求端公式組合的檢核，不代表整套抗力係數已改為 2025 Meyerhof-based 方法。")
     return check
 
 
