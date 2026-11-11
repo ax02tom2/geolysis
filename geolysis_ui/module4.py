@@ -180,6 +180,8 @@ def render_module_4(expanded=False):
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
+                    if result_dmt["capacity_limit_governs"]:
+                        st.warning(f"輸入 gross q／qeq={dmtq:.1f} kPa 高於 qult/FS={result_dmt['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                     st.dataframe(pd.DataFrame(result_dmt["layer_results"]),hide_index=True,use_container_width=True)
                     if result_dmt["settlement_mm"]>dmtTarget:
                         st.warning("估算沉陷超過目前設定的參考容許值；實際容許值仍須依結構型式、使用需求及差異沉陷共同決定。")
@@ -229,6 +231,8 @@ def render_module_4(expanded=False):
                         soil_applicability_confirmed=cptSoilConfirmed)
                     st.metric("CPT 估算總沉陷",f"{cptResult['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {cptResult['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {cptResult['net_pressure_increment_kpa']:.1f} kPa ｜ Izp = {cptResult['Iz_peak']:.3f} ｜ C1 = {cptResult['C1_embedment']:.3f} ｜ C2 = {cptResult['C2_creep']:.3f}")
+                    if cptResult["capacity_limit_governs"]:
+                        st.warning(f"輸入 gross q／qeq={cptq:.1f} kPa 高於 qult/FS={cptResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                     st.dataframe(pd.DataFrame(cptResult["layer_results"]),hide_index=True,use_container_width=True)
                     if cptQult<=0:
                         st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
@@ -311,6 +315,8 @@ def render_module_4(expanded=False):
                         if pmtResult["soft_layer_results"]:
                             st.dataframe(pd.DataFrame(pmtResult["soft_layer_results"]),hide_index=True,use_container_width=True)
                         st.write(f"採用 gross 壓力 = {pmtResult['gross_pressure_used_kpa']:.1f} kPa ｜ Ed = {pmtResult['Ed_kpa']:.0f} kPa ｜ Ec = {pmtResult['Ec_kpa']:.0f} kPa ｜ αd = {pmtResult['alpha_d']:.3f} ｜ αc = {pmtResult['alpha_c']:.3f}")
+                        if pmtResult["capacity_limit_governs"]:
+                            st.warning(f"輸入 gross q／qeq={pmtq:.1f} kPa 高於 qult/FS={pmtResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                         st.dataframe(pd.DataFrame([{"分組":k,"調和平均 E0 [kPa]":v} for k,v in pmtResult["group_harmonic_means_kpa"].items()]),hide_index=True,use_container_width=True)
                         if pmtQu<=0:
                             st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
