@@ -255,6 +255,8 @@ def render_module_4(expanded=False):
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
                 pmtSoil=st.selectbox("土類（表 7-6）",["sand","sand_gravel","silt","clay","peat"],format_func=lambda x:{"sand":"砂土","sand_gravel":"砂礫土","silt":"粉土","clay":"黏土","peat":"泥炭"}[x],key="m4_pmt_soil")
             pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
+            if pmtSoil=="peat" and pmtState=="auto":
+                st.warning("USACE Table 7-6 僅列正常固結泥炭 α=1；須先確認泥炭為正常固結，並明確選擇「正常固結」，不可由 E/pne 自動推定。")
             if pmtRound:
                 pmtLd=pmtLc=1.0
                 st.caption("圓形基礎依 USACE Figure 7-11，λd = λc = 1。")
