@@ -36,7 +36,6 @@ __all__ = [
     "boussinesq_rectangular_center_factor",
     "dmt_settlement_2025",
     "dmt_modulus_settlement_2025",
-    "dmt_modulus_settlement_2025",
     "schmertmann_cpt_settlement_2025",
     "menard_rousseau_pmt_settlement_2025",
     "consolidation_settlement_layers",
