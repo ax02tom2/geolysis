@@ -2350,3 +2350,51 @@ def test_usace_seismic_cases_require_both_applicability_confirmations(
             non_liquefiable_confirmed=non_liquefiable_confirmed,
             full_shear_zone_confirmed=full_shear_zone_confirmed,
         )
+
+
+
+def test_burland_loose_layer_depth_is_separate_from_total_granular_layer_thickness():
+    result = burland_burbidge_average_n60_from_profile(
+        [
+            {"Depth_below_base_m": 0.5, "N60": 20.0},
+            {"Depth_below_base_m": 1.0, "N60": 22.0},
+            {"Depth_below_base_m": 3.0, "N60": 25.0},
+        ],
+        width_m=1.0, granular_layer_thickness_m=5.0,
+        n_decreases_with_depth=True, loose_layer_thickness_m=0.8,
+    )
+    assert result["influence_depth_m"] == pytest.approx(0.8)
+    assert result["selected_count"] == 1
+    assert result["selected_profile"][0][0] == pytest.approx(0.5)
+
+
+def test_burland_decreasing_n60_requires_separate_loose_layer_depth():
+    with pytest.raises(ValueError, match="另輸入鬆弱層底深度"):
+        burland_burbidge_average_n60_from_profile(
+            [{"Depth_below_base_m": 0.5, "N60": 20.0}],
+            width_m=1.0, granular_layer_thickness_m=5.0,
+            n_decreases_with_depth=True,
+        )
+
+
+def test_burland_loose_layer_depth_cannot_exceed_total_granular_layer_thickness():
+    with pytest.raises(ValueError, match="不得超過砂／礫層總厚度"):
+        burland_burbidge_2025_settlement(
+            n60_average=20.0, width_m=1.0, length_m=1.0,
+            gross_pressure_kpa=150.0, initial_effective_stress_kpa=50.0,
+            preconsolidation_stress_kpa=80.0,
+            granular_layer_thickness_m=2.0,
+            n_decreases_with_depth=True, loose_layer_thickness_m=2.5,
+        )
+
+
+def test_burland_settlement_uses_loose_layer_depth_for_zi_but_hs_for_c2():
+    result = burland_burbidge_2025_settlement(
+        n60_average=20.0, width_m=1.0, length_m=1.0,
+        gross_pressure_kpa=150.0, initial_effective_stress_kpa=50.0,
+        preconsolidation_stress_kpa=80.0,
+        granular_layer_thickness_m=5.0,
+        n_decreases_with_depth=True, loose_layer_thickness_m=0.8,
+    )
+    assert result["influence_depth_m"] == pytest.approx(0.8)
+    assert result["C2_layer"] == pytest.approx(1.0)
