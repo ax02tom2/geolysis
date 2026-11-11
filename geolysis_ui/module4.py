@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
 def render_module_4(expanded=False):
@@ -401,8 +401,68 @@ def render_module_4(expanded=False):
     
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
                     if layers_text4.strip():
-                        st.warning("目前輸入的是多層壓縮土。USACE EM 1110-1-1905（2025）表 7-11 要求逐一判定各壓縮層的 Cv，並依各層排水邊界計算 Hdr；不能把所有層厚加總後套用單一 Cv 與排水條件。因此本版不提供多層情況的時間速率及次壓縮數值，避免產生具誤導性的結果。")
-                        st.caption("請先以單一、均質且排水條件一致的壓縮層使用下方時間估算；多層分析需補齊每層 Cv、排水路徑、次壓縮指數 Cα 與主固結完成時孔隙比後，才能逐層計算並在共同經過時間下整合。")
+                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。")
+                        try:
+                            layer_rows_time4=pd.read_csv(StringIO(layers_text4)).to_dict("records")
+                            primary_layers_time4=consolidation_settlement_layers(
+                                layers=layer_rows_time4,footing_width_m=qB,
+                                footing_length_m=qL,net_pressure_kpa=qa_clay_final,
+                                stress_method=stress_method_clay4)
+                            time_template_rows4=[]
+                            for i,row in enumerate(primary_layers_time4["layer_results"],1):
+                                time_template_rows4.append({
+                                    "Layer":row.get("Layer",i),
+                                    "Cv_m2_per_day":"",
+                                    "Drainage":"",
+                                    "Hdr_m":"",
+                                    "C_alpha":"",
+                                    "e_p":"",
+                                    "t1_days":"",
+                                })
+                            time_template4=pd.DataFrame(time_template_rows4).to_csv(index=False)
+                            time_layer_key4="_".join(str(row.get("Layer",i)) for i,row in enumerate(primary_layers_time4["layer_results"],1))
+                            time_params_text4=st.text_area(
+                                "逐層固結時間參數 CSV（Cv 必填；Drainage 填 single/double，或直接填 Hdr_m）",
+                                value=time_template4,height=170,
+                                key="m4c_multi_time_params_"+time_layer_key4,
+                                help="C_alpha、e_p 為選填次壓縮參數；C_alpha>0 時必須填 e_p。t1_days 可留白，系統會以 U=99.4%（Tv≈2.0）估算，但正式設計宜用固結試驗判讀值。")
+                            rt_ma,rt_mb=st.columns(2)
+                            with rt_ma:
+                                multi_u_target4=st.number_input("全層加權平均目標固結度 U [%]",min_value=1.0,max_value=99.9,value=90.0,step=1.0,key="m4c_multi_u")
+                            with rt_mb:
+                                multi_elapsed_years4=st.number_input("共同載重後經過時間 [年]",min_value=0.0,max_value=200.0,value=1.0,step=0.5,key="m4c_multi_elapsed")
+                            if time_params_text4.strip():
+                                time_params4=pd.read_csv(StringIO(time_params_text4)).to_dict("records")
+                                params_ready4=True
+                                for row in time_params4:
+                                    cv_value=row.get("Cv_m2_per_day")
+                                    drainage_raw=row.get("Drainage")
+                                    drainage_missing=(drainage_raw is None or pd.isna(drainage_raw) or str(drainage_raw).strip()=="")
+                                    hdr_value=row.get("Hdr_m")
+                                    if cv_value is None or pd.isna(cv_value) or str(cv_value).strip()=="":
+                                        params_ready4=False
+                                    if drainage_missing and (hdr_value is None or pd.isna(hdr_value) or str(hdr_value).strip()==""):
+                                        params_ready4=False
+                                if params_ready4:
+                                    multi_time4=consolidation_time_rate_layers(
+                                        layer_results=primary_layers_time4["layer_results"],
+                                        layer_time_parameters=time_params4,
+                                        target_degree_percent=multi_u_target4,
+                                        elapsed_days=multi_elapsed_years4*365.25)
+                                    st.dataframe(pd.DataFrame(multi_time4["layer_results"]),hide_index=True,use_container_width=True)
+                                    mtc1,mtc2,mtc3=st.columns(3)
+                                    with mtc1:
+                                        st.metric("全層加權平均達標時間",f"{multi_time4['time_to_target_years']:.2f} 年")
+                                    with mtc2:
+                                        st.metric("目前全層平均固結度",f"{multi_time4['average_degree_at_elapsed_percent']:.1f}%")
+                                    with mtc3:
+                                        st.metric("目前主固結＋次壓縮沉陷",f"{multi_time4['total_settlement_at_elapsed_mm']:.2f} mm")
+                                    st.caption(f"最終主固結沉陷 {multi_time4['ultimate_primary_settlement_mm']:.2f} mm；目前主固結 {multi_time4['primary_settlement_at_elapsed_mm']:.2f} mm；目前次壓縮 {multi_time4['secondary_settlement_at_elapsed_mm']:.2f} mm。")
+                                    st.caption(multi_time4["limitations"])
+                                else:
+                                    st.info("請為每一層填入 Cv_m2_per_day，並指定 Drainage=single/double 或提供 Hdr_m；C_alpha、e_p、t1_days 僅在需要次壓縮時填寫。")
+                        except Exception as multi_time_exc:
+                            st.error(f"多層固結時間／次壓縮估算失敗：{multi_time_exc}")
                     else:
                         st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得；此處以單一均質壓縮層作一維估算。")
                         rt_a,rt_b,rt_c=st.columns(3)
@@ -445,8 +505,6 @@ def render_module_4(expanded=False):
                                 st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
-            
-            
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
