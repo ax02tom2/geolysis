@@ -31,4 +31,4 @@ Module 4 DMT: added USACE 2025 Eqs. 3-41, 4-13 to 4-15 and 7-10; DMT profile cov
 Module 4 CPT: added USACE 2025 Schmertmann CPT Eqs. 7-16 to 7-26, Iz distribution, Es correlation, C1/C2, qeq/qult-FS cap and full profile coverage. Latest suite: 266 passed.
 Module 1 Hoek-Brown: validated published 2002 tunnel and slope subcases; added rock-mass tensile strength σt output.
 Module 4 PMT: implemented USACE 2025 Eq. 7-11 and soft-layer Eq. 7-12, Table 7-6 alpha applicability, Figure 7-11 shape-factor guard, Py limit and qult/FS pressure cap. Latest suite: 274 passed.
-Module 3: SPT single-point and borehole profile values require current-data confirmation; sample profile auto-fill removed. Module 2: soil classification now requires current laboratory data confirmation; gradation inputs default off.\n
+Module 3: SPT single-point and borehole profile values require current-data confirmation; sample profile auto-fill removed. Module 2: soil classification now requires current laboratory data confirmation; gradation inputs default off.
