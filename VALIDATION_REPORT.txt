@@ -779,3 +779,34 @@ Module 5 continuous-footing sliding output units — PR #79
 - This is a UI unit-label correction only; no calculation formula changed.
 - PR #79 merged at f591911037ad930282c348d663ca3187661300a9.
 - GitHub Actions run 42998605070: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 410 passed in 2.03 s.
+
+
+Module 5 seismic applicability caption correction — PR #81
+
+- Updated the Module 5 seismic applicability caption to state accurately that signed seismic base moments and eccentricity are now evaluated in the seismic branch, while residual pore-pressure uplift, soil inertia, partial shear-zone pore-pressure weighting and seismic qeq/FS remain outside the supported calculation.
+- UI text only; no calculation changes.
+- PR #81 merged at aa6dbb0d27e7ba631c4372f71bce9185f4094bc5.
+- GitHub Actions run 42999188372: success; full suite 410 passed.
+
+Module 5 general seismic eccentricity envelope — PR #82
+
+- Added seismic_foundation_eccentricity_cases, which is independent of the residual-pore-pressure resistance method and its non-liquefiable/full-shear-zone confirmations.
+- For nonzero seismic moment components, evaluates both horizontal directions and both vertical combinations V±kvW. Converts static eB/eL to signed static moments V·e, adds signed seismic moments, then calculates eB/eL and effective dimensions B′/L′ for each case.
+- Reports positive compression-contact dimensions, effective axis ordering, middle-third limits eB≤B/6 and eL≤L/6, and the governing eccentricity utilization. It does not calculate bearing resistance or a seismic FS.
+- UI now offers a standalone seismic eccentricity/middle-third calculation before the residual pore-pressure branch. The result is available even when the user cannot confirm the special pore-pressure method's applicability.
+- Continuous-footing seismic inputs use W/V/H in kN/m, A′ in m²/m and M_B,E/M_L,E in kN·m/m. Seismic case tables relabel force/moment columns per metre. Type-specific widget keys prevent carrying a kN value into a kN/m input when switching footing type.
+- Added five regression tests covering signed four-case combinations, middle-third failure with positive contact, loss of contact, strip long-axis restriction, zero-compression and spread-footing dimension order.
+- PR #82 merged at 4501e66e2573c121e761cf33636ea2421663cd42.
+- GitHub Actions run 43000163290: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 415 passed in 1.96 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-4, Eqs. 5-4 to 5-8 and Table 2-1 Note 3.
+
+Module 5 primary continuous-footing bearing analysis — PR #83
+
+- Added an isolated/continuous footing selector to the primary Module 5 bearing-capacity calculation.
+- Passes footing_type into the selected theory's bearing engine and the actual qeq/FS check. For continuous footing, the qeq check uses line load V/B′ and the UI displays effective width B′ rather than a finite B′×L′.
+- The slope-corrected Meyerhof path now uses the same selected footing type and passes it to the qeq check.
+- For continuous footing, long-axis eccentricity is reset/disabled and Vesic horizontal loading is constrained to the transverse B direction; unsupported along-strip horizontal direction is not presented as available.
+- Existing engine regressions cover continuous footing strip-limit factors across theories, Appendix B-2 and qeq line-load calculation. Streamlit AppTest and full CI passed.
+- PR #83 merged at 8bfd9352f5518a323e3caf8fa34a07653417b2a4.
+- GitHub Actions run 43000729114: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 415 passed in 1.67 s.
+- Public USACE Appendix B/C worked-example benchmark count remains 66; PR #82's five additions are engineering regression tests, not new published worked examples.
