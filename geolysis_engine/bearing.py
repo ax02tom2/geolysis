@@ -480,7 +480,7 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
     if gamma<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
-        raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數須在 (0,1]')
+        raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數乘積須大於 0')
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
     coeff=0.5 if footing_type=='strip' else 0.4
