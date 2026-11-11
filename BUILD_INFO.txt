@@ -58,3 +58,4 @@ Module 4 Appendix C-1/C-4 consolidation and excavation rebound — PR #56
 - Published USACE Appendix B/C benchmark coverage is now 61: 53 Appendix B and eight Appendix C cases (C-1, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e).
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Tables C-1 and C-4; Eqs. 7-8, 7-38 and 7-40.
 Module 4 PMT peat: auto state no longer assumes NC; requires explicit normally consolidated selection per Table 7-6. One regression test added. Latest suite 362 passed.
+Module 4 PMT rock: implemented all three Table 7-6 rock rheological α categories with explicit rock-condition input; four regression tests. Latest suite 369 passed.
