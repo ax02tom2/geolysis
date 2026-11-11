@@ -2,12 +2,12 @@ Validation report — 2026-11-11 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 2a9dd397d355ac6baf5549fb559a7ccc7b892099
-Latest validation run: 42934667714 (PR #19 source tree before squash merge; success)
+Validated main code commit: d0997fb539a2a815295388a5413b357e4a4cac32
+Latest validation run: 42935178184 (PR #20 source tree before squash merge; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42934667714
+- Run ID: 42935178184
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 243 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 247 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -242,4 +242,18 @@ USACE 2025 gross equivalent bearing pressure and actual bearing safety check —
 - PR #19 merged to main at 2a9dd397d355ac6baf5549fb559a7ccc7b892099.
 - GitHub Actions run 42934667714: success; Python 3.11 compile passed; full suite 243 passed in 1.77 s.
 - Published reference benchmark count remains 50; four new tests validate the qeq/FS equations and boundary behavior.
+- The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
+
+
+USACE 2025 in-situ layered bearing and weak-clay punch-through integration — PR #20
+
+- Added `layered_bearing_capacity_in_situ_profile()`: each horizontal layer independently uses SPT N60, CPT qne or PMT pne readings from its bearing shear zone; the engine computes the geometric mean and applies the corresponding drained/undrained Table 5-5 k factor and USACE Eqs. 5-25/5-26.
+- Evaluates weaker layers within the near shear zone directly. For a strong upper layer over a weaker undrained clay layer, applies USACE 2025 Eqs. 5-17/5-18 with 2V:1H spread when the weak-layer top is within 0.5B–2B for isolated footings or 1B–4B for continuous footings. Weak layers deeper than the specified range are reported as unchecked rather than silently treated as verified.
+- Restricts the 2V:1H branch to an undrained weak layer, consistent with §5-5a(2)'s strong-layer-over-weak-clay case. A drained weak layer in the punching depth range is rejected and directs the user to use the soil-strength-parameter method / assess the mechanism separately.
+- Added Module 5 panel accepting 2+ horizontal layers in CSV format; each row identifies layer thickness, test type, drainage condition and semicolon-separated shear-zone readings. Per-layer results, controlling layer/mode and spread factor are displayed.
+- The new route is integrated with the qeq / actual bearing FS display from PR #19. It remains limited to centered vertical loading, horizontal base and horizontal ground; UI blocks horizontal load, eccentricity, sloping ground/base and inclined loading. Seismic corrections and non-horizontal interfaces remain unsupported.
+- Added four regression cases: isolated SPT Eq. 5-17, continuous PMT Eq. 5-18, shallow weak-layer direct control, and rejection of drained weak-layer punching.
+- PR #20 merged to main at d0997fb539a2a815295388a5413b357e4a4cac32.
+- GitHub Actions run 42935178184: success; Python 3.11 compile passed; full suite 247 passed in 1.82 s.
+- Published reference benchmark count remains 50; four additional tests validate the in-situ layered calculation and applicability boundaries.
 - The validated PR source tree is identical to the merged main code tree; this report update is documentation-only and is not a separate calculation-code change.
