@@ -433,6 +433,7 @@ def render_module_5(expanded=False):
             partial_shear_zone_affected_fraction5=None
             gamma_effective_susceptible5=None
             gamma_effective_unaffected5=None
+            partial_zone_inputs_confirmed5=False
             if shear_zone_mode5=="partial":
                 gamma_effective_default5=float(gamma_below5)*min(0.45+0.55*(max(float(dw5)-float(df5),0.0)/max(float(B5),1e-9)),1.0)
                 pf1,pf2=st.columns(2)
@@ -444,9 +445,11 @@ def render_module_5(expanded=False):
                 with pf2:
                     gamma_effective_unaffected5=st.number_input("未受影響土層有效單位重 γ′unaff [kN/m³]",0.1,40.0,float(max(0.1,gamma_effective_default5)),0.1,key="m5x_gamma_unaff",
                         help="輸入未受超額孔隙水壓影響土層在相應地下水條件下的有效／浮單位重。")
-                st.caption("部分區加權公式：γ′b = f(1−ru)γ′sus + (1−f)γ′unaff。系統不自動推定 f；請依剪力區內土層分布及影響範圍判讀。")
+                st.caption("部分區加權公式：γ′b = f(1−ru)γ′sus + (1−f)γ′unaff。系統不自動推定 f；依 Eq. 5-19 預填的單位重僅為起始參考，若有分層資料須自行修正。")
+                partial_zone_inputs_confirmed5=st.checkbox("已依 Figure 5-4 剪力區範圍與地層資料確認 f、γ′sus、γ′unaff",value=False,key="m5x_partial_zone_inputs_confirm")
             shear_zone_ready5=(full_shear_zone_confirmed5 or
-                (shear_zone_mode5=="partial" and partial_shear_zone_affected_fraction5 is not None
+                (shear_zone_mode5=="partial" and partial_zone_inputs_confirmed5
+                 and partial_shear_zone_affected_fraction5 is not None
                  and gamma_effective_susceptible5 is not None and gamma_effective_unaffected5 is not None))
             if not (nonliquefiable_confirmed5 and shear_zone_ready5):
                 st.warning("請先確認剪力區土層不液化／無循環強度損失，並選擇完整或部分剪力區影響範圍；部分區須填妥 f 與兩種有效單位重。")
@@ -478,11 +481,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5))
+                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
