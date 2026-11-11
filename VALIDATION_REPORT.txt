@@ -608,3 +608,16 @@ Module 4 settlement pressure-cap visibility — PR #60
 - PR #60 merged to main at 1e42944efd2ed6e50ffa9a49820b01d04073b99d.
 - GitHub Actions run 42985920334: success; Python 3.11 compile passed; full suite 369 passed in 2.43 s.
 - Published worked-example benchmark count remains 59.
+
+
+Module 5 vertical seismic coefficient sign envelope — PR #61
+
+- The pseudo-static routine evaluates both vertical acceleration directions internally using V(1±kv). Previously, negative kv was accepted, which swapped the direction labels while leaving the numeric envelope unchanged.
+- kv is now defined as a nonnegative magnitude (0–0.5); both vertical directions remain evaluated automatically. The Module 5 UI now enforces the same range and describes the convention.
+- Case labels are derived from the actual resulting vertical load; kv=0 is labeled as no vertical increment rather than incorrectly implying an increase/decrease.
+- Added four regression tests for positive kv, zero kv, negative-kv rejection in the pseudo-static function, and negative-kv rejection in the residual-pore-pressure workflow.
+- No seismic FS or complete seismic design verdict was added. Soil inertia, seismic moment/eccentricity, liquefaction, cyclic strength degradation, residual strength, lateral spreading, settlement and layered punching remain outside this specific resistance calculation and must be assessed separately.
+- PR #61 merged to main at 20b38487a3ea364d9e1b56c4be92c1f2cb5a1184.
+- GitHub Actions run 42986106339: success; Python 3.11 compile passed; full suite 377 passed in 1.75 s.
+- Public worked-example benchmark count remains 66; these are four engineering guard/regression tests, not new worked examples.
+- Reference: USACE EM 1110-1-1905 (2025), pseudo-static action combination convention used by the Module 5 load envelope.
