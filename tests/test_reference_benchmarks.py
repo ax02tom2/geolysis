@@ -1701,7 +1701,7 @@ def test_usace_2025_appendix_c7b_dmt_modulus_settlement_table_rows():
         (16.4,.7,1570,.097),
     ]
     layers = [
-        {"Layer": i+1, "depth_center_m": z*ft, "thickness_m": h*ft,
+        {"Layer": i+1, "depth_center_m": (z-h/2.0)*ft, "thickness_m": h*ft,
          "MDMT_kpa": M*tsf, "I_sigma": Iz}
         for i,(z,h,M,Iz) in enumerate(data)
     ]
@@ -1834,7 +1834,7 @@ def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
         (29.8,.6,33,.031),(30.5,.7,32,.030),
     ]
     layers = [
-        {"Layer":i+1,"depth_center_m":z*ft,"thickness_m":H*ft,
+        {"Layer":i+1,"depth_center_m":(z-H/2.0)*ft,"thickness_m":H*ft,
          "MDMT_kpa":M*tsf,"I_sigma":Iz}
         for i,(z,H,M,Iz) in enumerate(data)
     ]
