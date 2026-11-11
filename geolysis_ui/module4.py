@@ -56,6 +56,7 @@ def render_module_4(expanded=False):
                         gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"已由模組三地表深度扣除 Df={df_bb4:.2f} m，依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆有效 N60；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
                     st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
                 elif profile_text4.strip():
                     prof_bb=pd.read_csv(StringIO(profile_text4))
@@ -64,6 +65,7 @@ def render_module_4(expanded=False):
                         gravel_adjustment=gravel4,fine_sand_saturated=fine_sat4)
                     n60_used4=avg_bb['N60_average']
                     st.caption(f"依 Zi={avg_bb['influence_depth_m']:.2f} m 篩選 {avg_bb['selected_count']} 筆測點；{avg_bb['adjustments']}，平均 N60={n60_used4:.2f}。")
+                    for _quality_warning in avg_bb.get('data_quality_warnings', []): st.warning(_quality_warning)
                     st.dataframe(pd.DataFrame(avg_bb['selected_profile'],columns=['基礎底下深度 z [m]','原始 N60','逐點修正後 N60']),hide_index=True,use_container_width=True)
                 elif gravel4 or fine_sat4:
                     st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
