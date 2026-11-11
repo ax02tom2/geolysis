@@ -2536,3 +2536,33 @@ def test_burland_burbidge_module3_link_preserves_row_material_tags():
     )
     assert result["selected_count"] == 3
     assert [row[2] for row in result["selected_profile"]] == pytest.approx([17.5, 30.0, 12.0])
+
+
+
+def test_usace_pmt_shape_factors_are_limited_to_figure_7_11():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    common = dict(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=4.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0, yield_pressure_kpa=250.0,
+        soil_type="sand", consolidation_state="auto",
+        deep_uniform_deposit_confirmed=True,
+    )
+    with pytest.raises(ValueError, match="Figure 7-11"):
+        menard_rousseau_pmt_settlement_2025(
+            **common, lambda_d=2.6, lambda_c=1.4,
+        )
+    with pytest.raises(ValueError, match="Figure 7-11"):
+        menard_rousseau_pmt_settlement_2025(
+            **common, lambda_d=1.1, lambda_c=1.6,
+        )
+    with pytest.raises(ValueError, match="λd 曲線高於 λc"):
+        menard_rousseau_pmt_settlement_2025(
+            **common, lambda_d=1.1, lambda_c=1.2,
+        )
