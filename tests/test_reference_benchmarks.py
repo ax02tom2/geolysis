@@ -3067,3 +3067,17 @@ def test_usace_seismic_full_shear_zone_rejects_partial_zone_overrides():
             non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
             partial_shear_zone_affected_fraction=0.4,
         )
+
+
+@pytest.mark.parametrize("fraction", [0.0, 1.0, -0.1, 1.1])
+def test_usace_seismic_partial_shear_zone_rejects_invalid_weighted_fraction(fraction):
+    with pytest.raises(ValueError, match="部分剪力區加權比例須介於 0 與 1"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_unit_weight_unaffected_kn_m3=18.0,
+            effective_width_m=2.0, bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.5,
+            non_liquefiable_confirmed=True, full_shear_zone_confirmed=False,
+            partial_shear_zone_affected_fraction=fraction,
+        )
