@@ -152,7 +152,7 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
                 "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
                 "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
-                "安山岩 Andesite", "花崗岩 Granite", "自訂輸入 mi"
+                "安山岩 Andesite", "花崗岩 Granite", "砂岩 Sandstone（台灣南莊層三軸案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
             ], key="hb_rock_type_for_mi")
             # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
             mi_reference = {
@@ -165,7 +165,9 @@ def render_module_1(expanded=False):
                 "礫岩／角礫岩 Conglomerate / Breccia": (20, 15, 25, "文獻估計值；膠結物差異大"),
                 "石灰岩 Limestone": (10, 8, 12, "Marinos & Hoek：10 ± 2"),
                 "安山岩 Andesite": (20, 2, 38, "USGS 2022：不同安山岩實測 mi 約 2–38；以 20 作區間中點初估，離散性極高"),
-                "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3")
+                "花崗岩 Granite": (32, 29, 35, "Hoek：32 ± 3；一般文獻初估，非台灣特定工址值"),
+                "砂岩 Sandstone（台灣南莊層三軸案例）": (7.752, 7.752, 7.752, "台灣南莊層單一完整岩心案例三軸反算 mi=7.752；不是砂岩通用值。"),
+                "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。")
             }
             if rock_preset == "自訂輸入 mi":
                 mi_low = mi_high = mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
@@ -225,16 +227,87 @@ def render_module_1(expanded=False):
                     "700–3500 kgf/cm²，換算約 68.6–343.2 MPa；範圍很寬，應做敏感度分析。",
                     "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf")
             }
-            _sandstone_cases = [k for k in _ucs_case_data if "砂岩" in k]
+            # 2025 年《台灣中北部西部麓山帶沉積岩之力學特性》表 5：
+            # 各項為表列單一試體 UCS，不應誤讀成地層統計上下限。
+            _ucs_2025_source = "https://swcdis.nchu.edu.tw/AllDataPos/JournalPos/%E7%B7%A8%E8%99%9F61/%E7%AC%AC1%E6%9C%9F/%E5%8F%B0%E7%81%A3%E4%B8%AD%E5%8C%97%E9%83%A8%E8%A5%BF%E9%83%A8%E9%BA%93%E5%B1%B1%E5%B8%B6%E6%B2%89%E7%A9%8D%E5%B2%A9%E5%8A%9B%E5%AD%B8%E6%80%A7%E8%B3%AA.pdf"
+            _ucs_2025_samples = [
+                ("五指山層砂岩 Wc1｜北部・新北萬里萬瑞公路", "砂岩", 34.09, "萬瑞公路工址"),
+                ("五指山層砂岩 Wc2｜北部・新北萬里萬瑞公路", "砂岩", 47.45, "萬瑞公路工址"),
+                ("木山層砂岩 Ms1｜北部・新北中和圓通寺", "砂岩", 48.50, "中和圓通寺附近"),
+                ("木山層砂岩 Ms2｜北部・台北北投", "砂岩", 37.13, "台北市北投地區"),
+                ("木山層砂岩 Ms3｜北部・台北南港隧道", "砂岩", 82.69, "南港二號隧道工程"),
+                ("木山層砂岩 Ms4｜北部・新北中和圓通寺", "砂岩", 32.83, "中和圓通寺附近"),
+                ("大寮層砂岩 Tl1｜北部・新北石碇北宜公路", "砂岩", 68.70, "石碇北宜高速公路工地"),
+                ("大寮層砂岩 Tl2｜北部・新北平溪平湖村", "砂岩", 77.46, "平溪鄉平湖村"),
+                ("石底層砂岩 St｜北部・新北瑞芳四腳亭", "砂岩", 38.43, "瑞芳四腳亭附近"),
+                ("南港層砂岩 Nk1｜北部・新竹關西", "砂岩", 100.50, "關西亞泥礦場"),
+                ("南港層砂岩 Nk2｜北部・新北瑞芳深澳坑", "砂岩", 89.05, "瑞芳深澳坑"),
+                ("南港層砂岩 Nk3｜北部・新北平溪新寮村", "砂岩", 85.95, "平溪新寮村"),
+                ("東坑層砂岩 Te｜中北部・苗栗公館", "砂岩", 69.00, "公館南河村出磺坑背斜附近"),
+                ("上福基砂岩 Sf1｜中北部・苗栗獅潭", "砂岩", 14.48, "獅潭鳳村出磺坑背斜東翼"),
+                ("上福基砂岩 Sf2｜中北部・苗栗獅潭", "砂岩", 46.41, "獅潭鳳村出磺坑背斜東翼"),
+                ("關刀山砂岩段 Kck1｜中部・苗栗獅潭／頭屋", "砂岩", 60.99, "獅潭與頭屋交界鳳鳴古道"),
+                ("關刀山砂岩段 Kck2｜中部・苗栗造橋", "砂岩", 16.70, "苗栗造橋"),
+                ("卓蘭層砂岩 Cl1｜中部・南投市", "砂岩", 19.86, "南投服務區工地"),
+                ("卓蘭層砂岩 Cl2｜中部・地點未載明", "砂岩", 6.26, "原表未載明取樣地點"),
+                ("卓蘭層砂岩 Cl5｜中部・地點未載明", "砂岩", 5.91, "原表未載明取樣地點"),
+                ("卓蘭層砂岩 Cl9｜中部・台中石岡壩", "砂岩", 1.67, "石岡壩"),
+                ("頭嵙山層砂岩 Tk1｜中部・南投集集", "砂岩", 28.50, "集集攔河堰"),
+                ("頭嵙山層砂岩 Tk4｜中部・地點未載明", "砂岩", 28.40, "原表未載明取樣地點"),
+                ("卓蘭層頁岩 Cl4｜中部・地點未載明", "頁岩", 2.65, "原表未載明取樣地點"),
+                ("卓蘭層頁岩 Cl7｜中部・地點未載明", "頁岩", 2.46, "原表未載明取樣地點"),
+                ("頭嵙山層頁岩 Tk2｜中部・地點未載明", "頁岩", 10.00, "原表未載明取樣地點"),
+                ("頭嵙山層頁岩 Tk5｜中部・地點未載明", "頁岩", 10.50, "原表未載明取樣地點"),
+                ("卓蘭層砂頁岩互層 Cl3｜中部・大安溪", "砂頁岩互層", 4.39, "大安溪"),
+                ("卓蘭層砂頁岩互層 Cl6｜中部・大安溪", "砂頁岩互層", 4.69, "大安溪"),
+                ("頭嵙山層砂頁岩互層 Tk3｜中部・地點未載明", "砂頁岩互層", 2.00, "原表未載明取樣地點"),
+                ("頭嵙山層砂頁岩互層 Tk6｜中部・地點未載明", "砂頁岩互層", 1.95, "原表未載明取樣地點"),
+            ]
+            for _label, _lithology, _ucs_value, _location in _ucs_2025_samples:
+                _ucs_case_data[_label] = (
+                    _ucs_value, _ucs_value, _ucs_value,
+                    f"表 5 單一試體 UCS={_ucs_value:.2f} MPa；{_location}。非地層統計範圍；使用前須核對試體風化、含水狀態與代表性。",
+                    _ucs_2025_source,
+                )
+
+            # 2009 台電 SNFD2009 區域性彙整：以下是地質區概略範圍，不是單一工址或單一試體。
+            _ucs_regional_source = "https://www.nusc.gov.tw/share/file/fcma/uVWo3J-onVl5yVBu0WiQNA__.pdf?v=2019121246"
+            _ucs_case_data.update({
+                "中央山脈東翼變質雜岩片岩／片麻岩｜東部山區區域範圍": (
+                    24.5, 49.0, 36.75,
+                    "250–500 kgf/cm²，換算約 24.5–49.0 MPa；區域性概略範圍，非工址試驗值。",
+                    _ucs_regional_source),
+                "中央山脈東翼大理岩｜東部山區區域範圍": (
+                    24.5, 49.0, 36.75,
+                    "250–500 kgf/cm²，換算約 24.5–49.0 MPa；區域性概略範圍，非工址試驗值。",
+                    _ucs_regional_source),
+                "西部麓山帶砂頁岩互層｜區域性概略範圍": (
+                    4.9, 19.6, 12.25,
+                    "50–200 kgf/cm²，換算約 4.9–19.6 MPa；區域性概略範圍。",
+                    _ucs_regional_source),
+                "古亭坑層泥岩｜西部麓山帶區域範圍": (
+                    2.45, 4.90, 3.675,
+                    "25–50 kgf/cm²，換算約 2.45–4.90 MPa；區域性概略範圍。",
+                    _ucs_regional_source),
+                "離島花崗岩｜台灣離島區域範圍": (
+                    68.6, 166.7, 117.65,
+                    "700–1700 kgf/cm²，換算約 68.6–166.7 MPa；區域性概略範圍。",
+                    _ucs_regional_source),
+            })
+
+            st.caption("地區適用性：2025 年逐試體案例涵蓋台灣北部與中部西部麓山帶；2009 年區域彙整另提供東部中央山脈東翼變質岩與大理岩概略範圍。平原沖積層屬土壤，不適用完整岩石 UCS；海岸山脈亦缺少可直接套用的本批 UCS 數據，勿以其他地區案例代替。")
+            _sandstone_cases = [k for k in _ucs_case_data if "砂岩" in k and "互層" not in k]
             _case_by_rock = {
                 "砂岩 Sandstone": _sandstone_cases,
                 "安山岩 Andesite": [k for k in _ucs_case_data if "安山岩" in k],
                 "花崗岩 Granite": [k for k in _ucs_case_data if "花崗岩" in k],
-                "頁岩 Shale": [],
-                "泥岩／黏土岩 Mudstone / Claystone": [],
+                "砂岩 Sandstone（台灣南莊層三軸案例）": [k for k in _ucs_case_data if "南莊層砂岩｜隧道" in k],
+                "片岩 Schist（蘇花公路案例）": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
+                "頁岩 Shale": [k for k in _ucs_case_data if "頁岩" in k and "砂頁岩互層" not in k],
+                "泥岩／黏土岩 Mudstone / Claystone": [k for k in _ucs_case_data if "泥岩" in k],
                 "粉砂岩 Siltstone": [],
                 "板岩 Slate": [],
-                "片岩 Schist": [],
+                "片岩 Schist": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
                 "礫岩／角礫岩 Conglomerate / Breccia": [],
                 "石灰岩 Limestone": [],
                 "自訂輸入 mi": list(_ucs_case_data.keys())
