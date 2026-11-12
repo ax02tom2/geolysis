@@ -423,7 +423,7 @@ def render_module_5(expanded=False):
                     st.info("部分組合超出靜力中間三分點。依 USACE §9-10(e)，地震極端事件的判斷不以靜力中三分點作唯一標準；仍須確認 qeq 不超過適用的地震容許承載壓力，若專案規範另要求中三分點則仍應遵守。")
                 st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面總孔隙水壓 u_D={seismic_ecc5['base_uplift_pressure_kpa']:.2f} kPa；其中殘餘超額孔壓由使用者確認輸入，不由 ru 自動推估。")
                 if not seismic_ecc5["uplift_contact_passes"]:
-                    st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
+                    st.error("至少一組地震組合扣除基礎底面總孔隙水壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
                 if seismic_ecc5["bearing_pressure_check_complete"]:
                     st.metric("地震有效承載壓力 qeq ≤ q_allow",
                         "全部組合符合" if seismic_ecc5["bearing_pressure_passes"] else "有組合超過")
@@ -551,7 +551,7 @@ def render_module_5(expanded=False):
                 st.caption(f"適用性輸入：FS_liq={sr['factor_of_safety_liquefaction']:.2f}；ru={sr['ru']:.2f}；已確認無顯著側向擴展及 ru 來源。")
                 st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面總孔隙水壓 u_D={sr['base_uplift_pressure_kpa']:.2f} kPa；此值含已確認輸入的基底殘餘超額孔壓。")
                 if any(case.get("average_contact_pressure_kpa") is not None and case["average_contact_pressure_kpa"]<=0 for case in sr["cases"]):
-                    st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
+                    st.error("至少一組地震組合扣除基礎底面總孔隙水壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
                 if seismic_qallow_for_base_pressure5 is not None:
                     sr_qallow_cases=[case for case in sr["cases"] if case.get("average_contact_pressure_kpa") is not None]
                     sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(0.0<case["average_contact_pressure_kpa"]<=seismic_qallow_for_base_pressure5 for case in sr_qallow_cases))
