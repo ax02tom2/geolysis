@@ -1207,9 +1207,10 @@ def estimate_rqd_from_image_segments(
 ) -> dict:
     """Estimate per-row recovery/RQD after every detected break is reviewed.
 
-    Core intervals come from the image occupancy detector; only breaks manually
-    confirmed as natural joints split an interval. Mechanical breaks are treated
-    as rejoinable. This remains a preliminary image estimate, not a measured RQD.
+    Core intervals come from the image occupancy detector. Natural-joint traces
+    split intervals; a gap between two core intervals is rejoined only when every
+    review for that interval pair confirms mechanical break or false gap. Core
+    loss remains excluded. This is a preliminary image estimate, not measured RQD.
     """
     import math
 
@@ -1283,20 +1284,24 @@ def estimate_rqd_from_image_segments(
 
     # A reviewed mechanical/false gap joins the recovered lengths on either
     # side, but the empty gap itself is never added to recovery or piece length.
-    gap_merge_pairs = set()
+    gap_classes_by_pair = {}
     for item in breaks:
+        if item.get("candidate_type") != "core_gap":
+            continue
+        left_index = item.get("left_segment_index")
+        right_index = item.get("right_segment_index")
         if (
-            item.get("candidate_type") == "core_gap"
-            and item.get("review_class") in {"機械破損", "非斷裂／誤判"}
+            isinstance(left_index, int) and isinstance(right_index, int)
+            and right_index == left_index + 1
+            and 0 <= left_index < len(piece_lists) - 1
         ):
-            left_index = item.get("left_segment_index")
-            right_index = item.get("right_segment_index")
-            if (
-                isinstance(left_index, int) and isinstance(right_index, int)
-                and right_index == left_index + 1
-                and 0 <= left_index < len(piece_lists) - 1
-            ):
-                gap_merge_pairs.add((left_index, right_index))
+            gap_classes_by_pair.setdefault((left_index, right_index), set()).add(
+                item.get("review_class")
+            )
+    gap_merge_pairs = {
+        pair for pair, classes in gap_classes_by_pair.items()
+        if classes and classes.issubset({"機械破損", "非斷裂／誤判"})
+    }
 
     piece_lengths = []
     for index, lengths in enumerate(piece_lists):
