@@ -9,7 +9,8 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 
 
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
-        footing_type=None, depth_m=None, include_qeq=True):
+        footing_type=None, depth_m=None, include_qeq=True,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0):
     """Return the selected Module 5 capacity value and optional equivalent gross pressure."""
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
@@ -18,7 +19,12 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     length_match=abs(float(length_m)-float(transfer["L_m"]))<=0.01
     depth_match=(depth_m is None or abs(float(depth_m)-float(transfer["Df_m"]))<=0.01)
     type_match=(footing_type is None or str(footing_type)==str(transfer["footing_type"]))
-    if not (width_match and length_match and depth_match and type_match):
+    transfer_eB=float(transfer.get("eB_m",0.0))
+    transfer_eL=float(transfer.get("eL_m",0.0))
+    eccentricity_match=(abs(transfer_eB-float(eccentricity_B_m))<=0.01
+        and abs(transfer_eL-float(eccentricity_L_m))<=0.01
+        and abs(float(transfer.get("H_kN",0.0)))<=1e-6)
+    if not (width_match and length_match and depth_match and type_match and eccentricity_match):
         st.warning(
             f"Module 4 幾何與 Module 5 結果不一致，不能自動帶入 {label}。"
             f"Module 5：B={transfer['B_m']:.2f} m、L={transfer['L_m']:.2f} m、"
@@ -62,6 +68,34 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
             f"同時採用 Module 5 的 gross 等效壓力 qeq（{float(transfer['qeq_gross_kpa']):.1f} kPa）",
             value=False,key=f"{key_prefix}_use_m5_qeq_{transfer_id}")
     return float(transfer[field]), (float(transfer["qeq_gross_kpa"]) if use_qeq else None)
+
+
+def _settlement_eccentricity_inputs(key_prefix, width_m, length_m, footing_type):
+    """Collect eccentricities and derive USACE 2025 effective settlement dimensions."""
+    is_round=(footing_type=="round")
+    eccentric=st.checkbox(
+        "偏心荷載：以有效尺寸 B′、L′進行沉陷分析（壓力輸入請採 qeq）",
+        value=False,key=f"{key_prefix}_eccentric_settlement",disabled=is_round)
+    if is_round:
+        st.caption("目前 PMT 圓形基礎介面不支援偏心橢圓有效面積；偏心圓形基礎須另行分析。")
+        return float(width_m),float(length_m),0.0,0.0
+    if not eccentric:
+        return float(width_m),float(length_m),0.0,0.0
+    col_b,col_l=st.columns(2)
+    with col_b:
+        max_eb=max(0.0,float(width_m)/6.0-0.001)
+        e_b=st.number_input("短邊偏心距 eB [m]",0.0,max_eb,0.0,0.01,key=f"{key_prefix}_settlement_eb")
+    if footing_type=="continuous":
+        e_l=0.0
+        st.caption("連續條形基礎只採短邊方向偏心；長邊方向偏心不適用。")
+    else:
+        with col_l:
+            max_el=max(0.0,float(length_m)/6.0-0.001)
+            e_l=st.number_input("長邊偏心距 eL [m]",0.0,max_el,0.0,0.01,key=f"{key_prefix}_settlement_el")
+    b_eff=float(width_m)-2.0*e_b
+    l_eff=float(length_m)-2.0*e_l
+    st.caption(f"依 USACE 2025 式 5-4～5-8：B′={b_eff:.3f} m、L′={l_eff:.3f} m；需維持偏心距在中三分點內。")
+    return b_eff,l_eff,e_b,e_l
 
 
 def _module5_settlement_dimensions(width_m, length_m, transfer_selected):
