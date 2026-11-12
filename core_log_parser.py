@@ -368,6 +368,10 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
         raise ValueError("PDF 中沒有找到符合格式的岩心箱照片。請確認是由岩心柱狀圖工具輸出的 PDF。")
     depth_label_count = sum(r.depth_end_label_m is not None for r in records)
     has_depth_labels = depth_label_count > 0
+    no_row_labels = not any(
+        r.row_number is not None or r.depth_end_label_m is not None or r.depth_start_label_m is not None
+        for r in records
+    )
     depth_source = (
         "PDF 列尾深度標籤" if depth_label_count == len(records) and depth_label_count
         else "PDF 部分列尾深度標籤" if has_depth_labels
