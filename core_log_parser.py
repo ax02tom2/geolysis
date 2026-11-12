@@ -313,14 +313,54 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                                 and label is not None):
                             candidates.append((center_y, label))
                     candidates.sort()
-                    labels = [v for _, v in candidates]
-                    visible = max(1, min(ROWS_PER_BOX, len(labels) if labels else ROWS_PER_BOX))
-                    image_is_pre_cropped = bool(typical_box_height and box_image.height < typical_box_height * 0.72)
-                    row_images = _crop_box_rows(box_image, visible, image_is_pre_cropped=image_is_pre_cropped)
+                    image_height_ratio = (
+                        box_image.height / typical_box_height
+                        if typical_box_height else 1.0
+                    )
+                    # A cropped final box is identified from its embedded-image
+                    # height, not from the number of text labels: a missing OCR/
+                    # selectable-text label must never remove a real 1 m row.
+                    image_is_pre_cropped = bool(
+                        typical_box_height and image_height_ratio < 0.90
+                    )
+                    if image_is_pre_cropped:
+                        visible = max(1, min(
+                            ROWS_PER_BOX,
+                            int(round(ROWS_PER_BOX * image_height_ratio)),
+                        ))
+                    elif candidates:
+                        # For a full-height image, use each label's vertical
+                        # position to determine the last occupied row. This
+                        # preserves unlabelled rows before later labelled rows.
+                        label_row_indices = [
+                            max(0, min(
+                                ROWS_PER_BOX - 1,
+                                int((center_y - bbox.y0) / max(bbox.height, 1e-9) * ROWS_PER_BOX),
+                            ))
+                            for center_y, _ in candidates
+                        ]
+                        visible = max(label_row_indices) + 1
+                    else:
+                        visible = ROWS_PER_BOX
+                    row_images = _crop_box_rows(
+                        box_image, visible, image_is_pre_cropped=image_is_pre_cropped
+                    )
                     # Align page overlay geometry with the same crop decision.
-                    visible_y1 = bbox.y1 if image_is_pre_cropped else bbox.y0 + bbox.height * visible / ROWS_PER_BOX
+                    visible_y1 = (
+                        bbox.y1 if image_is_pre_cropped
+                        else bbox.y0 + bbox.height * visible / ROWS_PER_BOX
+                    )
+                    row_labels = [{} for _ in range(visible)]
+                    row_height_pt = (
+                        bbox.height / visible if image_is_pre_cropped
+                        else bbox.height / ROWS_PER_BOX
+                    )
+                    for center_y, label in candidates:
+                        row_index = int((center_y - bbox.y0) / max(row_height_pt, 1e-9))
+                        if 0 <= row_index < visible:
+                            row_labels[row_index] = label
                     for j, row_image in enumerate(row_images):
-                        label = labels[j] if j < len(labels) else {}
+                        label = row_labels[j]
                         row_no = label.get("row_number")
                         depth_end_label = label.get("depth_end_label_m")
                         depth_start_label = label.get("depth_start_label_m")
