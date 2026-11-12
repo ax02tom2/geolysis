@@ -1170,14 +1170,18 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
             f"DMT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 表 7-4 至少需涵蓋 "
             f"{required_depth:.2f} m（{required_depth/B:.0f}B），不可外插未測土層"
         )
+    out_of_typical_range = [
+        f"第 {row_result['Layer']} 層 KD={row_result['KD']:.2f}"
+        for row_result in results
+        if not 2.0 <= row_result["KD"] <= 20.0
+    ]
     warnings = []
-    for row_result in results:
-        if not 2.0 <= row_result["KD"] <= 20.0:
-            warnings.append(
-                f"DMT 第 {row_result['Layer']} 層 KD={row_result['KD']:.2f}，"
-                "超出 USACE 2025 §3-9c(2) 所述常見範圍 2–20；"
-                "該範圍屬典型值而非硬性限制，請核對 σ′v0、p0、u0 與現地應力歷史。"
-            )
+    if out_of_typical_range:
+        warnings.append(
+            "以下 DMT 層的 KD 超出 USACE 2025 §3-9c(2) 所述常見範圍 2–20："
+            + "；".join(out_of_typical_range)
+            + "。此為典型範圍而非硬性限制；請核對 σ′v0、p0、u0 與現地應力歷史。"
+        )
     return {
         "settlement_mm": sum(x["Settlement_mm"] for x in results),
         "gross_pressure_used_kpa": q_used,
