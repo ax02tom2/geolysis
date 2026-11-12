@@ -327,3 +327,21 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
     assert slide_button.disabled is False
+
+
+def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    method = next(widget for widget in app.selectbox if widget.key == "m4_method")
+    method.set_value("黏土：一維主固結沉陷控制法")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    layer_center = next(widget for widget in app.number_input if widget.key == "m4c_z")
+    layer_center.set_value(1.0)
+    layer_thickness = next(widget for widget in app.number_input if widget.key == "m4c_h")
+    layer_thickness.set_value(5.0)
+    app.run()
+
+    assert any("壓縮層頂面位於基礎底以上" in item.value for item in app.error)
