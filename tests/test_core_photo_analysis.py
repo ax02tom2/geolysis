@@ -499,19 +499,19 @@ def test_rqd_merges_mechanical_core_gap_but_not_natural_joint_or_core_loss():
     }
     mechanical = estimate_rqd_from_image_segments(
         segments, [{**gap, "review_class": "機械破損"}],
-        mm_per_px=2.0, row_length_mm=1000.0,
+        mm_per_px=2.0, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
     natural = estimate_rqd_from_image_segments(
         segments, [{**gap, "review_class": "天然節理"}],
-        mm_per_px=2.0, row_length_mm=1000.0,
+        mm_per_px=2.0, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
     core_loss = estimate_rqd_from_image_segments(
         segments, [{**gap, "review_class": "岩心缺失／採取損失"}],
-        mm_per_px=2.0, row_length_mm=1000.0,
+        mm_per_px=2.0, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
     false_gap = estimate_rqd_from_image_segments(
         segments, [{**gap, "review_class": "非斷裂／誤判"}],
-        mm_per_px=2.0, row_length_mm=1000.0,
+        mm_per_px=2.0, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
 
     assert mechanical["recovery_percent"] == 99.0
@@ -547,6 +547,7 @@ def test_rqd_does_not_merge_gap_pair_when_multiple_gap_reviews_conflict():
     ]
     result = estimate_rqd_from_image_segments(
         analysis["segments"], reviewed, mm_per_px=2.0, row_length_mm=1000.0,
+        no_breaks_confirmed=True,
     )
     assert result["piece_lengths_mm"] == [50.0, 920.0]
     assert result["rqd_percent"] == 92.0
