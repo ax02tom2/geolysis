@@ -144,7 +144,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
 
         # PDF 可由頁首可讀深度範圍推定起始深度；DOCX 或掃描頁若無法推定，
         # 才要求使用者輸入一次起始深度，不要求逐列輸入深度。
-        if records[0].depth_start_m is None:
+        if all(record.depth_start_m is None for record in records) and any(record.row_number is not None for record in records):
             st.warning("檔案未提供可讀的起始深度；請輸入本段第一列起始深度，結束深度會依列序自動推算。")
             start_depth = st.number_input(
                 "第一列起始深度（m）",
@@ -169,12 +169,20 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     st.error(f"深度套用失敗：{exc}")
                     return
             return
+        if all(record.depth_start_m is None for record in records):
+            st.warning("未能從檔案讀取列號；仍可檢視原始影像與逐列初估，但深度索引需依原始編錄人工核對。")
 
         if parsed.get("borehole_id"):
             st.caption(f"鑽孔編號：{parsed['borehole_id']}")
+        valid_starts = [r.depth_start_m for r in records if r.depth_start_m is not None]
+        valid_ends = [r.depth_end_m for r in records if r.depth_end_m is not None]
+        depth_label = (
+            f"深度 {min(valid_starts):.1f}–{max(valid_ends):.1f} m"
+            if valid_starts and valid_ends else "深度索引未建立"
+        )
         st.caption(
-            f"擷取 {len(records)} 列｜每列 1.0 m｜"
-            f"深度 {records[0].depth_start_m:.1f}–{records[-1].depth_end_m:.1f} m"
+            f"擷取 {len(records)} 列｜每列 1.0 m｜{depth_label}"
+            + (f"｜深度來源：{parsed['depth_source']}" if parsed.get("depth_source") else "")
         )
         for warning in parsed.get("warnings", []):
             st.warning(warning)
