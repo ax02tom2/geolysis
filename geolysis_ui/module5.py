@@ -380,7 +380,7 @@ def render_module_5(expanded=False):
                 min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow",help="請依適用建築法規／專案設計準則輸入；系統不自動套用地震容許承載力提高係數，也不直接以靜力 qult/FS 代替。")
             seismic_qallow_value5=(seismic_qallow5 if seismic_qallow5>0 else None)
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
-                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5)
+                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5,max(0.0,(float(df5)-float(dw5))*9.81))
             if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run"):
                 try:
                     seismic_ecc5=seismic_foundation_eccentricity_cases(
@@ -392,7 +392,8 @@ def render_module_5(expanded=False):
                         seismic_moment_L_kNm=seismic_moment_L5,
                         static_moment_B_sign=static_moment_B_sign5,
                         static_moment_L_sign=static_moment_L_sign5,
-                        allowable_bearing_pressure_kpa=seismic_qallow_value5)
+                        allowable_bearing_pressure_kpa=seismic_qallow_value5,
+                        base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
                     store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
                 except Exception as ecc_exc:
                     logging.exception("Unhandled application calculation error")
@@ -405,6 +406,9 @@ def render_module_5(expanded=False):
                     st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；須另作接觸／抗拔／雙向偏心分析。")
                 if not seismic_ecc5["middle_third_passes"]:
                     st.info("部分組合超出靜力中間三分點。依 USACE §9-10(e)，地震極端事件的判斷不以靜力中三分點作唯一標準；仍須確認 qeq 不超過適用的地震容許承載壓力，若專案規範另要求中三分點則仍應遵守。")
+                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D={seismic_ecc5['base_uplift_pressure_kpa']:.2f} kPa；地震殘餘超額孔壓額外上拔及 uplift FS≥1.5 仍須另行檢核。")
+                if not seismic_ecc5["uplift_contact_passes"]:
+                    st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
                 if seismic_ecc5["bearing_pressure_check_complete"]:
                     st.metric("地震有效承載壓力 qeq ≤ q_allow",
                         "全部組合符合" if seismic_ecc5["bearing_pressure_passes"] else "有組合超過")
@@ -492,7 +496,8 @@ def render_module_5(expanded=False):
                         base_inclination_deg=base_ang5,
                         ground_inclination_deg=ground_ang5,
                         slope_distance_m=slope_dist5,
-                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None))
+                        adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
+                        base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
                         (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,nonliquefiable_confirmed5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5))
                 except Exception as exc:
@@ -510,9 +515,12 @@ def render_module_5(expanded=False):
                     st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；依 USACE §9-10(e) 幾何檢核不符合。")
                 if not sr.get("middle_third_check_pass",True):
                     st.info("至少一組地震組合超出靜力中間三分點。地震極端事件不以此作唯一判定；仍須檢核有效承載壓力是否不超過適用的地震 q_allow。")
+                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D={sr['base_uplift_pressure_kpa']:.2f} kPa；地震殘餘超額孔壓額外上拔及 uplift FS≥1.5 尚未納入，必須另行檢核。")
+                if any(case.get("average_contact_pressure_kpa") is not None and case["average_contact_pressure_kpa"]<=0 for case in sr["cases"]):
+                    st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
                 if seismic_qallow_value5 is not None:
                     sr_qallow_cases=[case for case in sr["cases"] if case.get("average_contact_pressure_kpa") is not None]
-                    sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(case["average_contact_pressure_kpa"]<=seismic_qallow_value5 for case in sr_qallow_cases))
+                    sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(0.0<case["average_contact_pressure_kpa"]<=seismic_qallow_value5 for case in sr_qallow_cases))
                     st.metric("孔壓折減分支地震 qeq ≤ q_allow","全部組合符合" if sr_qallow_pass else "有組合超過／無有效值")
                     if not sr_qallow_pass:
                         st.error("孔壓折減分支至少一組有效承載壓力超過 q_allow，或無法計算有效接觸壓力。")
