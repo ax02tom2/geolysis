@@ -418,3 +418,45 @@ def test_rqd_handoff_keeps_legacy_core_segments_fallback():
 
     legacy = {"core_segments": [{"x_start_px": 10, "x_end_px": 30}]}
     assert _rqd_segments_from_analysis(legacy) == legacy["core_segments"]
+
+
+def test_core_photo_cache_digest_includes_image_dimensions():
+    from geolysis_ui.core_log import _image_digest
+
+    pixels = bytes([10, 20, 30] * 4)
+    square = Image.frombytes("RGB", (2, 2), pixels)
+    strip = Image.frombytes("RGB", (1, 4), pixels)
+    assert square.tobytes() == strip.tobytes()
+    assert _image_digest(square) != _image_digest(strip)
+
+
+def test_rqd_natural_break_splits_piece_but_mechanical_break_rejoins():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    segments = [{"x_start_px": 0, "x_end_px": 400}]
+    natural = estimate_rqd_from_image_segments(
+        segments, [{"distance_mm": 950.0, "review_class": "天然節理"}],
+        mm_per_px=2.5, row_length_mm=1000.0,
+    )
+    mechanical = estimate_rqd_from_image_segments(
+        segments, [{"distance_mm": 300.0, "review_class": "機械破損"}],
+        mm_per_px=2.5, row_length_mm=1000.0,
+    )
+    assert natural["recovery_percent"] == 100.0
+    assert natural["piece_lengths_mm"] == [950.0, 50.0]
+    assert natural["rqd_percent"] == 95.0
+    assert mechanical["piece_lengths_mm"] == [1000.0]
+    assert mechanical["rqd_percent"] == 100.0
+
+
+def test_rqd_remains_pending_until_every_detected_break_is_reviewed():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    result = estimate_rqd_from_image_segments(
+        [{"x_start_px": 0, "x_end_px": 400}],
+        [{"distance_mm": 300.0, "review_class": "待確認"}],
+        mm_per_px=2.5, row_length_mm=1000.0,
+    )
+    assert result["recovery_percent"] == 100.0
+    assert result["rqd_percent"] is None
+    assert result["ready"] is False
