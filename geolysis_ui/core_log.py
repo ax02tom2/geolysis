@@ -502,15 +502,23 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
         st.dataframe(summary, use_container_width=True, hide_index=True)
         # Explicit handoff to Module 1 quantitative GSI: only rows whose
         # candidate reviews are complete are eligible for automatic RQD use.
-        st.session_state["core_log_rqd_summary"] = [
-            {
+        st.session_state["core_log_rqd_summary"] = []
+        for item, row in zip(row_items, final_rows):
+            record = item["record"]
+            depth_start = getattr(record, "depth_start_m", None)
+            depth_end = getattr(record, "depth_end_m", None)
+            depth_weight = (
+                float(depth_end) - float(depth_start)
+                if depth_start is not None and depth_end is not None
+                and float(depth_end) > float(depth_start)
+                else 1.0
+            )
+            st.session_state["core_log_rqd_summary"].append({
                 "depth": row.get("深度"),
                 "rqd_percent": row.get("RQD (%)"),
                 "review": row.get("覆核"),
-            }
-            for row in final_rows
-            if row.get("RQD (%)") is not None
-        ]
+                "depth_length_m": depth_weight,
+            })
         st.session_state["core_log_rqd_source"] = {
             "filename": uploaded.name,
             "file_digest": file_digest,
