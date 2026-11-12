@@ -631,3 +631,25 @@ def test_core_indices_reject_nonpositive_rqd_threshold():
 
     with pytest.raises(ValueError, match="RQD 最小岩心段門檻"):
         calculate_core_indices(1.0, [300.0], rqd_threshold_mm=0.0)
+
+
+def test_image_rqd_and_detection_functions_reject_nonfinite_parameters():
+    import pytest
+    from core_photo_analysis import (
+        analyze_core_row_v8,
+        build_core_gap_review_candidates,
+        detect_core_break_candidates_v1,
+        estimate_rqd_from_image_segments,
+    )
+
+    row = Image.new("RGB", (320, 80), (40, 90, 150))
+    with pytest.raises(ValueError, match="列長"):
+        estimate_rqd_from_image_segments([], [], 1.0, row_length_mm=float("nan"))
+    with pytest.raises(ValueError, match="RQD 門檻"):
+        estimate_rqd_from_image_segments([], [], 1.0, rqd_threshold_mm=float("inf"))
+    with pytest.raises(ValueError, match="有限"):
+        analyze_core_row_v8(row, float("nan"))
+    with pytest.raises(ValueError, match="有限"):
+        detect_core_break_candidates_v1(row, float("inf"))
+    with pytest.raises(ValueError, match="有限"):
+        build_core_gap_review_candidates({}, float("nan"))
