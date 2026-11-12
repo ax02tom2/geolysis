@@ -8,6 +8,7 @@ once by the user; row numbering then provides the per-row sequence.
 from __future__ import annotations
 
 from io import BytesIO
+import math
 import re
 from typing import Any
 
