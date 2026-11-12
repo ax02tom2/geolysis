@@ -146,6 +146,11 @@ def test_module5_bishop_methods_require_project_specific_inputs_and_confirmation
     assert bishop_phi.value == 0.0
     auto_button = next(widget for widget in app.button if widget.key == "m5x_auto_bishop_run")
     assert auto_button.disabled
+    static_scope_warnings = [item.value for item in app.warning]
+    assert any("僅為靜態圓弧滑動分析" in value and "不含 kh／kv" in value
+               for value in static_scope_warnings)
+    assert any("同樣僅計算靜態 Bishop FS" in value and "不含 kh／kv" in value
+               for value in static_scope_warnings)
 
 
 def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
