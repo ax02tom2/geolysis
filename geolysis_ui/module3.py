@@ -19,6 +19,19 @@ def _spt_refusal_mask(values):
     return values.astype(str).str.strip().str.lower().isin(_SPT_REFUSAL_LABELS)
 
 
+def _spt_warning_messages(rows):
+    """Flatten engine extrapolation warnings and attach depth when available."""
+    messages = []
+    for row in rows:
+        warnings = row.get("warnings") or []
+        if isinstance(warnings, str):
+            warnings = [warnings]
+        depth = row.get("Depth_m")
+        prefix = f"深度 {float(depth):g} m：" if depth is not None else ""
+        messages.extend(prefix + str(message) for message in warnings if str(message).strip())
+    return messages
+
+
 def render_module_3(expanded=False):
     # ==============================================================================
     # 模組三：SPT 標準貫入試驗全修正
@@ -67,6 +80,8 @@ def render_module_3(expanded=False):
                     raise ValueError("一般貫入 N 值必須大於 0；若為拒錘／部分貫入請勾選相應選項")
                 current=spt_correct(n_measured,er,cb,cs,rod_len,(sigma_v if needs_cn else None),cn_method,cn_cap,
                     soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
+                for warning_message in _spt_warning_messages([current]):
+                    st.warning(warning_message)
                 r1,r2,r3=st.columns(3)
                 r1.metric("N60",f"{current['N60']:.2f}")
                 r2.metric("CN",f"{current['CN']:.3f}")
@@ -129,6 +144,8 @@ def render_module_3(expanded=False):
                     rows=prof.to_dict('records')
                     corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
                         cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
+                    for warning_message in _spt_warning_messages(corrected):
+                        st.warning(warning_message)
                     out=pd.DataFrame(corrected)
                     st.dataframe(out,use_container_width=True,hide_index=True)
                     plot_out=out.dropna(subset=['N1_60_final'])
