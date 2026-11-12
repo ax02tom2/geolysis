@@ -3831,7 +3831,7 @@ def test_usace_2025_seismic_residual_pore_pressure_strip_footing_eq_9_3():
     )
     expected = 0.5 * (1.0 - 0.30) * 12.0 * 2.5 * 18.0 * 0.85
     assert result["qu_seismic_kpa"] == pytest.approx(expected)
-    assert result["footing_type"] == "strip"
+    assert "Eqs. 9-3/9-4" in result["method"]
 
 
 def test_usace_seismic_qeq_combines_eccentric_effective_area_and_base_uplift():
