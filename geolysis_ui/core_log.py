@@ -381,7 +381,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         max_value=width,
                         value=(0, width),
                         step=1,
-                        key=f"core_span_{file_digest[:10]}_{index}",
+                        key=f"core_span_{file_digest[:10]}_{index}_{_image_digest(row_measurement)[:10]}",
                     )
                     try:
                         measured_row, row_cal = calibrate_row_measurement_span(
