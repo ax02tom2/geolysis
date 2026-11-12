@@ -416,3 +416,5 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     assert any("B′=1.800 m、L′=2.600 m" in item.value for item in app.caption)
+    # Burland influence depth must use B'=1.8 m, not the physical B=2.0 m.
+    assert any("影響深度 Zi = 1.51 m" in item.value for item in app.markdown)
