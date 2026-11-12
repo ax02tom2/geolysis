@@ -439,7 +439,7 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
             "PMT：Ménard–Rousseau 法（USACE 2025）",
             None,
             "m4_pmt_layers",
-            "group,E0_kpa\\nE1,8000\\nE2,9000\\nE345,10000\\nE678,11000\\nE916,12000",
+            "group,E0_kpa\\nE1,12000\\nE2,13000\\nE345,14000\\nE678,15000\\nE916,16000",
         ),
     ],
 )
@@ -489,7 +489,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     if prefix == "m4_cpt":
         next(widget for widget in app.checkbox if widget.key == "m4_cpt_soil_confirm").check()
     if prefix == "m4_pmt":
-        next(widget for widget in app.number_input if widget.key == "m4_pmt_pne").set_value(2000.0)
+        next(widget for widget in app.number_input if widget.key == "m4_pmt_pne").set_value(1500.0)
         next(widget for widget in app.number_input if widget.key == "m4_pmt_py").set_value(1000.0)
         next(widget for widget in app.checkbox if widget.key == "m4_pmt_deep_confirm").check()
         next(widget for widget in app.checkbox if widget.key == "m4_pmt_lambda_confirm").check()
