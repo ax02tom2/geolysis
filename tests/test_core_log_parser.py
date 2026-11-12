@@ -152,3 +152,35 @@ def test_pdf_cropped_partial_box_without_labels_infers_visible_rows_from_image_h
     assert result["rows_detected"] == 6
     assert [r.row_in_box for r in result["records"][-2:]] == [1, 2]
     assert [r.image.height for r in result["records"][-2:]] == [100, 100]
+
+
+def _pdf_fixture_five_boxes_twenty_depth_rows():
+    pdf = fitz.open()
+    page = pdf.new_page(width=595, height=842)
+    page.insert_text((50, 45), "鑽孔編號 BH-01", fontsize=11)
+    page.insert_text((50, 65), "深度 0.0~20.0m", fontsize=11)
+    box_bytes = _box_image()
+    for box_index in range(5):
+        y0 = 105 + box_index * 145
+        y1 = y0 + 120
+        page.insert_image(fitz.Rect(50, y0, 480, y1), stream=box_bytes)
+        for row_index in range(4):
+            depth_end = box_index * 4 + row_index + 1
+            y = y0 + (row_index + 0.5) * 30
+            page.insert_text((490, y + 3), f"{depth_end:.1f}", fontsize=9)
+    out = pdf.tobytes()
+    pdf.close()
+    return out
+
+
+def test_pdf_five_boxes_per_page_extracts_all_twenty_one_metre_rows():
+    result = parse_pdf_core_log(_pdf_fixture_five_boxes_twenty_depth_rows())
+    assert result["pages_detected"] == 1
+    assert result["rows_detected"] == 20
+    assert result["borehole_id"] == "BH-01"
+    assert result["depth_source"] == "PDF 列尾深度標籤"
+    assert [(row.depth_start_m, row.depth_end_m) for row in result["records"]] == [
+        (float(i), float(i + 1)) for i in range(20)
+    ]
+    assert all(row.image.width == 800 and row.image.height == 100 for row in result["records"])
+    assert result["warnings"] == []
