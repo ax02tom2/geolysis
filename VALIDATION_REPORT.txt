@@ -2,12 +2,12 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 44794873e4cffcca00a201ca6ea743d370c130a5
-Latest validation run: 43135063472 (PR #104; success)
+Validated main code commit: a3010e2a5b031d9a952da7b00bc84a39469b55ad
+Latest validation run: 43136481395 (PR #106; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43135063472
+- Run ID: 43136481395
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,8 +15,8 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 441 passed
-- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, and independent soil/interface defaults exercised
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 444 passed
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, independent soil/interface defaults, and confirmed Module 5→Module 4 capacity transfer exercised
 - Widget-key and web-scope static checks: passed
 
 Engineering review corrections previously merged:
@@ -916,3 +916,15 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - Advanced result signatures now include parameter source, HB fit signature and applicability confirmation state; changing source or withdrawing confirmation invalidates previous results.
 - AppTest asserts that unsupported advanced bearing paths are disabled and that unrelated interface/backfill/Bishop/layer inputs do not inherit HB values.
 - PR #104 merged to main at 44794873e4cffcca00a201ca6ea743d370c130a5; CI run 43135063472: 441 passed in 2.82 s; compileall and Streamlit AppTest passed.
+
+
+## Module 5 → Module 4 validated bearing-capacity transfer (PR #106)
+
+- Module 5 publishes a transfer only when the primary bearing result is current, total vertical load is explicitly confirmed, the selected load-inclination model is complete, compression contact and middle-third checks pass, and net ultimate resistance is positive.
+- Automatic transfer is restricted to central vertical loading (H=0, eB=eL=0) using the primary level-base/level-ground bearing result. The separate slope/base-inclination calculation is not transferred.
+- Transfer includes gross ultimate resistance qult and net allowable pressure qa,net calculated at FS=3.0, plus B/L/Df/Dw, footing type, source theory, actual bearing FS and a result signature.
+- Module 4 provides opt-in transfer controls for Burland–Burbidge, DMT, CPT, PMT and clay consolidation. Geometry is checked; footing type is checked where supported; user must explicitly confirm matching groundwater, soil profile and loading conditions. Geometry mismatch disables automatic transfer.
+- SPT/DMT/CPT/PMT methods receive gross qult and apply their own FS. Clay consolidation receives net qa,net at FS=3.0. Actual applied settlement pressure remains a separate Module 4 input.
+- Changing Module 5 inputs or withdrawing load confirmation clears the transfer; a controlled rerun makes the updated state available to Module 4 immediately.
+- Added two unit tests for geometry mismatch and confirmation gating, and an AppTest for an end-to-end confirmed Module 5 calculation that verifies the Module 4 transfer control is rendered.
+- PR #106 merged to main at a3010e2a5b031d9a952da7b00bc84a39469b55ad; CI run 43136481395: 444 passed; Python compileall and Streamlit AppTest passed.
