@@ -8,7 +8,7 @@ from .bearing import usace_meyerhof_settlement_allowable, bearing_pressure_safet
 from .settlement import consolidation_settlement_1d, consolidation_allowable_pressure, consolidation_time_rate, consolidation_time_rate_layers, immediate_elastic_settlement, excavation_rebound_recompression, differential_settlement, secondary_compression_settlement, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, boussinesq_rectangular_center_factor, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, consolidation_settlement_layers, consolidation_allowable_pressure_layers, usace_settlement_design_pressure
 from .rebound import excavation_rebound_recompression_layers
 from .stress_profile import consolidation_settlement_layers_from_stress_profile
-from .rock import hoek_brown_parameters, hoek_brown_structure_applicability, gsi_quantitative_from_rqd_jcond
+from .rock import hoek_brown_parameters, hoek_brown_structure_applicability, gsi_quantitative_from_rqd_jcond, gsi_scale_effect_warning
 from .stability import foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, bishop_simplified_factor_of_safety, bishop_circular_search, developed_rankine_sliding_earth_pressures, base_uplift_pressure_readiness
 
 __all__ = [
@@ -40,6 +40,7 @@ __all__ = [
     "hoek_brown_parameters",
     "hoek_brown_structure_applicability",
     "gsi_quantitative_from_rqd_jcond",
+    "gsi_scale_effect_warning",
     "boussinesq_rectangular_center_factor",
     "dmt_settlement_2025",
     "dmt_modulus_settlement_2025",
