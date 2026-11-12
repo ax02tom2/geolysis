@@ -146,6 +146,8 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
             st.info("上傳原始柱狀圖後即可解析；不需要先拆成單列照片。")
             st.session_state.pop("core_log_result", None)
             st.session_state.pop("core_log_file_digest", None)
+            st.session_state.pop("core_log_rqd_summary", None)
+            st.session_state.pop("core_log_rqd_source", None)
             return
 
         file_bytes = uploaded.getvalue()
@@ -153,6 +155,8 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
         if st.session_state.get("core_log_file_digest") != file_digest:
             st.session_state["core_log_file_digest"] = file_digest
             st.session_state["core_log_result"] = None
+            st.session_state.pop("core_log_rqd_summary", None)
+            st.session_state.pop("core_log_rqd_source", None)
 
         if st.button("解析整孔柱狀圖", key="core_log_parse_button", type="primary"):
             try:
@@ -496,6 +500,21 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
         st.markdown("**本孔逐深度成果表**")
         summary = pd.DataFrame(final_rows)
         st.dataframe(summary, use_container_width=True, hide_index=True)
+        # Explicit handoff to Module 1 quantitative GSI: only rows whose
+        # candidate reviews are complete are eligible for automatic RQD use.
+        st.session_state["core_log_rqd_summary"] = [
+            {
+                "depth": row.get("深度"),
+                "rqd_percent": row.get("RQD (%)"),
+                "review": row.get("覆核"),
+            }
+            for row in final_rows
+            if row.get("RQD (%)") is not None
+        ]
+        st.session_state["core_log_rqd_source"] = {
+            "filename": uploaded.name,
+            "file_digest": file_digest,
+        }
         st.caption(
             "以上為影像初估與人工覆核成果；遮擋、岩心旋轉、比例尺、托盤背景及破裂面漏檢都可能影響結果。"
             "正式 RQD 仍須依現場岩心編錄確認；照片不能直接推算完整岩石 UCS。"
