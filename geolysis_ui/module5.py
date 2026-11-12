@@ -11,6 +11,11 @@ from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bea
 
 
 
+def _slide_seismic_earth_pressure_ready(load_case, manual_seismic_pressure_confirmed):
+    """Seismic sliding needs explicitly confirmed direction-specific Pa/Pp inputs."""
+    return load_case != "seismic" or bool(manual_seismic_pressure_confirmed)
+
+
 def _seismic_case_dataframe(rows, footing_type):
     frame=pd.DataFrame(rows)
     if footing_type=="strip":
@@ -740,13 +745,26 @@ def render_module_5(expanded=False):
                 and slide_uplift_resisting_weight5>0 and slide_uplift_weights_confirmed5)
             st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。地震抗浮另依 §9-10(f) 要求 FS≥1.5，不可使用滑動 FS=1.1 取代。")
             st.caption("地震模式會自動讀取上方 Module 5 的 kh、kv、W，組合 H_eq=H+khW 與 V_eq=V±kvW，並取兩組垂直方向中較小的滑動 FS。此處 H、V 請輸入未含地震增量的靜力基準值，避免重複計入。基底揚壓 U 與 Pa/Pp 仍須依實際水位及控制水平作用方向另行確認；不對稱回填幾何請輸入正反向中較不利的 Pa/Pp。另有獨立地震抗浮 FS 檢核：Wf+Ws+Wc、Ws 與 U 必須依 §5-7／§9-10(f) 定義輸入。")
-            auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
+            if slide_load_case5=="seismic":
+                auto_earth5=False
+                st.warning("地震滑動模式不提供自動 Rankine Pa/Pp：該功能只計算靜態 developed-strength 土壓，不含地震動態土壓增量。請在上方 Pa／Pp 欄輸入地震作用下正反向控制的不利值；若無回填土或無土壓作用，輸入 0 並勾選確認。")
+                slide_seismic_earth_pressure_confirmed5=st.checkbox(
+                    "已確認 Pa／Pp 為地震作用下的控制值（已納入專案需要的地震土壓增量；若無土壓作用則確認 Pa=Pp=0）",
+                    value=False,key="m5x_slide_seismic_earth_pressure_confirm")
+            else:
+                auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓（靜態）",value=False,key="m5x_slide_auto_earth")
+                slide_seismic_earth_pressure_confirmed5=True
+            slide_earth_pressure_ready5=_slide_seismic_earth_pressure_ready(
+                slide_load_case5,slide_seismic_earth_pressure_confirmed5)
+            if not slide_earth_pressure_ready5:
+                st.warning("尚未確認地震作用下 Pa／Pp 的方向與增量；滑動計算按鈕保持停用。")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
             slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_backfill_phi_{'hb' if use_hb5 else 'manual'}")
             slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
             if use_hb5:
                 st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
-            if st.button("計算基底滑動安全係數",key="m5x_slide_run",disabled=not slide_uplift_pressure_ready5):
+            slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5)
+            if st.button("計算基底滑動安全係數",key="m5x_slide_run",disabled=not slide_run_ready5):
                 try:
                     if auto_earth5:
                         earth=developed_rankine_sliding_earth_pressures(
@@ -776,11 +794,11 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+            slide_sig=(src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5)
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
