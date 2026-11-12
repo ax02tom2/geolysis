@@ -1375,10 +1375,12 @@ def test_usace_2025_appendix_c7e_burland_burbidge_settlement_and_pressure_cap():
 
 def test_usace_2025_dmt_settlement_converts_readings_and_sums_incremental_layers():
     # USACE EM 1110-1-1905 Eqs. 3-41, 4-13 to 4-15 and 7-10.
+    # 4 m profile deliberately extends beyond the 2B minimum. USACE
+    # Table 7-4 requires continuing when deeper layers still contribute.
     layers = [
         {"Layer": i + 1, "thickness_m": 0.2, "p0_bar": 2.0,
          "p1_bar": 3.0, "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
-        for i in range(10)
+        for i in range(20)
     ]
     result = dmt_settlement_2025(
         layers=layers, footing_width_m=1.0, footing_length_m=1.0,
@@ -1407,7 +1409,9 @@ def test_usace_2025_dmt_settlement_converts_readings_and_sums_incremental_layers
         for row in result["layer_results"]
     )
     assert result["settlement_mm"] == pytest.approx(expected_settlement)
-    assert result["profile_depth_used_m"] == pytest.approx(2.0)
+    assert len(result["layer_results"]) == 20
+    assert result["profile_depth_used_m"] == pytest.approx(4.0)
+    assert result["profile_ends_at_minimum_depth"] is False
 
 
 def test_usace_2025_dmt_settlement_rejects_incomplete_profile_and_bad_readings():
