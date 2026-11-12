@@ -126,3 +126,5 @@ def test_module5_confirmed_bearing_result_is_published_to_module4():
     assert transfer["qa_net_kpa"] > 0
     transfer_checkbox_key = f"m4_bb_use_m5_{transfer['transfer_id']}"
     assert any(widget.key == transfer_checkbox_key for widget in app.checkbox)
+    transfer_checkbox_key = f"m4_bb_use_m5_{transfer['transfer_id']}"
+    assert any(widget.key == transfer_checkbox_key for widget in app.checkbox)
