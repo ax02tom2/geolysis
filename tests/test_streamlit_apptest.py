@@ -582,3 +582,34 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5_bearing_transfer") is None
+
+
+def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Create a positive hydrostatic uplift reference, then explicitly confirm U.
+    next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
+    app.run()
+    confirmation = next(
+        widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm"
+    )
+    confirmation.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    calculate = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert not calculate.disabled
+    calculate.click()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert any(item.label == "FS 滑動" for item in app.metric)
+
+    # Revoking the pressure confirmation must invalidate and hide the prior FS.
+    confirmation = next(
+        widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm"
+    )
+    confirmation.uncheck()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not any(item.label == "FS 滑動" for item in app.metric)
