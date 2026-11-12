@@ -421,16 +421,25 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
 
 
 @pytest.mark.parametrize(
-    ("method_label", "method_key", "csv_key", "csv_text"),
+    ("method_label", "method_key", "mode_value", "csv_key", "csv_text"),
     [
         (
             "DMT：增量拘束模數法（USACE 2025）",
             "m4_dmt_mode",
+            "MDMT",
             "m4_dmt_layers",
             "Layer,depth_center_m,thickness_m,MDMT_kpa\n1,0.5,1.0,10000\n2,1.5,1.0,10000\n3,2.5,1.0,10000\n4,3.5,1.0,10000",
         ),
         (
+            "DMT：增量拘束模數法（USACE 2025）",
+            "m4_dmt_mode",
+            "corrected",
+            "m4_dmt_layers",
+            "Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\\n1,1.0,1.0,1.5,0.0,1.0\\n2,1.0,1.2,1.7,0.0,1.2\\n3,1.0,1.4,1.9,0.0,1.4\\n4,1.0,1.6,2.1,0.0,1.6",
+        ),
+        (
             "CPT：Schmertmann 沉陷法（USACE 2025）",
+            None,
             None,
             "m4_cpt_layers",
             "Layer,thickness_m,qc_kpa\n1,1.0,8000\n2,1.0,8500\n3,1.0,9000\n4,1.0,9500\n5,1.0,10000",
@@ -438,13 +447,14 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
         (
             "PMT：Ménard–Rousseau 法（USACE 2025）",
             None,
+            None,
             "m4_pmt_layers",
             "group,E0_kpa\nE1,12000\nE2,13000\nE345,14000\nE678,15000\nE916,16000",
         ),
     ],
 )
 def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
-    method_label, method_key, csv_key, csv_text
+    method_label, method_key, mode_value, csv_key, csv_text
 ):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -485,7 +495,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_qeq_{transfer_id}").check()
 
     if method_key:
-        next(widget for widget in app.selectbox if widget.key == method_key).select("MDMT")
+        next(widget for widget in app.selectbox if widget.key == method_key).select(mode_value)
     if prefix == "m4_cpt":
         next(widget for widget in app.checkbox if widget.key == "m4_cpt_soil_confirm").check()
     if prefix == "m4_pmt":
