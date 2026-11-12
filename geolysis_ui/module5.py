@@ -26,6 +26,25 @@ def _normalize_bishop_weight_column(frame):
     raise ValueError("Bishop CSV 必須提供 weight_kN_per_m（每延米重量）欄位")
 
 
+def _sliding_result_signature(base_signature, *, base_pressure_reference_kN,
+        uplift_pressure_confirmed, uplift_pressure_ready,
+        footing_area_matches_base, footing_units_match,
+        seismic_earth_pressure_ready):
+    """Include every readiness gate in the sliding result's freshness signature.
+
+    The numerical inputs alone are insufficient: changing a reviewer confirmation
+    or the hydrostatic/residual-pore-pressure reference must invalidate an old FS.
+    """
+    return tuple(base_signature) + (
+        float(base_pressure_reference_kN),
+        bool(uplift_pressure_confirmed),
+        bool(uplift_pressure_ready),
+        bool(footing_area_matches_base),
+        bool(footing_units_match),
+        bool(seismic_earth_pressure_ready),
+    )
+
+
 def _slide_seismic_earth_pressure_ready(load_case, manual_seismic_pressure_confirmed):
     """Seismic sliding needs explicitly confirmed direction-specific Pa/Pp inputs."""
     return load_case != "seismic" or bool(manual_seismic_pressure_confirmed)
@@ -820,11 +839,22 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5))
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, slide_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5)
+            slide_sig=_sliding_result_signature(
+                (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,
+                 slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
+                 seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
+                 slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
+                base_pressure_reference_kN=base_pressure_U_ref5,
+                uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
+                uplift_pressure_ready=slide_uplift_pressure_ready5,
+                footing_area_matches_base=slide_base_area_match5,
+                footing_units_match=uplift_units_match5,
+                seismic_earth_pressure_ready=slide_earth_pressure_ready5,
+            )
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
