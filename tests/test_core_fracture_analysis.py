@@ -211,15 +211,17 @@ def test_fracture_detector_accepts_grayscale_and_rgba_pil_images(monkeypatch):
     assert len(rgba_result["candidates"]) == 1
 
 
-def test_cache_invalidation_fingerprint_is_passed_to_both_app_call_sites():
+def test_cache_invalidation_fingerprint_is_passed_to_both_web_ui_call_sites():
     from pathlib import Path
 
-    app_source = Path(__file__).resolve().parents[1].joinpath("app.py").read_text(encoding="utf-8")
-    assert "def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str)" in app_source
-    assert app_source.count("_cached_row_analysis(row_measurement, row_scale[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
-    assert app_source.count("_cached_row_analysis(measured_row, row_cal[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
-    assert "importlib.reload(_core_photo_analysis_module)" not in app_source
-    assert "break_detection_traceback" in app_source
+    root = Path(__file__).resolve().parents[1]
+    ui_source = root.joinpath("geolysis_ui", "core_log.py").read_text(encoding="utf-8")
+    app_source = root.joinpath("app.py").read_text(encoding="utf-8")
+    assert "def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str)" in ui_source
+    assert ui_source.count("_cached_row_analysis(\n                    row_measurement,\n                    row_scale[\"mm_per_px\"],\n                    engine_fingerprint,\n                )") == 1
+    assert ui_source.count("_cached_row_analysis(\n                            measured_row, row_cal[\"mm_per_px\"], engine_fingerprint\n                        )") == 1
+    assert "importlib.reload(" not in app_source
+    assert "break_detection_traceback" in ui_source
 
 
 def test_rqd_keeps_recovery_available_while_break_review_is_pending():
