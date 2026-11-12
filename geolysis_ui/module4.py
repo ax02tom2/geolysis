@@ -140,7 +140,7 @@ def render_module_4(expanded=False):
             with a:
                 n4=st.number_input("影響深度內平均 N60",1.0,100.0,20.0,1.0,key='m4_bb_n60')
                 width4=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key='m4_bb_b')
-                length4=st.number_input("基礎長邊 L [m]",0.3,100.0,3.0,0.1,key='m4_bb_l')
+                length4=st.number_input("基礎長邊 L [m]",min_value=float(width4),max_value=100.0,value=float(max(width4,3.0)),step=0.1,key='m4_bb_l')
             with b:
                 q4=st.number_input("目前基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
@@ -515,7 +515,7 @@ def render_module_4(expanded=False):
             a,b,c=st.columns(3)
             with a:
                 qB=st.number_input("基礎寬度 B [m]",0.3,50.0,2.0,0.1,key='m4c_b')
-                qL=st.number_input("基礎長度 L [m]",0.3,100.0,3.0,0.1,key='m4c_l')
+                qL=st.number_input("基礎長度 L [m]",min_value=float(qB),max_value=100.0,value=float(max(qB,3.0)),step=0.1,key='m4c_l')
                 zc=st.number_input("單一壓縮層中點距基礎底 z [m]",0.0,100.0,3.0,0.1,key='m4c_z')
             with b:
                 Hc=st.number_input("單一壓縮層厚度 H [m]",0.1,100.0,5.0,0.1,key='m4c_h')
