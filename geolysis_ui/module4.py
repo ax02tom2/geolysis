@@ -55,6 +55,11 @@ def render_module_4(expanded=False):
     # ==============================================================================
     with st.expander("📏 模組四：容許承載力與沉陷控制", expanded):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
+        m5_transfer4=st.session_state.get("m5_bearing_transfer")
+        if m5_transfer4:
+            st.caption(f"已取得 Module 5 有效承載力結果：qult={m5_transfer4['qult_gross_kpa']:.1f} kPa、qa,net={m5_transfer4['qa_net_kpa']:.1f} kPa；基礎 B×L={m5_transfer4['B_m']:.2f}×{m5_transfer4['L_m']:.2f} m、Df={m5_transfer4['Df_m']:.2f} m。各沉陷方法仍須確認幾何、水位與地層條件相同後，才可選擇帶入。")
+        else:
+            st.caption("完成 Module 5 極限承載力計算、確認設計總垂直力並通過偏心接觸檢核後，可將有效 qult／qa,net 帶入本模組作沉陷壓力上限。")
         method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","PMT：Ménard–Rousseau 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
         if method4.startswith('砂土／礫土'):
             st.caption("依 USACE EM 1110-1-1905（2025）第 7-13 節，採 Burland & Burbidge SPT 法；使用基礎底至影響深度內的平均 N60，不是 (N1)60。可直接連結模組三剖面，並依基礎埋深將地表深度換算為基礎底下深度。")
@@ -66,7 +71,6 @@ def render_module_4(expanded=False):
             with b:
                 q4=st.number_input("目前基礎底 gross 壓力 q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
-                qult4=st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult')
                 fs_bb4=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key='m4_bb_fs')
                 if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
@@ -74,6 +78,8 @@ def render_module_4(expanded=False):
             with c:
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
+                transfer_qult4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
+                qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
             profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
@@ -193,7 +199,8 @@ def render_module_4(expanded=False):
             with b:
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
-                dmtqult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult")
+                dmt_transfer_qult=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type)
+                dmtqult=(dmt_transfer_qult if dmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult"))
             with c:
                 dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
                 if dmtqult>0 and dmtfs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
@@ -249,7 +256,8 @@ def render_module_4(expanded=False):
                 cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
-                cptQult=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult")
+                cpt_transfer_qult=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType)
+                cptQult=(cpt_transfer_qult if cpt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult"))
                 cptFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_cpt_fs")
                 if cptQult>0 and cptFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 cptYears=st.number_input("載重作用時間 [年]",0.01,100.0,50.0,0.5,key="m4_cpt_years")
@@ -296,7 +304,8 @@ def render_module_4(expanded=False):
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
-                pmtQu=st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult")
+                pmt_transfer_qult=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL)
+                pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
                 if pmtQu>0 and pmtFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
@@ -407,7 +416,8 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                qcap_clay4=st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap')
+                clay_transfer_qa=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net",field="qa_net_kpa",width_m=qB,length_m=qL)
+                qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
