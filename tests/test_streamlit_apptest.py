@@ -435,7 +435,7 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
             "m4_dmt_mode",
             "corrected",
             "m4_dmt_layers",
-            "Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\\n1,1.0,1.0,1.5,0.0,1.0\\n2,1.0,1.2,1.7,0.0,1.2\\n3,1.0,1.4,1.9,0.0,1.4\\n4,1.0,1.6,2.1,0.0,1.6",
+            "Layer,thickness_m,p0_bar,p1_bar,u0_bar,sigma_v0_eff_bar\n1,1.0,1.0,1.5,0.0,1.0\n2,1.0,1.2,1.7,0.0,1.2\n3,1.0,1.4,1.9,0.0,1.4\n4,1.0,1.6,2.1,0.0,1.6",
         ),
         (
             "CPT：Schmertmann 沉陷法（USACE 2025）",
@@ -520,7 +520,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
 
 def test_module2_classification_result_clears_when_confirmation_is_revoked():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").check()
     app.run()
