@@ -1635,7 +1635,7 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_eq_7_12():
     )
 
 
-def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_out_of_range_layer():
+def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stress_is_significant():
     pmt = [
         {"group": group, "E0_kpa": value}
         for group, value in [
@@ -1643,12 +1643,41 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_out_of_range_layer():
             ("E678", 22000.0), ("E916", 25000.0),
         ]
     ]
-    with pytest.raises(ValueError, match="超出式 7-12"):
+    # For a 2 m square footing, this layer bottom is 4.25 m (> 2B).
+    # At its centre (z=4 m), the Boussinesq I_sigma is still > 0.10,
+    # so USACE's significant-stress depth check requires it to be included.
+    soft_layer = {"depth_center_m": 4.0, "thickness_m": 0.5,
+                  "E_L_kpa": 5000.0, "pne_kpa": 600.0}
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
+        equivalent_net_limit_pressure_kpa=1500.0,
+        yield_pressure_kpa=250.0,
+        soil_type="sand", consolidation_state="normally_consolidated",
+        round_footing=True, soft_layers=[soft_layer],
+        soft_layer_profile_reviewed=True,
+    )
+    expected_iz = boussinesq_rectangular_center_factor(2.0, 2.0, 4.0)
+    assert soft_layer["depth_center_m"] + soft_layer["thickness_m"] / 2.0 > 4.0
+    assert expected_iz > 0.10
+    assert result["soft_layer_results"][0]["I_sigma"] == pytest.approx(expected_iz)
+    assert result["soft_layer_settlement_mm"] > 0.0
+
+
+def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_beyond_negligible_stress_depth():
+    pmt = [
+        {"group": group, "E0_kpa": value}
+        for group, value in [
+            ("E1", 12000.0), ("E2", 15000.0), ("E345", 18000.0),
+            ("E678", 22000.0), ("E916", 25000.0),
+        ]
+    ]
+    with pytest.raises(ValueError, match="I_sigma=.*<0.10"):
         menard_rousseau_pmt_settlement_2025(
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
             equivalent_net_limit_pressure_kpa=1500.0,
-        yield_pressure_kpa=250.0,
+            yield_pressure_kpa=250.0,
             soil_type="sand", consolidation_state="normally_consolidated",
             round_footing=True,
             soft_layers=[{"depth_center_m": 5.0, "thickness_m": 0.5,
