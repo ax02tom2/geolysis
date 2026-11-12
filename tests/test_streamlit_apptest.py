@@ -2,6 +2,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from streamlit.testing.v1 import AppTest
 from geolysis_ui.module4 import _module5_transfer_value
 
@@ -213,3 +215,19 @@ def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
     assert gsi_input.value == 77.5
+
+
+def test_module5_defaults_uplift_force_from_base_pressure_and_full_footing_area():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    water = next(widget for widget in app.number_input if widget.key == "m5_dw")
+    water.set_value(0.0)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Default Df=1.5 m, B=2 m, L=3 m; u_D=(Df-Dw)*9.81 kPa.
+    expected_u = 1.5 * 9.81 * 2.0 * 3.0
+    uplift_widget = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
+    assert uplift_widget.value == pytest.approx(expected_u)
+    assert "可覆寫" in uplift_widget.label
