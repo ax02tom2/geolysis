@@ -57,7 +57,7 @@ def render_module_4(expanded=False):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
         m5_transfer4=st.session_state.get("m5_bearing_transfer")
         if m5_transfer4:
-            st.caption(f"已取得 Module 5 有效承載力結果：qult={m5_transfer4['qult_gross_kpa']:.1f} kPa、qa,net={m5_transfer4['qa_net_kpa']:.1f} kPa；基礎 B×L={m5_transfer4['B_m']:.2f}×{m5_transfer4['L_m']:.2f} m、Df={m5_transfer4['Df_m']:.2f} m。各沉陷方法仍須確認幾何、水位與地層條件相同後，才可選擇帶入。")
+            st.caption(f"已取得 Module 5 有效承載力結果：qult={m5_transfer4['qult_gross_kpa']:.1f} kPa、qa,net(FS=3.0)={m5_transfer4['qa_net_kpa']:.1f} kPa；基礎 B×L={m5_transfer4['B_m']:.2f}×{m5_transfer4['L_m']:.2f} m、Df={m5_transfer4['Df_m']:.2f} m。各沉陷方法仍須確認幾何、水位與地層條件相同後，才可選擇帶入。
         else:
             st.caption("完成 Module 5 極限承載力計算、確認設計總垂直力並通過偏心接觸檢核後，可將有效 qult／qa,net 帶入本模組作沉陷壓力上限。")
         method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","PMT：Ménard–Rousseau 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
@@ -416,7 +416,7 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                clay_transfer_qa=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net",field="qa_net_kpa",width_m=qB,length_m=qL)
+                clay_transfer_qa=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL)
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
