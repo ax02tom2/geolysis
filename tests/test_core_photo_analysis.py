@@ -550,3 +550,16 @@ def test_rqd_does_not_merge_gap_pair_when_multiple_gap_reviews_conflict():
     )
     assert result["piece_lengths_mm"] == [50.0, 920.0]
     assert result["rqd_percent"] == 92.0
+
+
+def test_core_review_fingerprint_changes_with_pixels_scale_and_engine():
+    from geolysis_ui.core_log import _core_review_fingerprint
+
+    image = Image.new("RGB", (40, 20), (20, 30, 40))
+    baseline = _core_review_fingerprint(image, 2.5, "engine-a")
+    changed_pixels = Image.new("RGB", (40, 20), (20, 30, 41))
+    changed_shape = Image.new("RGB", (20, 40), (20, 30, 40))
+    assert _core_review_fingerprint(changed_pixels, 2.5, "engine-a") != baseline
+    assert _core_review_fingerprint(changed_shape, 2.5, "engine-a") != baseline
+    assert _core_review_fingerprint(image, 2.6, "engine-a") != baseline
+    assert _core_review_fingerprint(image, 2.5, "engine-b") != baseline
