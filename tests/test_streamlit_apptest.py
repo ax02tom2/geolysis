@@ -69,6 +69,8 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
         "qeq_gross_kpa": 180.0,
         "B_m": 2.0,
         "L_m": 3.0,
+        "B_effective_m": 1.6,
+        "L_effective_m": 2.4,
         "Df_m": 1.5,
         "Dw_m": 2.0,
         "footing_type": "isolated",
@@ -96,7 +98,7 @@ def test_module4_rejects_module5_transfer_when_foundation_geometry_differs():
     transfer = {
         "transfer_id": "test12345678", "qult_gross_kpa": 1200.0,
         "qa_net_kpa": 360.0, "qa_gross_kpa": 410.0, "qeq_gross_kpa": 180.0,
-        "B_m": 2.0, "L_m": 3.0, "Df_m": 1.5, "Dw_m": 2.0,
+        "B_m": 2.0, "L_m": 3.0, "B_effective_m": 1.6, "L_effective_m": 2.4, "Df_m": 1.5, "Dw_m": 2.0,
         "footing_type": "isolated", "source": "手動輸入", "theory": "Meyerhof",
         "FS_bearing": 6.0, "passes_bearing": True,
     }
