@@ -97,7 +97,8 @@ def _settlement_eccentricity_inputs(key_prefix, width_m, length_m, footing_type)
             e_l=st.number_input("長邊偏心距 eL [m]",0.0,max_el,0.0,0.01,key=f"{key_prefix}_settlement_el")
     b_eff=float(width_m)-2.0*e_b
     l_eff=float(length_m)-2.0*e_l
-    st.caption(f"依 USACE 2025 式 5-4～5-8：B′={b_eff:.3f} m、L′={l_eff:.3f} m；需維持偏心距在中三分點內。")
+    pressure_formula=("qeq=V/B′−uD（連續基礎）" if footing_type=="continuous" else "qeq=V/(B′×L′)−uD（獨立／矩形基礎）")
+    st.caption(f"依 USACE 2025 式 5-4～5-8：B′={b_eff:.3f} m、L′={l_eff:.3f} m；{pressure_formula}。V 須含基礎自重與覆土，uD 為基底揚壓；偏心距須在中三分點內。")
     return b_eff,l_eff,e_b,e_l
 
 
@@ -141,7 +142,7 @@ def render_module_4(expanded=False):
                 width4=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key='m4_bb_b')
                 length4=st.number_input("基礎長邊 L [m]",0.3,100.0,3.0,0.1,key='m4_bb_l')
             with b:
-                q4=st.number_input("目前基礎底 gross 壓力 q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
+                q4=st.number_input("目前基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
                 fs_bb4=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key='m4_bb_fs')
                 sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
