@@ -3,6 +3,63 @@ from __future__ import annotations
 import math
 from ._common import _finite, _pct
 
+_USCS_BASE_DESCRIPTIONS = {
+    "GW": "級配良好礫土", "GP": "級配不良礫土",
+    "GM": "粉土質礫土", "GC": "黏土質礫土",
+    "SW": "級配良好砂土", "SP": "級配不良砂土",
+    "SM": "粉土質砂土", "SC": "黏土質砂土",
+    "CL": "低塑性黏土", "ML": "低塑性粉土",
+    "CH": "高塑性黏土", "MH": "高塑性粉土",
+    "OL": "低塑性有機粉土／黏土", "OH": "高塑性有機粉土／黏土",
+    "PT": "泥炭／高有機質土",
+    "CL-ML": "粉土質黏土／黏土質粉土（邊界區）",
+}
+_USCS_FINE_DESCRIPTIONS = {
+    "GC": "黏土質細料", "GM": "粉土質細料",
+    "SC": "黏土質細料", "SM": "粉土質細料",
+}
+_AASHTO_DESCRIPTIONS = {
+    "A-1-a": "石塊、礫石與砂為主的優良粒料",
+    "A-1-b": "以粗砂為主的粒料",
+    "A-3": "細砂，細料含量低且非塑性",
+    "A-2-4": "含粉土／黏土細料的礫石與砂；低液限、低塑性",
+    "A-2-5": "含粉土／黏土細料的礫石與砂；高液限、低塑性",
+    "A-2-6": "含塑性細料的礫石與砂；低液限",
+    "A-2-7": "含塑性細料的礫石與砂；高液限",
+    "A-4": "低液限粉土", "A-5": "高液限粉土",
+    "A-6": "低液限黏土",
+    "A-7-5": "高液限黏土，PI ≤ LL − 30",
+    "A-7-6": "高液限黏土，PI > LL − 30",
+    "A-8": "高度有機質土／泥炭",
+}
+
+
+def _uscs_description(symbol: str) -> str:
+    raw = str(symbol or "").strip()
+    provisional = "暫定" in raw
+    base = raw.replace("（暫定）", "").replace("(暫定)", "").strip()
+    if "缺少" in base or "missing gradation" in base.lower():
+        description = "粗粒土；尚缺 D10、D30、D60 級配資料，不能判定 W／P 級配組別"
+    elif base in _USCS_BASE_DESCRIPTIONS:
+        description = _USCS_BASE_DESCRIPTIONS[base]
+    elif base in {"GC-GM", "SC-SM"}:
+        material = "礫土" if base.startswith("GC") else "砂土"
+        description = f"{material}細料位於黏土與粉土的邊界區"
+    else:
+        parts = base.split("-")
+        if len(parts) == 2 and parts[0] in {"GW", "GP", "SW", "SP"} and parts[1] in _USCS_FINE_DESCRIPTIONS:
+            description = f"{_USCS_BASE_DESCRIPTIONS[parts[0]]}（{_USCS_FINE_DESCRIPTIONS[parts[1]]}）"
+        else:
+            description = "請核對 USCS 分類符號與原始試驗資料"
+    if provisional:
+        description += "；有機性尚待烘乾後液限比值確認"
+    return description
+
+
+def _aashto_description(group: str) -> str:
+    return _AASHTO_DESCRIPTIONS.get(str(group or "").strip(), "請核對 AASHTO 分組條件")
+
+
 def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=None, np_flag=False,
                            d10=None, d30=None, d60=None, organic=False,
                            ll_oven_dried=None, peat=False):
@@ -14,6 +71,8 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
     if peat:
         return {
             'USCS':'PT','AASHTO':'A-8','GI':0,'PI':None,'Cu':None,'Cc':None,
+            'USCS_description':_uscs_description('PT'),
+            'AASHTO_description':_aashto_description('A-8'),
             'gravel_pct':None,'sand_pct':None,'fines_pct':None,
             'organic_note':'依現場辨識為泥炭／高度有機土；PT 與 A-8 屬視覺辨識分類，不以篩分析或液塑限數值判定。',
             'A_line_PI':None,'U_line_PI':None,'plasticity_warning':'','peat':True
@@ -136,6 +195,8 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
         raw_gi=f2 if aashto in ('A-2-6','A-2-7') else f1+f2
         gi=max(0,int(math.floor(raw_gi+0.5)))
     return {'USCS':uscs,'AASHTO':aashto,'GI':int(gi),'PI':pi,'Cu':cu,'Cc':cc,
+            'USCS_description':_uscs_description(uscs),
+            'AASHTO_description':_aashto_description(aashto),
             'gravel_pct':100-p4,'sand_pct':p4-p200,'fines_pct':p200,
             'organic_note':organic_note,'A_line_PI':aline,'U_line_PI':uline,'plasticity_warning':plasticity_warning,'peat':False}
 
