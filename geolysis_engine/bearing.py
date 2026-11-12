@@ -715,7 +715,7 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
         'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
         'method':'USACE EM 1110-1-1905 (2025), §9-10(e); static middle-third reference: Table 2-1 Note 3',
-        'limitations':'地震極端事件幾何檢核依 USACE §9-10(e)：合力須位於基礎底面範圍內，並以偏心距計算 B′、L′；中三分點另列為靜力參考，不作為地震極端事件唯一判定。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；但不包含地震殘餘超額孔隙水壓造成的額外上拔，也不取代 §9-10(f) uplift FS≥1.5 檢核，該項仍須另行完成。完整承載檢核仍須將 qeq 與適用規範／專案所定的地震容許承載壓力 q_allow 比較；未輸入 q_allow 時不代表整體安全通過。系統不自行套用地震容許承載力提高係數。M_B,E/M_L,E 為 +kh 方向的帶符號水平地震基礎底彎矩，反向地震作用假設彎矩線性反號；若有非線性、扭轉或方向性結構分析，應分別輸入各方向結果。未處理任意水平方位角、雙向同時地震、基底／地表傾斜及土體慣性.'
+        'limitations':'地震極端事件幾何檢核依 USACE §9-10(e)：合力須位於基礎底面範圍內，並以偏心距計算 B′、L′；中三分點另列為靜力參考。qeq 依 USACE 式 5-2／5-3 扣除輸入的基礎底面總孔隙水壓 u_D；UI 將靜水壓與使用者確認輸入的基底殘餘超額孔壓 Δu_res,base 相加。系統不會由剪力區平均 ru 自動推定基底 Δu_res；若有分層或非均質孔壓，應依場址專屬孔壓剖面取得基底平均壓力。殘餘孔壓及 uplift FS≥1.5 仍須依 §9-10(f) 另作抗浮檢核。完整承載檢核仍須將 qeq 與適用規範／專案所定的地震容許承載壓力 q_allow 比較；未輸入 q_allow 或未確認基底殘餘孔壓時不代表整體安全通過。系統不自行套用地震容許承載力提高係數。M_B,E/M_L,E 為 +kh 方向的帶符號水平地震基礎底彎矩，反向地震作用假設彎矩線性反號；若有非線性、扭轉或方向性結構分析，應分別輸入各方向結果。未處理任意水平方位角、雙向同時地震、基底／地表傾斜及土體慣性.'
     }
 
 def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
@@ -944,7 +944,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'middle_third_failed_cases':[case for case in cases if not case.get('middle_third_pass',False)],
         'middle_third_governing_case':max(cases,key=lambda case:case.get('middle_third_utilization',0.0)),
         'method':'USACE EM 1110-1-1905 (2025), §9-10(e), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
-        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；地震殘餘超額孔隙水壓造成的額外上拔尚未納入，也未完成 §9-10(f) uplift FS≥1.5，故不得宣稱完整地震 uplift 安全。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；適用性要求 FS_liq>1.0、ru 由 Figure 9-1 或場址專屬孔壓分析取得，且不預期顯著側向擴展；FS_liq≤1.0 或顯著側向擴展時不得使用本式。部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析.'
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。qeq 依 USACE 式 5-2／5-3 扣除輸入的基礎底面總孔隙水壓 u_D；UI 將靜水壓與使用者確認輸入的基底殘餘超額孔壓 Δu_res,base 相加。系統不會由剪力區平均 ru 自動推定基底 Δu_res；若有分層或非均質孔壓，應依場址專屬孔壓剖面取得基底平均壓力。殘餘孔壓上拔仍須依 §9-10(f) 另作抗浮 FS≥1.5 檢核。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；適用性要求 FS_liq>1.0、ru 由 Figure 9-1 或場址專屬孔壓分析取得，且不預期顯著側向擴展；FS_liq≤1.0 或顯著側向擴展時不得使用本式。部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析.'
     }
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
