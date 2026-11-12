@@ -81,7 +81,7 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
     }
     with (
         patch("geolysis_ui.module4.st.session_state", {"m5_bearing_transfer": transfer}),
-        patch("geolysis_ui.module4.st.checkbox", side_effect=[True, True, False]),
+        patch("geolysis_ui.module4.st.checkbox", side_effect=[True, True, True]),
         patch("geolysis_ui.module4.st.caption"),
         patch("geolysis_ui.module4.st.warning"),
     ):
@@ -89,7 +89,7 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
             key_prefix="test", label="gross qult", field="qult_gross_kpa",
             width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
         )
-    assert value == (1200.0, None)
+    assert value == (1200.0, 180.0)
 
 
 def test_module4_rejects_module5_transfer_when_foundation_geometry_differs():
