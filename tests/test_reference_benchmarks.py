@@ -4032,3 +4032,37 @@ def test_module3_merges_legacy_and_canonical_effective_stress_columns():
     normalized = _normalize_spt_profile_effective_stress(profile)
     assert normalized["Effective_Stress_KPa"].tolist() == [90.0, 150.0]
     assert "Effective_Stress_kPa" not in normalized.columns
+
+
+def test_developed_rankine_helper_explicitly_disclaims_seismic_dynamic_pressure():
+    result = developed_rankine_sliding_earth_pressures(
+        effective_unit_weight_kn_m3=18.0,
+        footing_depth_m=2.0,
+        footing_length_m=3.0,
+        friction_angle_deg=30.0,
+        cohesion_kpa=0.0,
+        fs_sliding=1.1,
+        load_case="seismic",
+    )
+    assert "計算靜態" in result["limitations"]
+    assert "不會計算地震動態土壓增量" in result["limitations"]
+
+
+def test_pseudostatic_sliding_limitations_require_seismic_pa_pp_inputs():
+    result = foundation_sliding_pseudostatic_cases(
+        vertical_load_kN=1000.0, uplift_kN=100.0,
+        horizontal_load_kN=100.0, seismic_weight_kN=1000.0,
+        kh=0.15, kv=0.1, area_m2=10.0,
+        friction_angle_deg=30.0, cohesion_kpa=0.0,
+        active_force_kN=20.0, passive_force_kN=10.0,
+    )
+    assert "地震作用下正反向控制值" in result["limitations"]
+    assert "地震動態土壓" in result["limitations"]
+
+
+def test_seismic_sliding_earth_pressure_readiness_requires_explicit_manual_confirmation():
+    from geolysis_ui.module5 import _slide_seismic_earth_pressure_ready
+
+    assert _slide_seismic_earth_pressure_ready("static", False) is True
+    assert _slide_seismic_earth_pressure_ready("seismic", False) is False
+    assert _slide_seismic_earth_pressure_ready("seismic", True) is True

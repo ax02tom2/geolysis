@@ -286,3 +286,37 @@ def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit
     disturbance.select("弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)")
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+
+def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_run_on_manual_confirmation():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    load_case = next(widget for widget in app.selectbox if widget.key == "m5x_slide_case")
+    load_case.select("含地震荷載")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
+    assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
+    assert not any(widget.key == "m5x_slide_gamma" for widget in app.number_input)
+    assert not any(str(widget.key).startswith("m5x_slide_backfill_phi_") for widget in app.number_input)
+    assert not any(str(widget.key).startswith("m5x_slide_backfill_c_") for widget in app.number_input)
+
+    uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
+    uplift.set_value(1.0)
+    pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm")
+    pressure_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert slide_button.disabled is True
+
+    earth_pressure_confirm = next(
+        widget for widget in app.checkbox if widget.key == "m5x_slide_seismic_earth_pressure_confirm"
+    )
+    earth_pressure_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert slide_button.disabled is False
