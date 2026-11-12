@@ -146,8 +146,10 @@ def render_module_4(expanded=False):
             with c:
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
-                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
-                width4_calc,length4_calc=_module5_settlement_dimensions(width4,length4,transfer_qult4 is not None)
+                width4_calc,length4_calc,eB_bb4,eL_bb4=_settlement_eccentricity_inputs("m4_bb",width4,length4,usace_footing_type(footing_width_m=width4,footing_length_m=length4))
+                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4,eccentricity_B_m=eB_bb4,eccentricity_L_m=eL_bb4)
+                if transfer_qult4 is not None:
+                    width4_calc,length4_calc=_module5_settlement_dimensions(width4,length4,True)
                 if transfer_qult4 is not None and (abs(width4_calc-width4)>1e-6 or abs(length4_calc-length4)>1e-6):
                     st.info(f"偏心荷載沉陷分析採 Module 5 有效尺寸 B′×L′={width4_calc:.3f}×{length4_calc:.3f} m，而非原始尺寸 B×L={width4:.3f}×{length4:.3f} m（USACE 2025 §5-2a）。")
                 qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
@@ -273,8 +275,10 @@ def render_module_4(expanded=False):
             with b:
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
-                dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type)
-                dmtB_calc,dmtL_calc=_module5_settlement_dimensions(dmtB,dmtL,dmt_transfer_qult is not None)
+                dmtB_calc,dmtL_calc,dmt_eB,dmt_eL=_settlement_eccentricity_inputs("m4_dmt",dmtB,dmtL,dmt_type)
+                dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type,eccentricity_B_m=dmt_eB,eccentricity_L_m=dmt_eL)
+                if dmt_transfer_qult is not None:
+                    dmtB_calc,dmtL_calc=_module5_settlement_dimensions(dmtB,dmtL,True)
                 if dmt_transfer_qult is not None and (abs(dmtB_calc-dmtB)>1e-6 or abs(dmtL_calc-dmtL)>1e-6):
                     st.info(f"DMT 沉陷採有效尺寸 B′×L′={dmtB_calc:.3f}×{dmtL_calc:.3f} m（USACE 2025 §5-2a）。")
                 dmtqult=(dmt_transfer_qult if dmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult"))
@@ -343,8 +347,10 @@ def render_module_4(expanded=False):
                 cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
-                cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType)
-                cptB_calc,cptL_calc=_module5_settlement_dimensions(cptB,cptL,cpt_transfer_qult is not None)
+                cptB_calc,cptL_calc,cpt_eB,cpt_eL=_settlement_eccentricity_inputs("m4_cpt",cptB,cptL,cptType)
+                cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType,eccentricity_B_m=cpt_eB,eccentricity_L_m=cpt_eL)
+                if cpt_transfer_qult is not None:
+                    cptB_calc,cptL_calc=_module5_settlement_dimensions(cptB,cptL,True)
                 if cpt_transfer_qult is not None and (abs(cptB_calc-cptB)>1e-6 or abs(cptL_calc-cptL)>1e-6):
                     st.info(f"CPT 沉陷採有效尺寸 B′×L′={cptB_calc:.3f}×{cptL_calc:.3f} m（USACE 2025 §5-2a）。")
                 cptQult=(cpt_transfer_qult if cpt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult"))
@@ -395,8 +401,11 @@ def render_module_4(expanded=False):
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
-                pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound))
-                pmtB_calc,pmtL_calc=_module5_settlement_dimensions(pmtB,pmtL,pmt_transfer_qult is not None)
+                pmt_type_transfer=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound)
+                pmtB_calc,pmtL_calc,pmt_eB,pmt_eL=_settlement_eccentricity_inputs("m4_pmt",pmtB,pmtL,pmt_type_transfer)
+                pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=pmt_type_transfer,eccentricity_B_m=pmt_eB,eccentricity_L_m=pmt_eL)
+                if pmt_transfer_qult is not None:
+                    pmtB_calc,pmtL_calc=_module5_settlement_dimensions(pmtB,pmtL,True)
                 if pmt_transfer_qult is not None and (abs(pmtB_calc-pmtB)>1e-6 or abs(pmtL_calc-pmtL)>1e-6):
                     st.info(f"PMT 沉陷採有效尺寸 B′×L′={pmtB_calc:.3f}×{pmtL_calc:.3f} m；λd、λc 應依有效 L′/B′ 核對（USACE 2025 §5-2a）。")
                 pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
@@ -511,8 +520,10 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,include_qeq=False)
-                qB_calc,qL_calc=_module5_settlement_dimensions(qB,qL,clay_transfer_qa is not None)
+                qB_calc,qL_calc,clay_eB,clay_eL=_settlement_eccentricity_inputs("m4_clay",qB,qL,usace_footing_type(footing_width_m=qB,footing_length_m=qL))
+                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,include_qeq=False,eccentricity_B_m=clay_eB,eccentricity_L_m=clay_eL)
+                if clay_transfer_qa is not None:
+                    qB_calc,qL_calc=_module5_settlement_dimensions(qB,qL,True)
                 if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):
                     st.info(f"一維固結沉陷採 Module 5 有效尺寸 B′×L′={qB_calc:.3f}×{qL_calc:.3f} m（USACE 2025 §5-2a）。")
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
