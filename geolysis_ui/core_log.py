@@ -71,7 +71,7 @@ def _row_label(record: Any) -> str:
 
 
 def _make_page_overlay(page_view: dict, row_items: list[dict]) -> Image.Image:
-    page_image = page_view["page_image"].convert("RGB").copy()
+    page_image = page_view["image"].convert("RGB").copy()
     draw = ImageDraw.Draw(page_image)
     for item in row_items:
         record = item["record"]
