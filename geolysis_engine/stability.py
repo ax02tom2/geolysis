@@ -3,6 +3,41 @@ from __future__ import annotations
 import math
 from ._common import _finite
 
+
+def base_uplift_pressure_readiness(*, uplift_force_kN, hydrostatic_reference_kN,
+        load_case, pressure_confirmed=False, tolerance_kN=0.01):
+    """Gate sliding/uplift calculations against known base-water pressure.
+
+    U must not be lower than the hydrostatic reference. Any positive U must be
+    confirmed; seismic combinations also require explicit confirmation when
+    U=0 so zero is not mistaken for an unreviewed default.
+    """
+    U=_finite("基底揚壓力合力 U",uplift_force_kN)
+    Uref=_finite("靜水揚壓參考合力 U_ref",hydrostatic_reference_kN)
+    tol=_finite("揚壓核對容許差",tolerance_kN)
+    if U<0 or Uref<0 or tol<0:
+        raise ValueError("U、U_ref 與核對容許差不可為負值")
+    if load_case not in ("static","seismic"):
+        raise ValueError("荷載組合須為 static 或 seismic")
+    if U + tol < Uref:
+        return {
+            "ready":False,
+            "reason":f"輸入 U={U:.2f} kN 小於基底靜水揚壓參考值 U_ref={Uref:.2f} kN；不可用較小揚壓計算滑動／抗浮。",
+            "exceeds_reference":False,
+        }
+    if (U>tol or load_case=="seismic") and not pressure_confirmed:
+        return {
+            "ready":False,
+            "reason":"尚未確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓。",
+            "exceeds_reference":U > Uref + tol,
+        }
+    return {
+        "ready":True,
+        "reason":None,
+        "exceeds_reference":U > Uref + tol,
+    }
+
+
 def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, area_m2, friction_angle_deg, cohesion_kpa=0.0,
         adhesion_ratio=0.0, active_force_kN=0.0, passive_force_kN=0.0,
