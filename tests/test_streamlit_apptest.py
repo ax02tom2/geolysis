@@ -286,3 +286,16 @@ def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit
     disturbance.select("弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)")
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+
+def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_requires_confirmation():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    load_case = next(widget for widget in app.selectbox if widget.key == "m5x_slide_case")
+    load_case.select("含地震荷載")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
+    assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
