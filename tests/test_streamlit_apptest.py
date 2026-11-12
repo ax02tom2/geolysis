@@ -288,7 +288,7 @@ def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
 
-def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_requires_confirmation():
+def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_run_on_manual_confirmation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
@@ -299,3 +299,21 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_requires
 
     assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
     assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
+
+    uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
+    uplift.set_value(1.0)
+    pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_slide_uplift_pressure_confirm")
+    pressure_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert slide_button.disabled is True
+
+    earth_pressure_confirm = next(
+        widget for widget in app.checkbox if widget.key == "m5x_slide_seismic_earth_pressure_confirm"
+    )
+    earth_pressure_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert slide_button.disabled is False
