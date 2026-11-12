@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 from core_log_parser import parse_core_log
 from core_photo_analysis import (
     analyze_core_row_v8,
+    build_core_gap_review_candidates,
     calibrate_row_measurement_span,
     detect_core_break_candidates_v1,
     draw_core_fracture_candidates,
@@ -396,16 +397,35 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         })
                         continue
 
-                candidates = break_result.get("candidates", [])
+                candidates = list(break_result.get("candidates", []))
+                if break_result.get("success"):
+                    candidates.extend(build_core_gap_review_candidates(analysis, mm_per_px))
                 reviewed_breaks = []
                 if candidates:
-                    st.markdown("**疑似斷裂位置（請逐一確認）**")
+                    st.markdown("**疑似斷裂／岩心間隙位置（請逐一確認）**")
                     for candidate_index, candidate in enumerate(candidates):
                         distance = float(candidate.get("distance_mm", 0.0))
                         suggested = candidate.get("suggested_class", "不確定／需人工確認")
+                        if candidate.get("candidate_type") == "core_gap":
+                            gap_start = float(candidate.get("gap_start_mm", distance))
+                            gap_end = float(candidate.get("gap_end_mm", distance))
+                            candidate_label = (
+                                f"{candidate['candidate_id']}｜岩心間隙 {gap_start:.0f}–{gap_end:.0f} mm"
+                                f"｜建議：{suggested}"
+                            )
+                            review_options = [
+                                "待確認", "天然節理", "機械破損",
+                                "岩心缺失／採取損失", "非斷裂／誤判",
+                            ]
+                        else:
+                            candidate_label = (
+                                f"{candidate['candidate_id']}｜距量測起點 {distance:.0f} mm"
+                                f"｜建議：{suggested}"
+                            )
+                            review_options = ["待確認", "天然節理", "機械破損", "非斷裂／誤判"]
                         review = st.selectbox(
-                            f"候選 {candidate_index + 1}｜距量測起點 {distance:.0f} mm｜建議：{suggested}",
-                            ["待確認", "天然節理", "機械破損", "非斷裂／誤判"],
+                            candidate_label,
+                            review_options,
                             index=0,
                             key=f"core_break_review_{file_digest[:10]}_{index}_{candidate_index}",
                         )
