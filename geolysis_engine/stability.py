@@ -4,16 +4,25 @@ import math
 from ._common import _finite
 
 
-def base_uplift_pressure_readiness(*, uplift_force_kN, hydrostatic_reference_kN,
+def base_uplift_pressure_readiness(*, uplift_force_kN,
+        base_pressure_reference_kN=None, hydrostatic_reference_kN=None,
         load_case, pressure_confirmed=False, tolerance_kN=0.01):
-    """Gate sliding/uplift calculations against known base-water pressure.
+    """Gate sliding/uplift calculations against the applicable base-pressure reference.
 
-    U must not be lower than the hydrostatic reference. Any positive U must be
+    The reference may include hydrostatic pressure alone (static), or hydrostatic plus confirmed residual excess pore pressure (seismic).\n    Any positive U must be
     confirmed; seismic combinations also require explicit confirmation when
     U=0 so zero is not mistaken for an unreviewed default.
     """
     U=_finite("基底揚壓力合力 U",uplift_force_kN)
-    Uref=_finite("靜水揚壓參考合力 U_ref",hydrostatic_reference_kN)
+    if base_pressure_reference_kN is None:
+        if hydrostatic_reference_kN is None:
+            raise ValueError("必須提供基底壓力參考合力 U_ref")
+        base_pressure_reference_kN=hydrostatic_reference_kN
+    elif hydrostatic_reference_kN is not None and abs(
+        float(base_pressure_reference_kN)-float(hydrostatic_reference_kN)
+    ) > 1e-9:
+        raise ValueError("base_pressure_reference_kN 與舊版 hydrostatic_reference_kN 不可同時提供不同值")
+    Uref=_finite("適用基底壓力參考合力 U_ref",base_pressure_reference_kN)
     tol=_finite("揚壓核對容許差",tolerance_kN)
     if U<0 or Uref<0 or tol<0:
         raise ValueError("U、U_ref 與核對容許差不可為負值")
@@ -22,7 +31,7 @@ def base_uplift_pressure_readiness(*, uplift_force_kN, hydrostatic_reference_kN,
     if U + tol < Uref:
         return {
             "ready":False,
-            "reason":f"輸入 U={U:.2f} kN 小於基底靜水揚壓參考值 U_ref={Uref:.2f} kN；不可用較小揚壓計算滑動／抗浮。",
+            "reason":f"輸入 U={U:.2f} kN 小於適用基底壓力參考值 U_ref={Uref:.2f} kN；不可用較小揚壓計算滑動／抗浮。",
             "exceeds_reference":False,
         }
     if (U>tol or load_case=="seismic") and not pressure_confirmed:
