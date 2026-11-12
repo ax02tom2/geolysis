@@ -304,7 +304,7 @@ def render_module_4(expanded=False):
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
-                pmt_transfer_qult=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL)
+                pmt_transfer_qult=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=("round" if pmtRound else "isolated"))
                 pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
                 if pmtQu>0 and pmtFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
