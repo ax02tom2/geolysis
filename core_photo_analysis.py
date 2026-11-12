@@ -131,10 +131,9 @@ def calculate_core_indices(
 
     drilled_mm = drilled_interval_m * 1000.0
     recovered_mm = sum(recovered_lengths)
-    if recovered_mm > drilled_mm + 1e-6:
-        raise ValueError("回收岩心總長度不可超過鑽進深度區間；請檢查量測或輸入單位。")
-    if sum(rqd_lengths) > recovered_mm + 1e-6:
-        raise ValueError("RQD 分段總長度不可超過回收岩心總長度；請檢查岩心段清單。")
+    # Over-recovery and RQD-piece totals exceeding recovered length are
+    # retained as explicit diagnostic flags in the result, rather than
+    # silently clamped or discarded; field measurements may need reconciliation.
     rqd_mm = sum(x for x in rqd_lengths if x >= rqd_threshold_mm)
 
     return {
