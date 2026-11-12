@@ -1,7 +1,9 @@
 """Runtime smoke test for the complete Streamlit page using Streamlit's AppTest."""
 from pathlib import Path
+from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
+from geolysis_ui.module4 import _module5_transfer_value
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,3 +48,58 @@ def test_module5_hoebrown_source_cannot_bypass_advanced_soil_applicability_guard
                 "m5x_c_low_hb", "m5x_phi_low_hb"):
         widget = next(item for item in app.number_input if item.key == key)
         assert widget.value == 0.0, f"{key} must require layer-specific inputs when HB source is selected"
+
+
+
+def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirmation():
+    transfer = {
+        "transfer_id": "test12345678",
+        "qult_gross_kpa": 1200.0,
+        "qa_gross_kpa": 410.0,
+        "qa_net_kpa": 360.0,
+        "qeq_gross_kpa": 180.0,
+        "B_m": 2.0,
+        "L_m": 3.0,
+        "Df_m": 1.5,
+        "Dw_m": 2.0,
+        "footing_type": "isolated",
+        "source": "手動輸入",
+        "theory": "Meyerhof",
+        "FS_bearing": 6.0,
+        "passes_bearing": True,
+        "load_confirmed": True,
+        "complete_capacity_model": True,
+    }
+    with (
+        patch("geolysis_ui.module4.st.session_state", {"m5_bearing_transfer": transfer}),
+        patch("geolysis_ui.module4.st.checkbox", side_effect=[True, True]),
+        patch("geolysis_ui.module4.st.caption"),
+        patch("geolysis_ui.module4.st.warning"),
+    ):
+        value = _module5_transfer_value(
+            key_prefix="test", label="gross qult", field="qult_gross_kpa",
+            width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
+        )
+    assert value == 1200.0
+
+
+def test_module4_rejects_module5_transfer_when_foundation_geometry_differs():
+    transfer = {
+        "transfer_id": "test12345678", "qult_gross_kpa": 1200.0,
+        "qa_net_kpa": 360.0, "qa_gross_kpa": 410.0, "qeq_gross_kpa": 180.0,
+        "B_m": 2.0, "L_m": 3.0, "Df_m": 1.5, "Dw_m": 2.0,
+        "footing_type": "isolated", "source": "手動輸入", "theory": "Meyerhof",
+        "FS_bearing": 6.0, "passes_bearing": True,
+    }
+    with (
+        patch("geolysis_ui.module4.st.session_state", {"m5_bearing_transfer": transfer}),
+        patch("geolysis_ui.module4.st.checkbox") as checkbox,
+        patch("geolysis_ui.module4.st.caption"),
+        patch("geolysis_ui.module4.st.warning"),
+    ):
+        value = _module5_transfer_value(
+            key_prefix="test", label="gross qult", field="qult_gross_kpa",
+            width_m=2.5, length_m=3.0, footing_type="isolated", depth_m=1.5,
+        )
+    assert value is None
+    checkbox.assert_not_called()
