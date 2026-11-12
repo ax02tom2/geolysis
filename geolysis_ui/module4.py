@@ -57,7 +57,7 @@ def render_module_4(expanded=False):
         st.subheader("📏 模組四：容許承載力與沉陷控制")
         m5_transfer4=st.session_state.get("m5_bearing_transfer")
         if m5_transfer4:
-            st.caption(f"已取得 Module 5 有效承載力結果：qult={m5_transfer4['qult_gross_kpa']:.1f} kPa、qa,net(FS=3.0)={m5_transfer4['qa_net_kpa']:.1f} kPa；基礎 B×L={m5_transfer4['B_m']:.2f}×{m5_transfer4['L_m']:.2f} m、Df={m5_transfer4['Df_m']:.2f} m。各沉陷方法仍須確認幾何、水位與地層條件相同後，才可選擇帶入。
+            st.caption(f"已取得 Module 5 有效承載力結果：qult={m5_transfer4['qult_gross_kpa']:.1f} kPa、qa,net(FS=3.0)={m5_transfer4['qa_net_kpa']:.1f} kPa；基礎 B×L={m5_transfer4['B_m']:.2f}×{m5_transfer4['L_m']:.2f} m、Df={m5_transfer4['Df_m']:.2f} m。各沉陷方法仍須確認幾何、水位與地層條件相同後，才可選擇帶入。")
         else:
             st.caption("完成 Module 5 極限承載力計算、確認設計總垂直力並通過偏心接觸檢核後，可將有效 qult／qa,net 帶入本模組作沉陷壓力上限。")
         method4=st.selectbox("分析方法",["砂土／礫土：Burland–Burbidge SPT 法（USACE 2025）","DMT：增量拘束模數法（USACE 2025）","CPT：Schmertmann 沉陷法（USACE 2025）","PMT：Ménard–Rousseau 法（USACE 2025）","砂土：Meyerhof SPT 舊版經驗式（USACE 1992）","黏土：一維主固結沉陷控制法"],key='m4_method')
