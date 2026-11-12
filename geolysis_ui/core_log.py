@@ -20,6 +20,9 @@ from core_photo_analysis import (
     estimate_rqd_from_image_segments,
     crop_tray_insets,
     rotate_image,
+    detect_blue_tray_quadrilateral,
+    draw_tray_quadrilateral,
+    rectify_tray_perspective,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +36,15 @@ def _image_digest(image: Image.Image) -> str:
     show_spinner=False,
     hash_funcs={Image.Image: _image_digest},
 )
+@st.cache_data(
+    show_spinner=False,
+    hash_funcs={Image.Image: _image_digest},
+)
+def _cached_tray_detection(image, engine_fingerprint: str):
+    """Cache blue-tray quadrilateral detection using the same source fingerprint."""
+    return detect_blue_tray_quadrilateral(image)
+
+
 def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str):
     """Cache image analysis by pixels, scale and source fingerprint.
 
@@ -246,6 +258,29 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         index=0,
                         key=f"core_rotation_{file_digest[:10]}_{index}",
                     )
+                    rotated_row = rotate_image(record.image, rotation)
+                    perspective_enabled = st.checkbox(
+                        "自動偵測藍色托盤四角（透視校正）",
+                        value=False,
+                        key=f"core_perspective_{file_digest[:10]}_{index}",
+                    )
+                    tray_detection = None
+                    apply_perspective = False
+                    if perspective_enabled:
+                        tray_detection = _cached_tray_detection(rotated_row, engine_fingerprint)
+                        if tray_detection.get("success"):
+                            st.image(
+                                draw_tray_quadrilateral(rotated_row, tray_detection),
+                                caption="藍色托盤四角候選；請確認四個角都落在同一列托盤外框",
+                                use_container_width=True,
+                            )
+                            apply_perspective = st.checkbox(
+                                "確認四角正確，套用透視校正",
+                                value=False,
+                                key=f"core_perspective_confirm_{file_digest[:10]}_{index}",
+                            )
+                        else:
+                            st.warning(tray_detection.get("warning", "未能可靠偵測托盤外框；保留原圖。"))
                     crop_supported = min(record.image.width, record.image.height) >= 80
                     crop_enabled = st.checkbox(
                         "裁除托盤邊框（不改變原始檔案）",
@@ -274,7 +309,24 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 # 180° rotation preserves the horizontal 1 m axis. Cropping only
                 # removes frame margins; retain the original row scale unless the
                 # user explicitly calibrates a measured 1 m span below.
-                row_measurement = rotate_image(record.image, rotation)
+                row_measurement = rotated_row
+                mm_per_px = item["mm_per_px"]
+                perspective_applied = False
+                if apply_perspective and tray_detection:
+                    try:
+                        row_measurement, perspective_info = rectify_tray_perspective(
+                            row_measurement,
+                            tray_detection,
+                            max_dimension=max(row_measurement.width, row_measurement.height),
+                        )
+                        mm_per_px = 1000.0 / max(1, row_measurement.width)
+                        perspective_applied = True
+                        st.caption(
+                            "透視校正已套用；沿列比例尺依每列 1.0 m 名義長度換算。"
+                            + perspective_info.get("warning", "")
+                        )
+                    except Exception as exc:
+                        st.warning(f"透視校正未套用：{exc}；改用旋轉後原圖繼續分析。")
                 crop_meta = None
                 if crop_enabled:
                     try:
@@ -282,10 +334,9 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                             row_measurement, left_pct, right_pct, top_pct, bottom_pct
                         )
                     except Exception as exc:
-                        st.warning(f"托盤邊框裁切未套用：{exc}；改用旋轉後原圖繼續分析。")
-                mm_per_px = item["mm_per_px"]
+                        st.warning(f"托盤邊框裁切未套用：{exc}；保留前一步影像繼續分析。")
                 measured_row = row_measurement
-                if rotation or crop_enabled:
+                if rotation or crop_enabled or perspective_applied:
                     analysis, break_result = _cached_row_analysis(
                         row_measurement, mm_per_px, engine_fingerprint
                     )
