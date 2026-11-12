@@ -252,3 +252,15 @@ def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seis
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     seismic_u = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
     assert seismic_u.value == pytest.approx((1.5 * 9.81 + 12.0) * 2.0 * 3.0)
+
+
+def test_module5_seismic_uplift_exposes_dead_load_interpretation_caveat():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    warnings = [item.value for item in app.warning]
+    assert any("§5-7(b)" in value and "§9-10(f)" in value and "Wf、Wc" in value
+               for value in warnings)
+    weight_confirmation = next(
+        widget for widget in app.checkbox if widget.key == "m5x_uplift_weights_confirm"
+    )
+    assert "依本案適用規範確認地震抗浮可採 Wf+Ws+Wc" in weight_confirmation.label

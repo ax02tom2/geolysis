@@ -358,7 +358,7 @@ def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_wei
         'resisting_weight_kN':Wres,'structure_seismic_weight_kN':Ws,
         'uplift_force_kN':U,'kv':kvv,
         'method':'USACE EM 1110-1-1905 (2025), §9-10(f), §5-7 Eq. 5-36',
-        'limitations':'Wf+Ws+Wc 必須為可計入抗浮的永久向下重量：Wf 包含基礎及基礎承載高程以上土重，Ws 為結構／固定設備及結構頂面以上土重，Wc 為結構內水重；Ws 另按 ±kv 調整。U 必須是整個基礎底面的總揚壓合力，且須包含靜水壓與地震殘餘超額孔隙水壓；本函式不自行推估孔壓分布、不計入周圍土體剪力抗拔或界面黏著抗力。連續基礎各輸入均須採每延米線荷載。'
+        'limitations':'重量定義須由專案結構／大地技師確認：本工具依 §5-7 Eq. 5-36 採 Wf+Ws+Wc，並依 §9-10(f) 對 Ws 施加 ±kv；但 §5-7(b) 同時指出永久死重僅在風力揚壓評估時納入，與 §9-10(f) 指示地震抗浮沿用 §5-7 方法之間，仍須依專案適用規範確認 Wf、Wc 是否可計入地震抗浮。未完成此確認前，不應僅憑本函式 FS 判定設計合格。U 必須是整個基礎底面的總揚壓合力，且須包含靜水壓與地震殘餘超額孔隙水壓；本函式不自行推估孔壓分布、不計入周圍土體剪力抗拔或界面黏著抗力。連續基礎各輸入均須採每延米線荷載。'
     }
 
 
