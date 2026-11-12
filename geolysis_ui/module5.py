@@ -256,7 +256,9 @@ def render_module_5(expanded=False):
                 slope_dist5=st.number_input("基礎有效邊至坡頂距離 dg [m]",0.0,100.0,0.0,0.5,key="m5x_slope_distance")
             slope_fs5=st.number_input("鄰接坡體整體穩定 FS（須 > 1.3）",0.0,10.0,0.0,0.05,key="m5x_slope_fs",disabled=(ground_ang5<=0))
             st.caption("USACE 2025 表 5-3 註 b：鄰接坡體地表坡角修正係數以坡體整體穩定 FS > 1.3 為前提。請先完成獨立整體穩定檢核；未達或未提供 FS 時，系統會停止坡角修正。")
-            if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run"):
+            if use_hb5 and not hb_bearing_source_valid5:
+                st.warning("Module 1 等效參數未通過淺基礎適用性與圍壓確認；斜坡／傾斜基底承載力亦不會使用未確認的岩體參數。")
+            if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run",disabled=(use_hb5 and not hb_bearing_source_valid5)):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
@@ -268,11 +270,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         horizontal_load=H5,vertical_load=V5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
+            slope_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
 
@@ -299,12 +301,16 @@ def render_module_5(expanded=False):
         with st.expander("③ 多層地盤：強上層覆蓋弱下層穿刺破壞",expanded=False):
             st.caption("依 USACE 2025 式 5-17／5-18，採 2V:1H 應力擴散。分別計算上、下層同一基礎的極限承載力，再檢查穿刺控制。")
             la,lb,lc=st.columns(3)
+            hb_layer_suffix5="hb" if use_hb5 else "manual"
+            c_top_default5=0.0 if use_hb5 else float(c5)
+            phi_top_default5=0.0 if use_hb5 else float(phi5)
             with la:
-                c_top5=st.number_input("上層 c／Su [kPa]",0.0,100000.0,float(c5),1.0,key="m5x_c_top")
-                phi_top5=st.number_input("上層 φ [°]",0.0,50.0,float(phi5),1.0,key="m5x_phi_top")
+                c_top5=st.number_input("上層 c／Su [kPa]",0.0,100000.0,c_top_default5,1.0,key=f"m5x_c_top_{hb_layer_suffix5}")
+                phi_top5=st.number_input("上層 φ [°]",0.0,50.0,phi_top_default5,1.0,key=f"m5x_phi_top_{hb_layer_suffix5}")
             with lb:
-                c_low5=st.number_input("下層 c／Su [kPa]",0.0,100000.0,max(0.0,float(c5)*0.5),1.0,key="m5x_c_low")
-                phi_low5=st.number_input("下層 φ [°]",0.0,50.0,max(0.0,float(phi5)*0.7),1.0,key="m5x_phi_low")
+                c_low5=st.number_input("下層 c／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_c_low_{hb_layer_suffix5}")
+                phi_low5=st.number_input("下層 φ [°]",0.0,50.0,0.0,1.0,key=f"m5x_phi_low_{hb_layer_suffix5}")
+            st.caption("多層穿刺分析各層 c／Su、φ 必須依該層試驗或地勘資料分別輸入；系統不再以固定 0.5c 或 0.7φ 推定下層強度。選用 Module 1 Hoek–Brown 來源時，各層欄位另行輸入，避免把單一岩體等效參數複製到不同地層。")
             with lc:
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
                 footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
@@ -312,7 +318,10 @@ def render_module_5(expanded=False):
             layer_check_unsupported=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if layer_check_unsupported:
                 st.warning("目前簡化兩層穿刺路徑尚未整合水平力、偏心及斜坡／傾斜基底修正；請先將這些作用設為 0，否則不會把結果當成完整設計檢核。")
-            if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=layer_check_unsupported):
+            layer_hb_unsupported5=(use_hb5 and not hb_bearing_source_valid5)
+            if layer_hb_unsupported5:
+                st.warning("Module 1 等效參數尚未通過淺基礎適用性確認；多層穿刺計算已停用。")
+            if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=(layer_check_unsupported or layer_hb_unsupported5)):
                 try:
                     top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,footing_type=footing_kind5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
@@ -324,11 +333,11 @@ def render_module_5(expanded=False):
                         q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
                         strong_layer_thickness_m=strong_h5,footing_width_m=B5,
                         footing_length_m=L5,footing_type=footing_kind5)
-                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
+                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layer_sig=(c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
@@ -345,10 +354,14 @@ def render_module_5(expanded=False):
                 st.warning("輸入已變更，請重新執行多層穿刺計算。")
             st.markdown("**多層地盤剖面（可輸入 2 層以上）**")
             st.caption("每列為一個水平土層；厚度為自基礎底面向下的該層厚度。第一層另提供基礎上覆土天然／水下單位重。")
+            profile_c5=0.0 if use_hb5 else float(c5)
+            profile_phi5=0.0 if use_hb5 else float(phi5)
             multi_layer_csv5=st.text_area("多層土壤 CSV：thickness_m,c_kpa,phi_deg,gamma_below_kn_m3",
-                value=f"thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\\n1.0,{c_top5},{phi_top5},{gamma_below5}\\n2.0,{c_low5},{phi_low5},{gamma_below5}\\n3.0,{c5},{phi5},{gamma_below5}",
-                height=110,key="m5x_multi_layer_csv")
-            if st.button("計算多層地盤穿刺／承載力",key="m5x_multi_layer_run"):
+                value=f"thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\\n1.0,{c_top5},{phi_top5},{gamma_below5}\\n2.0,{c_low5},{phi_low5},{gamma_below5}\\n3.0,{profile_c5},{profile_phi5},{gamma_below5}",
+                height=110,key=f"m5x_multi_layer_csv_{hb_layer_suffix5}")
+            if use_hb5:
+                st.caption("Module 1 Hoek–Brown 參數不會自動複製至多層 CSV；請依每一層的地勘／試驗資料填入，僅在確認該層符合 §1-7(b) 時才可使用岩體等效參數。")
+            if st.button("計算多層地盤穿刺／承載力",key="m5x_multi_layer_run",disabled=(use_hb5 and not hb_bearing_source_valid5)):
                 try:
                     ml=pd.read_csv(StringIO(multi_layer_csv5))
                     required_cols={"thickness_m","c_kpa","phi_deg","gamma_below_kn_m3"}
@@ -361,12 +374,12 @@ def render_module_5(expanded=False):
                         footing_width_m=B5,footing_length_m=L5,footing_depth_m=df5,
                         water_depth_m=dw5,fs=fs5,footing_type=footing_kind5,
                         eccentricity_B_m=eB5,eccentricity_L_m=eL5)
-                    multi_layer_sig=(multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+                    multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
                     store_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", mr, multi_layer_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層地盤分析失敗：{exc}")
-            multi_layer_sig=(multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+            multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
             mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_sig)
             if mr and mr_is_current:
 
@@ -526,7 +539,9 @@ def render_module_5(expanded=False):
             seismic_geometry_unsupported5 = (abs(base_ang5) > 1e-9 or abs(ground_ang5) > 1e-9)
             if seismic_geometry_unsupported5:
                 st.warning("目前輸入含非零基底或地表傾角。由於地震水平力正反向相對於坡面／基底的方向性尚未建模，已停用地震孔壓折減承載力；請勿將靜力斜坡修正直接視為地震修正。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(not (seismic_pore_pressure_applicability_ready5 and shear_zone_ready5) or seismic_geometry_unsupported5)):
+            if use_hb5:
+                st.warning("USACE §9-10(c)(3) 式 9-3／9-4 僅適用砂狀、近似無凝聚力的土壤；Module 1 Hoek–Brown 岩體等效參數不可用於此孔壓折減分支。請切回手動輸入並提供砂土 c′≈0、φ′>0 參數。")
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(use_hb5 or not (seismic_pore_pressure_applicability_ready5 and shear_zone_ready5) or seismic_geometry_unsupported5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
@@ -554,11 +569,11 @@ def render_module_5(expanded=False):
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5))
+                        (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5)
+            sr_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
@@ -607,8 +622,8 @@ def render_module_5(expanded=False):
                 slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
             with sb:
                 slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
-                slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_phi")
-                slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key="m5x_slide_c")
+                slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}")
+                slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_slide_c_{'hb' if use_hb5 else 'manual'}")
             with sc:
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
                 slide_pa5=st.number_input(f"主動土壓力 Pa [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
@@ -640,8 +655,10 @@ def render_module_5(expanded=False):
             st.caption("地震模式會自動讀取上方 Module 5 的 kh、kv、W，組合 H_eq=H+khW 與 V_eq=V±kvW，並取兩組垂直方向中較小的滑動 FS。此處 H、V 請輸入未含地震增量的靜力基準值，避免重複計入。基底揚壓 U 與 Pa/Pp 仍須依實際水位及控制水平作用方向另行確認；不對稱回填幾何請輸入正反向中較不利的 Pa/Pp。另有獨立地震抗浮 FS 檢核：Wf+Ws+Wc、Ws 與 U 必須依 §5-7／§9-10(f) 定義輸入。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
             slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
-            slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_slide_backfill_phi")
-            slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,float(c5),1.0,key="m5x_slide_backfill_c")
+            slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_backfill_phi_{'hb' if use_hb5 else 'manual'}")
+            slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
+            if use_hb5:
+                st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
             if st.button("計算基底滑動安全係數",key="m5x_slide_run"):
                 try:
                     if auto_earth5:
@@ -672,11 +689,11 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5)
-                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
+                    store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=(slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
+            slide_sig=(src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,slide_backfill_phi5,slide_backfill_c5)
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
@@ -753,8 +770,10 @@ def render_module_5(expanded=False):
                 value="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0",height=90,key="m5x_profile")
             ba,bb,bc=st.columns(3)
             with ba:
-                bishop_c5=st.number_input("均質土 c′ [kPa]",0.0,10000.0,float(c5),1.0,key="m5x_auto_c")
-                bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,float(phi5),1.0,key="m5x_auto_phi")
+                bishop_c5=st.number_input("均質土 c′ [kPa]",0.0,10000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_auto_c_{'hb' if use_hb5 else 'manual'}")
+                bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_auto_phi_{'hb' if use_hb5 else 'manual'}")
+                if use_hb5:
+                    st.warning("此自動 Bishop 搜尋是均質土坡穩定分析，不可直接使用 Module 1 的一般淺層承載力圍壓擬合；請輸入獨立的坡體 c′、φ′。目前已將欄位預設為 0。")
             with bb:
                 bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
                 bishop_has_gw5=st.checkbox("納入地下水位",value=False,key="m5x_auto_has_gw")
@@ -780,11 +799,11 @@ def render_module_5(expanded=False):
                         center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                         radius_values=radii,slice_count=slices_auto5,
                         groundwater_elevation=bishop_gw5)
-                    store_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", search, (profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5))
+                    store_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", search, (src5,profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"圓弧搜尋失敗：{exc}")
-            auto_sig=(profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
+            auto_sig=(src5,profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
             auto_bishop, auto_bishop_is_current = read_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", auto_sig)
             if auto_bishop and auto_bishop_is_current:
                 st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
