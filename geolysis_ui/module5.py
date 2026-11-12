@@ -256,15 +256,21 @@ def render_module_5(expanded=False):
             if '模組一' in src5:
                 st.warning(f"本次使用模組一等效 Mohr–Coulomb 參數；其 c′、ϕ′係在 σ3,max={sig3_max:.3f} MPa 範圍內擬合，須確認與淺基礎破壞應力範圍相符。若不相符，請改用試驗參數或重新設定模組一圍壓範圍。")
             st.warning(result5['limitations'])
+            # The settlement methods in Module 4 assume a horizontal base
+            # and level ground. Advanced slope/base-angle calculations below
+            # are separate results and must never be silently transferred.
+            transfer_base_angle5=float(st.session_state.get("m5x_base_angle",0.0) or 0.0)
+            transfer_ground_angle5=float(st.session_state.get("m5x_ground_angle",0.0) or 0.0)
             settlement_transfer_geometry_supported5=(
                 abs(float(H5))<=1e-6 and abs(float(eB5))<=1e-6 and abs(float(eL5))<=1e-6
+                and abs(transfer_base_angle5)<=1e-6 and abs(transfer_ground_angle5)<=1e-6
             )
             if (loads_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
                     and float(result5.get("qu_net",0.0))>0.0
                     and settlement_transfer_geometry_supported5):
-                transfer_id5=hashlib.sha256(repr(m5_input_signature).encode("utf-8")).hexdigest()[:12]
+                transfer_id5=hashlib.sha256(repr((m5_input_signature,transfer_base_angle5,transfer_ground_angle5)).encode("utf-8")).hexdigest()[:12]
                 m5_transfer_candidate={
                     "transfer_id":transfer_id5,
                     "qult_gross_kpa":float(result5["qu_gross"]),
@@ -278,6 +284,7 @@ def render_module_5(expanded=False):
                     "footing_type":str(main_footing_type5),"source":str(src5),
                     "theory":str(theory5),"FS_bearing":float(bearing_check5["FS_bearing"]),
                     "H_kN":float(H5),"eB_m":float(eB5),"eL_m":float(eL5),
+                    "base_inclination_deg":transfer_base_angle5,"ground_inclination_deg":transfer_ground_angle5,
                     "scope":"Module 5 primary level-base/level-ground bearing result",
                     "passes_bearing":bool(bearing_check5["passes_bearing"]),
                     "load_confirmed":True,"complete_capacity_model":True,
@@ -286,7 +293,7 @@ def render_module_5(expanded=False):
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
                     and not settlement_transfer_geometry_supported5):
-                st.warning("Module 4 沉陷方法的跨模組承載力帶入目前僅支援中央垂直荷載（H=0、eB=eL=0）。跨模組值取自 Module 5 主承載力的水平基底／地表分析，不會自動採用另行計算的斜坡／傾斜基底結果；若實際基底或地表有坡度，請勿直接移用。")
+                st.warning(f"Module 4 沉陷方法的跨模組承載力帶入僅支援中央垂直荷載（H=0、eB=eL=0）及水平基底／水平地表（αb=αg=0）；目前 αb={transfer_base_angle5:.2f}°、αg={transfer_ground_angle5:.2f}°。斜坡／傾斜基底須另行採用相應沉陷分析，不可移用本頁水平基底主承載力結果。")
         new_transfer_id5=(m5_transfer_candidate["transfer_id"] if m5_transfer_candidate else None)
         old_transfer_id5=st.session_state.get("_m5_bearing_transfer_id")
         if old_transfer_id5!=new_transfer_id5:
