@@ -320,3 +320,24 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
     assert slide_button.disabled is False
+
+
+def test_module5_derived_area_and_seismic_weight_defaults_follow_geometry_and_vertical_load():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    app.number_input(key="m5_b").set_value(3.0)
+    app.number_input(key="m5_l").set_value(4.0)
+    app.number_input(key="m5_v").set_value(1200.0)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    seismic_area = next(widget for widget in app.number_input if widget.label.startswith("基礎有效面積 A′"))
+    seismic_weight = next(widget for widget in app.number_input if widget.label.startswith("有效地震重量 W"))
+    slide_area = next(widget for widget in app.number_input if widget.label.startswith("基底接觸面積 A"))
+    slide_vertical = next(widget for widget in app.number_input if widget.label.startswith("靜力總垂直力 V"))
+
+    assert seismic_area.value == 12.0
+    assert seismic_weight.value == 1200.0
+    assert slide_area.value == 12.0
+    assert slide_vertical.value == 1200.0
