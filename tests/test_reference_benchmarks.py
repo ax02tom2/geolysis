@@ -1635,7 +1635,7 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_eq_7_12():
     )
 
 
-def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stress_is_significant():
+def test_usace_2025_menard_rousseau_pmt_soft_layer_intersecting_2b_is_included():
     pmt = [
         {"group": group, "E0_kpa": value}
         for group, value in [
@@ -1643,10 +1643,9 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stres
             ("E678", 22000.0), ("E916", 25000.0),
         ]
     ]
-    # For a 2 m square footing, the entire layer is below 2B.
-    # At its centre (z=4.1 m), Boussinesq I_sigma remains > 0.10,
-    # so USACE's significant-stress depth check requires it to be included.
-    soft_layer = {"depth_center_m": 4.1, "thickness_m": 0.1,
+    # The layer intersects the 2B boundary; Table 7-5 Step 13 requires
+    # including an encountered soft layer within the method-specific zone.
+    soft_layer = {"depth_center_m": 3.95, "thickness_m": 0.2,
                   "E_L_kpa": 5000.0, "pne_kpa": 600.0}
     result = menard_rousseau_pmt_settlement_2025(
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
@@ -1657,14 +1656,15 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stres
         round_footing=True, soft_layers=[soft_layer],
         soft_layer_profile_reviewed=True,
     )
-    expected_iz = boussinesq_rectangular_center_factor(2.0, 2.0, 4.1)
-    assert soft_layer["depth_center_m"] - soft_layer["thickness_m"] / 2.0 > 4.0
+    expected_iz = boussinesq_rectangular_center_factor(2.0, 2.0, 3.95)
+    assert soft_layer["depth_center_m"] - soft_layer["thickness_m"] / 2.0 < 4.0
+    assert soft_layer["depth_center_m"] + soft_layer["thickness_m"] / 2.0 > 4.0
     assert expected_iz > 0.10
     assert result["soft_layer_results"][0]["I_sigma"] == pytest.approx(expected_iz)
     assert result["soft_layer_settlement_mm"] > 0.0
 
 
-def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_beyond_negligible_stress_depth():
+def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_entirely_beyond_2b_scope():
     pmt = [
         {"group": group, "E0_kpa": value}
         for group, value in [
@@ -1672,7 +1672,7 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_beyond_negligible_str
             ("E678", 22000.0), ("E916", 25000.0),
         ]
     ]
-    with pytest.raises(ValueError, match="I_sigma=.*<0.10"):
+    with pytest.raises(ValueError, match="完全位於式 7-12 適用範圍"):
         menard_rousseau_pmt_settlement_2025(
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
@@ -1684,7 +1684,6 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_rejects_beyond_negligible_str
                           "E_L_kpa": 5000.0, "pne_kpa": 600.0}],
             soft_layer_profile_reviewed=True,
         )
-
 
 
 def test_usace_2025_menard_pmt_weathered_clay_alpha_uses_table_7_6_range():
