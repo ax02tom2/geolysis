@@ -24,7 +24,9 @@ class CoreRowRecord:
                  row_number: int | None, depth_start_m: float | None,
                  depth_end_m: float | None, width_px: int, height_px: int,
                  image: Image.Image, source: str, warnings: list[str],
-                 page_bbox_px: tuple[int, int, int, int] | None = None):
+                 page_bbox_px: tuple[int, int, int, int] | None = None,
+                 depth_start_label_m: float | None = None,
+                 depth_end_label_m: float | None = None):
         self.page = page
         self.box_index = box_index
         self.row_in_box = row_in_box
@@ -37,6 +39,8 @@ class CoreRowRecord:
         self.source = source
         self.warnings = warnings
         self.page_bbox_px = page_bbox_px
+        self.depth_start_label_m = depth_start_label_m
+        self.depth_end_label_m = depth_end_label_m
 
     def metadata(self) -> dict[str, Any]:
         return {
@@ -46,6 +50,8 @@ class CoreRowRecord:
             "width_px": self.width_px, "height_px": self.height_px,
             "source": self.source, "warnings": list(self.warnings),
             "page_bbox_px": list(self.page_bbox_px) if self.page_bbox_px else None,
+            "depth_start_label_m": self.depth_start_label_m,
+            "depth_end_label_m": self.depth_end_label_m,
         }
 
 
@@ -56,6 +62,44 @@ def _row_number_list(text: str) -> list[int]:
         if re.fullmatch(r"\d{1,5}", s):
             values.append(int(s))
     return values
+
+
+def _parse_row_label(text: str) -> dict[str, Any] | None:
+    """Parse an integer row index or an explicit depth/end-depth label in metres."""
+    value = (text or "").strip().replace("，", ",")
+    interval = re.fullmatch(
+        r"(?:深度\s*[:：]?\s*)?(\d+(?:\.\d{1,3})?)\s*(?:-|–|—|~|～|至)\s*(\d+(?:\.\d{1,3})?)\s*(?:m|M|米)?",
+        value,
+    )
+    if interval:
+        start, end = float(interval.group(1)), float(interval.group(2))
+        if end > start:
+            return {"row_number": None, "depth_start_label_m": start, "depth_end_label_m": end}
+        return None
+    depth = re.fullmatch(
+        r"(?:深度\s*[:：]?\s*)?(\d+\.\d{1,3})\s*(?:m|M|米)?",
+        value,
+    )
+    if depth:
+        return {"row_number": None, "depth_start_label_m": None, "depth_end_label_m": float(depth.group(1))}
+    depth_with_unit = re.fullmatch(
+        r"(?:深度\s*[:：]?\s*)?(\d{1,5})\s*(?:m|M|米)",
+        value,
+    )
+    if depth_with_unit:
+        return {"row_number": None, "depth_start_label_m": None, "depth_end_label_m": float(depth_with_unit.group(1))}
+    if re.fullmatch(r"\d{1,5}", value):
+        return {"row_number": int(value), "depth_start_label_m": None, "depth_end_label_m": None}
+    return None
+
+
+def _row_label_list(text: str) -> list[dict[str, Any]]:
+    labels = []
+    for line in (text or "").splitlines():
+        label = _parse_row_label(line)
+        if label is not None:
+            labels.append(label)
+    return labels
 
 
 def _crop_box_rows(image: Image.Image, visible_rows: int = 4,
@@ -79,10 +123,14 @@ def _crop_box_rows(image: Image.Image, visible_rows: int = 4,
 
 
 def _attach_depths(records: list[CoreRowRecord], start_depth_m: float | None, row_length_m: float):
-    if start_depth_m is None:
-        return
     for rec in records:
-        if rec.row_number is not None:
+        if rec.depth_start_label_m is not None and rec.depth_end_label_m is not None:
+            rec.depth_start_m = float(rec.depth_start_label_m)
+            rec.depth_end_m = float(rec.depth_end_label_m)
+        elif rec.depth_end_label_m is not None:
+            rec.depth_end_m = float(rec.depth_end_label_m)
+            rec.depth_start_m = rec.depth_end_m - float(row_length_m)
+        elif start_depth_m is not None and rec.row_number is not None:
             rec.depth_start_m = float(start_depth_m) + (rec.row_number - 1) * row_length_m
             rec.depth_end_m = rec.depth_start_m + row_length_m
 
@@ -120,15 +168,18 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
                 continue
             try:
                 box_image = Image.open(BytesIO(part.blob)).convert("RGB")
-                labels = _row_number_list("\n".join(p.text for p in row.cells[1].paragraphs))
+                labels = _row_label_list("\n".join(p.text for p in row.cells[1].paragraphs))
                 visible = len(labels) if labels else ROWS_PER_BOX
                 visible = max(1, min(ROWS_PER_BOX, visible))
                 row_images = _crop_box_rows(box_image, visible)
                 for j, row_image in enumerate(row_images):
-                    row_no = labels[j] if j < len(labels) else None
+                    label = labels[j] if j < len(labels) else {}
+                    row_no = label.get("row_number")
+                    depth_end_label = label.get("depth_end_label_m")
+                    depth_start_label = label.get("depth_start_label_m")
                     row_warnings = []
-                    if row_no is None:
-                        row_warnings.append("未能讀取列號；深度索引需人工確認。")
+                    if row_no is None and depth_end_label is None:
+                        row_warnings.append("未能讀取列號或列尾深度；深度索引需人工確認。")
                     page_records.append(CoreRowRecord(
                         page=current_page, box_index=box_idx + 1,
                         row_in_box=j + 1, row_number=row_no,
@@ -136,6 +187,8 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
                         width_px=row_image.width, height_px=row_image.height,
                         image=row_image, source="DOCX 內嵌箱照裁切",
                         warnings=row_warnings,
+                        depth_start_label_m=depth_start_label,
+                        depth_end_label_m=depth_end_label,
                     ))
             except Exception as exc:
                 warnings.append(f"第 {current_page} 頁第 {box_idx + 1} 箱：照片解析失敗（{exc}）。")
@@ -147,10 +200,12 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
         raise ValueError("文件中沒有找到符合格式的岩心箱照片表格。請確認是由岩心柱狀圖工具輸出的 DOCX。")
     _attach_depths(records, start_depth_m, row_length_m)
     _validate_row_sequence(records, warnings)
+    has_depth_labels = any(r.depth_end_label_m is not None for r in records)
     return {"records": records, "warnings": warnings,
             "pages_detected": page_no, "rows_detected": len(records),
             "borehole_id": None,
-            "depth_source": "使用者輸入" if start_depth_m is not None else None,
+            "depth_source": ("DOCX 列尾深度標籤" if has_depth_labels
+                             else "使用者輸入" if start_depth_m is not None else None),
             "format": "docx"}
 
 
@@ -230,10 +285,11 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                     for word in page_words:
                         x0, y0, x1, y1, txt = word[:5]
                         center_y = (y0 + y1) / 2
+                        label = _parse_row_label(str(txt))
                         if (bbox.x1 - 1 <= x0 <= bbox.x1 + page.rect.width * 0.13
                                 and bbox.y0 <= center_y <= bbox.y1
-                                and re.fullmatch(r"\d{1,5}", str(txt))):
-                            candidates.append((center_y, int(txt)))
+                                and label is not None):
+                            candidates.append((center_y, label))
                     candidates.sort()
                     labels = [v for _, v in candidates]
                     visible = max(1, min(ROWS_PER_BOX, len(labels) if labels else ROWS_PER_BOX))
@@ -242,10 +298,13 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                     # Align page overlay geometry with the same crop decision.
                     visible_y1 = bbox.y1 if image_is_pre_cropped else bbox.y0 + bbox.height * visible / ROWS_PER_BOX
                     for j, row_image in enumerate(row_images):
-                        row_no = labels[j] if j < len(labels) else None
+                        label = labels[j] if j < len(labels) else {}
+                        row_no = label.get("row_number")
+                        depth_end_label = label.get("depth_end_label_m")
+                        depth_start_label = label.get("depth_start_label_m")
                         row_warnings = []
-                        if row_no is None:
-                            row_warnings.append("PDF 未擷取到列號；深度索引需人工確認。")
+                        if row_no is None and depth_end_label is None:
+                            row_warnings.append("PDF 未擷取到列號或列尾深度；深度索引需人工確認。")
                         y0_pt = bbox.y0 + (visible_y1 - bbox.y0) * j / visible
                         y1_pt = bbox.y0 + (visible_y1 - bbox.y0) * (j + 1) / visible
                         page_bbox_px = (
@@ -261,6 +320,8 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
                             width_px=row_image.width, height_px=row_image.height,
                             image=row_image, source="PDF 內嵌箱照裁切",
                             warnings=row_warnings, page_bbox_px=page_bbox_px,
+                            depth_start_label_m=depth_start_label,
+                            depth_end_label_m=depth_end_label,
                         ))
                 except Exception as exc:
                     warnings.append(f"第 {page_index + 1} 頁第 {box_idx + 1} 箱：照片解析失敗（{exc}）。")
@@ -283,8 +344,9 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
 
     if not records:
         raise ValueError("PDF 中沒有找到符合格式的岩心箱照片。請確認是由岩心柱狀圖工具輸出的 PDF。")
-    depth_source = "使用者輸入" if start_depth_m is not None else None
-    if start_depth_m is None and records:
+    has_depth_labels = any(r.depth_end_label_m is not None for r in records)
+    depth_source = "PDF 列尾深度標籤" if has_depth_labels else ("使用者輸入" if start_depth_m is not None else None)
+    if start_depth_m is None and not has_depth_labels and records:
         first_record = records[0]
         first_page = next((v for v in page_views if v.get("page") == first_record.page), None)
         inferred = _infer_start_depth_from_header(
@@ -330,16 +392,26 @@ def _infer_start_depth_from_header(
 
 def _validate_row_sequence(records: list[CoreRowRecord], warnings: list[str]):
     nums = [r.row_number for r in records if r.row_number is not None]
-    if not nums:
-        warnings.append("未讀取到任何列號；目前只能檢視照片，不能自動建立深度索引。")
-        return
-    if len(nums) != len(records):
-        warnings.append(f"列號辨識不完整：辨識到 {len(nums)} / {len(records)} 列。")
-    if len(nums) > 1:
+    depth_rows = [r for r in records if r.depth_start_m is not None and r.depth_end_m is not None]
+    if nums and len(nums) == len(records):
         for a, b in zip(nums, nums[1:]):
             if b != a + 1:
                 warnings.append(f"列號不連續或順序異常：{a} → {b}。請檢查是否缺列、重複或頁序錯誤。")
                 break
+        return
+    if depth_rows and len(depth_rows) == len(records):
+        for previous, current in zip(depth_rows, depth_rows[1:]):
+            if abs(float(current.depth_start_m) - float(previous.depth_end_m)) > 0.05:
+                warnings.append(
+                    f"列尾深度不連續：前列結束 {previous.depth_end_m:g} m，"
+                    f"次列開始 {current.depth_start_m:g} m。請人工核對。"
+                )
+                break
+        return
+    if not nums and not depth_rows:
+        warnings.append("未讀取到列號或列尾深度；目前只能檢視照片，不能自動建立深度索引。")
+    elif len(depth_rows) != len(records):
+        warnings.append(f"深度標籤辨識不完整：辨識到 {len(depth_rows)} / {len(records)} 列。")
 
 
 def parse_core_log(data: bytes, filename: str, start_depth_m: float | None = None,
