@@ -1,4 +1,29 @@
 Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)
+- Validated main commit: 26b31883bfc2e34b5e74622760f3d39fa38ecf1d.
+- Latest full-suite validation: GitHub Actions run 43160788913 (PR #154 tested head 0cebe9e619991e482b8be7d3fe379296d9fca83b); success.
+- Full test directory: 573 passed, 1 skipped; Python 3.11 compileall passed.
+- Latest automated module/UI regression run: 43160788984; success. Streamlit module compilation and UI regression tests passed.
+
+Engineering and integration updates since the 451-test baseline:
+- PR #134: SPT effective-overburden-stress input is conditional; cohesive and refusal rows no longer require an unused stress value. Profile dilatancy is explicitly selected per eligible non-refusal cohesionless row.
+- PR #135: SPT borehole and sampler correction factors are guarded to the USACE 2025 table ranges; out-of-range energy ratios and rod lengths produce explicit extrapolation warnings.
+- PR #136: refusal rows are excluded from profile dilatancy requirements and ordinary N-value correction.
+- PR #137: USCS and AASHTO symbols now have Traditional Chinese interpretations; missing gradation data is not presented as a final USCS group.
+- PR #144: independent benchmarks cover all four USACE DMT RM correction branches and intermediate rectangular CPT L/B interpolation.
+- PR #146: per-row core-image segmentation and fracture analysis are cached by image content, scale and engine fingerprint; duplicate tray-detection cache wrapping removed.
+- PR #147: fixed Module 1 RQD handoff: V8 returns detected core intervals as `segments`, and the UI now passes those intervals to the RQD estimator rather than reading the absent `core_segments` key.
+- PR #151: cache image identity includes dimensions; tests cover natural-joint splitting, mechanical-break rejoining, the 100 mm RQD cutoff and unresolved-review behavior.
+- PR #152: fixed PDF start-depth fallback initialization and moved PDF/DOCX parser regressions into the CI-discovered `tests/` directory.
+- PR #154: corrected the Module 3 help caption to use the canonical `Effective_Stress_KPa` CSV field name.
+- README full-suite count updated to 573 passed, 1 skipped.
+
+Important engineering boundaries retained:
+- Core-photo recovery/RQD remains a preliminary image estimate, not a substitute for field core logging. Natural-joint versus mechanical-break decisions require human review; a no-candidate result does not imply no natural joints. The current image detector is designed around blue-tray imagery and still requires site-image validation before production reliance.
+- PDF headers that are rasterized cannot be assumed to yield selectable text. If depth cannot be inferred from selectable labels/header text, the UI requests one starting depth and maps global row numbers to 1 m intervals; it does not require per-row manual depth entry.
+- DMT/CPT reference tests validate selected equations and interpolation branches; they do not establish universal suitability for all soil profiles. CPT Schmertmann applicability remains restricted to young, normally consolidated clean silica sand after explicit confirmation.
+- Module 5 seismic checks remain separate limit-state calculations with documented restrictions on geometry, load direction, liquefaction screening, pore-pressure source and uplift. A seismic bearing-resistance result is not itself a global seismic safety factor or a complete liquefaction assessment.
+
+Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)
 - PR #114 merged as 9e3705d810d89358be9fc99eb4d4d9a21ae6f96c after successful CI on tested head d91c8ba0b3f5b40e00122fc533286c4a6208935b.
 - PR #116 merged as bb5172ac58db8fcadca441501ea0465f97af7889 after successful CI on tested head 0fa95ce2e3f8cc1886c38f0a79de60974e2303be; both Bishop UI paths now explicitly disclose static-only scope and exclude seismic global-stability effects.
 - 451 tests passed in 3.40 s; Python 3.11 compileall and Streamlit AppTest passed.
