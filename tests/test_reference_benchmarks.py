@@ -3528,7 +3528,7 @@ def test_bishop_circular_search_uses_saturated_weight_below_groundwater():
     common = dict(
         ground_profile=profile, cohesion_kpa=10.0, friction_angle_deg=25.0,
         center_x_values=[6.0], center_y_values=[12.0], radius_values=[15.0],
-        slice_count=20, groundwater_elevation=6.0,
+        slice_count=20, groundwater_elevation=-1.0,
     )
     split = bishop_circular_search(
         **common, unit_weight_kn_m3=18.0,
@@ -3738,4 +3738,18 @@ def test_bishop_search_rejects_slip_circles_truncated_by_profile_edges():
             unit_weight_kn_m3=18.0,
             center_x_values=[10.0], center_y_values=[-1.0],
             radius_values=[20.0], slice_count=20,
+        )
+
+
+def test_bishop_auto_search_rejects_groundwater_above_lowest_ground_surface():
+    from geolysis_engine import bishop_circular_search
+
+    with pytest.raises(ValueError, match="地表積水／外部水體"):
+        bishop_circular_search(
+            ground_profile=[(0.0, 5.0), (10.0, 10.0), (20.0, 0.0)],
+            cohesion_kpa=10.0, friction_angle_deg=25.0,
+            unit_weight_kn_m3=18.0,
+            center_x_values=[10.0], center_y_values=[12.0],
+            radius_values=[15.0], slice_count=20,
+            groundwater_elevation=1.0,
         )
