@@ -36,15 +36,15 @@ def _image_digest(image: Image.Image) -> str:
     show_spinner=False,
     hash_funcs={Image.Image: _image_digest},
 )
-@st.cache_data(
-    show_spinner=False,
-    hash_funcs={Image.Image: _image_digest},
-)
 def _cached_tray_detection(image, engine_fingerprint: str):
     """Cache blue-tray quadrilateral detection using the same source fingerprint."""
     return detect_blue_tray_quadrilateral(image)
 
 
+@st.cache_data(
+    show_spinner=False,
+    hash_funcs={Image.Image: _image_digest},
+)
 def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str):
     """Cache image analysis by pixels, scale and source fingerprint.
 
