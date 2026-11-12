@@ -21,10 +21,15 @@ def spt_correct(n, energy_ratio_pct, borehole_factor, sampler_factor, rod_length
     1.0 per the manual. Optional dilatancy correction is only appropriate for
     dense/very dense saturated fine sand or silt below the water table.
     """
-    n=_finite('N',n); er=_finite('能量比',energy_ratio_pct); sv=_finite("有效覆土應力",effective_stress_kpa)
+    n=_finite('N',n); er=_finite('能量比',energy_ratio_pct)
     cb_in=_finite('CB',borehole_factor); cs=_finite('CS',sampler_factor); cap=_finite('CN上限',cn_cap)
-    if n<0 or er<=0 or er>150 or sv<=0 or cb_in<=0 or cs<=0 or not 1<=cap<=2.0: raise ValueError('SPT 輸入值超出合理範圍；能量比須 ≤150%，CN 上限須介於 1.0–2.0')
     if soil_behavior not in ('cohesionless','cohesive'): raise ValueError('未知土壤行為類型')
+    if cn_method not in ('Liao & Whitman','Seed & Idriss','Skempton','不修正'):
+        raise ValueError('未知 CN 修正方法')
+    needs_cn = soil_behavior == 'cohesionless' and cn_method != '不修正'
+    sv = _finite("有效覆土應力", effective_stress_kpa) if needs_cn else None
+    if n<0 or er<=0 or er>150 or (needs_cn and sv<=0) or cb_in<=0 or cs<=0 or not 1<=cap<=2.0:
+        raise ValueError('SPT 輸入值超出合理範圍；套用 CN 時有效覆土應力須大於 0，能量比須 ≤150%，CN 上限須介於 1.0–2.0')
     if apply_dilatancy and (soil_behavior!='cohesionless' or cn_method=='不修正'):
         raise ValueError('膨脹修正僅能用於已完成覆土修正的飽和細砂／粉土')
     ce=er/60.0; cr=rod_factor(rod_length_m)
@@ -94,16 +99,14 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
     if not rows: raise ValueError('逐深度資料不可為空')
     seen=set()
     for row in rows:
-        missing={'Depth_m','N','Effective_Stress_kPa'}-set(row)
+        missing={'Depth_m','N'}-set(row)
         if missing: raise ValueError('逐深度資料缺少欄位：'+', '.join(sorted(missing)))
         depth=_finite('Depth_m',row['Depth_m'])
+        measured_n=_finite('N',row['N'])
         if depth<0: raise ValueError('深度不可為負值')
         if depth in seen: raise ValueError(f'深度 {depth:g} m 重複，請先合併或修正資料')
         seen.add(depth)
-        clean={**row,'Depth_m':depth,'N':_finite('N',row['N']),
-               'Effective_Stress_kPa':_finite('Effective_Stress_kPa',row['Effective_Stress_kPa'])}
-        if clean['N']<0 or clean['Effective_Stress_kPa']<=0:
-            raise ValueError('逐深度資料的 N 不可為負值，Effective_Stress_kPa 必須大於 0')
+        if measured_n<0: raise ValueError('逐深度資料的 N 不可為負值')
         row_soil = str(_profile_value(row, "Soil_Behavior", soil_behavior)).strip().lower()
         if row_soil not in ("cohesionless", "cohesive"):
             raise ValueError(f"深度 {depth:g} m 的 Soil_Behavior 僅接受 cohesionless 或 cohesive")
@@ -116,12 +119,24 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         row_cb = _finite("逐深度鑽孔修正係數", _profile_value(row, "Borehole_Factor", borehole_factor))
         row_cs = _finite("逐深度取樣器修正係數", _profile_value(row, "Sampler_Factor", sampler_factor))
         flag = _profile_bool(row.get('Refusal', False), default=False, label="Refusal")
+        raw_stress = _profile_value(row, "Effective_Stress_kPa", None)
         if flag:
+            clean={**row,'Depth_m':depth,'N':measured_n,
+                   'Effective_Stress_kPa':None if raw_stress is None else _finite('Effective_Stress_kPa',raw_stress)}
             out.append({**clean,'N60':None,'CE':None,'CB':None,'CS':None,'CR':None,
                 'CN_raw':None,'CN':None,'N1_60':None,'N1_60_dilatancy':None,
                 'N1_60_final':None,'soil_behavior':row_soil,
                 'dilatancy_applied':False,'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
             continue
+        needs_cn = row_soil == "cohesionless" and cn_method != "不修正"
+        if needs_cn and raw_stress is None:
+            raise ValueError(f"深度 {depth:g} m 為非凝聚性土層且套用 CN，必須提供 Effective_Stress_kPa")
+        row_stress = None if raw_stress is None else _finite('Effective_Stress_kPa',raw_stress)
+        if needs_cn and row_stress <= 0:
+            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_kPa 必須大於 0")
+        if row_stress is not None and row_stress <= 0:
+            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_kPa 若有提供必須大於 0")
+        clean={**row,'Depth_m':depth,'N':measured_n,'Effective_Stress_kPa':row_stress}
         row_rod_length=_finite('逐深度鑽桿長度',_profile_value(row, "Rod_Length_m", rod_length_m))
         result=spt_correct(clean['N'],row_er,row_cb,row_cs,row_rod_length,
                       clean['Effective_Stress_kPa'],cn_method,cn_cap,
