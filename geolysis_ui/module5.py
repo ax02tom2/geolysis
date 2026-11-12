@@ -475,9 +475,21 @@ def render_module_5(expanded=False):
                 seismic_area_unit5="m²/m" if seismic_footing5=="strip" else "m²"
                 seismic_force_unit5="kN/m" if seismic_footing5=="strip" else "kN"
                 seismic_moment_unit5="kN·m/m" if seismic_footing5=="strip" else "kN·m"
-                area5=st.number_input(f"基礎有效面積 A′ [{seismic_area_unit5}]",0.1,5000.0,float(seismic_area_default5),0.1,key=f"m5x_area_{seismic_footing5}")
-                seismic_weight5=st.number_input(f"有效地震重量 W [{seismic_force_unit5}]（預設 V）",0.1,1000000.0,float(max(0.1,V5)),10.0,key=f"m5x_seismic_weight_{seismic_footing5}")
-                st.caption("連續條形基礎請使用每延米：V、H、W 為 kN/m，A′ 為 m²/m（數值按 B′×1 m），彎矩為 kN·m/m。切換基礎型式後，面積、重量及彎矩欄位會使用各自的單位狀態。")
+                seismic_geometry_signature5=hashlib.sha1(
+                    f"{seismic_footing5}|{B5:.4f}|{L5:.4f}|{eB5:.4f}|{eL5:.4f}".encode("utf-8")
+                ).hexdigest()[:10]
+                seismic_weight_signature5=hashlib.sha1(
+                    f"{seismic_footing5}|{V5:.4f}".encode("utf-8")
+                ).hexdigest()[:10]
+                area5=st.number_input(
+                    f"基礎有效面積 A′ [{seismic_area_unit5}]",0.1,5000.0,
+                    float(seismic_area_default5),0.1,
+                    key=f"m5x_area_{seismic_footing5}_{seismic_geometry_signature5}")
+                seismic_weight5=st.number_input(
+                    f"有效地震重量 W [{seismic_force_unit5}]（預設 V）",0.1,1000000.0,
+                    float(max(0.1,V5)),10.0,
+                    key=f"m5x_seismic_weight_{seismic_footing5}_{seismic_weight_signature5}")
+                st.caption("連續條形基礎請使用每延米：V、H、W 為 kN/m，A′ 為 m²/m（數值按 B′×1 m），彎矩為 kN·m/m。切換基礎型式後，面積、重量及彎矩欄位會使用各自的單位狀態；B、L、偏心距或 V 改變時，A′／W 的預設值會重設，若曾手動覆寫請重新核對。")
             sm1,sm2=st.columns(2)
             with sm1:
                 seismic_moment_B5=st.number_input(f"地震基礎底彎矩 M_B,E [{seismic_moment_unit5}]（短邊偏心方向）",-10000000.0,10000000.0,0.0,10.0,key=f"m5x_seismic_moment_B_{seismic_footing5}")
@@ -711,18 +723,23 @@ def render_module_5(expanded=False):
                 f"{slide_is_line5}|{slide_load_case5}|{slide_base_uD5:.6f}|{uplift_base_area5:.6f}".encode("utf-8")
             ).hexdigest()[:10]
             slide_area_default5=max(0.1,B5*(1.0 if slide_is_line5 else L5))
-            slide_area_key5="m5x_slide_area_continuous" if slide_is_line5 else "m5x_slide_area_isolated"
+            slide_area_signature5=hashlib.sha1(
+                f"{slide_is_line5}|{B5:.4f}|{L5:.4f}".encode("utf-8")
+            ).hexdigest()[:10]
+            slide_area_key5=f"m5x_slide_area_{'continuous' if slide_is_line5 else 'isolated'}_{slide_area_signature5}"
+            slide_v_key5=f"m5x_slide_v_{slide_is_line5}_{V5:.4f}"
+            slide_h_key5=f"m5x_slide_h_{slide_is_line5}_{H5:.4f}"
             if slide_is_line5:
                 st.info("連續條形基礎採每延米線荷載：V、U、H、Pa、Pp 使用 kN/m；基底面積 A 使用 m²/m，預設為 B×1 m。若上方輸入為總力，請先換算為每延米。")
             sa,sb,sc=st.columns(3)
             with sa:
-                slide_v5=st.number_input(f"靜力總垂直力 V [{slide_force_unit5}]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
+                slide_v5=st.number_input(f"靜力總垂直力 V [{slide_force_unit5}]",0.1,1000000.0,float(V5),10.0,key=slide_v_key5)
                 slide_u5=st.number_input(
                     f"基底揚壓力合力 U [{slide_force_unit5}]（依 u_D×完整底面積初估，可覆寫）",
                     0.0,1000000000.0,float(base_pressure_U_ref5),10.0,
                     key=f"m5x_slide_u_{uplift_default_signature5}",
                     help="預設以基底平均總孔隙水壓 u_D 乘完整底面積 B×L（連續基礎 B×1 m）估算 U_ref；若孔壓分布不均、存在滲流或有場址專屬壓力圖，請改輸入壓力分布積分所得總揚壓合力。仍須勾選下方確認，不會把初估值自動視為已確認。")
-                slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
+                slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key=slide_h_key5)
             with sb:
                 slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
                 slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}")
