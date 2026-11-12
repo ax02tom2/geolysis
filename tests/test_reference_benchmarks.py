@@ -3724,3 +3724,16 @@ def test_base_uplift_pressure_readiness_accepts_confirmed_reference_and_flags_la
         load_case="static", pressure_confirmed=False,
     )
     assert dry_static["ready"] is True
+
+
+def test_bishop_search_rejects_slip_circles_truncated_by_profile_edges():
+    from geolysis_engine import bishop_circular_search
+
+    with pytest.raises(ValueError, match="地表剖面邊界"):
+        bishop_circular_search(
+            ground_profile=[(0.0, 5.0), (10.0, 10.0), (20.0, 0.0)],
+            cohesion_kpa=10.0, friction_angle_deg=25.0,
+            unit_weight_kn_m3=18.0,
+            center_x_values=[10.0], center_y_values=[-1.0],
+            radius_values=[20.0], slice_count=20,
+        )
