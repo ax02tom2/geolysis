@@ -99,6 +99,11 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
         u=_finite(f'第{i}片孔隙水壓',row.get('pore_pressure_kpa',0.0))
         if b<=0 or W<=0 or not -45<alpha<45 or c<0 or not 0<=phi<=50 or u<0:
             raise ValueError(f'第{i}片資料不合理（寬度、重量須正；底角需介於 ±45°；強度及孔壓不可負）')
+        if W - u*b <= 0:
+            raise ValueError(
+                f'第{i}片 W-u·b≤0，無正向有效法向接觸；簡化 Bishop 壓縮接觸假設不成立，'
+                '請檢查孔壓／重量，並另作張裂縫或高孔壓滑動面分析'
+            )
         clean.append((b,W,math.radians(alpha),c,math.radians(phi),u))
     driving=sum(W*math.sin(alpha) for _,W,alpha,_,_,_ in clean)
     # Normalize the sign convention so mirrored left/right slopes are equivalent.
