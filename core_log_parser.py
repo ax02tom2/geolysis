@@ -2,8 +2,9 @@
 
 The reference exporter embeds each 4-row core box as one raster image. Each
 row is a horizontal band (1 m) and its sequential row number is placed beside
-that band. The page header is also a raster image, so start depth is supplied
-once by the user; row numbering then provides the per-row sequence.
+that band. If a PDF page header contains selectable depth-range text, the
+parser infers the depth origin from that range and the first row number;
+otherwise the user supplies the start depth once.
 """
 from __future__ import annotations
 
@@ -148,7 +149,9 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
     _validate_row_sequence(records, warnings)
     return {"records": records, "warnings": warnings,
             "pages_detected": page_no, "rows_detected": len(records),
-            "borehole_id": None, "format": "docx"}
+            "borehole_id": None,
+            "depth_source": "使用者輸入" if start_depth_m is not None else None,
+            "format": "docx"}
 
 
 def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
