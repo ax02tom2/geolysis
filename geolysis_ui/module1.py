@@ -29,6 +29,36 @@ _HB_CASE_MI_WITHOUT_PAIRED_UCS = {
 }
 
 
+def _hb_case_parameter_warning(rock_preset, mi, gsi, disturbance):
+    """Flag mi/GSI/D values outside the selected Taiwan case's reported ranges."""
+    mi_value = float(mi)
+    gsi_value = float(gsi)
+    d_value = float(disturbance)
+    if rock_preset == "砂岩 Sandstone（台灣南莊層三軸案例）":
+        if abs(mi_value - 7.752) > 1e-6:
+            return f"南莊層單一三軸案例反算 mi=7.752；目前 mi={mi_value:g}，已偏離該案例採用值。"
+        if not 40.0 <= gsi_value <= 55.0:
+            return (
+                f"南莊層案例的岩體 GSI 參考範圍為 40–55；目前 GSI={gsi_value:g}。"
+                "若採用不同 GSI，請確認其來自本工址岩體判釋，不要直接沿用完整岩心參數反算條件。"
+            )
+    if rock_preset == "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
+        if not 13.0 <= mi_value <= 21.0 or not 20.0 <= gsi_value <= 30.0 or not 0.8 <= d_value <= 0.9:
+            return (
+                f"瑞芳段案例的 mi 文獻敏感度範圍為 13–21，回算較佳範圍為 GSI=20–30、D=0.8–0.9；"
+                f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}。"
+                "超出範圍不代表本工址必然錯誤，但已不是該案例回算組合，須以現地資料重新論證。"
+            )
+    if rock_preset == "片岩 Schist（蘇花公路案例）":
+        if abs(mi_value - 10.0) > 1e-6 or gsi_value not in (15.0, 25.0, 35.0) or abs(d_value - 0.7) > 1e-9:
+            return (
+                f"蘇花公路案例採用 mi=10、D=0.7，並依不同地質區分別採 GSI=15、25、35；"
+                f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}。"
+                "請確認是否屬於不同地質分區的另行判釋。"
+            )
+    return None
+
+
 def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
     """Warn when a case-derived mi is paired with another case's UCS."""
     if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES))
@@ -505,6 +535,9 @@ def render_module_1(expanded=False):
             d_factor = st.slider("擾動因子 D（可直接調整）", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
             d_range_low = d_range_high = d_factor
             st.caption("D 表示開挖／爆破損傷；天然節理破碎已由 GSI 反映。")
+            _case_parameter_warning = _hb_case_parameter_warning(rock_preset, mi, gsi, d_factor)
+            if _case_parameter_warning:
+                st.warning(_case_parameter_warning)
             
             app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
                 "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
