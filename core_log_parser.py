@@ -123,6 +123,20 @@ def _crop_box_rows(image: Image.Image, visible_rows: int = 4,
 
 
 def _attach_depths(records: list[CoreRowRecord], start_depth_m: float | None, row_length_m: float):
+    has_any_labels = any(
+        rec.row_number is not None
+        or rec.depth_start_label_m is not None
+        or rec.depth_end_label_m is not None
+        for rec in records
+    )
+    if start_depth_m is not None and not has_any_labels:
+        # Explicitly requested fallback: only when every row label is absent,
+        # assign depths by extracted file order and keep the warning visible.
+        for index, rec in enumerate(records):
+            rec.depth_start_m = float(start_depth_m) + index * float(row_length_m)
+            rec.depth_end_m = rec.depth_start_m + float(row_length_m)
+        return
+
     for rec in records:
         if rec.depth_start_label_m is not None and rec.depth_end_label_m is not None:
             rec.depth_start_m = float(rec.depth_start_label_m)
@@ -198,14 +212,21 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
 
     if not records:
         raise ValueError("文件中沒有找到符合格式的岩心箱照片表格。請確認是由岩心柱狀圖工具輸出的 DOCX。")
+    no_row_labels = not any(
+        r.row_number is not None or r.depth_end_label_m is not None or r.depth_start_label_m is not None
+        for r in records
+    )
     _attach_depths(records, start_depth_m, row_length_m)
+    if no_row_labels and start_depth_m is not None:
+        warnings.append("未讀取到列號或列尾深度；已依使用者起始深度與檔案列序推定深度，請確認中間沒有缺列。")
     _validate_row_sequence(records, warnings)
     depth_label_count = sum(r.depth_end_label_m is not None for r in records)
     return {"records": records, "warnings": warnings,
             "pages_detected": page_no, "rows_detected": len(records),
             "borehole_id": None,
-            "depth_source": ("DOCX 列尾深度標籤" if depth_label_count == len(records)
+            "depth_source": ("DOCX 列尾深度標籤" if depth_label_count == len(records) and depth_label_count
                              else "DOCX 部分列尾深度標籤" if depth_label_count
+                             else "使用者起始深度＋檔案列序推定" if start_depth_m is not None and no_row_labels
                              else "使用者輸入" if start_depth_m is not None else None),
             "format": "docx"}
 
@@ -348,8 +369,9 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
     depth_label_count = sum(r.depth_end_label_m is not None for r in records)
     has_depth_labels = depth_label_count > 0
     depth_source = (
-        "PDF 列尾深度標籤" if depth_label_count == len(records)
+        "PDF 列尾深度標籤" if depth_label_count == len(records) and depth_label_count
         else "PDF 部分列尾深度標籤" if has_depth_labels
+        else "使用者起始深度＋檔案列序推定" if start_depth_m is not None and no_row_labels
         else "使用者輸入" if start_depth_m is not None else None
     )
     if start_depth_m is None and not has_depth_labels and records:
@@ -363,7 +385,13 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
         if inferred is not None:
             start_depth_m = inferred
             depth_source = "PDF 頁首深度範圍與列號推定"
+    no_row_labels = not any(
+        r.row_number is not None or r.depth_end_label_m is not None or r.depth_start_label_m is not None
+        for r in records
+    )
     _attach_depths(records, start_depth_m, row_length_m)
+    if no_row_labels and start_depth_m is not None:
+        warnings.append("未讀取到列號或列尾深度；已依使用者起始深度與檔案列序推定深度，請確認中間沒有缺列。")
     _validate_row_sequence(records, warnings)
     borehole_ids = [v["borehole_id"] for v in page_views if v.get("borehole_id")]
     depth_ranges = [v["header_depth_range_m"] for v in page_views if v.get("header_depth_range_m")]
