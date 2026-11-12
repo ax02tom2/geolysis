@@ -19,6 +19,31 @@ def _spt_refusal_mask(values):
     return values.astype(str).str.strip().str.lower().isin(_SPT_REFUSAL_LABELS)
 
 
+def _normalize_spt_profile_effective_stress(profile):
+    """Normalize legacy case variants of the SPT effective-stress CSV column."""
+    normalized = profile.copy()
+    canonical = "Effective_Stress_KPa"
+    aliases = [
+        column for column in normalized.columns
+        if str(column).strip().casefold() == canonical.casefold()
+    ]
+    if not aliases:
+        normalized[canonical] = None
+        return normalized
+
+    # Prefer the canonical spelling, but fill its blank cells from a legacy
+    # spelling if a user supplied both columns in the same CSV.
+    aliases.sort(key=lambda column: 0 if column == canonical else 1)
+    stress = pd.to_numeric(normalized[aliases[0]], errors="coerce")
+    for column in aliases[1:]:
+        stress = stress.fillna(pd.to_numeric(normalized[column], errors="coerce"))
+    normalized[canonical] = stress
+    for column in aliases:
+        if column != canonical:
+            normalized = normalized.drop(columns=[column])
+    return normalized
+
+
 def _spt_warning_messages(rows):
     """Flatten engine extrapolation warnings and attach depth when available."""
     messages = []
@@ -105,7 +130,7 @@ def render_module_3(expanded=False):
         st.markdown("**鑽孔逐深度資料（CSV）**")
         st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
-        csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
+        csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_KPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
         profile_confirm=st.checkbox("已確認 CSV 為本次鑽孔實測 SPT 資料（不是示範數據）",value=False,key="m3_profile_confirm")
         # Clear any previous profile before validating current inputs to prevent stale Module 4 linkage.
         st.session_state.pop("m3_profile_result",None)
@@ -123,8 +148,7 @@ def render_module_3(expanded=False):
                         prof['Soil_Behavior']=prof['Soil_Behavior'].fillna('').astype(str).str.strip().str.lower().replace('',soil_behavior_code)
                     if 'Refusal' not in prof.columns:
                         prof['Refusal']=False
-                    if 'Effective_Stress_KPa' not in prof.columns:
-                        prof['Effective_Stress_KPa']=None
+                    prof=_normalize_spt_profile_effective_stress(prof)
                     row_soil=prof['Soil_Behavior'].astype(str).str.strip().str.lower()
                     refusal_rows=_spt_refusal_mask(prof['Refusal'])
                     needs_stress=(row_soil=='cohesionless') & (cn_method!='不修正') & (~refusal_rows)
