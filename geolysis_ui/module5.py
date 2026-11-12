@@ -1,6 +1,7 @@
 """Streamlit UI for engineering module 5."""
 import streamlit as st
 import logging
+import hashlib
 from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
@@ -185,7 +186,7 @@ def render_module_5(expanded=False):
         st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi),hb_application,
             str(hb_metadata.get("structure_code",""))) if use_hb5 and hb_current is not None else ()
-        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5))
+        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(loads_confirmed5))
         if st.button("計算極限承載力",key='m5_run'):
             clear_result_state(st.session_state, 'm5_result', 'm5_result_signature')
             if use_hb5 and not hb_bearing_source_valid5:
@@ -203,6 +204,7 @@ def render_module_5(expanded=False):
         if result5 and not result5_is_current:
             st.warning("模組五輸入參數已變更；目前顯示的舊結果不再對應現有輸入。請重新按「計算極限承載力」更新結果。")
             result5=None
+        m5_transfer_candidate=None
         if result5:
             r1,r2,r3=st.columns(3)
             r1.metric("總極限承載力 qu",f"{result5['qu_gross']:.1f} kPa")
@@ -213,7 +215,7 @@ def render_module_5(expanded=False):
                 (theory5 in ("Hansen","Vesic")) or
                 (theory5=="Terzaghi" and H5<=0))
             main_reason=("目前 H>0，但所選理論沒有套用與 H/V 相符的載重傾斜修正；請選 Hansen／Vesic，或在 Meyerhof 中將 β 設為 atan(H/V)。" if not main_load_complete else None)
-            _render_bearing_safety_check(
+            bearing_check5=_render_bearing_safety_check(
                 qult_kpa=result5["qu_gross"],vertical_load_kN=V5,
                 width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                 eccentricity_B_m=eB5,eccentricity_L_m=eL5,
@@ -235,6 +237,30 @@ def render_module_5(expanded=False):
             if '模組一' in src5:
                 st.warning(f"本次使用模組一等效 Mohr–Coulomb 參數；其 c′、ϕ′係在 σ3,max={sig3_max:.3f} MPa 範圍內擬合，須確認與淺基礎破壞應力範圍相符。若不相符，請改用試驗參數或重新設定模組一圍壓範圍。")
             st.warning(result5['limitations'])
+            if (loads_confirmed5 and main_load_complete
+                    and bearing_check5.get("passes_middle_third")
+                    and bearing_check5.get("FS_bearing") is not None):
+                transfer_id5=hashlib.sha256(repr(m5_input_signature).encode("utf-8")).hexdigest()[:12]
+                m5_transfer_candidate={
+                    "transfer_id":transfer_id5,
+                    "qult_gross_kpa":float(result5["qu_gross"]),
+                    "qa_gross_kpa":float(result5["qa_gross"]),
+                    "qa_net_kpa":float(result5["qa_net"]),
+                    "qeq_gross_kpa":float(bearing_check5["qeq_gross_kpa"]),
+                    "B_m":float(B5),"L_m":float(L5),"Df_m":float(df5),"Dw_m":float(dw5),
+                    "footing_type":str(main_footing_type5),"source":str(src5),
+                    "theory":str(theory5),"FS_bearing":float(bearing_check5["FS_bearing"]),
+                    "passes_bearing":bool(bearing_check5["passes_bearing"]),
+                    "load_confirmed":True,"complete_capacity_model":True,
+                }
+        new_transfer_id5=(m5_transfer_candidate["transfer_id"] if m5_transfer_candidate else None)
+        old_transfer_id5=st.session_state.get("_m5_bearing_transfer_id")
+        if old_transfer_id5!=new_transfer_id5:
+            st.session_state["_m5_bearing_transfer_id"]=new_transfer_id5
+            st.session_state["m5_bearing_transfer"]=m5_transfer_candidate
+            st.rerun()
+        else:
+            st.session_state["m5_bearing_transfer"]=m5_transfer_candidate
         st.caption("Hoek–Brown 岩體等效 c′、ϕ′僅應用於適當岩體尺度與破壞模式；不可不加判斷地當作一般土壤參數。SPT 推估 ϕ 亦僅為經驗參考，不取代三軸／直剪試驗。")
         st.caption("另提醒：USACE 2025 的 AASHTO/FHWA Vesic-based 設計係數系統與本頁 1992 經典 Vesic 表 4-6 不同：2025 系統的水平力係數使用土體 c、φ′=0 深度係數保守省略，且 FHWA 建議不要同時套用形狀與載重傾斜修正；本頁經典公式則使用基底黏著 ca，φ′=0 採 dc=1+0.4k。本頁不宣稱等同完整 AASHTO/FHWA 設計程序。")
         with st.expander("理論公式與文獻來源",expanded=False):
