@@ -1507,7 +1507,7 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
     assert result["layer_results"][0]["Es_kPa"] == pytest.approx(3500.0)
     with pytest.raises(ValueError, match="不可外插"):
         schmertmann_cpt_settlement_2025(
-            layers=layers[:4], footing_width_m=1.0, footing_length_m=10.0,
+            layers=layers[:4], footing_width_m=1.0, footing_length_m=10.1,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
             peak_effective_stress_kpa=100.0, footing_type="continuous",
             soil_applicability_confirmed=True,
