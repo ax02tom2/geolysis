@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
+from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
 
 
 
@@ -63,7 +63,7 @@ def _pmt_transfer_footing_type(width_m, length_m, round_footing=False):
     """
     if round_footing:
         return "round"
-    return "continuous" if float(length_m) / float(width_m) > 10.0 else "isolated"
+    return usace_footing_type(footing_width_m=width_m,footing_length_m=length_m)
 
 
 def render_module_4(expanded=False):
@@ -213,7 +213,8 @@ def render_module_4(expanded=False):
             with a:
                 dmtB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_dmt_b")
                 dmtL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_dmt_l")
-                dmt_type=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續基礎（條形）",key="m4_dmt_type")
+                dmt_type=usace_footing_type(footing_width_m=dmtB,footing_length_m=dmtL)
+                st.caption(f"依 USACE 2025 長寬比 L/B={dmtL/dmtB:.2f} 自動判定：{'連續條形基礎' if dmt_type=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
@@ -277,7 +278,8 @@ def render_module_4(expanded=False):
             with a:
                 cptB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_cpt_b")
                 cptL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_cpt_l")
-                cptType=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m4_cpt_type")
+                cptType=usace_footing_type(footing_width_m=cptB,footing_length_m=cptL)
+                st.caption(f"依 USACE 2025 長寬比 L/B={cptL/cptB:.2f} 自動判定：{'連續條形基礎' if cptType=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
                 cptq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_q")
                 cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")

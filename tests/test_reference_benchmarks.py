@@ -38,6 +38,7 @@ from geolysis_engine import (
     dmt_modulus_settlement_2025,
     schmertmann_cpt_settlement_2025,
     menard_rousseau_pmt_settlement_2025,
+    usace_footing_type,
 )
 
 
@@ -1444,7 +1445,7 @@ def test_usace_2025_dmt_strip_footing_uses_infinite_strip_stress_solution():
         for _ in range(30)
     ]
     result = dmt_settlement_2025(
-        layers=layers, footing_width_m=1.0, footing_length_m=10.0,
+        layers=layers, footing_width_m=1.0, footing_length_m=10.1,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         footing_type="continuous",
     )
@@ -1496,7 +1497,7 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
         for _ in range(16)
     ]
     result = schmertmann_cpt_settlement_2025(
-        layers=layers, footing_width_m=1.0, footing_length_m=10.0,
+        layers=layers, footing_width_m=1.0, footing_length_m=10.1,
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
         peak_effective_stress_kpa=100.0, footing_type="continuous",
         soil_applicability_confirmed=True,
@@ -1506,7 +1507,7 @@ def test_usace_2025_schmertmann_cpt_strip_influence_depth_and_profile_guard():
     assert result["layer_results"][0]["Es_kPa"] == pytest.approx(3500.0)
     with pytest.raises(ValueError, match="不可外插"):
         schmertmann_cpt_settlement_2025(
-            layers=layers[:4], footing_width_m=1.0, footing_length_m=10.0,
+            layers=layers[:4], footing_width_m=1.0, footing_length_m=10.1,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
             peak_effective_stress_kpa=100.0, footing_type="continuous",
             soil_applicability_confirmed=True,
@@ -4188,3 +4189,25 @@ def test_usace_2025_dmt_readings_warn_when_bottom_stress_may_need_deeper_review(
     assert result["settlement_mm"] > 0
     assert any("尚未低於 0.10" in warning for warning in result["warnings"])
 
+
+
+@pytest.mark.parametrize(
+    "width,length,expected",
+    [
+        (2.0, 2.0, "isolated"),
+        (2.0, 20.0, "isolated"),  # L/B = 10 is not a strip footing.
+        (2.0, 20.02, "continuous"),
+        (1.0, 10.1, "continuous"),
+    ],
+)
+def test_usace_footing_type_uses_strict_length_to_width_ratio_boundary(
+    width, length, expected
+):
+    assert usace_footing_type(
+        footing_width_m=width, footing_length_m=length
+    ) == expected
+
+
+def test_usace_footing_type_rejects_nonpositive_dimensions():
+    with pytest.raises(ValueError, match="必須大於 0"):
+        usace_footing_type(footing_width_m=0.0, footing_length_m=2.0)
