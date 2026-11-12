@@ -30,6 +30,14 @@ _HB_PAIRED_CASES = {
 _HB_CASE_MI_WITHOUT_PAIRED_UCS = {
     "片岩 Schist（蘇花公路案例）",
 }
+_HB_CASE_MI_UCS_OPTIONS = {
+    "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": {
+        "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa",
+        "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa",
+        "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa",
+        "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa",
+    },
+}
 
 
 def _hb_case_parameter_warning(rock_preset, mi, gsi, disturbance):
@@ -59,12 +67,25 @@ def _hb_case_parameter_warning(rock_preset, mi, gsi, disturbance):
                 f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}。"
                 "請確認是否屬於不同地質分區的另行判釋。"
             )
+    if rock_preset == "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）":
+        valid_cases = ((10.0, 60.0, 0.7), (10.0, 80.0, 0.5),
+                       (10.0, 60.0, 0.5), (10.0, 40.0, 0.5))
+        if not any(abs(mi_value-mi0)<=1e-6 and abs(gsi_value-gsi0)<=1e-6
+                   and abs(d_value-d0)<=1e-6 for mi0,gsi0,d0 in valid_cases):
+            return (
+                "阿里山42號隧道計畫表 3-2-1 的組合為 mi=10，"
+                "(GSI,D)=(60,0.7) 邊坡、(80,0.5) 隧道 II 類、"
+                "(60,0.5) 隧道 III 類、(40,0.5) 隧道 IV 類；"
+                f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}，"
+                "不是該計畫表列組合。另報告註記砂岩 mi=17±4、頁岩 mi=6±2，"
+                "不可把計畫採用 mi=10 當作岩性通用值。"
+            )
     return None
 
 
 def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
     """Warn when a case-derived mi is paired with another case's UCS."""
-    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES))
+    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES) | set(_HB_CASE_MI_UCS_OPTIONS))
             and ucs_mode == "依現場敲擊分級初估"):
         return (
             f"目前 mi 來自「{rock_preset}」的特定案例，但 UCS 改採現場敲擊分級估值；"
@@ -77,6 +98,21 @@ def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
             f"目前 mi 來自「{rock_preset}」工程案例，但目前沒有同一案例可配對的完整岩心 UCS；"
             f"所選 UCS「{ucs_case_label}」是另一份資料。請確認岩性／風化程度相符，並以本工址試驗或敏感度分析驗證。"
         )
+    case_options = _HB_CASE_MI_UCS_OPTIONS.get(rock_preset)
+    if case_options is not None:
+        if ucs_case_label not in case_options:
+            return (
+                f"阿里山42號隧道案例的 mi=10 僅能配對同一計畫表列 UCS 案例；"
+                f"目前選擇「{ucs_case_label}」，不是該計畫的四個設計組合之一。"
+            )
+        return None
+    for case_name, allowed_ucs in _HB_CASE_MI_UCS_OPTIONS.items():
+        if ucs_case_label in allowed_ucs and rock_preset != case_name:
+            return (
+                f"目前 UCS「{ucs_case_label}」來自阿里山42號隧道計畫，"
+                f"但 mi 岩性預設為「{rock_preset}」。請改用「{case_name}」"
+                "重現該計畫組合，或改用與本工址相符的完整岩石三軸試驗 mi。"
+            )
     expected_ucs = _HB_PAIRED_CASES.get(rock_preset)
     if expected_ucs is not None and ucs_case_label != expected_ucs:
         return (
