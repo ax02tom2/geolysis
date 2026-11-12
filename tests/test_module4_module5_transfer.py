@@ -227,3 +227,15 @@ def test_module4_does_not_transfer_legacy_result_without_effective_dimensions(mo
     )
     assert qult is None
     assert qeq is None
+
+
+def test_module5_centered_transfer_is_rejected_for_eccentric_settlement(monkeypatch):
+    transfer = _transfer_fixture()
+    _patch_transfer_ui(monkeypatch, transfer, {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated",
+        eccentricity_B_m=0.10, eccentricity_L_m=0.0,
+    )
+    assert qult is None
+    assert qeq is None
