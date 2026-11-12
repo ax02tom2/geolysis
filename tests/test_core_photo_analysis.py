@@ -613,7 +613,7 @@ def test_core_measurement_inputs_reject_nan_and_infinity():
 def test_core_indices_flags_recovered_length_exceeding_drilled_interval():
     result = calculate_core_indices(1.0, [600.0, 500.0])
     assert result["over_recovery"] is True
-    assert result["recovery_percent"] == 110.0
+    assert result["recovery_percent"] == pytest.approx(110.0)
 
 
 def test_core_indices_flags_rqd_piece_total_exceeding_recovered_length():
@@ -621,7 +621,7 @@ def test_core_indices_flags_rqd_piece_total_exceeding_recovered_length():
         1.0, [300.0, 300.0], rqd_piece_lengths_mm=[350.0, 350.0]
     )
     assert result["rqd_exceeds_recovered"] is True
-    assert result["rqd_exceeds_drilled"] is True
+    assert result["rqd_exceeds_drilled"] is False
 
 
 def test_core_indices_reject_nonpositive_rqd_threshold():
