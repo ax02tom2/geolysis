@@ -462,6 +462,12 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 m3.metric("疑似斷裂／間隙候選", str(len(candidates)))
                 if result.get("warning"):
                     st.caption(result["warning"])
+                uncertain_regions = analysis.get("uncertain", []) if isinstance(analysis, dict) else []
+                if uncertain_regions:
+                    st.warning(
+                        f"本列有 {len(uncertain_regions)} 個黃色不確定區，尚未納入岩心本體長度；"
+                        "採取率與 RQD 可能偏低，請依原始影像逐區覆核。"
+                    )
                 if not analysis.get("success"):
                     st.warning(analysis.get("warning", "本列影像分析未通過品質檢核。"))
                 if not break_result.get("success"):
@@ -472,6 +478,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     "採取率初估 (%)": recovery,
                     "RQD (%)": rqd,
                     "疑似斷裂／間隙": len(candidates),
+                    "不確定區": len(uncertain_regions),
                     "覆核": "完成" if result.get("ready") else "待覆核",
                 })
 
