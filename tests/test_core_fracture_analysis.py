@@ -302,4 +302,4 @@ def test_natural_joint_candidate_also_requires_review_of_all_continuous_interval
         segments, natural, 1.25, row_review_confirmed=True
     )
     assert confirmed["ready"] is True
-    assert confirmed["rqd_percent"] == 50.0
+    assert confirmed["rqd_percent"] == 100.0
