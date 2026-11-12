@@ -847,7 +847,7 @@ def analyze_core_row_v8(
         return {"success": False, "segments": [], "gaps": [], "uncertain": [],
                 "blue_background_ratio": round(blue_ratio, 4),
                 "warning": "中央區域缺乏足夠藍色托盤背景，無法安全區分岩芯與背景；已停止自動判識。"}
-    if blue_ratio > 0.35:
+    if blue_ratio > 0.90:
         return {"success": False, "segments": [], "gaps": [], "uncertain": [],
                 "blue_background_ratio": round(blue_ratio, 4),
                 "warning": "中央區域藍色像素比例過高，與本列藍灰色岩心影像重疊的風險很高；舊式藍色遮罩可能把岩心誤當托盤。本列已停止自動估算回收長度，請先人工確認岩心範圍。"}
@@ -974,7 +974,7 @@ def detect_core_break_candidates_v1(
             "success": False, "candidates": [], "blue_background_ratio": round(blue_ratio, 4),
             "warning": "未辨識到足夠藍色托盤背景，無法可靠排除托盤邊緣；斷裂辨識已停止。",
         }
-    if blue_ratio > 0.35:
+    if blue_ratio > 0.90:
         return {
             "success": False, "candidates": [], "blue_background_ratio": round(blue_ratio, 4),
             "warning": "藍色遮罩覆蓋本列中央影像比例過高，可能把藍灰色岩心一併排除；本列斷裂候選不具可信度，已停止自動判讀。",
@@ -1146,6 +1146,7 @@ def estimate_rqd_from_image_segments(
     mm_per_px: float,
     row_length_mm: float = 1000.0,
     rqd_threshold_mm: float = 100.0,
+    no_breaks_confirmed: bool = False,
 ) -> dict:
     """Estimate per-row recovery/RQD after every detected break is reviewed.
 
@@ -1164,10 +1165,19 @@ def estimate_rqd_from_image_segments(
     allowed = {"天然節理", "機械破損", "非斷裂／誤判"}
     unresolved = [b for b in breaks if b.get("review_class") not in allowed]
     if unresolved:
+        intervals = []
+        for item in core_segments:
+            a = max(0.0, float(item.get("x_start_px", 0)) * mm_per_px)
+            b = min(row_length_mm, float(item.get("x_end_px", 0)) * mm_per_px)
+            if b > a:
+                intervals.append((a, b))
+        total_core_mm = sum(b - a for a, b in intervals)
         return {
-            "success": True, "ready": False, "recovery_percent": None,
-            "rqd_percent": None, "unresolved_count": len(unresolved),
-            "warning": "尚有斷裂候選未覆核；暫不估算本列 RQD。",
+            "success": True, "ready": False,
+            "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1) if intervals else None,
+            "rqd_percent": None, "recovered_length_mm": round(total_core_mm, 1) if intervals else None,
+            "unresolved_count": len(unresolved),
+            "warning": "採取率可先依岩心本體區間初估；尚有斷裂候選未覆核，暫不估算本列 RQD。",
         }
 
     intervals = []
@@ -1186,7 +1196,7 @@ def estimate_rqd_from_image_segments(
     total_core_mm = sum(b - a for a, b in intervals)
     # 沒有偵測到候選不等於確認沒有天然節理；因此可保留影像初估採取率，
     # 但不能把整段岩心自動視為一整段合格岩心並回報 RQD=100%。
-    if not breaks:
+    if not breaks and not no_breaks_confirmed:
         return {
             "success": True, "ready": False,
             "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1),
