@@ -653,3 +653,18 @@ def test_image_rqd_and_detection_functions_reject_nonfinite_parameters():
         detect_core_break_candidates_v1(row, float("inf"))
     with pytest.raises(ValueError, match="有限"):
         build_core_gap_review_candidates({}, float("nan"))
+
+
+def test_manual_corner_editor_payload_scales_preview_and_points_without_mutating_source():
+    from geolysis_ui.core_log import _corner_editor_image_payload
+
+    source = Image.new("RGB", (4000, 2000), (120, 130, 140))
+    original_size = source.size
+    data_url, preview_width, preview_height, scale, points = _corner_editor_image_payload(
+        source, [[0, 0], [3999, 0], [3999, 1999], [0, 1999]]
+    )
+    assert data_url.startswith("data:image/jpeg;base64,")
+    assert (preview_width, preview_height) == (1600, 800)
+    assert scale == 0.4
+    assert points == [[0.0, 0.0], [1599.6, 0.0], [1599.6, 799.6], [0.0, 799.6]]
+    assert source.size == original_size
