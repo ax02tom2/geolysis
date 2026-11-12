@@ -6,6 +6,49 @@ from io import StringIO
 from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025
 
 
+
+
+def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
+        footing_type=None, depth_m=None):
+    """Return a current Module 5 capacity value only after geometry/context confirmation."""
+    transfer=st.session_state.get("m5_bearing_transfer")
+    if not transfer:
+        return None
+    width_match=abs(float(width_m)-float(transfer["B_m"]))<=0.01
+    length_match=abs(float(length_m)-float(transfer["L_m"]))<=0.01
+    depth_match=(depth_m is None or abs(float(depth_m)-float(transfer["Df_m"]))<=0.01)
+    type_match=(footing_type is None or str(footing_type)==str(transfer["footing_type"]))
+    if not (width_match and length_match and depth_match and type_match):
+        st.warning(
+            f"Module 4 幾何與 Module 5 結果不一致，不能自動帶入 {label}。"
+            f"Module 5：B={transfer['B_m']:.2f} m、L={transfer['L_m']:.2f} m、"
+            f"Df={transfer['Df_m']:.2f} m、型式={transfer['footing_type']}；"
+            f"請統一基礎尺寸／埋深／型式，或改用手動輸入。"
+        )
+        return None
+    transfer_id=str(transfer["transfer_id"])
+    use_value=st.checkbox(
+        f"使用 Module 5 目前有效的 {label}（{float(transfer[field]):.1f} kPa）",
+        value=False,key=f"{key_prefix}_use_m5_{transfer_id}")
+    if not use_value:
+        return None
+    st.caption(
+        f"來源：Module 5 {transfer['theory']}；qult={transfer['qult_gross_kpa']:.1f} kPa；"
+        f"qa,net={transfer['qa_net_kpa']:.1f} kPa；qeq={transfer['qeq_gross_kpa']:.1f} kPa；"
+        f"FS_bearing={transfer['FS_bearing']:.2f}。"
+    )
+    if not transfer.get("passes_bearing",False):
+        st.warning("Module 5 實際承載力 FS 未達 3.0；此數值僅供沉陷壓力上限比較，不代表承載力設計合格。")
+    context_key=f"{key_prefix}_conditions_{transfer_id}_{float(width_m):.2f}_{float(length_m):.2f}_{float(depth_m or 0.0):.2f}_{footing_type or 'any'}"
+    same_conditions=st.checkbox(
+        "已確認基礎埋深、地下水位、地層剖面及載重條件與 Module 5 相同",
+        value=False,key=context_key)
+    if not same_conditions:
+        st.warning("尚未確認沉陷分析與 Module 5 的埋深、地下水位、地層及載重條件一致；目前不套用跨模組承載力。")
+        return None
+    return float(transfer[field])
+
+
 def render_module_4(expanded=False):
     # ==============================================================================
     # 模組四：容許承載力與沉陷控制
