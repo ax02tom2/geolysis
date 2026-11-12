@@ -270,11 +270,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         horizontal_load=H5,vertical_load=V5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (src5,hb_source_signature,hb_confirmation_signature,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(src5,hb_source_signature,hb_confirmation_signature,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
+            slope_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
 
@@ -333,11 +333,11 @@ def render_module_5(expanded=False):
                         q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
                         strong_layer_thickness_m=strong_h5,footing_width_m=B5,
                         footing_length_m=L5,footing_type=footing_kind5)
-                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (src5,hb_source_signature,hb_confirmation_signature,c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
+                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
@@ -374,12 +374,12 @@ def render_module_5(expanded=False):
                         footing_width_m=B5,footing_length_m=L5,footing_depth_m=df5,
                         water_depth_m=dw5,fs=fs5,footing_type=footing_kind5,
                         eccentricity_B_m=eB5,eccentricity_L_m=eL5)
-                    multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+                    multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
                     store_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", mr, multi_layer_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層地盤分析失敗：{exc}")
-            multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
+            multi_layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),multi_layer_csv5,B5,L5,df5,dw5,footing_kind5,eB5,eL5,gamma5,gsub5,gamma_below5,V5,H5,base_ang5,ground_ang5)
             mr, mr_is_current = read_result_state(st.session_state, "m5x_multi_layer_result", "m5x_multi_layer_signature", multi_layer_sig)
             if mr and mr_is_current:
 
@@ -569,11 +569,11 @@ def render_module_5(expanded=False):
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (src5,hb_source_signature,hb_confirmation_signature,V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5))
+                        (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(src5,hb_source_signature,hb_confirmation_signature,V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5)
+            sr_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
