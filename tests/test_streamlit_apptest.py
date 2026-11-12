@@ -213,3 +213,38 @@ def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
     assert gsi_input.value == 77.5
+
+
+def test_module1_quantitative_gsi_imports_only_completed_core_photo_rqd_rows():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    app.session_state["core_log_rqd_summary"] = [
+        {"depth": "0.0–1.0m", "rqd_percent": 70.0, "review": "完成", "depth_length_m": 1.0},
+        {"depth": "1.0–2.0m", "rqd_percent": 90.0, "review": "完成", "depth_length_m": 1.0},
+        {"depth": "2.0–3.0m", "rqd_percent": 100.0, "review": "有不確定區", "depth_length_m": 1.0},
+    ]
+    app.session_state["core_log_rqd_source"] = {"filename": "borehole_core.pdf"}
+    app.run()
+
+    method = next(widget for widget in app.radio if widget.key == "gsi_method")
+    method.set_value("鑽孔定量估算（FHWA Eq. 9-19）")
+    app.run()
+
+    depths = next(widget for widget in app.multiselect if widget.key == "gsi_quant_rqd_depths")
+    depths.set_value(["0.0–1.0m", "1.0–2.0m"])
+    choices = {
+        "gsi_jcond_persistence": "小於 1 m（6）",
+        "gsi_jcond_separation": "小於 0.1 mm（5）",
+        "gsi_jcond_roughness": "粗糙（5）",
+        "gsi_jcond_infilling": "硬質充填小於 5 mm（4）",
+        "gsi_jcond_weathering": "微風化（5）",
+    }
+    for key, value in choices.items():
+        widget = next(item for item in app.selectbox if item.key == key)
+        widget.select(value)
+    app.run()
+
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    rqd_metric = next(item for item in app.metric if item.label == "所選深度區間加權平均 RQD")
+    assert rqd_metric.value == "80.0%"
+    gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
+    assert gsi_input.value == 77.5
