@@ -293,7 +293,7 @@ def render_module_1(expanded=False):
         if gsi_selection_valid:
             gsi_lower = int(st.session_state.get(f"gsi_lower_{gsi_method}_{_struct_code}_{_cond_code}", _rec_lo))
             gsi_upper = int(st.session_state.get(f"gsi_upper_{gsi_method}_{_struct_code}_{_cond_code}", _rec_hi))
-            gsi_default = min(gsi_upper, max(gsi_lower, int(round(_rec_mid)))) if gsi_lower <= gsi_upper else int(round(_rec_mid))
+            gsi_default = min(gsi_upper, max(gsi_lower, round(float(_rec_mid) * 2.0) / 2.0)) if gsi_lower <= gsi_upper else round(float(_rec_mid) * 2.0) / 2.0
         else:
             gsi_lower, gsi_upper, gsi_default = 0, 100, 50
     
@@ -305,8 +305,8 @@ def render_module_1(expanded=False):
             default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
             gsi_key = f"gsi_representative_value_{gsi_method}_{_struct_code}_{_cond_code}"
             if gsi_key not in st.session_state:
-                st.session_state[gsi_key] = int(default_gsi_val)
-            gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0, max_value=100, step=1, key=gsi_key, disabled=not gsi_selection_valid)
+                st.session_state[gsi_key] = float(default_gsi_val)
+            gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0.0, max_value=100.0, step=0.5, format="%.1f", key=gsi_key, disabled=not gsi_selection_valid)
             if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
                 st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
             
