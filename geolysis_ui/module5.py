@@ -843,7 +843,7 @@ def render_module_5(expanded=False):
     
         with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
             st.warning("本自動搜尋同樣僅計算靜態 Bishop FS，不含 kh／kv、地震孔壓累積、液化後殘餘強度或側向擴展；不可用來宣稱地震整體穩定通過。地震邊坡穩定須另依 EM 1110-2-1902 與適用的場址地震設計程序辦理。")
-            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正）；地表剖面須延伸至預期滑動面入、出口之外，若圓弧在剖面邊界仍位於地表以下，系統會拒絕該候選。")
+            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正），地下水位須採相同高程基準且不得高於地表最低高程（本模式不含坡面外水壓／積水重量）；地表剖面須延伸至預期滑動面入、出口之外，若圓弧在剖面邊界仍位於地表以下，系統會拒絕該候選。")
             profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
                 value="",placeholder="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0\n…請改填本工程實際地表剖面",
                 height=90,key="m5x_profile")
