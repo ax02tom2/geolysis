@@ -55,7 +55,13 @@ def render_module_2(expanded=False):
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
                 st.error(f"資料檢核未通過：{exc}")
-        result, result_is_current = read_result_state(st.session_state, 'm2_result', 'm2_result_signature', m2_input_signature)
+        if not data_confirm:
+            clear_result_state(st.session_state, 'm2_result', 'm2_result_signature')
+            result, result_is_current = None, False
+        else:
+            result, result_is_current = read_result_state(
+                st.session_state, 'm2_result', 'm2_result_signature', m2_input_signature
+            )
         if result and not result_is_current:
             st.warning("土壤分類輸入已變更；目前顯示的舊結果不再對應現有試驗值。請重新按「執行土壤分類」更新。")
             result=None
