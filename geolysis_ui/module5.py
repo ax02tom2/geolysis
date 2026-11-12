@@ -6,7 +6,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, seismic_foundation_eccentricity_cases, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases, base_uplift_pressure_readiness
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, seismic_foundation_eccentricity_cases, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases, base_uplift_pressure_readiness, usace_footing_type
 
 
 
@@ -112,9 +112,8 @@ def render_module_5(expanded=False):
             theory5=st.selectbox("理論",['Terzaghi','Meyerhof','Hansen','Vesic'],key='m5_theory')
             B5=st.number_input("基礎短邊 B [m]",0.2,50.0,2.0,0.1,key='m5_b')
             L5=st.number_input("基礎長邊 L [m]",0.2,100.0,3.0,0.1,key='m5_l')
-            main_footing_type5=st.selectbox("主承載力分析基礎型式",["isolated","continuous"],
-                format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",
-                key="m5_main_footing_type")
+            main_footing_type5=usace_footing_type(footing_width_m=B5,footing_length_m=L5)
+            st.caption(f"依 USACE 2025 長寬比 L/B={L5/B5:.2f} 自動判定：{'連續條形基礎' if main_footing_type5=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             if main_footing_type5=="continuous":
                 st.caption("主承載力與 qeq 檢核採連續條形基礎 strip 極限；V、H 使用 kN/m，qeq=V/B′。長邊方向偏心不適用。")
         with b:
