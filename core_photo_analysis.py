@@ -1210,7 +1210,8 @@ def estimate_rqd_from_image_segments(
     Core intervals come from the image occupancy detector. Natural-joint traces
     split intervals; a gap between two core intervals is rejoined only when every
     review for that interval pair confirms mechanical break or false gap. Core
-    loss remains excluded. This is a preliminary image estimate, not measured RQD.
+    loss remains excluded; a false image gap restores its measured interval to
+    recovery length. This is a preliminary image estimate, not measured RQD.
     """
     import math
 
