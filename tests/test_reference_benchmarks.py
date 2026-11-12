@@ -2958,6 +2958,23 @@ def test_general_seismic_eccentricity_evaluates_four_signed_load_combinations():
     assert result["seismic_moment_included"] is True
 
 
+def test_general_seismic_eccentricity_envelopes_both_horizontal_directions_without_seismic_moment():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=50.0,
+        seismic_weight_kN=1000.0, kh=0.1, kv=0.1,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.05,
+    )
+    assert len(result["cases"]) == 4
+    by_sign = {case["horizontal_earthquake_sign"]: case for case in result["cases"]
+               if case["vertical_load_kN"] == pytest.approx(900.0)}
+    assert by_sign[1]["horizontal_load_kN"] == pytest.approx(150.0)
+    assert by_sign[-1]["horizontal_load_kN"] == pytest.approx(50.0)
+    assert by_sign[1]["moment_B_kNm"] == pytest.approx(50.0)
+    assert by_sign[-1]["moment_B_kNm"] == pytest.approx(50.0)
+    assert result["seismic_moment_included"] is False
+
+
 def test_general_seismic_eccentricity_reports_middle_third_separately_from_footprint():
     result = seismic_foundation_eccentricity_cases(
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
