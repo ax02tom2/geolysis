@@ -3590,7 +3590,7 @@ def test_spt_profile_accepts_cohesive_and_refusal_rows_without_effective_stress(
 def test_spt_profile_requires_effective_stress_only_for_nonrefusal_cohesionless_rows_using_cn():
     from geolysis_engine import spt_profile
 
-    with pytest.raises(ValueError, match="Effective_Stress_kPa"):
+    with pytest.raises(ValueError, match="Effective_Stress_KPa"):
         spt_profile(
             [{"Depth_m": 1.0, "N": 12.0, "Soil_Behavior": "cohesionless"}],
             energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
