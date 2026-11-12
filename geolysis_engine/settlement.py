@@ -1073,11 +1073,14 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
             f"DMT 模數剖面僅涵蓋至 {profile_bottom:.2f} m；USACE 2025 至少需涵蓋 "
             f"{required_depth:.2f} m，不可外插未測土層"
         )
+    warnings = []
     if rows and rows[-1]["Stress_factor_I_sigma"] >= 0.1 - 1e-9:
-        raise ValueError(
-            f"DMT MDMT 剖面底部 {profile_bottom:.2f} m 的末層中心 "
-            f"Δσz/q_net={rows[-1]['Stress_factor_I_sigma']:.3f}，仍未低於 0.10；"
-            "依 USACE 2025 表 7-4 Step 2，須延伸分層至應力增量可忽略的深度"
+        warnings.append(
+            f"DMT 剖面末層中心深度 {rows[-1]['Depth_center_m']:.2f} m 的 "
+            f"Δσz/q_net={rows[-1]['Stress_factor_I_sigma']:.3f}，尚未低於 0.10。"
+            "USACE 2025 表 7-4 Step 2 規定 2B／6B 為最低深度，若更深處的應力增量"
+            "仍會造成不可忽略的沉陷增量，應延伸 DMT 分層；此項列為工程審查警示，"
+            "不以單一末層中心應力比取代沉陷增量判斷。"
         )
     return {
         "settlement_mm": sum(x["Settlement_mm"] for x in rows),
@@ -1091,6 +1094,7 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
         "profile_depth_used_m": profile_bottom,
         "profile_ends_at_minimum_depth": bool(profile_bottom <= required_depth + 1e-8),
         "layer_results": rows,
+        "warnings": warnings,
         "method": "USACE EM 1110-1-1905 (2025), DMT incremental constrained modulus, Eq. 7-10",
         "limitations": "USACE Table 7-4 的 2B／6B 是最低影響深度；若底部 Δσz 尚未可忽略，必須提供更深 DMT 分層。程式納入所有提供的有效分層，不自行假設 2B／6B 即為最終截止深度，也不代替工程師判定應力增量是否可忽略。直接輸入經 DMT 試驗解讀／校正取得的 MDMT；可選擇輸入已核對的 I_sigma，否則採 Boussinesq 矩形基礎中心線或無限長條形基礎解。僅計算 1-D 增量拘束模數沉陷，不含 foundation rigidity、3-D、creep、aging 或 seismic correction。"
     }
@@ -1185,18 +1189,20 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
             f"DMT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 表 7-4 至少需涵蓋 "
             f"{required_depth:.2f} m（{required_depth/B:.0f}B），不可外插未測土層"
         )
-    if results and results[-1]["Stress_factor_I_sigma"] >= 0.1 - 1e-9:
-        raise ValueError(
-            f"DMT 剖面底部 {depth:.2f} m 的末層中心 "
-            f"Δσz/q_net={results[-1]['Stress_factor_I_sigma']:.3f}，仍未低於 0.10；"
-            "依 USACE 2025 表 7-4 Step 2，須延伸分層至應力增量可忽略的深度"
-        )
     out_of_typical_range = [
         f"第 {row_result['Layer']} 層 KD={row_result['KD']:.2f}"
         for row_result in results
         if not 2.0 <= row_result["KD"] <= 20.0
     ]
     warnings = []
+    if results and results[-1]["Stress_factor_I_sigma"] >= 0.1 - 1e-9:
+        warnings.append(
+            f"DMT 剖面末層中心深度 {results[-1]['Depth_center_m']:.2f} m 的 "
+            f"Δσz/q_net={results[-1]['Stress_factor_I_sigma']:.3f}，尚未低於 0.10。"
+            "USACE 2025 表 7-4 Step 2 規定 2B／6B 為最低深度，若更深處的應力增量"
+            "仍會造成不可忽略的沉陷增量，應延伸 DMT 分層；此項列為工程審查警示，"
+            "不以單一末層中心應力比取代沉陷增量判斷。"
+        )
     if out_of_typical_range:
         warnings.append(
             "以下 DMT 層的 KD 超出 USACE 2025 §3-9c(2) 所述常見範圍 2–20："
