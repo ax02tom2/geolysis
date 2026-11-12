@@ -220,3 +220,30 @@ def test_cache_invalidation_fingerprint_is_passed_to_both_app_call_sites():
     assert app_source.count("_cached_row_analysis(measured_row, row_cal[\"mm_per_px\"], _CORE_ANALYSIS_SOURCE_SHA256)") == 1
     assert "importlib.reload(_core_photo_analysis_module)" not in app_source
     assert "break_detection_traceback" in app_source
+
+
+def test_rqd_keeps_recovery_available_while_break_review_is_pending():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    result = estimate_rqd_from_image_segments(
+        core_segments=[{"x_start_px": 0, "x_end_px": 120}],
+        reviewed_breaks=[{"distance_mm": 60, "review_class": "待確認"}],
+        mm_per_px=1.0, row_length_mm=1000.0,
+    )
+    assert result["ready"] is False
+    assert result["recovery_percent"] == 12.0
+    assert result["rqd_percent"] is None
+
+
+def test_rqd_can_be_finalized_after_explicit_no_break_confirmation():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    result = estimate_rqd_from_image_segments(
+        core_segments=[{"x_start_px": 0, "x_end_px": 120}],
+        reviewed_breaks=[], mm_per_px=1.0, row_length_mm=1000.0,
+        no_breaks_confirmed=True,
+    )
+    assert result["ready"] is True
+    assert result["recovery_percent"] == 12.0
+    assert result["rqd_percent"] == 12.0
+    assert result["piece_lengths_mm"] == [120.0]
