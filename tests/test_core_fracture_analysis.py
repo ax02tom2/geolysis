@@ -249,3 +249,27 @@ def test_rqd_can_be_finalized_after_explicit_no_break_confirmation():
     assert result["recovery_percent"] == 12.0
     assert result["rqd_percent"] == 12.0
     assert result["piece_lengths_mm"] == [120.0]
+
+
+def test_core_loss_gap_review_does_not_rejoin_or_add_missing_length():
+    result = estimate_rqd_from_image_segments(
+        [
+            {"x_start_px": 0, "x_end_px": 400},
+            {"x_start_px": 500, "x_end_px": 800},
+        ],
+        [{
+            "candidate_type": "core_gap",
+            "left_segment_index": 0,
+            "right_segment_index": 1,
+            "gap_start_mm": 400.0,
+            "gap_end_mm": 500.0,
+            "review_class": "岩心缺失／採取損失",
+        }],
+        1.0,
+        row_length_mm=1000.0,
+        no_breaks_confirmed=True,
+    )
+    assert result["ready"] is True
+    assert result["recovery_percent"] == 70.0
+    assert result["rqd_percent"] == 70.0
+    assert result["piece_lengths_mm"] == [400.0, 300.0]
