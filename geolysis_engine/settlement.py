@@ -1170,6 +1170,14 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
             f"DMT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 表 7-4 至少需涵蓋 "
             f"{required_depth:.2f} m（{required_depth/B:.0f}B），不可外插未測土層"
         )
+    warnings = []
+    for row_result in results:
+        if not 2.0 <= row_result["KD"] <= 20.0:
+            warnings.append(
+                f"DMT 第 {row_result['Layer']} 層 KD={row_result['KD']:.2f}，"
+                "超出 USACE 2025 §3-9c(2) 所述常見範圍 2–20；"
+                "該範圍屬典型值而非硬性限制，請核對 σ′v0、p0、u0 與現地應力歷史。"
+            )
     return {
         "settlement_mm": sum(x["Settlement_mm"] for x in results),
         "gross_pressure_used_kpa": q_used,
@@ -1184,7 +1192,8 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
         "profile_ends_at_minimum_depth": bool(depth <= required_depth + 1e-8),
         "layer_results": results,
         "method": "USACE EM 1110-1-1905 (2025), Eqs. 3-41, 4-13 to 4-15, 7-10; DMT incremental constrained modulus",
-        "limitations": "USACE Table 7-4 的 2B／6B 是最低影響深度；若底部 Δσz 尚未可忽略，必須提供更深 DMT 分層。程式會納入所有提供的有效分層，不自行假設 2B／6B 即為最終截止深度，也不代替工程師判定應力增量是否可忽略。採 Boussinesq 矩形基礎中心線應力影響係數；僅計算 1-D 增量拘束模數沉陷，不含基礎剛性、三維修正、蠕變及震陷。"
+        "limitations": "USACE Table 7-4 的 2B／6B 是最低影響深度；若底部 Δσz 尚未可忽略，必須提供更深 DMT 分層。程式會納入所有提供的有效分層，不自行假設 2B／6B 即為最終截止深度，也不代替工程師判定應力增量是否可忽略。採 Boussinesq 矩形基礎中心線應力影響係數；僅計算 1-D 增量拘束模數沉陷，不含基礎剛性、三維修正、蠕變及震陷。",
+        "warnings": warnings
     }
 
 def boussinesq_rectangular_center_factor(width_m, length_m, depth_m):
