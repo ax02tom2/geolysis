@@ -9,8 +9,8 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 
 
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
-        footing_type=None, depth_m=None):
-    """Return a current Module 5 capacity value only after geometry/context confirmation."""
+        footing_type=None, depth_m=None, include_qeq=True):
+    """Return the selected Module 5 capacity value and optional equivalent gross pressure."""
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
         return None, None
@@ -46,9 +46,11 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     if not same_conditions:
         st.warning("尚未確認沉陷分析與 Module 5 的埋深、地下水位、地層及載重條件一致；目前不套用跨模組承載力。")
         return None, None
-    use_qeq=st.checkbox(
-        f"同時採用 Module 5 的 gross 等效壓力 qeq（{float(transfer['qeq_gross_kpa']):.1f} kPa）",
-        value=False,key=f"{key_prefix}_use_m5_qeq_{transfer_id}")
+    use_qeq=False
+    if include_qeq:
+        use_qeq=st.checkbox(
+            f"同時採用 Module 5 的 gross 等效壓力 qeq（{float(transfer['qeq_gross_kpa']):.1f} kPa）",
+            value=False,key=f"{key_prefix}_use_m5_qeq_{transfer_id}")
     return float(transfer[field]), (float(transfer["qeq_gross_kpa"]) if use_qeq else None)
 
 
@@ -443,7 +445,7 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                clay_transfer_qa=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL)
+                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,include_qeq=False)
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
