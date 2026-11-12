@@ -161,12 +161,63 @@ def render_module_1(expanded=False):
                     st.caption("此區間是依圖表趨勢作工程初判估讀，不是原文獻逐格列出的精確數值；正式設計仍須以現地岩體結構與節理狀況覆核。")
             else:
                 st.caption("FHWA-NHI-16-072 Eq. 9.19：GSI = 1.5 × JCond₈₉ + RQD / 2。JCond₈₉ 依 Table 9-8，由五項不連續面條件評分加總。")
-                rqd_text = st.text_input(
-                    "鑽孔 RQD (%)",
-                    value="",
-                    placeholder="輸入 0–100 的實測或影像覆核 RQD",
-                    key="gsi_quant_rqd_text",
-                )
+                core_rqd_summary = st.session_state.get("core_log_rqd_summary", [])
+                verified_rqd_rows = []
+                for row in core_rqd_summary:
+                    try:
+                        row_rqd = float(row.get("rqd_percent"))
+                        row_weight = float(row.get("depth_length_m", 1.0))
+                    except (TypeError, ValueError):
+                        continue
+                    if (
+                        row.get("review") == "完成"
+                        and math.isfinite(row_rqd) and 0.0 <= row_rqd <= 100.0
+                        and math.isfinite(row_weight) and row_weight > 0
+                    ):
+                        verified_rqd_rows.append({**row, "rqd_percent": row_rqd, "depth_length_m": row_weight})
+                rqd_value = None
+                if verified_rqd_rows:
+                    rqd_source_choice = st.radio(
+                        "RQD 來源",
+                        ["使用本孔影像覆核成果", "手動輸入"],
+                        horizontal=True,
+                        key="gsi_quant_rqd_source_choice",
+                    )
+                else:
+                    rqd_source_choice = "手動輸入"
+                    if core_rqd_summary:
+                        st.warning("目前岩心影像成果仍有待覆核或不確定區；不會自動帶入這些 RQD，請完成覆核或手動輸入已確認值。")
+                if rqd_source_choice == "使用本孔影像覆核成果":
+                    source_meta = st.session_state.get("core_log_rqd_source", {})
+                    if source_meta.get("filename"):
+                        st.caption(f"影像 RQD 來源：{source_meta['filename']}")
+                    depth_options = [row["depth"] for row in verified_rqd_rows]
+                    selected_depths = st.multiselect(
+                        "選擇同一岩性／設計分區的深度列（可多選）",
+                        depth_options,
+                        default=[],
+                        key="gsi_quant_rqd_depths",
+                    )
+                    selected_rows = [row for row in verified_rqd_rows if row["depth"] in selected_depths]
+                    if selected_rows:
+                        total_weight = sum(row["depth_length_m"] for row in selected_rows)
+                        rqd_value = sum(row["rqd_percent"] * row["depth_length_m"] for row in selected_rows) / total_weight
+                        st.metric("所選深度區間加權平均 RQD", f"{rqd_value:.1f}%")
+                        st.caption("僅採用覆核狀態為「完成」的列；請只選同一岩性或同一設計分區，避免跨層平均。")
+                    else:
+                        st.info("請選擇至少一列已完成覆核的岩心 RQD。")
+                else:
+                    rqd_text = st.text_input(
+                        "鑽孔 RQD (%)",
+                        value="",
+                        placeholder="輸入 0–100 的實測或影像覆核 RQD",
+                        key="gsi_quant_rqd_text",
+                    )
+                    if rqd_text.strip():
+                        try:
+                            rqd_value = float(rqd_text)
+                        except ValueError:
+                            st.error("RQD 必須是 0–100 的有限數值。")
                 persistence_options = {
                     "小於 1 m（6）": 6, "1–3 m（4）": 4, "3–10 m（2）": 2,
                     "10–20 m（1）": 1, "大於 20 m（0）": 0,
@@ -200,10 +251,10 @@ def render_module_1(expanded=False):
                     persistence_label, separation_label, roughness_label,
                     infilling_label, weathering_label,
                 ))
-                if rqd_text.strip() and labels_complete:
+                if rqd_value is not None and labels_complete:
                     try:
                         gsi_quant_result = gsi_quantitative_from_rqd_jcond(
-                            rqd_percent=float(rqd_text),
+                            rqd_percent=rqd_value,
                             persistence_rating=persistence_options[persistence_label],
                             separation_rating=separation_options[separation_label],
                             roughness_rating=roughness_options[roughness_label],
