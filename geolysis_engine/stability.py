@@ -238,6 +238,63 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
         'limitations':'水平地震作用採與靜力 H 同向的不利包絡 H+khW；垂直方向逐一評估 V±kvW，控制值取兩者較小 FS。U 在兩個垂直組合中保持不變。Pa/Pp 及 uplift 由使用者提供或由既有 developed Rankine 模型估算；若結構／回填幾何不對稱，應先分別建立正反向水平作用的 Pa/Pp，並輸入較不利組合。本方法未納入土體慣性、孔壓累積、液化強度損失、基礎接觸區因傾覆而變化及任意水平方位角。FS≥1.1 是 USACE Table 2-1 Note 2 對含地震荷載滑動的最低要求，不適用於承載力或傾覆檢核。'
     }
 
+def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_weight_kN,
+        uplift_force_kN, kv, fs_required=1.5):
+    """USACE EM 1110-1-1905 (2025), §9-10(f) and §5-7 Eq. 5-36.
+
+    resisting_weight_kN is Wf + Ws + Wc. structure_seismic_weight_kN is Ws,
+    the structure component subject to vertical seismic inertia. uplift_force_kN
+    is the total resultant U acting on the full foundation base, including
+    hydrostatic and residual excess pore-water pressures.
+    """
+    Wres=_finite('抗浮永久向下重量 Wf+Ws+Wc',resisting_weight_kN)
+    Ws=_finite('結構地震重量 Ws',structure_seismic_weight_kN)
+    U=_finite('基礎底面總揚壓力合力 U',uplift_force_kN)
+    kvv=_finite('垂直地震係數 kv',kv)
+    fs=_finite('抗浮最低安全係數',fs_required)
+    if Wres<=0 or Ws<0 or Wres+1e-9<Ws or U<0:
+        raise ValueError('抗浮重量輸入不合理：Wf+Ws+Wc須為正且不得小於Ws；U不可為負')
+    if not 0<=kvv<=0.5:
+        raise ValueError('垂直地震係數須介於 0 與 0.5')
+    if fs<1.5:
+        raise ValueError('USACE 2025 §9-10(f) 地震抗浮安全係數不得低於 1.5')
+    if U==0:
+        return {
+            'cases':[],'applicable':False,'FS_uplift':None,
+            'FS_required':fs,'passes':None,
+            'resisting_weight_kN':Wres,'structure_seismic_weight_kN':Ws,
+            'uplift_force_kN':U,'kv':kvv,
+            'method':'USACE EM 1110-1-1905 (2025), §9-10(f), §5-7 Eq. 5-36',
+            'limitations':'U=0，未輸入基底揚壓力；本次不計算抗浮 FS，不能據此宣稱已完成基底孔壓／揚壓評估。'
+        }
+    cases=[]
+    for sign in (-1,1):
+        Weq=Wres+sign*kvv*Ws
+        fs_uplift=(Weq/U if Weq>0 else 0.0)
+        cases.append({
+            'vertical_sign':('向上慣性（降低結構向下重量）' if sign==-1 else '向下慣性（增加結構向下重量）'),
+            'resisting_weight_kN':Wres,
+            'structure_seismic_weight_kN':Ws,
+            'vertical_seismic_adjustment_kN':sign*kvv*Ws,
+            'effective_downward_weight_kN':Weq,
+            'uplift_force_kN':U,
+            'FS_uplift':fs_uplift,
+            'FS_required':fs,
+            'passes':fs_uplift>=fs,
+        })
+    governing=min(cases,key=lambda row:row['FS_uplift'])
+    return {
+        'cases':cases,'applicable':True,
+        'FS_uplift':governing['FS_uplift'],
+        'FS_required':fs,'passes':all(row['passes'] for row in cases),
+        'governing_case':governing,
+        'resisting_weight_kN':Wres,'structure_seismic_weight_kN':Ws,
+        'uplift_force_kN':U,'kv':kvv,
+        'method':'USACE EM 1110-1-1905 (2025), §9-10(f), §5-7 Eq. 5-36',
+        'limitations':'Wf+Ws+Wc 必須為可計入抗浮的永久向下重量：Wf 包含基礎及基礎承載高程以上土重，Ws 為結構／固定設備及結構頂面以上土重，Wc 為結構內水重；Ws 另按 ±kv 調整。U 必須是整個基礎底面的總揚壓合力，且須包含靜水壓與地震殘餘超額孔隙水壓；本函式不自行推估孔壓分布、不計入周圍土體剪力抗拔或界面黏著抗力。連續基礎各輸入均須採每延米線荷載。'
+    }
+
+
 def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
         footing_depth_m, footing_length_m, friction_angle_deg,
         cohesion_kpa, fs_sliding=2.0, load_case='static'):

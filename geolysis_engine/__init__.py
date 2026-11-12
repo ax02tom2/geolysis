@@ -9,7 +9,7 @@ from .settlement import consolidation_settlement_1d, consolidation_allowable_pre
 from .rebound import excavation_rebound_recompression_layers
 from .stress_profile import consolidation_settlement_layers_from_stress_profile
 from .rock import hoek_brown_parameters, hoek_brown_structure_applicability
-from .stability import foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, bishop_simplified_factor_of_safety, bishop_circular_search, developed_rankine_sliding_earth_pressures
+from .stability import foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, bishop_simplified_factor_of_safety, bishop_circular_search, developed_rankine_sliding_earth_pressures
 
 __all__ = [
     "ROD_CORRECTION",
@@ -52,6 +52,7 @@ __all__ = [
     "seismic_foundation_eccentricity_cases",
     "foundation_sliding_factor_of_safety",
     "foundation_sliding_pseudostatic_cases",
+    "seismic_uplift_stability_cases",
     "bishop_simplified_factor_of_safety",
     "bishop_circular_search",
     "seismic_bearing_capacity_residual_pore_pressure",

@@ -30,6 +30,7 @@ from geolysis_engine import (
     seismic_foundation_eccentricity_cases,
     foundation_sliding_factor_of_safety,
     foundation_sliding_pseudostatic_cases,
+    seismic_uplift_stability_cases,
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
     dmt_settlement_2025,
@@ -3239,3 +3240,49 @@ def test_usace_residual_pore_pressure_cases_accept_fsliq_and_confirmed_ru_source
     assert result["factor_of_safety_liquefaction"] == pytest.approx(1.2)
     assert result["no_significant_lateral_spreading_confirmed"] is True
     assert result["ru_source_confirmed"] is True
+
+
+def test_seismic_uplift_fs_adjusts_only_structure_weight_for_vertical_inertia():
+    result = seismic_uplift_stability_cases(
+        resisting_weight_kN=1500.0,
+        structure_seismic_weight_kN=1000.0,
+        uplift_force_kN=100.0,
+        kv=0.1,
+    )
+    assert result["FS_uplift"] == pytest.approx(14.0)
+    assert result["governing_case"]["effective_downward_weight_kN"] == pytest.approx(1400.0)
+    assert result["passes"] is True
+    assert result["FS_required"] == pytest.approx(1.5)
+
+
+def test_seismic_uplift_fs_fails_when_vertical_seismic_case_is_below_1_5():
+    result = seismic_uplift_stability_cases(
+        resisting_weight_kN=200.0,
+        structure_seismic_weight_kN=100.0,
+        uplift_force_kN=150.0,
+        kv=0.5,
+    )
+    assert result["FS_uplift"] == pytest.approx(1.0)
+    assert result["passes"] is False
+
+
+def test_seismic_uplift_fs_zero_uplift_is_not_reported_as_pass():
+    result = seismic_uplift_stability_cases(
+        resisting_weight_kN=1500.0,
+        structure_seismic_weight_kN=1000.0,
+        uplift_force_kN=0.0,
+        kv=0.1,
+    )
+    assert result["applicable"] is False
+    assert result["FS_uplift"] is None
+    assert result["passes"] is None
+
+
+def test_seismic_uplift_fs_requires_resisting_weight_to_include_structure_weight():
+    with pytest.raises(ValueError, match="不得小於Ws"):
+        seismic_uplift_stability_cases(
+            resisting_weight_kN=500.0,
+            structure_seismic_weight_kN=600.0,
+            uplift_force_kN=100.0,
+            kv=0.1,
+        )
