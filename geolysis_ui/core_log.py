@@ -437,6 +437,8 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                                 f"｜建議：{suggested}"
                             )
                             review_options = ["待確認", "天然節理", "機械破損", "非斷裂／誤判"]
+                            if candidate.get("candidate_type") == "core_gap":
+                                review_options.insert(3, "岩心缺失／採取損失")
                         review = st.selectbox(
                             candidate_label,
                             review_options,
