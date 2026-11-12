@@ -555,3 +555,28 @@ def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5_bearing_transfer") is None
+
+
+@pytest.mark.parametrize(
+    ("eccentricity_key", "eccentricity_value"),
+    [("m5_eB", 0.10), ("m5_eL", 0.10)],
+)
+def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
+    eccentricity_key, eccentricity_value
+):
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5_run").click()
+    app.run()
+    assert app.session_state.get("m5_bearing_transfer") is not None
+
+    next(widget for widget in app.number_input if widget.key == eccentricity_key).set_value(eccentricity_value)
+    app.run()
+    assert app.session_state.get("m5_bearing_transfer") is None
+    next(widget for widget in app.button if widget.key == "m5_run").click()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5_bearing_transfer") is None
