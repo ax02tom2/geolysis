@@ -715,7 +715,8 @@ def render_module_5(expanded=False):
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             slide_uplift_resisting_weight5=st.number_input(f"抗浮永久向下重量 Wf+Ws+Wc [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_uplift_resisting_weight",
                 help="依 USACE Eq. 5-36：Wf 含基礎及基礎承載高程以上土重；Ws 含結構／固定設備及結構頂面以上土重；Wc 為結構內水重。只輸入可計入抗浮的重量。")
-            slide_uplift_weights_confirmed5=st.checkbox("已確認 Wf+Ws+Wc 為可計入抗浮的永久重量，且上方 W 代表結構重量 Ws 並包含於此總重量",value=False,key="m5x_uplift_weights_confirm")
+            st.warning("規範解讀注意：USACE §5-7(b) 指出永久死重僅在風力揚壓評估時納入；§9-10(f) 又指示地震抗浮沿用 §5-7 方法並調整結構慣性力。此處目前依 Eq. 5-36 採 Wf+Ws+Wc，並只對 Ws 套用 ±kv；Wf、Wc 是否可計入地震抗浮，仍須依本案適用規範與結構耐震載重定義確認。")
+            slide_uplift_weights_confirmed5=st.checkbox("已依本案適用規範確認地震抗浮可採 Wf+Ws+Wc，且上方 W 代表結構地震重量 Ws 並包含於此總重量",value=False,key="m5x_uplift_weights_confirm")
             slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓",value=False,key="m5x_uplift_pressure_confirm")
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             st.caption(f"目前 {slide_case5} 的揚壓參考值 u_D={slide_base_uD5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 本荷載組合採用殘餘超額孔壓 {slide_residual_u5:.2f}）；對應 U_ref≈{hydrostatic_U_ref5:.2f} {slide_force_unit5}。")
