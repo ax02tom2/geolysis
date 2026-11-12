@@ -129,7 +129,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
     with st.expander("岩心柱狀圖解析與 RQD 初估", expanded=expanded):
         st.caption(
             "支援整孔 DOCX／PDF。每列依 1.0 m 初估採取率與 RQD；"
-            "先顯示原始頁面疊圖，再逐列覆核疑似天然節理、機械破損及不確定位置。"
+            "先顯示原始頁面疊圖，再逐列覆核疑似斷裂線跡、岩心間隙及不確定位置。"
         )
         uploaded = st.file_uploader(
             "上傳整孔岩心柱狀圖（DOCX／PDF）",
