@@ -1257,7 +1257,10 @@ def estimate_rqd_from_image_segments(
     total_core_mm = sum(b - a for a, b in intervals)
     # 沒有偵測到候選不等於確認沒有天然節理；因此可保留影像初估採取率，
     # 但不能把整段岩心自動視為一整段合格岩心並回報 RQD=100%。
-    if not breaks and not no_breaks_confirmed:
+    fracture_line_candidates = [
+        item for item in breaks if item.get("candidate_type") != "core_gap"
+    ]
+    if not fracture_line_candidates and not no_breaks_confirmed:
         return {
             "success": True, "ready": False,
             "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1),
@@ -1266,7 +1269,7 @@ def estimate_rqd_from_image_segments(
             "rqd_length_mm": None,
             "piece_lengths_mm": [],
             "unresolved_count": 0,
-            "warning": "未找到明確斷裂候選，不代表沒有天然節理；請人工檢視岩心，暫不推定影像 RQD。",
+            "warning": "未找到明確橫向斷裂線候選；請人工檢視所有連續岩心區段，確認沒有漏掉天然節理後再估算 RQD。",
         }
 
     piece_lists = []
