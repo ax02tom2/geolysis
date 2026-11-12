@@ -107,9 +107,9 @@ def test_pdf_parser_uses_decimal_row_end_depths_without_manual_start_depth():
 
     document = fitz.open()
     page = document.new_page(width=600, height=800)
-    page.insert_image(fitz.Rect(20, 100, 500, 580), stream=image_buffer.getvalue())
+    page.insert_image(fitz.Rect(50, 100, 530, 580), stream=image_buffer.getvalue())
     for index, depth_end in enumerate(("1.0", "2.0", "3.0", "4.0")):
-        page.insert_text((510, 160 + index * 120), depth_end, fontsize=10)
+        page.insert_text((540, 160 + index * 120), depth_end, fontsize=10)
 
     parsed = parse_pdf_core_log(document.tobytes(), start_depth_m=None, row_length_m=1.0)
     records = parsed["records"]
