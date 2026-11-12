@@ -714,8 +714,10 @@ def render_module_5(expanded=False):
                 slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_slide_c_{'hb' if use_hb5 else 'manual'}")
             with sc:
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
-                slide_pa5=st.number_input(f"主動土壓力 Pa [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
-                slide_pp5=st.number_input(f"已折減被動抗力 Pp [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
+                slide_pa_label5=("地震作用下不利主動土壓 Pa" if slide_load_case5=="seismic" else "主動土壓力 Pa")
+                slide_pp_label5=("地震作用下不利被動抗力 Pp" if slide_load_case5=="seismic" else "已折減被動抗力 Pp")
+                slide_pa5=st.number_input(f"{slide_pa_label5} [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
+                slide_pp5=st.number_input(f"{slide_pp_label5} [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             slide_uplift_resisting_weight5=st.number_input(f"抗浮永久向下重量 Wf+Ws+Wc [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_uplift_resisting_weight",
