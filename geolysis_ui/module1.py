@@ -24,17 +24,26 @@ _HB_PAIRED_CASES = {
     "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
         "東北部宜蘭線瑞芳段風化砂岩｜崩塌回算案例",
 }
+_HB_CASE_MI_WITHOUT_PAIRED_UCS = {
+    "片岩 Schist（蘇花公路案例）",
+}
 
 
 def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
     """Warn when a case-derived mi is paired with another case's UCS."""
-    if rock_preset in _HB_PAIRED_CASES and ucs_mode == "依現場敲擊分級初估":
+    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES))
+            and ucs_mode == "依現場敲擊分級初估"):
         return (
             f"目前 mi 來自「{rock_preset}」的特定案例，但 UCS 改採現場敲擊分級估值；"
             "兩者不是同一組試驗參數。此組合僅供初步敏感度分析，正式設計應優先取得同岩性完整岩心 UCS／三軸資料。"
         )
     if ucs_mode != "採用台灣岩性案例參考值" or not ucs_case_label:
         return None
+    if rock_preset in _HB_CASE_MI_WITHOUT_PAIRED_UCS:
+        return (
+            f"目前 mi 來自「{rock_preset}」工程案例，但目前沒有同一案例可配對的完整岩心 UCS；"
+            f"所選 UCS「{ucs_case_label}」是另一份資料。請確認岩性／風化程度相符，並以本工址試驗或敏感度分析驗證。"
+        )
     expected_ucs = _HB_PAIRED_CASES.get(rock_preset)
     if expected_ucs is not None and ucs_case_label != expected_ucs:
         return (
