@@ -1073,6 +1073,12 @@ def dmt_modulus_settlement_2025(*, layers, footing_width_m, footing_length_m,
             f"DMT 模數剖面僅涵蓋至 {profile_bottom:.2f} m；USACE 2025 至少需涵蓋 "
             f"{required_depth:.2f} m，不可外插未測土層"
         )
+    if rows and rows[-1]["Stress_factor_I_sigma"] >= 0.1 - 1e-9:
+        raise ValueError(
+            f"DMT MDMT 剖面底部 {profile_bottom:.2f} m 的末層中心 "
+            f"Δσz/q_net={rows[-1]['Stress_factor_I_sigma']:.3f}，仍未低於 0.10；"
+            "依 USACE 2025 表 7-4 Step 2，須延伸分層至應力增量可忽略的深度"
+        )
     return {
         "settlement_mm": sum(x["Settlement_mm"] for x in rows),
         "gross_pressure_used_kpa": q_used,
@@ -1178,6 +1184,12 @@ def dmt_settlement_2025(*, layers, footing_width_m, footing_length_m,
         raise ValueError(
             f"DMT 剖面僅涵蓋 {depth:.2f} m；USACE 2025 表 7-4 至少需涵蓋 "
             f"{required_depth:.2f} m（{required_depth/B:.0f}B），不可外插未測土層"
+        )
+    if results and results[-1]["Stress_factor_I_sigma"] >= 0.1 - 1e-9:
+        raise ValueError(
+            f"DMT 剖面底部 {depth:.2f} m 的末層中心 "
+            f"Δσz/q_net={results[-1]['Stress_factor_I_sigma']:.3f}，仍未低於 0.10；"
+            "依 USACE 2025 表 7-4 Step 2，須延伸分層至應力增量可忽略的深度"
         )
     out_of_typical_range = [
         f"第 {row_result['Layer']} 層 KD={row_result['KD']:.2f}"
