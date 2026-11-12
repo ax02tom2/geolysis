@@ -708,7 +708,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         raise ValueError("基礎尺寸、壓力或 PMT 模數資料不合理；承載力安全係數 FS 必須大於 1.0")
     if soft_layers:
         if not soft_layer_profile_reviewed:
-            raise ValueError("使用式 7-12 前，必須確認已辨識至少 2B／6B，並延伸至 Δσz < 0.1q 的所有軟弱／鬆散層")
+            raise ValueError("使用式 7-12 前，必須確認已辨識式 7-12 適用範圍內（軸對稱基礎 2B／條形基礎 6B）的所有軟弱／鬆散層")
     elif not deep_uniform_deposit_confirmed:
         raise ValueError("式 7-11 僅適用深層且相對均質土層；若 2B／6B 內有軟弱層或鬆散夾層，須輸入軟弱層資料改用式 7-12")
     if soil_type not in ("clay", "silt", "sand", "sand_gravel", "peat", "rock"):
@@ -857,16 +857,18 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
                 Iz = boussinesq_rectangular_center_factor(B, L, z)
             if not 0.0 <= Iz <= 1.0:
                 raise ValueError(f"PMT 軟弱層第 {index} 筆 I_sigma 必須介於 0 與 1")
-            # USACE EM 1110-1-1905 (2025), §§6-5(c), 7-11:
-            # include the minimum 2B/6B depth, and continue deeper while the
-            # induced vertical stress remains significant (Delta-sigma_z >=
-            # 0.1 times the applied net pressure). I_sigma is Delta-sigma_z/q_net.
-            layer_bottom = interval[1]
-            if interval[0] >= minimum_soft_depth - 1e-9 and Iz < 0.1 - 1e-9:
+            # USACE EM 1110-1-1905 (31 July 2025), Eq. 7-12 and Table 7-5,
+            # Steps 13-17: the PMT soft/loose-layer term is specifically
+            # limited to layers encountered within 2B (axisymmetric) or 6B
+            # (strip, L/B >= 10). The general <0.1q significant-stress depth
+            # criterion in §6-5(c) does not replace this method-specific limit.
+            # A layer intersecting the boundary is included as a whole; a
+            # separate layer beginning at/beyond the limit is outside Eq. 7-12.
+            if interval[0] >= minimum_soft_depth - 1e-9:
                 raise ValueError(
-                    f"PMT 軟弱層第 {index} 筆位於最低檢核深度 "
-                    f"{minimum_soft_depth:.2f} m 以下，且 I_sigma={Iz:.3f}<0.10；"
-                    "依 USACE 2025 應力影響準則，該處 Δσz 已低於 0.1q，可不再納入式 7-12"
+                    f"PMT 軟弱層第 {index} 筆完全位於式 7-12 適用範圍 "
+                    f"{minimum_soft_depth:.2f} m（{'6B 條形基礎' if L / B >= 10.0 else '2B 軸對稱基礎'}）以外；"
+                    "依 USACE 2025 表 7-5 Step 13，不可納入本式計算"
                 )
             component_m = alpha_L * (1.0 / EL - 1.0 / Ed) * Iz * q_net * H
             if component_m < 0:
