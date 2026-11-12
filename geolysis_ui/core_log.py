@@ -246,17 +246,21 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         index=0,
                         key=f"core_rotation_{file_digest[:10]}_{index}",
                     )
+                    crop_supported = min(record.image.width, record.image.height) >= 80
                     crop_enabled = st.checkbox(
                         "裁除托盤邊框（不改變原始檔案）",
                         value=False,
+                        disabled=not crop_supported,
                         key=f"core_crop_enabled_{file_digest[:10]}_{index}",
                     )
+                    if not crop_supported:
+                        st.caption("本列影像短邊小於 80 px，暫不提供邊框裁切；可使用 1 m 量測範圍校正。")
                     if crop_enabled:
                         crop_cols = st.columns(4)
-                        left_pct = crop_cols[0].slider("左 (%)", 0, 20, 2, key=f"core_crop_l_{file_digest[:10]}_{index}")
-                        right_pct = crop_cols[1].slider("右 (%)", 0, 20, 2, key=f"core_crop_r_{file_digest[:10]}_{index}")
-                        top_pct = crop_cols[2].slider("上 (%)", 0, 20, 2, key=f"core_crop_t_{file_digest[:10]}_{index}")
-                        bottom_pct = crop_cols[3].slider("下 (%)", 0, 20, 2, key=f"core_crop_b_{file_digest[:10]}_{index}")
+                        left_pct = crop_cols[0].slider("左 (%)", 0, 20, 1, key=f"core_crop_l_{file_digest[:10]}_{index}")
+                        right_pct = crop_cols[1].slider("右 (%)", 0, 20, 1, key=f"core_crop_r_{file_digest[:10]}_{index}")
+                        top_pct = crop_cols[2].slider("上 (%)", 0, 20, 1, key=f"core_crop_t_{file_digest[:10]}_{index}")
+                        bottom_pct = crop_cols[3].slider("下 (%)", 0, 20, 1, key=f"core_crop_b_{file_digest[:10]}_{index}")
                     else:
                         left_pct = right_pct = top_pct = bottom_pct = 0
 
@@ -273,9 +277,12 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 row_measurement = rotate_image(record.image, rotation)
                 crop_meta = None
                 if crop_enabled:
-                    row_measurement, crop_meta = crop_tray_insets(
-                        row_measurement, left_pct, right_pct, top_pct, bottom_pct
-                    )
+                    try:
+                        row_measurement, crop_meta = crop_tray_insets(
+                            row_measurement, left_pct, right_pct, top_pct, bottom_pct
+                        )
+                    except Exception as exc:
+                        st.warning(f"托盤邊框裁切未套用：{exc}；改用旋轉後原圖繼續分析。")
                 mm_per_px = item["mm_per_px"]
                 measured_row = row_measurement
                 if rotation or crop_enabled:
