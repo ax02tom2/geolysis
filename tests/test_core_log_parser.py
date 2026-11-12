@@ -107,3 +107,45 @@ def test_pdf_keeps_full_page_preview_and_row_overlay_coordinates():
     assert all(0 <= x0 < x1 <= page["width_px"] and 0 <= y0 < y1 <= page["height_px"]
                for x0, y0, x1, y1 in boxes)
     assert all(boxes[i][1] < boxes[i + 1][1] for i in range(len(boxes) - 1))
+
+
+def _pdf_fixture_with_missing_middle_label():
+    pdf = fitz.open()
+    page = pdf.new_page(width=595, height=842)
+    page.insert_image(fitz.Rect(40, 30, 520, 125), stream=_header_image())
+    page.insert_image(fitz.Rect(40, 160, 470, 360), stream=_box_image())
+    # Row 2 label is deliberately absent. Rows 3 and 4 must not shift upward.
+    for y, n in ((185, 1), (285, 3), (335, 4)):
+        page.insert_text((485, y), str(n), fontsize=12)
+    out = pdf.tobytes()
+    pdf.close()
+    return out
+
+
+def _pdf_fixture_with_cropped_two_row_box():
+    pdf = fitz.open()
+    page = pdf.new_page(width=595, height=842)
+    page.insert_image(fitz.Rect(40, 30, 520, 125), stream=_header_image())
+    two_rows = Image.new("RGB", (800, 200), "white")
+    draw = ImageDraw.Draw(two_rows)
+    draw.line((0, 100, 800, 100), fill="black", width=3)
+    buf = BytesIO()
+    two_rows.save(buf, format="JPEG", quality=90)
+    page.insert_image(fitz.Rect(40, 160, 470, 260), stream=buf.getvalue())
+    out = pdf.tobytes()
+    pdf.close()
+    return out
+
+
+def test_pdf_missing_middle_label_does_not_drop_or_shift_core_rows():
+    result = parse_pdf_core_log(_pdf_fixture_with_missing_middle_label(), start_depth_m=0.0)
+    assert result["rows_detected"] == 4
+    assert [r.row_number for r in result["records"]] == [1, None, 3, 4]
+    assert [r.row_in_box for r in result["records"]] == [1, 2, 3, 4]
+
+
+def test_pdf_cropped_partial_box_without_labels_infers_visible_rows_from_image_height():
+    result = parse_pdf_core_log(_pdf_fixture_with_cropped_two_row_box(), start_depth_m=0.0)
+    assert result["rows_detected"] == 2
+    assert [r.row_in_box for r in result["records"]] == [1, 2]
+    assert all(r.image.height == 100 for r in result["records"])
