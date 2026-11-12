@@ -437,7 +437,8 @@ def render_module_5(expanded=False):
             st.info("本區將水平地震作用按與既有 H 同向的不利包絡 H+kh·W，並計算兩個垂直地震方向 V±kvW，再套用 Meyerhof 載重傾斜與 USACE 形狀、深度及地下水修正。方向性限制：只有水平基底、水平地表才可使用；地震水平力反向相對於斜坡／傾斜基底的作用方向尚未建模，非零坡角會停用本計算。地震彎矩造成的偏心已逐組合計算；地震傾覆幾何依 §9-10(e) 檢核合力是否位於基礎範圍內，中三分點另列為靜力參考。部分剪力區可依手冊以使用者輸入的加權比例與兩種有效單位重估算 γ′b，但系統不會自動由地層深度推定比例。仍未納入基底殘餘超額孔壓上拔及土體慣性；孔壓折減極限抗力不是地震 FS，完整承載壓力檢核須提供適用的地震 q_allow。另請注意：表 2-1 註 2 的 FS=1.1 僅適用滑動，不是承載力地震 FS；承載力風震容許應力增幅須依適用建築法規／UFC，且土層有剪力強度損失（SSL）疑慮時不得採用。")
             ss1,ss2,ss3=st.columns(3)
             with ss1:
-                ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru")
+                ru5=st.number_input("殘餘超額孔隙水壓比 ru",0.0,0.99,0.0,0.01,key="m5x_ru",
+                    help="USACE §9-9c 定義 ru=殘餘超額孔隙水壓／初始有效上覆應力；請依 Figure 9-1 或場址專屬孔壓分析取得。")
             fsliq5=st.number_input("剪力區液化安全係數 FS_liq",0.0,10.0,0.0,0.05,key="m5x_fs_liq",
                 help="須由獨立液化評估取得；FS_liq≤1.0 不得使用式 9-3／9-4。")
             no_significant_lateral_spreading_confirmed5=st.checkbox("已依場址評估確認不預期顯著側向擴展",value=False,key="m5x_no_significant_lateral_spreading")
@@ -447,6 +448,8 @@ def render_module_5(expanded=False):
                 st.error("FS_liq≤1.0：可能已觸發液化，式 9-3／9-4 不適用；請改採液化後殘餘強度及穿刺剪力／整體穩定分析。")
             elif 1.0<fsliq5<=1.4:
                 st.info("目前屬邊際液化範圍；在不預期顯著側向擴展且 ru 來源確認後，可依 §9-10(c)(3) 使用本式評估。")
+                if ru5==0.0:
+                    st.warning("FS_liq 位於邊際液化範圍但 ru=0；請再次核對 Figure 9-1 或場址孔壓分析，勿將預設 0 當成無孔壓的證據。")
             with ss2:
                 st.caption("Nγ、γ′、形狀／深度／載重傾斜／基底／地表修正將依目前 φ、基礎幾何、地下水及地震合力 H_eq/V_eq 組合自動計算，不再要求手動猜測係數。")
             with ss3:
@@ -525,6 +528,7 @@ def render_module_5(expanded=False):
                     st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；依 USACE §9-10(e) 幾何檢核不符合。")
                 if not sr.get("middle_third_check_pass",True):
                     st.info("至少一組地震組合超出靜力中間三分點。地震極端事件不以此作唯一判定；仍須檢核有效承載壓力是否不超過適用的地震 q_allow。")
+                st.caption(f"適用性輸入：FS_liq={sr['factor_of_safety_liquefaction']:.2f}；ru={sr['ru']:.2f}；已確認無顯著側向擴展及 ru 來源。")
                 st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D={sr['base_uplift_pressure_kpa']:.2f} kPa；地震殘餘超額孔壓額外上拔及 uplift FS≥1.5 尚未納入，必須另行檢核。")
                 if any(case.get("average_contact_pressure_kpa") is not None and case["average_contact_pressure_kpa"]<=0 for case in sr["cases"]):
                     st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
