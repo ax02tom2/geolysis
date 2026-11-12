@@ -735,8 +735,8 @@ def segment_core_occupancy(
     import cv2
     import numpy as np
 
-    if mm_per_px <= 0 or min_gap_mm <= 0:
-        raise ValueError("比例尺與最小缺口長度必須大於 0。")
+    if not np.isfinite(mm_per_px) or not np.isfinite(min_gap_mm) or mm_per_px <= 0 or min_gap_mm <= 0:
+        raise ValueError("比例尺與最小缺口長度必須是有限且大於 0 的數值。")
     if not 0.05 <= min_core_occupancy <= 0.8:
         raise ValueError("min_core_occupancy 必須介於 0.05 至 0.8。")
     rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
@@ -830,8 +830,8 @@ def analyze_core_row_v8(
 
     if not np.isfinite(mm_per_px) or mm_per_px <= 0:
         raise ValueError("比例尺必須是有限且大於 0 的數值。")
-    if min_segment_mm <= 0 or min_gap_mm <= 0:
-        raise ValueError("最小岩芯區段與空隙長度必須大於 0。")
+    if not np.isfinite(min_segment_mm) or not np.isfinite(min_gap_mm) or min_segment_mm <= 0 or min_gap_mm <= 0:
+        raise ValueError("最小岩芯區段與空隙長度必須是有限且大於 0 的數值。")
     rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
     h, w = rgb.shape[:2]
     if w < 100 or h < 36:
@@ -966,10 +966,10 @@ def detect_core_break_candidates_v1(
 
     if not np.isfinite(mm_per_px) or mm_per_px <= 0:
         raise ValueError("mm_per_px 必須是有限且大於 0 的數值。")
-    if not 0.1 <= min_line_coverage <= 0.9:
-        raise ValueError("min_line_coverage 必須介於 0.1 至 0.9。")
-    if min_separation_mm <= 0:
-        raise ValueError("min_separation_mm 必須大於 0。")
+    if not np.isfinite(min_line_coverage) or not 0.1 <= min_line_coverage <= 0.9:
+        raise ValueError("min_line_coverage 必須是有限數值且介於 0.1 至 0.9。")
+    if not np.isfinite(min_separation_mm) or min_separation_mm <= 0:
+        raise ValueError("min_separation_mm 必須是有限且大於 0 的數值。")
 
     rgb = np.asarray(row_image.convert("RGB"), dtype=np.uint8)
     h, w = rgb.shape[:2]
@@ -1228,8 +1228,12 @@ def estimate_rqd_from_image_segments(
 
     if not math.isfinite(mm_per_px) or mm_per_px <= 0:
         raise ValueError("mm_per_px 必須是有限且大於 0 的數值。")
-    if row_length_mm <= 0 or rqd_threshold_mm <= 0:
-        raise ValueError("列長與 RQD 門檻必須大於 0。")
+    row_length_mm = float(row_length_mm)
+    rqd_threshold_mm = float(rqd_threshold_mm)
+    if not math.isfinite(row_length_mm) or row_length_mm <= 0:
+        raise ValueError("列長必須是有限且大於 0 的數值。")
+    if not math.isfinite(rqd_threshold_mm) or rqd_threshold_mm <= 0:
+        raise ValueError("RQD 門檻必須是有限且大於 0 的數值。")
 
     breaks = list(reviewed_breaks)
     allowed = {"天然節理", "機械破損", "岩心缺失／採取損失", "非斷裂／誤判"}
