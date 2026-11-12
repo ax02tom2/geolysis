@@ -18,6 +18,49 @@ def _gsi_sensitivity_values(structure_code, lower, upper):
     return sorted(set((lo, hi)))
 
 
+_HB_PAIRED_CASES = {
+    "砂岩 Sandstone（台灣南莊層三軸案例）":
+        "南莊層砂岩｜隧道完整岩心試驗單一案例",
+    "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
+        "東北部宜蘭線瑞芳段風化砂岩｜崩塌回算案例",
+}
+_HB_CASE_MI_WITHOUT_PAIRED_UCS = {
+    "片岩 Schist（蘇花公路案例）",
+}
+
+
+def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
+    """Warn when a case-derived mi is paired with another case's UCS."""
+    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES))
+            and ucs_mode == "依現場敲擊分級初估"):
+        return (
+            f"目前 mi 來自「{rock_preset}」的特定案例，但 UCS 改採現場敲擊分級估值；"
+            "兩者不是同一組試驗參數。此組合僅供初步敏感度分析，正式設計應優先取得同岩性完整岩心 UCS／三軸資料。"
+        )
+    if ucs_mode != "採用台灣岩性案例參考值" or not ucs_case_label:
+        return None
+    if rock_preset in _HB_CASE_MI_WITHOUT_PAIRED_UCS:
+        return (
+            f"目前 mi 來自「{rock_preset}」工程案例，但目前沒有同一案例可配對的完整岩心 UCS；"
+            f"所選 UCS「{ucs_case_label}」是另一份資料。請確認岩性／風化程度相符，並以本工址試驗或敏感度分析驗證。"
+        )
+    expected_ucs = _HB_PAIRED_CASES.get(rock_preset)
+    if expected_ucs is not None and ucs_case_label != expected_ucs:
+        return (
+            f"目前 mi 選用「{rock_preset}」，其案例配對 UCS 應為「{expected_ucs}」。"
+            f"目前 UCS 選用「{ucs_case_label}」；兩者不是同一案例。"
+            "請改選配對案例，或改用本工址完整岩心三軸／單壓試驗值。"
+        )
+    reverse = {value: key for key, value in _HB_PAIRED_CASES.items()}
+    expected_mi = reverse.get(ucs_case_label)
+    if expected_mi is not None and rock_preset != expected_mi:
+        return (
+            f"目前 UCS 選用「{ucs_case_label}」，同一案例反算 mi 對應「{expected_mi}」，"
+            f"但目前 mi 選用「{rock_preset}」。請改選配對 mi，或確認兩項參數分別來自適用於本工址的試驗。"
+        )
+    return None
+
+
 def render_module_1(expanded=False):
     # ==============================================================================
     # 模組一：Hoek-Brown (2002) 岩體裂隙推估等效 c', phi' (含 GSI 視覺化查表)
@@ -222,6 +265,7 @@ def render_module_1(expanded=False):
             ucs_valid = False
             _ucs_range_low = _ucs_range_high = None
             _ucs_range_label = None
+            ucs_case_selected_label = None
     
             # 台灣案例／工程資料的完整岩石 UCS。kgf/cm² 以 0.0980665 換算為 MPa。
             # 區間是來源資料範圍，不代表特定工址；使用者仍須核對岩性、風化與含水狀態。
@@ -388,6 +432,7 @@ def render_module_1(expanded=False):
                         sig_ci = 25.0
                         st.warning("請依鑽探柱狀圖、岩性描述及風化程度選擇相符案例；未選定前不會將任意 UCS 值帶入計算。")
                     else:
+                        ucs_case_selected_label = _case_index
                         _ucs_low, _ucs_high, _ucs_mid, _ucs_note, _ucs_source = _ucs_case_data[_case_index]
                         _ucs_range_low, _ucs_range_high = _ucs_low, _ucs_high
                         _ucs_range_label = f"{_ucs_low:g}–{_ucs_high:g} MPa" if _ucs_low != _ucs_high else f"{_ucs_low:g} MPa（單一案例）"
@@ -436,6 +481,9 @@ def render_module_1(expanded=False):
                 else:
                     sig_ci = 25.0
                     st.warning("尚未選擇現場強度等級，因此暫不執行 Hoek–Brown 計算。")
+            _case_pair_warning = _hb_case_pair_warning(rock_preset, ucs_case_selected_label, ucs_mode)
+            if _case_pair_warning:
+                st.warning(_case_pair_warning)
             st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
     
         with hb_col2:
