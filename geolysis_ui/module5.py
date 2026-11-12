@@ -370,7 +370,8 @@ def render_module_5(expanded=False):
             st.caption("多層穿刺分析各層 c／Su、φ 必須依該層試驗或地勘資料分別輸入；系統不再以固定 0.5c 或 0.7φ 推定下層強度。選用 Module 1 Hoek–Brown 來源時，各層欄位另行輸入，避免把單一岩體等效參數複製到不同地層。")
             with lc:
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
-                footing_kind5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_layer_type")
+                footing_kind5=main_footing_type5
+                st.caption("多層穿刺分析沿用主承載力分析的基礎型式，避免同一基礎在不同檢核中使用不同長寬比分類。")
             if footing_kind5=="continuous": st.caption("連續條形基礎按 L/B→∞ 的 strip 極限計算形狀係數；不採用目前 L 欄位的有限長寬比。")
             layer_check_unsupported=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if layer_check_unsupported:
@@ -466,10 +467,8 @@ def render_module_5(expanded=False):
             with eb:
                 kv5=st.number_input("垂直地震係數 kv（輸入正值大小；自動計算向下增／減）",0.0,0.5,0.0,0.01,key="m5x_kv")
             with ec:
-                seismic_footing5=st.selectbox("地震偏心／孔壓承載力基礎型式",["spread","strip"],
-                    index=0 if footing_kind5=="isolated" else 1,
-                    format_func=lambda x:"獨立／擴展基礎" if x=="spread" else "連續條形基礎",
-                    key="m5x_seismic_footing")
+                seismic_footing5="strip" if main_footing_type5=="continuous" else "spread"
+                st.caption("地震承載力分析沿用主基礎幾何分類；面積與荷載單位不另行切換基礎型式。")
                 seismic_area_default5=max(0.1,(B5-2*eB5) if seismic_footing5=="strip" else (B5-2*eB5)*(L5-2*eL5))
                 seismic_area_unit5="m²/m" if seismic_footing5=="strip" else "m²"
                 seismic_force_unit5="kN/m" if seismic_footing5=="strip" else "kN"
@@ -686,10 +685,8 @@ def render_module_5(expanded=False):
     
         with st.expander("⑤ 基礎底面滑動安全係數",expanded=False):
             st.caption("依 USACE 2025 式 5-28／5-29。基底摩擦、黏著、揚壓力分別輸入；主動／被動土壓需先以 developed strength 另行計算。")
-            slide_footing5=st.selectbox("滑動檢核基礎型式",["isolated","continuous"],
-                index=0 if seismic_footing5=="spread" else 1,
-                format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",
-                key="m5x_slide_footing")
+            slide_footing5=main_footing_type5
+            st.caption("滑動檢核沿用主基礎幾何分類；若基礎幾何不同，請先修改上方 B、L。")
             slide_is_line5=(slide_footing5=="continuous")
             slide_force_unit5="kN/m" if slide_is_line5 else "kN"
             slide_area_unit5="m²/m" if slide_is_line5 else "m²"
@@ -971,7 +968,8 @@ def render_module_5(expanded=False):
                 insitu_type5=st.selectbox("原位試驗類型",["SPT","CPT","PMT"],format_func=lambda x:{"SPT":"SPT（N60）","CPT":"CPT（qne）","PMT":"PMT（pne）"}[x],key="m5x_insitu_type")
                 insitu_drainage5=st.selectbox("排水條件",["drained","undrained"],format_func=lambda x:"排水（有效應力）" if x=="drained" else "不排水（總應力）",key="m5x_insitu_drainage")
             with ib:
-                insitu_footing5=st.selectbox("基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形" if x=="isolated" else "連續條形",key="m5x_insitu_footing")
+                insitu_footing5=main_footing_type5
+                st.caption("原位試驗承載力沿用主基礎幾何分類。")
                 insitu_values5=st.text_input("剪力區試驗值（逗號分隔）",value="",placeholder="例如：12, 12, 15, 14",key="m5x_insitu_values")
             with ic:
                 st.metric("目前基礎 B × L",f"{B5:.2f} × {L5:.2f} m")
@@ -1019,7 +1017,8 @@ def render_module_5(expanded=False):
         with st.expander("⑧ 原位試驗分層承載力與弱層穿刺整合",expanded=False):
             st.caption("依 USACE 2025 式 5-25／5-26、表 5-5 分別計算各層原位試驗承載力，再依式 5-17／5-18 檢查強上層覆蓋弱下層的 2V:1H 穿刺。每列厚度是自基礎底面向下的該層厚度；各層可使用不同試驗種類與排水條件。")
             st.caption("CSV 欄位：thickness_m,test_type,drainage,measurements。SPT 輸入 N60（blows/ft）；CPT 輸入 qne（kPa）；PMT 輸入 pne（kPa）。measurements 欄以分號分隔多筆試驗值。drainage 使用 drained 或 undrained。")
-            insitu_layer_footing5=st.selectbox("分層基礎型式",["isolated","continuous"],format_func=lambda x:"獨立／矩形基礎" if x=="isolated" else "連續條形基礎",key="m5x_insitu_layer_footing")
+            insitu_layer_footing5=main_footing_type5
+            st.caption("原位試驗分層承載力沿用主基礎幾何分類。")
             insitu_layer_csv5=st.text_area(
                 "各層原位試驗資料（CSV）",
                 value="thickness_m,test_type,drainage,measurements\n1.5,SPT,drained,20;22;18\n2.0,SPT,undrained,4;5;4",
