@@ -3894,3 +3894,36 @@ def test_seismic_eccentricity_and_residual_bearing_share_identical_load_envelope
         assert calc["average_contact_pressure_kpa"] == pytest.approx(
             geom["average_contact_pressure_kpa"]
         )
+
+
+def test_fhwa_quantitative_gsi_from_rqd_and_jcond89():
+    from geolysis_engine import gsi_quantitative_from_rqd_jcond
+
+    result = gsi_quantitative_from_rqd_jcond(
+        rqd_percent=80.0,
+        persistence_rating=6,
+        separation_rating=5,
+        roughness_rating=5,
+        infilling_rating=4,
+        weathering_rating=5,
+    )
+    assert result["JCond89"] == 25
+    assert result["GSI"] == pytest.approx(77.5)
+    assert result["equation"] == "GSI = 1.5 * JCond89 + RQD / 2"
+
+
+def test_fhwa_quantitative_gsi_rejects_invalid_rqd_and_non_table_ratings():
+    from geolysis_engine import gsi_quantitative_from_rqd_jcond89
+
+    common = dict(
+        persistence_rating=6, separation_rating=5, roughness_rating=5,
+        infilling_rating=4, weathering_rating=5,
+    )
+    with pytest.raises(ValueError, match="RQD 必須介於"):
+        gsi_quantitative_from_rqd_jcond89(rqd_percent=101, **common)
+    with pytest.raises(ValueError, match="Table 9-8"):
+        gsi_quantitative_from_rqd_jcond89(
+            rqd_percent=80, persistence_rating=3,
+            separation_rating=5, roughness_rating=5, infilling_rating=4,
+            weathering_rating=5,
+        )
