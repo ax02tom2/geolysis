@@ -231,3 +231,24 @@ def test_module5_defaults_uplift_force_from_base_pressure_and_full_footing_area(
     uplift_widget = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
     assert uplift_widget.value == pytest.approx(expected_u)
     assert "可覆寫" in uplift_widget.label
+
+
+def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seismic_case():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
+    next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(12.0)
+    next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm").check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    static_u = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
+    expected_hydrostatic = 1.5 * 9.81 * 2.0 * 3.0
+    assert static_u.value == pytest.approx(expected_hydrostatic)
+
+    next(widget for widget in app.selectbox if widget.key == "m5x_slide_case").select("含地震荷載")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    seismic_u = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
+    assert seismic_u.value == pytest.approx((1.5 * 9.81 + 12.0) * 2.0 * 3.0)
