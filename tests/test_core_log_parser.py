@@ -157,8 +157,8 @@ def test_pdf_cropped_partial_box_without_labels_infers_visible_rows_from_image_h
 def _pdf_fixture_five_boxes_twenty_depth_rows():
     pdf = fitz.open()
     page = pdf.new_page(width=595, height=1190)
-    page.insert_text((50, 45), "鑽孔編號 BH-01", fontsize=11)
-    page.insert_text((50, 65), "深度 0.0~20.0m", fontsize=11)
+    page.insert_text((50, 45), "BH No. BH-01", fontsize=11)
+    page.insert_text((50, 65), "Depth 0.0~20.0m", fontsize=11)
     box_bytes = _box_image()
     for box_index in range(5):
         y0 = 105 + box_index * 210
