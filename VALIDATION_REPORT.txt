@@ -2,12 +2,12 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: a3010e2a5b031d9a952da7b00bc84a39469b55ad
-Latest validation run: 43136481395 (PR #106; success)
+Validated main code commit: 3ee2805564fc24cc177e74c454fac40fdb0e5af2
+Latest validation run: 43136991432 (PR #108; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43136481395
+- Run ID: 43136991432
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,8 +15,8 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 444 passed
-- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, independent soil/interface defaults, and confirmed Module 5→Module 4 capacity transfer exercised
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 445 passed
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, independent soil/interface defaults, confirmed Module 5→Module 4 capacity transfer, and Bishop no-default/confirmation safeguards exercised
 - Widget-key and web-scope static checks: passed
 
 Engineering review corrections previously merged:
@@ -928,3 +928,12 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - Changing Module 5 inputs or withdrawing load confirmation clears the transfer; a controlled rerun makes the updated state available to Module 4 immediately.
 - Added two unit tests for geometry mismatch and confirmation gating, and an AppTest for an end-to-end confirmed Module 5 calculation that verifies the Module 4 transfer control is rendered.
 - PR #106 merged to main at a3010e2a5b031d9a952da7b00bc84a39469b55ad; CI run 43136481395: 444 passed; Python compileall and Streamlit AppTest passed.
+
+
+## Module 5 — Bishop project-input safeguards (PR #108)
+
+- Manual Bishop slice CSV now starts empty; calculation is disabled until project-specific slice values are entered and the same-slip-surface data confirmation is checked.
+- Homogeneous Bishop circular search no longer has an illustrative ground-profile default; the project-specific profile must be entered.
+- Bishop slope c′ and φ′ are independent inputs, defaulting to zero rather than inheriting Module 5 foundation-bearing parameters.
+- Auto-search confirmation is tied to profile, c′/φ′, unit weight, groundwater and search range. Changing any of these inputs invalidates the confirmation and prior result.
+- PR #108 merged to main at 3ee2805564fc24cc177e74c454fac40fdb0e5af2; CI run 43136991432: 445 passed; Python compileall and Streamlit AppTest passed.
