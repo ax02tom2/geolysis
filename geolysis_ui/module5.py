@@ -111,7 +111,7 @@ def render_module_5(expanded=False):
         with a:
             theory5=st.selectbox("理論",['Terzaghi','Meyerhof','Hansen','Vesic'],key='m5_theory')
             B5=st.number_input("基礎短邊 B [m]",0.2,50.0,2.0,0.1,key='m5_b')
-            L5=st.number_input("基礎長邊 L [m]",0.2,100.0,3.0,0.1,key='m5_l')
+            L5=st.number_input("基礎長邊 L [m]",min_value=float(B5),max_value=100.0,value=float(max(B5,3.0)),step=0.1,key='m5_l')
             main_footing_type5=usace_footing_type(footing_width_m=B5,footing_length_m=L5)
             st.caption(f"依 USACE 2025 長寬比 L/B={L5/B5:.2f} 自動判定：{'連續條形基礎' if main_footing_type5=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             if main_footing_type5=="continuous":
