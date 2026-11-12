@@ -674,6 +674,11 @@ def render_module_5(expanded=False):
             slide_is_line5=(slide_footing5=="continuous")
             slide_force_unit5="kN/m" if slide_is_line5 else "kN"
             slide_area_unit5="m²/m" if slide_is_line5 else "m²"
+            # Reset the default U estimate when base pressure, geometry or footing
+            # unit convention changes; the reviewer can still override the value.
+            uplift_default_signature5=hashlib.sha1(
+                f"{slide_is_line5}|{base_uplift_pressure_kpa5:.6f}|{uplift_base_area5:.6f}".encode("utf-8")
+            ).hexdigest()[:10]
             slide_area_default5=max(0.1,B5*(1.0 if slide_is_line5 else L5))
             slide_area_key5="m5x_slide_area_continuous" if slide_is_line5 else "m5x_slide_area_isolated"
             if slide_is_line5:
@@ -681,8 +686,11 @@ def render_module_5(expanded=False):
             sa,sb,sc=st.columns(3)
             with sa:
                 slide_v5=st.number_input(f"靜力總垂直力 V [{slide_force_unit5}]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
-                slide_u5=st.number_input(f"基底揚壓力合力 U [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_u",
-                    help="地震抗浮檢核使用整個基礎底面的總揚壓合力；應包含靜水壓及地震殘餘超額孔隙水壓，不是單位面積壓力。")
+                slide_u5=st.number_input(
+                    f"基底揚壓力合力 U [{slide_force_unit5}]（依 u_D×完整底面積初估，可覆寫）",
+                    0.0,1000000.0,float(hydrostatic_U_ref5),10.0,
+                    key=f"m5x_slide_u_{uplift_default_signature5}",
+                    help="預設以基底平均總孔隙水壓 u_D 乘完整底面積 B×L（連續基礎 B×1 m）估算 U_ref；若孔壓分布不均、存在滲流或有場址專屬壓力圖，請改輸入壓力分布積分所得總揚壓合力。仍須勾選下方確認，不會把初估值自動視為已確認。")
                 slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
             with sb:
                 slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
