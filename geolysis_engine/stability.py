@@ -81,8 +81,8 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
 
 def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations=500):
     """Bishop simplified circular limit-equilibrium method.
-    Each slice: width_m, weight_kN, base_angle_deg, cohesion_kpa,
-    friction_angle_deg, pore_pressure_kpa. Base length is width/cos(alpha).
+    Each slice: width_m, weight_kN (kN per metre out-of-plane), base_angle_deg,
+    cohesion_kpa, friction_angle_deg, pore_pressure_kpa. Base length is width/cos(alpha).
     """
     if not slices or len(slices)<3:
         raise ValueError('Bishop 至少需要 3 個切片')
@@ -120,7 +120,7 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             return {'FS':newF,'iterations':it,'converged':True,
                 'method':'Bishop simplified (circular slip surface; vertical interslice forces neglected)',
                 'slice_count':len(clean),
-                'limitations':'需由使用者提供同一圓弧滑動面之正確切片幾何、重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
+                'limitations':'二維每延米（出平面厚度 1 m）計算；切片重量為 kN/m，寬度為 m，c′與孔隙水壓為 kPa。需由使用者提供同一圓弧滑動面之正確切片幾何、每延米重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
         F=0.5*F+0.5*newF
     raise ValueError('Bishop 迭代未收斂；請檢查切片幾何、孔壓與強度資料')
 
@@ -251,7 +251,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         'unit_weight_sat_kn_m3':gamma_sat,
         'water_table_weighting':gw_elev is not None,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
-        'limitations':'目前假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
+        'limitations':'二維每延米（出平面厚度 1 m）計算，切片重量為 kN/m；假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
 
 def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
