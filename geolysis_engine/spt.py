@@ -99,13 +99,6 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
     """
     out=[]
     if not rows: raise ValueError('逐深度資料不可為空')
-    if apply_dilatancy and any(
-        _profile_value(row, "Apply_Dilatancy", None) is None for row in rows
-    ):
-        raise ValueError(
-            "逐深度剖面若要套用膨脹修正，必須在 Apply_Dilatancy 欄逐列明確填 true／false；"
-            "不可將單筆試驗的膨脹修正條件直接套用到整孔所有非凝聚性土層。"
-        )
     seen=set()
     for row in rows:
         missing={'Depth_m','N'}-set(row)
@@ -119,6 +112,11 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         row_soil = str(_profile_value(row, "Soil_Behavior", soil_behavior)).strip().lower()
         if row_soil not in ("cohesionless", "cohesive"):
             raise ValueError(f"深度 {depth:g} m 的 Soil_Behavior 僅接受 cohesionless 或 cohesive")
+        if apply_dilatancy and row_soil == "cohesionless" and _profile_value(row, "Apply_Dilatancy", None) is None:
+            raise ValueError(
+                f"深度 {depth:g} m 為非凝聚性土層；若逐深度剖面啟用膨脹修正，"
+                "必須在 Apply_Dilatancy 欄逐列明確填 true／false。"
+            )
         row_dilatancy = _profile_bool(
             _profile_value(row, "Apply_Dilatancy", None),
             default=(bool(apply_dilatancy) and row_soil == "cohesionless"),
@@ -128,7 +126,9 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         row_cb = _finite("逐深度鑽孔修正係數", _profile_value(row, "Borehole_Factor", borehole_factor))
         row_cs = _finite("逐深度取樣器修正係數", _profile_value(row, "Sampler_Factor", sampler_factor))
         flag = _profile_bool(row.get('Refusal', False), default=False, label="Refusal")
-        raw_stress = _profile_value(row, "Effective_Stress_kPa", None)
+        raw_stress = _profile_value(row, "Effective_Stress_KPa", None)
+        if raw_stress is None:
+            raw_stress = _profile_value(row, "Effective_Stress_kPa", None)
         if flag:
             clean={**row,'Depth_m':depth,'N':measured_n,
                    'Effective_Stress_kPa':None if raw_stress is None else _finite('Effective_Stress_kPa',raw_stress)}
