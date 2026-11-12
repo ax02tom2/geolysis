@@ -4159,3 +4159,29 @@ def test_bishop_circular_search_rejects_ponded_groundwater_without_external_wate
             slice_count=20, groundwater_elevation=6.0,
             unit_weight_moist_kn_m3=18.0, unit_weight_sat_kn_m3=20.0,
         )
+
+def test_usace_2025_dmt_modulus_requires_profile_beyond_2b_when_bottom_stress_is_significant():
+    layers = [
+        {"Layer": i + 1, "depth_center_m": (i + 0.5) * 0.2,
+         "thickness_m": 0.2, "MDMT_kpa": 10000.0}
+        for i in range(10)
+    ]
+    with pytest.raises(ValueError, match="仍未低於 0.10"):
+        dmt_modulus_settlement_2025(
+            layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
+
+
+def test_usace_2025_dmt_readings_require_profile_beyond_2b_when_bottom_stress_is_significant():
+    layers = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 3.0,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(10)
+    ]
+    with pytest.raises(ValueError, match="仍未低於 0.10"):
+        dmt_settlement_2025(
+            layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+            gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+        )
+
