@@ -90,7 +90,10 @@ def _settlement_eccentricity_inputs(key_prefix, width_m, length_m, footing_type)
         st.caption("連續條形基礎只採短邊方向偏心；長邊方向偏心不適用。")
     else:
         with col_l:
-            max_el=max(0.0,float(length_m)/6.0-0.001)
+            # Keep the effective dimensions ordered B' <= L' while respecting
+            # the USACE middle-third limit in the long direction.
+            max_el=max(0.0,min(float(length_m)/6.0-0.001,
+                              (float(length_m)-float(width_m)+2.0*e_b)/2.0))
             e_l=st.number_input("長邊偏心距 eL [m]",0.0,max_el,0.0,0.01,key=f"{key_prefix}_settlement_el")
     b_eff=float(width_m)-2.0*e_b
     l_eff=float(length_m)-2.0*e_l
