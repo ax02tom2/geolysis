@@ -264,3 +264,25 @@ def test_module5_seismic_uplift_exposes_dead_load_interpretation_caveat():
         widget for widget in app.checkbox if widget.key == "m5x_uplift_weights_confirm"
     )
     assert "依本案適用規範確認地震抗浮可採 Wf+Ws+Wc" in weight_confirmation.label
+
+
+def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    preset = "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）"
+    rock = next(widget for widget in app.selectbox if widget.key == "hb_rock_type_for_mi")
+    rock.select(preset)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    case_key = f"hb_ucs_case_{preset}"
+    ucs_case = next(widget for widget in app.selectbox if widget.key == case_key)
+    expected_case = "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa"
+    assert expected_case in ucs_case.options
+    ucs_case.select(expected_case)
+
+    disturbance = next(widget for widget in app.selectbox if widget.label == "開挖/自然擾動程度參考 (D)")
+    disturbance.select("弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)

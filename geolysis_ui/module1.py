@@ -30,6 +30,14 @@ _HB_PAIRED_CASES = {
 _HB_CASE_MI_WITHOUT_PAIRED_UCS = {
     "片岩 Schist（蘇花公路案例）",
 }
+_HB_CASE_MI_UCS_OPTIONS = {
+    "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": {
+        "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa",
+        "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa",
+        "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa",
+        "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa",
+    },
+}
 
 
 def _hb_case_parameter_warning(rock_preset, mi, gsi, disturbance):
@@ -59,12 +67,25 @@ def _hb_case_parameter_warning(rock_preset, mi, gsi, disturbance):
                 f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}。"
                 "請確認是否屬於不同地質分區的另行判釋。"
             )
+    if rock_preset == "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）":
+        valid_cases = ((10.0, 60.0, 0.7), (10.0, 80.0, 0.5),
+                       (10.0, 60.0, 0.5), (10.0, 40.0, 0.5))
+        if not any(abs(mi_value-mi0)<=1e-6 and abs(gsi_value-gsi0)<=1e-6
+                   and abs(d_value-d0)<=1e-6 for mi0,gsi0,d0 in valid_cases):
+            return (
+                "阿里山42號隧道計畫表 3-2-1 的組合為 mi=10，"
+                "(GSI,D)=(60,0.7) 邊坡、(80,0.5) 隧道 II 類、"
+                "(60,0.5) 隧道 III 類、(40,0.5) 隧道 IV 類；"
+                f"目前 mi={mi_value:g}、GSI={gsi_value:g}、D={d_value:g}，"
+                "不是該計畫表列組合。另報告註記砂岩 mi=17±4、頁岩 mi=6±2，"
+                "不可把計畫採用 mi=10 當作岩性通用值。"
+            )
     return None
 
 
 def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
     """Warn when a case-derived mi is paired with another case's UCS."""
-    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES))
+    if (rock_preset in (_HB_CASE_MI_WITHOUT_PAIRED_UCS | set(_HB_PAIRED_CASES) | set(_HB_CASE_MI_UCS_OPTIONS))
             and ucs_mode == "依現場敲擊分級初估"):
         return (
             f"目前 mi 來自「{rock_preset}」的特定案例，但 UCS 改採現場敲擊分級估值；"
@@ -77,6 +98,21 @@ def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
             f"目前 mi 來自「{rock_preset}」工程案例，但目前沒有同一案例可配對的完整岩心 UCS；"
             f"所選 UCS「{ucs_case_label}」是另一份資料。請確認岩性／風化程度相符，並以本工址試驗或敏感度分析驗證。"
         )
+    case_options = _HB_CASE_MI_UCS_OPTIONS.get(rock_preset)
+    if case_options is not None:
+        if ucs_case_label not in case_options:
+            return (
+                f"阿里山42號隧道案例的 mi=10 僅能配對同一計畫表列 UCS 案例；"
+                f"目前選擇「{ucs_case_label}」，不是該計畫的四個設計組合之一。"
+            )
+        return None
+    for case_name, allowed_ucs in _HB_CASE_MI_UCS_OPTIONS.items():
+        if ucs_case_label in allowed_ucs and rock_preset != case_name:
+            return (
+                f"目前 UCS「{ucs_case_label}」來自阿里山42號隧道計畫，"
+                f"但 mi 岩性預設為「{rock_preset}」。請改用「{case_name}」"
+                "重現該計畫組合，或改用與本工址相符的完整岩石三軸試驗 mi。"
+            )
     expected_ucs = _HB_PAIRED_CASES.get(rock_preset)
     if expected_ucs is not None and ucs_case_label != expected_ucs:
         return (
@@ -322,7 +358,7 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
                 "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
                 "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
-                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
+                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", "片岩 Schist（蘇花公路案例）", "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）", "自訂輸入 mi"
             ], key="hb_rock_type_for_mi")
             # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
             mi_reference = {
@@ -340,7 +376,8 @@ def render_module_1(expanded=False):
                 "大理岩 Marble": (9, 6, 12, "Hoek/Marinos：9 ± 3；一般完整岩石文獻值，非特定工址試驗值。"),
                 "砂岩 Sandstone（台灣南莊層三軸案例）": (7.752, 7.752, 7.752, "台灣南莊層單一完整岩心案例三軸反算 mi=7.752；不是砂岩通用值。"),
                 "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": (15, 13, 21, "台鐵宜蘭線瑞芳段風化砂岩回算案例：研究初始參考 mi=17±4，案例分析採用 mi=15；敏感度範圍保留初始參考值。"),
-                "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。")
+                "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。"),
+                "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": (10, 10, 10, "阿里山42號隧道計畫表 3-2-1 採用 mi=10；同表註記砂岩 mi=17±4、頁岩 mi=6±2。mi=10 僅供重現該計畫設計組合，不是砂岩／頁岩通用值。")
             }
             if rock_preset == "自訂輸入 mi":
                 mi_low = mi_high = mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
@@ -363,6 +400,9 @@ def render_module_1(expanded=False):
                 elif rock_preset == "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
                     st.info("2020 年台鐵宜蘭線瑞芳段風化砂岩崩塌回算案例（Shao et al., 2021）：分析採用 mi=15、σci=25–35 MPa；回算適用範圍 GSI=20–30、D=0.8–0.9。研究內文的初始參數範圍較寬（GSI=15–40、D=0.7–0.9），上述較窄區間是回算後的案例結果，不是台灣砂岩通用值。")
                     st.markdown("[查看台鐵宜蘭線瑞芳段風化砂岩回算研究](https://www.mdpi.com/2071-1050/13/23/13452)")
+                elif rock_preset == "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）":
+                    st.info("阿里山森林鐵路42號隧道計畫（2018）表 3-2-1：邊坡 UCS=43.3 MPa、GSI=60、mi=10、D=0.7；隧道 II 類 UCS=65.7 MPa、GSI=80、mi=10、D=0.5；III 類 UCS=43.3 MPa、GSI=60、mi=10、D=0.5；IV 類 UCS=21.4 MPa、GSI=40、mi=10、D=0.5。報告註記砂岩 mi=17±4、頁岩 mi=6±2；計畫表的 mi=10 是特定設計採用值，不能泛化。")
+                    st.markdown("[查看阿里山森林鐵路42號隧道計畫（表 3-2-1）](https://www.forest.gov.tw/file/70068)")
     
             st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
             st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
@@ -414,7 +454,19 @@ def render_module_1(expanded=False):
                     "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
                 "玄武岩｜台灣岩石工程性質彙整": (68.6, 343.2, 205.9,
                     "700–3500 kgf/cm²，換算約 68.6–343.2 MPa；範圍很寬，應做敏感度分析。",
-                    "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf")
+                    "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+                "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa": (43.3, 43.3, 43.3,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 邊坡設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa": (65.7, 65.7, 65.7,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 II 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa": (43.3, 43.3, 43.3,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 III 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa": (21.4, 21.4, 21.4,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 IV 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068")
             }
             # 2025 年《台灣中北部西部麓山帶沉積岩之力學特性》表 5：
             # 各項為表列單一試體 UCS，不應誤讀成地層統計上下限。
@@ -509,6 +561,12 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone（台灣南莊層三軸案例）": [k for k in _ucs_case_data if "南莊層砂岩｜隧道" in k],
                 "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": [k for k in _ucs_case_data if "東北部宜蘭線瑞芳段風化砂岩" in k],
                 "片岩 Schist（蘇花公路案例）": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
+                "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": [
+                    "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa",
+                    "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa",
+                    "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa",
+                    "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa",
+                ],
                 "頁岩 Shale": [k for k in _ucs_case_data if "頁岩" in k and "砂頁岩互層" not in k],
                 "泥岩／黏土岩 Mudstone / Claystone": [k for k in _ucs_case_data if "泥岩" in k],
                 "粉砂岩 Siltstone": [],

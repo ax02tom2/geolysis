@@ -70,3 +70,65 @@ def test_case_reference_gsi_and_disturbance_ranges(case, mi, gsi, disturbance, s
 
     warning = _hb_case_parameter_warning(case, mi, gsi, disturbance)
     assert (warning is not None) is should_warn
+
+
+@pytest.mark.parametrize(
+    ("mi", "gsi", "disturbance"),
+    [
+        (10.0, 60.0, 0.7),  # slope
+        (10.0, 80.0, 0.5),  # tunnel class II
+        (10.0, 60.0, 0.5),  # tunnel class III
+        (10.0, 40.0, 0.5),  # tunnel class IV
+    ],
+)
+def test_alishan_42_tunnel_design_parameter_combinations_are_recognized(mi, gsi, disturbance):
+    from geolysis_ui.module1 import _hb_case_parameter_warning
+
+    assert _hb_case_parameter_warning(
+        "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）",
+        mi, gsi, disturbance,
+    ) is None
+
+
+def test_alishan_42_tunnel_case_flags_mixed_or_unreported_parameter_combination():
+    from geolysis_ui.module1 import _hb_case_parameter_warning
+
+    warning = _hb_case_parameter_warning(
+        "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）",
+        17.0, 60.0, 0.7,
+    )
+    assert warning is not None
+    assert "mi=10" in warning
+    assert "17±4" in warning
+
+
+@pytest.mark.parametrize(
+    ("ucs_case", "should_warn"),
+    [
+        ("阿里山42號隧道｜邊坡設計 UCS 43.3 MPa", False),
+        ("阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa", False),
+        ("阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa", False),
+        ("阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa", False),
+        ("五指山層砂岩｜台灣岩石工程性質彙整", True),
+    ],
+)
+def test_alishan_case_mi_is_only_paired_with_its_own_project_ucs_scenarios(ucs_case, should_warn):
+    from geolysis_ui.module1 import _hb_case_pair_warning
+
+    warning = _hb_case_pair_warning(
+        "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）",
+        ucs_case, "採用台灣岩性案例參考值",
+    )
+    assert (warning is not None) is should_warn
+
+
+def test_alishan_project_ucs_cannot_be_paired_with_generic_sandstone_mi():
+    from geolysis_ui.module1 import _hb_case_pair_warning
+
+    warning = _hb_case_pair_warning(
+        "砂岩 Sandstone",
+        "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa",
+        "採用台灣岩性案例參考值",
+    )
+    assert warning is not None
+    assert "阿里山42號隧道" in warning
