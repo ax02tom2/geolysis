@@ -118,12 +118,14 @@ def render_module_3(expanded=False):
                         raise ValueError('套用 CN 的非凝聚性土層必須提供 Effective_Stress_KPa；黏土及拒錘列可留空。')
                     if needs_stress.any() and (stress_values.loc[needs_stress]<=0).any():
                         raise ValueError('套用 CN 的非凝聚性土層 Effective_Stress_KPa 必須大於 0。')
-                    if dilatancy and (
-                        'Apply_Dilatancy' not in prof.columns
-                        or prof['Apply_Dilatancy'].isna().any()
-                        or prof['Apply_Dilatancy'].astype(str).str.strip().eq('').any()
-                    ):
-                        raise ValueError("逐深度剖面若要套用膨脹修正，必須在 Apply_Dilatancy 欄逐列明確填 true／false；不可將單筆試驗條件套用到整孔所有非凝聚性土層。只有地下水位以下的飽和細砂／粉土且 (N1)60>15 才能標記 true。")
+                    dilatancy_rows=(row_soil=='cohesionless') & (~refusal_rows)
+                    if dilatancy and dilatancy_rows.any():
+                        if (
+                            'Apply_Dilatancy' not in prof.columns
+                            or prof.loc[dilatancy_rows,'Apply_Dilatancy'].isna().any()
+                            or prof.loc[dilatancy_rows,'Apply_Dilatancy'].astype(str).str.strip().eq('').any()
+                        ):
+                            raise ValueError("逐深度剖面若要套用膨脹修正，所有非凝聚性非拒錘列都必須在 Apply_Dilatancy 欄明確填 true／false；不可將單筆試驗條件套用到整孔所有非凝聚性土層。只有地下水位以下的飽和細砂／粉土且 (N1)60>15 才能標記 true。")
                     rows=prof.to_dict('records')
                     corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
                         cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
