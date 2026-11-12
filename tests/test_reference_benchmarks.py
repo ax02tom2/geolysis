@@ -3107,3 +3107,56 @@ def test_general_seismic_eccentricity_checks_effective_pressure_against_user_all
     assert result["bearing_pressure_passes"] is expected
     assert result["overall_seismic_overturning_passes"] is expected
     assert result["cases"][0]["average_contact_pressure_kpa"] == pytest.approx(1000.0 / (1.2 * 3.0))
+
+
+def test_general_seismic_eccentricity_deducts_hydrostatic_base_uplift_from_qeq():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.40,
+        allowable_bearing_pressure_kpa=240.0,
+        base_uplift_pressure_kpa=50.0,
+    )
+    case = result["cases"][0]
+    gross_qeq = 1000.0 / (1.2 * 3.0)
+    assert case["gross_average_contact_pressure_kpa"] == pytest.approx(gross_qeq)
+    assert case["base_uplift_pressure_kpa"] == pytest.approx(50.0)
+    assert case["average_contact_pressure_kpa"] == pytest.approx(gross_qeq - 50.0)
+    assert case["bearing_pressure_pass"] is True
+    assert result["uplift_stability_check_complete"] is False
+
+
+def test_general_seismic_eccentricity_does_not_pass_nonpositive_effective_qeq():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.40,
+        allowable_bearing_pressure_kpa=500.0,
+        base_uplift_pressure_kpa=300.0,
+    )
+    assert result["cases"][0]["average_contact_pressure_kpa"] < 0.0
+    assert result["cases"][0]["bearing_pressure_pass"] is False
+    assert result["overall_seismic_overturning_passes"] is False
+
+
+def test_usace_seismic_residual_pore_pressure_cases_deduct_hydrostatic_base_uplift():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=1.0,
+        base_uplift_pressure_kpa=9.81 * 0.5,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    expected_gross_qeq = 1000.0 / (2.0 * 3.0)
+    expected_uplift = 9.81 * 0.5
+    assert result["base_uplift_pressure_kpa"] == pytest.approx(expected_uplift)
+    assert all(case["gross_average_contact_pressure_kpa"] == pytest.approx(expected_gross_qeq)
+               for case in result["cases"])
+    assert all(case["average_contact_pressure_kpa"] == pytest.approx(expected_gross_qeq - expected_uplift)
+               for case in result["cases"])
+    assert result["uplift_stability_check_complete"] is False
