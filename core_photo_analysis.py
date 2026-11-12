@@ -11,7 +11,7 @@ from typing import Iterable
 from PIL import Image, ImageOps
 
 
-CORE_ANALYSIS_ENGINE_VERSION = "3.1-cache-aware-hough-normalization"
+CORE_ANALYSIS_ENGINE_VERSION = "3.2-gap-review-rqd-merge"
 
 
 def _normalize_hough_lines(lines):
@@ -1140,6 +1140,63 @@ def draw_core_fracture_candidates(row_image: Image.Image, detection: dict) -> Im
     return out
 
 
+def build_core_gap_review_candidates(core_analysis: dict, mm_per_px: float) -> list[dict]:
+    """Create manual-review candidates for full-height gaps between core bodies.
+
+    A gap is not automatically a natural joint: it may be a mechanical break,
+    core loss, or an image-segmentation false gap. The reviewer must classify it.
+    """
+    import math
+
+    if not math.isfinite(mm_per_px) or mm_per_px <= 0:
+        raise ValueError("mm_per_px 必須是有限且大於 0 的數值。")
+    if not isinstance(core_analysis, dict) or not core_analysis.get("success"):
+        return []
+    segments = sorted(
+        core_analysis.get("segments", []),
+        key=lambda item: float(item.get("x_start_px", 0)),
+    )
+    gaps = sorted(
+        core_analysis.get("gaps", []),
+        key=lambda item: float(item.get("x_start_px", 0)),
+    )
+    candidates = []
+    for gap in gaps:
+        gap_start = float(gap.get("x_start_px", 0))
+        gap_end = float(gap.get("x_end_px", 0))
+        if gap_end <= gap_start:
+            continue
+        left = [
+            index for index, segment in enumerate(segments)
+            if float(segment.get("x_end_px", 0)) <= gap_start
+        ]
+        right = [
+            index for index, segment in enumerate(segments)
+            if float(segment.get("x_start_px", 0)) >= gap_end
+        ]
+        if not left or not right:
+            # Row-end losses affect recovery but do not split two recovered pieces.
+            continue
+        left_index, right_index = left[-1], right[0]
+        if right_index != left_index + 1:
+            continue
+        start_mm, end_mm = gap_start * mm_per_px, gap_end * mm_per_px
+        candidates.append({
+            "candidate_id": f"G{len(candidates) + 1}",
+            "candidate_type": "core_gap",
+            "left_segment_index": left_index,
+            "right_segment_index": right_index,
+            "gap_start_mm": round(start_mm, 1),
+            "gap_end_mm": round(end_mm, 1),
+            "distance_mm": round((start_mm + end_mm) / 2.0, 1),
+            "suggested_class": "岩心間隙候選（需判斷天然節理／機械破損／採取損失）",
+            "confidence": "低",
+            "review_status": "待人工確認",
+            "cue": "全高度低占據空隙；可能是天然節理、機械破損、岩心缺失或影像分割誤判。",
+        })
+    return candidates
+
+
 def estimate_rqd_from_image_segments(
     core_segments: Iterable[dict],
     reviewed_breaks: Iterable[dict],
@@ -1162,7 +1219,7 @@ def estimate_rqd_from_image_segments(
         raise ValueError("列長與 RQD 門檻必須大於 0。")
 
     breaks = list(reviewed_breaks)
-    allowed = {"天然節理", "機械破損", "非斷裂／誤判"}
+    allowed = {"天然節理", "機械破損", "岩心缺失／採取損失", "非斷裂／誤判"}
     unresolved = [b for b in breaks if b.get("review_class") not in allowed]
     if unresolved:
         intervals = []
@@ -1181,7 +1238,10 @@ def estimate_rqd_from_image_segments(
         }
 
     intervals = []
-    for item in core_segments:
+    ordered_segments = sorted(
+        list(core_segments), key=lambda item: float(item.get("x_start_px", 0))
+    )
+    for item in ordered_segments:
         a = max(0.0, float(item.get("x_start_px", 0)) * mm_per_px)
         b = min(row_length_mm, float(item.get("x_end_px", 0)) * mm_per_px)
         if b > a:
@@ -1208,18 +1268,47 @@ def estimate_rqd_from_image_segments(
             "warning": "未找到明確斷裂候選，不代表沒有天然節理；請人工檢視岩心，暫不推定影像 RQD。",
         }
 
-    rqd_mm = 0.0
-    piece_lengths = []
+    piece_lists = []
     natural_positions = sorted(
         float(item.get("distance_mm", 0)) for item in breaks
         if item.get("review_class") == "天然節理"
+        and item.get("candidate_type") != "core_gap"
     )
     for a, b in intervals:
         cuts = [x for x in natural_positions if a < x < b]
         bounds = [a] + cuts + [b]
-        lengths = [right - left for left, right in zip(bounds, bounds[1:])]
-        piece_lengths.extend(lengths)
-        rqd_mm += sum(length for length in lengths if length >= rqd_threshold_mm)
+        piece_lists.append([
+            right - left for left, right in zip(bounds, bounds[1:])
+        ])
+
+    # A reviewed mechanical/false gap joins the recovered lengths on either
+    # side, but the empty gap itself is never added to recovery or piece length.
+    gap_merge_pairs = set()
+    for item in breaks:
+        if (
+            item.get("candidate_type") == "core_gap"
+            and item.get("review_class") in {"機械破損", "非斷裂／誤判"}
+        ):
+            left_index = item.get("left_segment_index")
+            right_index = item.get("right_segment_index")
+            if (
+                isinstance(left_index, int) and isinstance(right_index, int)
+                and right_index == left_index + 1
+                and 0 <= left_index < len(piece_lists) - 1
+            ):
+                gap_merge_pairs.add((left_index, right_index))
+
+    piece_lengths = []
+    for index, lengths in enumerate(piece_lists):
+        if (
+            index > 0 and (index - 1, index) in gap_merge_pairs
+            and piece_lengths and lengths
+        ):
+            piece_lengths[-1] += lengths[0]
+            piece_lengths.extend(lengths[1:])
+        else:
+            piece_lengths.extend(lengths)
+    rqd_mm = sum(length for length in piece_lengths if length >= rqd_threshold_mm)
 
     return {
         "success": True, "ready": True,
