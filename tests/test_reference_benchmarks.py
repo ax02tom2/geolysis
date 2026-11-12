@@ -3995,3 +3995,30 @@ def test_base_uplift_pressure_readiness_rejects_conflicting_reference_aliases():
             hydrostatic_reference_kN=100.0, load_case="seismic",
             pressure_confirmed=True,
         )
+
+
+def test_module3_normalizes_legacy_effective_stress_csv_column_case():
+    import pandas as pd
+    from geolysis_ui.module3 import _normalize_spt_profile_effective_stress
+
+    legacy = pd.DataFrame({
+        "Depth_m": [1.0, 2.0],
+        "N": [12.0, 18.0],
+        "Effective_Stress_kPa": [100.0, 125.0],
+    })
+    normalized = _normalize_spt_profile_effective_stress(legacy)
+    assert normalized["Effective_Stress_KPa"].tolist() == [100.0, 125.0]
+    assert "Effective_Stress_kPa" not in normalized.columns
+
+
+def test_module3_merges_legacy_and_canonical_effective_stress_columns():
+    import pandas as pd
+    from geolysis_ui.module3 import _normalize_spt_profile_effective_stress
+
+    profile = pd.DataFrame({
+        "Effective_Stress_KPa": [None, 150.0],
+        "Effective_Stress_kPa": [90.0, 120.0],
+    })
+    normalized = _normalize_spt_profile_effective_stress(profile)
+    assert normalized["Effective_Stress_KPa"].tolist() == [90.0, 150.0]
+    assert "Effective_Stress_kPa" not in normalized.columns
