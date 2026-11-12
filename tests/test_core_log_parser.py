@@ -161,7 +161,7 @@ def _pdf_fixture_five_boxes_twenty_depth_rows():
     page.insert_text((50, 65), "Depth 0.0~20.0m", fontsize=11)
     box_bytes = _box_image()
     for box_index in range(5):
-        y0 = 105 + box_index * 210
+        y0 = 150 + box_index * 205
         y1 = y0 + 200
         page.insert_image(fitz.Rect(50, y0, 480, y1), stream=box_bytes)
         for row_index in range(4):
