@@ -1,8 +1,9 @@
 Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)
-- Validated main commit: 26b31883bfc2e34b5e74622760f3d39fa38ecf1d.
-- Latest full-suite validation: GitHub Actions run 43160788913 (PR #154 tested head 0cebe9e619991e482b8be7d3fe379296d9fca83b); success.
-- Full test directory: 573 passed, 1 skipped; Python 3.11 compileall passed.
-- Latest automated module/UI regression run: 43160788984; success. Streamlit module compilation and UI regression tests passed.
+- Validated main code commit: d1ca4c736842f7bf0fa434416665f8cd4dee452a.
+- Latest full-suite validation: GitHub Actions run 43161177916 (PR #156 tested head e9e86140a13292e913ce6edc9631b03f6304d6b4); success.
+- Full test directory: 578 passed, 1 skipped; Python 3.11 compileall passed.
+- Latest automated module/UI regression run: 43161178070; success. Streamlit module compilation and UI regression tests passed.
+- PR #156: SPT energy-ratio and rod-length extrapolation warnings are now displayed in single-point and depth-profile UI; profile warnings identify the affected depth.
 
 Engineering and integration updates since the 451-test baseline:
 - PR #134: SPT effective-overburden-stress input is conditional; cohesive and refusal rows no longer require an unused stress value. Profile dilatancy is explicitly selected per eligible non-refusal cohesionless row.
