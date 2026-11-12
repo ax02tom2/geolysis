@@ -56,7 +56,7 @@ display_mode = st.sidebar.radio(
     [
         "全部收合",
         "全部展開",
-        "模組一：Hoek-Brown 岩體參數",
+        "模組一：岩體參數與岩心分析",
         "模組二：土壤分類",
         "模組三：SPT 全修正",
         "模組四：容許承載力",
@@ -66,7 +66,7 @@ display_mode = st.sidebar.radio(
     key="analysis_module_display_mode"
 )
 
-exp_1 = display_mode in ["全部展開", "模組一：Hoek-Brown 岩體參數"]
+exp_1 = display_mode in ["全部展開", "模組一：岩體參數與岩心分析"]
 exp_2 = display_mode in ["全部展開", "模組二：土壤分類"]
 exp_3 = display_mode in ["全部展開", "模組三：SPT 全修正"]
 exp_4 = display_mode in ["全部展開", "模組四：容許承載力"]
