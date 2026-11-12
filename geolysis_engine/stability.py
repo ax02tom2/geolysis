@@ -162,6 +162,12 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
     if not xs or not ys or not rs or any(r<=0 for r in rs):
         raise ValueError('圓心搜尋範圍與半徑列表不可為空，半徑須大於 0')
     gw_elev=None if groundwater_elevation is None else _finite('地下水位高程',groundwater_elevation)
+    if gw_elev is not None and gw_elev > min(y for _, y in profile) + 1e-9:
+        raise ValueError(
+            "地下水位高程高於地表最低高程，代表坡面存在地表積水／外部水體；"
+            "自動 Bishop 搜尋未包含坡面外水壓與水體重量，請改用水位不高於最低地表高程的情況，"
+            "或另行建立含外水作用的穩定分析。"
+        )
     def ground_y(x):
         for k in range(len(profile)-1):
             x0,y0=profile[k]; x1,y1=profile[k+1]
