@@ -37,6 +37,12 @@ def _image_digest(image: Image.Image) -> str:
     return digest.hexdigest()
 
 
+def _core_review_fingerprint(image: Image.Image, mm_per_px: float, engine_fingerprint: str) -> str:
+    """Invalidate manual fracture/gap reviews when image, scale or engine changes."""
+    payload = f"{_image_digest(image)}|{float(mm_per_px):.9g}|{engine_fingerprint}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+
 @st.cache_data(
     show_spinner=False,
     hash_funcs={Image.Image: _image_digest},
@@ -397,6 +403,9 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         })
                         continue
 
+                review_fingerprint = _core_review_fingerprint(
+                    measured_row, mm_per_px, engine_fingerprint
+                )
                 candidates = list(break_result.get("candidates", []))
                 if break_result.get("success"):
                     candidates.extend(build_core_gap_review_candidates(analysis, mm_per_px))
@@ -427,7 +436,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                             candidate_label,
                             review_options,
                             index=0,
-                            key=f"core_break_review_{file_digest[:10]}_{index}_{candidate_index}",
+                            key=f"core_break_review_{file_digest[:10]}_{index}_{review_fingerprint}_{candidate_index}",
                         )
                         reviewed_breaks.append({**candidate, "review_class": review})
                 no_breaks_confirmed = False
@@ -435,7 +444,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     no_breaks_confirmed = st.checkbox(
                         "已人工檢視本列影像，確認沒有需要切分 RQD 的天然節理",
                         value=False,
-                        key=f"core_no_breaks_{file_digest[:10]}_{index}",
+                        key=f"core_no_breaks_{file_digest[:10]}_{index}_{review_fingerprint}",
                     )
 
                 result = estimate_rqd_from_image_segments(
