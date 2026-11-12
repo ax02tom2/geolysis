@@ -1217,13 +1217,13 @@ def estimate_rqd_from_image_segments(
     no_breaks_confirmed: bool = False,
     row_review_confirmed: bool | None = None,
 ) -> dict:
-    """Estimate per-row recovery/RQD after every detected break is reviewed.
+    """Estimate per-row recovery/RQD only after explicit whole-row human review.
 
     Core intervals come from the image occupancy detector. Natural-joint traces
     split intervals; a gap between two core intervals is rejoined only when every
     review for that interval pair confirms mechanical break or false gap. Core
     loss remains excluded; a false image gap restores its measured interval to
-    recovery length. This is a preliminary image estimate, not measured RQD.
+    recovery length. RQD is withheld until all continuous intervals and detected\n    candidates have been inspected. ``no_breaks_confirmed`` remains a backward-\n    compatible alias for ``row_review_confirmed``. This is not measured RQD.
     """
     import math
 
