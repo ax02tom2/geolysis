@@ -41,7 +41,7 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         st.warning("Module 5 實際承載力 FS 未達 3.0；此數值僅供沉陷壓力上限比較，不代表承載力設計合格。")
     context_key=f"{key_prefix}_conditions_{transfer_id}_{float(width_m):.2f}_{float(length_m):.2f}_{float(depth_m or 0.0):.2f}_{footing_type or 'any'}"
     same_conditions=st.checkbox(
-        "已確認基礎埋深、地下水位、地層剖面及載重條件與 Module 5 相同",
+        "已確認基礎埋深、地下水位、地層剖面及載重條件與 Module 5 相同，且本沉陷方法適用於水平基底／地表與中央垂直荷載",
         value=False,key=context_key)
     if not same_conditions:
         st.warning("尚未確認沉陷分析與 Module 5 的埋深、地下水位、地層及載重條件一致；目前不套用跨模組承載力。")
