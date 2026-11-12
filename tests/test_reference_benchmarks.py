@@ -3160,3 +3160,82 @@ def test_usace_seismic_residual_pore_pressure_cases_deduct_hydrostatic_base_upli
     assert all(case["average_contact_pressure_kpa"] == pytest.approx(expected_gross_qeq - expected_uplift)
                for case in result["cases"])
     assert result["uplift_stability_check_complete"] is False
+
+
+def test_usace_residual_pore_pressure_method_accepts_marginal_liquefaction_with_ru():
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=10.0,
+        effective_width_m=2.0,
+        bearing_factor_ngamma=20.0,
+        residual_excess_pore_pressure_ratio=0.2,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+        full_shear_zone_confirmed=True,
+    )
+    assert result["factor_of_safety_liquefaction"] == pytest.approx(1.2)
+    assert result["qu_seismic_kpa"] == pytest.approx(128.0)
+
+
+def test_usace_residual_pore_pressure_method_rejects_fsliq_at_or_below_one():
+    with pytest.raises(ValueError, match="FS_liq≤1.0"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_width_m=2.0,
+            bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+            factor_of_safety_liquefaction=1.0,
+            no_significant_lateral_spreading_confirmed=True,
+            ru_source_confirmed=True,
+            full_shear_zone_confirmed=True,
+        )
+
+
+def test_usace_residual_pore_pressure_method_requires_no_significant_lateral_spreading():
+    with pytest.raises(ValueError, match="顯著側向擴展"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_width_m=2.0,
+            bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+            factor_of_safety_liquefaction=1.2,
+            no_significant_lateral_spreading_confirmed=False,
+            ru_source_confirmed=True,
+            full_shear_zone_confirmed=True,
+        )
+
+
+def test_usace_residual_pore_pressure_method_requires_ru_source_confirmation():
+    with pytest.raises(ValueError, match="ru 必須由"):
+        seismic_bearing_capacity_residual_pore_pressure(
+            footing_type="spread",
+            effective_unit_weight_kn_m3=10.0,
+            effective_width_m=2.0,
+            bearing_factor_ngamma=20.0,
+            residual_excess_pore_pressure_ratio=0.2,
+            factor_of_safety_liquefaction=1.2,
+            no_significant_lateral_spreading_confirmed=True,
+            ru_source_confirmed=False,
+            full_shear_zone_confirmed=True,
+        )
+
+
+def test_usace_residual_pore_pressure_cases_accept_fsliq_and_confirmed_ru_source():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=1.0,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+        full_shear_zone_confirmed=True,
+    )
+    assert result["factor_of_safety_liquefaction"] == pytest.approx(1.2)
+    assert result["no_significant_lateral_spreading_confirmed"] is True
+    assert result["ru_source_confirmed"] is True

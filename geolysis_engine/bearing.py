@@ -478,12 +478,39 @@ def seismic_bearing_capacity_pseudostatic(*, vertical_load_kN, horizontal_load_k
         'method':'Pseudo-static adverse action envelope (H + kh·W; V ± kv·W)',
         'limitations':'水平作用採既有靜力 H 與地震 kh·W 同向的不利包絡；垂直作用以靜態 V 加減 kv·W，W 為有效地震重量而非必然等於 V。W 應依適用耐震規範及結構分析計算，未輸入時才以 V 作初步代理。H 必須是不含已另行計入之地震慣性力的靜力水平作用，以免重複計算。此包絡只提供作用量大小，不代表已建立水平力方位角；對水平基底與水平地表，Meyerhof 載重傾斜係數使用合力 H/V 大小。若基底或地表有坡度，地震水平力正反向相對於坡面／基底的作用方向可能改變破壞機制，本系統目前不支援該方向性組合，地震孔壓折減承載力將拒絕非零基底／地表傾角。尚未包含土體慣性力、地震期間強度折減、孔隙水壓累積、液化、震陷、側向擴展與地震邊坡穩定；須依所在地耐震規範取得 kh、kv 及載重組合。'}
 
+def _validate_seismic_ru_applicability(*, non_liquefiable_confirmed,
+        factor_of_safety_liquefaction, no_significant_lateral_spreading_confirmed,
+        ru_source_confirmed):
+    """Validate the applicability boundary for USACE 2025 Eqs. 9-3/9-4.
+
+    Legacy callers may still use the stricter non-liquefiable confirmation.
+    The current UI path requires FS_liq > 1.0, no significant lateral spreading,
+    and explicit confirmation that ru comes from Figure 9-1 or site-specific
+    pore-pressure analysis.
+    """
+    if factor_of_safety_liquefaction is None:
+        if not non_liquefiable_confirmed:
+            raise ValueError('舊版呼叫須確認不液化／無循環剪力強度損失；新版請提供 FS_liq>1.0、確認無顯著側向擴展，並確認 ru 來源')
+        return None
+    fsliq=_finite('剪力區液化安全係數 FS_liq',factor_of_safety_liquefaction)
+    if fsliq<=1.0:
+        raise ValueError('FS_liq≤1.0 表示可能已觸發液化；不得使用式 9-3／9-4，應改採液化後殘餘強度、穿刺剪力及整體穩定分析')
+    if not no_significant_lateral_spreading_confirmed:
+        raise ValueError('USACE §9-10(a)/(c) 適用性確認不足：須由場址評估確認不預期顯著側向擴展')
+    if not ru_source_confirmed:
+        raise ValueError('ru 必須由 USACE Figure 9-1（依 FS_liq）或場址專屬孔壓分析取得，請先確認來源')
+    return fsliq
+
+
 def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         effective_unit_weight_kn_m3, effective_width_m, bearing_factor_ngamma,
         residual_excess_pore_pressure_ratio, shape_depth_inclination_factor=1.0,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False,
         partial_shear_zone_affected_fraction=None,
-        effective_unit_weight_unaffected_kn_m3=None):
+        effective_unit_weight_unaffected_kn_m3=None,
+        factor_of_safety_liquefaction=None,
+        no_significant_lateral_spreading_confirmed=False,
+        ru_source_confirmed=False):
     """USACE EM 1110-1-1905 (2025) Eqs. 9-3/9-4.
 
     Full-zone case: q uses (1-ru)*gamma_susceptible.
@@ -500,8 +527,11 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     corr=_finite('其他修正係數乘積',shape_depth_inclination_factor)
     if gamma_sus<=0 or B<=0 or Ng<0 or not 0<=ru<1 or corr<=0:
         raise ValueError('地震承載力輸入不合理：γ、B須正；0≤ru<1；修正係數乘積須大於 0')
-    if not non_liquefiable_confirmed:
-        raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
+    fsliq=_validate_seismic_ru_applicability(
+        non_liquefiable_confirmed=non_liquefiable_confirmed,
+        factor_of_safety_liquefaction=factor_of_safety_liquefaction,
+        no_significant_lateral_spreading_confirmed=no_significant_lateral_spreading_confirmed,
+        ru_source_confirmed=ru_source_confirmed)
     if footing_type not in ('strip','spread'):
         raise ValueError('基礎型式須為 strip 或 spread')
     if full_shear_zone_confirmed:
@@ -526,6 +556,9 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
     reduction=gamma_b/unweighted_gamma
     return {
         'qu_seismic_kpa':q,'ru':ru,
+        'factor_of_safety_liquefaction':fsliq,
+        'no_significant_lateral_spreading_confirmed':(True if fsliq is None else no_significant_lateral_spreading_confirmed),
+        'ru_source_confirmed':(True if fsliq is None else ru_source_confirmed),
         'pore_pressure_resistance_factor':reduction,
         'pore_pressure_affected_fraction':fraction,
         'gamma_susceptible_kn_m3':gamma_sus,
@@ -535,7 +568,7 @@ def seismic_bearing_capacity_residual_pore_pressure(*, footing_type,
         'B_effective_m':B,'Ngamma':Ng,
         'other_correction_product':corr,
         'method':f'USACE EM 1110-1-1905 (2025), Eqs. 9-3/9-4 (Day 2012), {method_suffix}',
-        'limitations':'完整剪力區時採 (1−ru)γ′sus；部分剪力區依 USACE 2025 §9-10(c)(3)(b) 將受影響土層與未受影響土層的有效單位重加權：γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected。f 必須依 Figure 5-4 剪力區內受影響土層的實際分布／體積比例估算，不可直接以全孔深度比例代替；γ′sus 與 γ′unaffected 必須為相應水位下的有效／浮單位重。ru 應依孔壓或液化評估取得，不可任意假設。若土層可液化、邊際液化或有顯著循環強度損失，應改用殘餘／折減剪力強度與穿刺破壞分析；此式不代表可接受液化場址。未含側向擴展、地震沉陷及完整地震 qeq／FS。'
+        'limitations':'完整剪力區時採 (1−ru)γ′sus；部分剪力區依 USACE 2025 §9-10(c)(3)(b) 將受影響土層與未受影響土層的有效單位重加權：γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected。f 必須依 Figure 5-4 剪力區內受影響土層的實際分布／體積比例估算；γ′sus 與 γ′unaffected 必須為相應水位下的有效／浮單位重。適用性：FS_liq 必須 >1.0，ru 應依 USACE Figure 9-1 或場址專屬孔壓分析取得，且不得預期顯著側向擴展；FS_liq≤1.0 或顯著側向擴展時，不得使用本式，應另採液化後殘餘強度、穿刺剪力及整體穩定分析。此式不代表可接受液化場址，也不含殘餘基底上拔、地震沉陷及完整地震 FS.'
     }
 
 def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_kN,
@@ -697,19 +730,26 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         non_liquefiable_confirmed=False, full_shear_zone_confirmed=False,
         partial_shear_zone_affected_fraction=None,
         gamma_effective_susceptible_kn_m3=None,
-        gamma_effective_unaffected_kn_m3=None):
+        gamma_effective_unaffected_kn_m3=None,
+        factor_of_safety_liquefaction=None,
+        no_significant_lateral_spreading_confirmed=False,
+        ru_source_confirmed=False):
     """USACE 2025 residual-pore-pressure bearing resistance for level geometry.
 
-    Supports full shear-zone influence or a user-weighted partial shear-zone
-    effective unit weight. It remains restricted to sand-like, non-liquefiable
-    soils without cyclic strength loss and is not a seismic factor of safety.
+    Supports full or user-weighted partial shear-zone influence for sand-like
+    soils with FS_liq > 1.0, no significant lateral spreading, and ru sourced
+    from Figure 9-1 or site-specific pore-pressure analysis. Legacy callers may
+    retain the stricter non-liquefiable confirmation. This is not a seismic FS.
     """
     c=_finite('有效凝聚力 c′',c_kpa)
     phi=_finite('有效摩擦角 φ′',phi_deg)
     if c<0 or c>1e-9 or phi<=0:
         raise ValueError('式 9-3／9-4 僅供砂狀排水土使用；需 c′≈0 且 φ′>0，不可套用不排水黏土或含顯著凝聚力土層')
-    if not non_liquefiable_confirmed:
-        raise ValueError('式 9-3／9-4 僅適用經獨立評估確認不液化／無循環剪力強度損失的砂土；請先確認適用性')
+    fsliq=_validate_seismic_ru_applicability(
+        non_liquefiable_confirmed=non_liquefiable_confirmed,
+        factor_of_safety_liquefaction=factor_of_safety_liquefaction,
+        no_significant_lateral_spreading_confirmed=no_significant_lateral_spreading_confirmed,
+        ru_source_confirmed=ru_source_confirmed)
     ru=_finite('殘餘超額孔隙水壓比 ru',residual_excess_pore_pressure_ratio)
     if full_shear_zone_confirmed:
         if any(value is not None for value in (partial_shear_zone_affected_fraction,gamma_effective_susceptible_kn_m3,gamma_effective_unaffected_kn_m3)):
@@ -846,6 +886,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                     shape_depth_inclination_factor=product,
                     non_liquefiable_confirmed=non_liquefiable_confirmed,
                     full_shear_zone_confirmed=full_shear_zone_confirmed,
+                    factor_of_safety_liquefaction=factor_of_safety_liquefaction,
+                    no_significant_lateral_spreading_confirmed=no_significant_lateral_spreading_confirmed,
+                    ru_source_confirmed=ru_source_confirmed,
                     partial_shear_zone_affected_fraction=partial_fraction,
                     effective_unit_weight_unaffected_kn_m3=gamma_unaffected_input)
                 qu=resistance['qu_seismic_kpa']
@@ -880,6 +923,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'cases':cases,'seismic_weight_kN':W,
         'governing_case':governing,'qu_seismic_governing_kpa':qu_governing,
         'footing_type':footing_type,'ru':ru,
+        'factor_of_safety_liquefaction':fsliq,
+        'no_significant_lateral_spreading_confirmed':(True if fsliq is None else no_significant_lateral_spreading_confirmed),
+        'ru_source_confirmed':(True if fsliq is None else ru_source_confirmed),
         'full_shear_zone_confirmed':full_shear_zone_confirmed,
         'partial_shear_zone_affected_fraction':(None if full_shear_zone_confirmed else partial_fraction),
         'gamma_effective_susceptible_kn_m3':(None if full_shear_zone_confirmed else gamma_susceptible_input),
@@ -898,7 +944,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'middle_third_failed_cases':[case for case in cases if not case.get('middle_third_pass',False)],
         'middle_third_governing_case':max(cases,key=lambda case:case.get('middle_third_utilization',0.0)),
         'method':'USACE EM 1110-1-1905 (2025), §9-10(e), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
-        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；地震殘餘超額孔隙水壓造成的額外上拔尚未納入，也未完成 §9-10(f) uplift FS≥1.5，故不得宣稱完整地震 uplift 安全。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析.'
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；地震殘餘超額孔隙水壓造成的額外上拔尚未納入，也未完成 §9-10(f) uplift FS≥1.5，故不得宣稱完整地震 uplift 安全。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；適用性要求 FS_liq>1.0、ru 由 Figure 9-1 或場址專屬孔壓分析取得，且不預期顯著側向擴展；FS_liq≤1.0 或顯著側向擴展時不得使用本式。部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析.'
     }
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
