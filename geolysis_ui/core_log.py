@@ -45,7 +45,7 @@ def _corner_editor_image_payload(image: Image.Image, points: list[list[float]], 
     if scale < 0.999:
         preview = preview.resize(
             (max(1, int(round(preview.width * scale))), max(1, int(round(preview.height * scale)))),
-            Image.Resampling.LANCZOS,
+            getattr(getattr(Image, "Resampling", Image), "LANCZOS"),
         )
     buffer = io.BytesIO()
     preview.save(buffer, format="JPEG", quality=88, optimize=True)
