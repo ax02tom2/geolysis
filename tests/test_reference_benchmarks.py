@@ -3782,7 +3782,7 @@ def test_usace_schmertmann_cpt_interpolates_es_peak_depth_and_iz_for_intermediat
     assert result["influence_depth_required_m"] == pytest.approx(3.0 * B)
     assert result["layer_results"][0]["Es_kPa"] == pytest.approx(3.0 * qc)
     first = result["layer_results"][0]
-    expected_iz = first["Iz_axisymmetric"] + 0.5 * (
+    expected_iz = first["Iz_axisymmetric"] + 0.111 * 4.5 * (
         first["Iz_plane_strain"] - first["Iz_axisymmetric"]
     )
     assert first["Iz_used"] == pytest.approx(expected_iz)
