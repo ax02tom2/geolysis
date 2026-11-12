@@ -3649,3 +3649,20 @@ def test_spt_correction_warns_when_energy_ratio_or_rod_length_exceeds_table_rang
     assert result["CR"] == pytest.approx(1.0)
     assert any("50–130%" in warning for warning in result["warnings"])
     assert any("30 m" in warning for warning in result["warnings"])
+
+
+def test_spt_profile_global_dilatancy_does_not_require_flag_on_refusal_rows():
+    from geolysis_engine import spt_profile
+
+    result = spt_profile(
+        [
+            {"Depth_m": 1.0, "N": 50.0, "Soil_Behavior": "cohesionless", "Refusal": True},
+            {"Depth_m": 2.0, "N": 20.0, "Soil_Behavior": "cohesionless",
+             "Effective_Stress_KPa": 100.0, "Apply_Dilatancy": False},
+        ],
+        energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+        rod_length_m=8.0, cn_method="Liao & Whitman", apply_dilatancy=True,
+    )
+    assert result[0]["N60"] is None
+    assert result[0]["dilatancy_applied"] is False
+    assert result[1]["dilatancy_applied"] is False

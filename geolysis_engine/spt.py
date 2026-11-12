@@ -126,20 +126,20 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         row_soil = str(_profile_value(row, "Soil_Behavior", soil_behavior)).strip().lower()
         if row_soil not in ("cohesionless", "cohesive"):
             raise ValueError(f"深度 {depth:g} m 的 Soil_Behavior 僅接受 cohesionless 或 cohesive")
-        if apply_dilatancy and row_soil == "cohesionless" and _profile_value(row, "Apply_Dilatancy", None) is None:
+        flag = _profile_bool(row.get('Refusal', False), default=False, label="Refusal")
+        if apply_dilatancy and row_soil == "cohesionless" and not flag and _profile_value(row, "Apply_Dilatancy", None) is None:
             raise ValueError(
-                f"深度 {depth:g} m 為非凝聚性土層；若逐深度剖面啟用膨脹修正，"
+                f"深度 {depth:g} m 為非凝聚性非拒錘土層；若逐深度剖面啟用膨脹修正，"
                 "必須在 Apply_Dilatancy 欄逐列明確填 true／false。"
             )
         row_dilatancy = _profile_bool(
             _profile_value(row, "Apply_Dilatancy", None),
-            default=(bool(apply_dilatancy) and row_soil == "cohesionless"),
+            default=(bool(apply_dilatancy) and row_soil == "cohesionless" and not flag),
             label=f"深度 {depth:g} m 的 Apply_Dilatancy",
         )
         row_er = _finite("逐深度能量比", _profile_value(row, "Energy_Ratio_pct", energy_ratio_pct))
         row_cb = _finite("逐深度鑽孔修正係數", _profile_value(row, "Borehole_Factor", borehole_factor))
         row_cs = _finite("逐深度取樣器修正係數", _profile_value(row, "Sampler_Factor", sampler_factor))
-        flag = _profile_bool(row.get('Refusal', False), default=False, label="Refusal")
         raw_stress = _profile_value(row, "Effective_Stress_KPa", None)
         if raw_stress is None:
             raw_stress = _profile_value(row, "Effective_Stress_kPa", None)
