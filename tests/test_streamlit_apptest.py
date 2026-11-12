@@ -506,3 +506,18 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     )
     expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
+
+
+def test_module2_classification_result_clears_when_confirmation_is_revoked():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m2_run").click()
+    app.run()
+    assert app.session_state.get("m2_result") is not None
+
+    next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").uncheck()
+    app.run()
+    assert app.session_state.get("m2_result") is None
