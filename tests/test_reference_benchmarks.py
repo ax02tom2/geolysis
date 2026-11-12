@@ -1179,7 +1179,8 @@ def test_usace_seismic_pore_pressure_cases_auto_apply_table_factors_and_control_
         water_depth=5.0,
         non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
-    assert len(result["cases"]) == 2
+    assert len(result["cases"]) == 4
+    assert {case["horizontal_earthquake_sign"] for case in result["cases"]} == {-1, 1}
     controlling = result["governing_case"]
     beta = math.degrees(math.atan2(200.0, 900.0))
     flow_n = math.tan(math.radians(60.0)) ** 2
@@ -2770,8 +2771,9 @@ def test_usace_seismic_residual_cases_use_effective_seismic_weight_not_static_v(
         non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     assert result["seismic_weight_kN"] == pytest.approx(1200.0)
-    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0])
-    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([340.0, 340.0])
+    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0, 880.0, 1120.0])
+    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([140.0, 140.0, 340.0, 340.0])
+    assert [case["horizontal_earthquake_sign"] for case in result["cases"]] == [-1, -1, 1, 1]
     assert result["governing_case"]["vertical_sign"] == "向下減少"
 
 
