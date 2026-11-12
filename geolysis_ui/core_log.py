@@ -1,13 +1,18 @@
 """Web UI for whole-hole core-log parsing and per-row RQD first-pass review."""
 from __future__ import annotations
 
+import base64
 import hashlib
+import io
+import json
 import logging
+import os
 import traceback
 from typing import Any
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw
 
 from core_log_parser import parse_core_log
@@ -24,9 +29,29 @@ from core_photo_analysis import (
     detect_blue_tray_quadrilateral,
     draw_tray_quadrilateral,
     rectify_tray_perspective,
+    validate_tray_quadrilateral,
 )
 
 logger = logging.getLogger(__name__)
+
+_POINT_EDITOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "point_editor")
+point_editor = components.declare_component("geolysis_core_tray_corner_editor", path=_POINT_EDITOR_DIR)
+
+
+def _corner_editor_image_payload(image: Image.Image, points: list[list[float]], max_side: int = 1600):
+    """Prepare a bounded preview for the draggable corner editor; keep source pixels untouched."""
+    preview = image.convert("RGB")
+    scale = min(1.0, float(max_side) / max(preview.size))
+    if scale < 0.999:
+        preview = preview.resize(
+            (max(1, int(round(preview.width * scale))), max(1, int(round(preview.height * scale)))),
+            Image.Resampling.LANCZOS,
+        )
+    buffer = io.BytesIO()
+    preview.save(buffer, format="JPEG", quality=88, optimize=True)
+    data_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    scaled_points = [[float(x) * scale, float(y) * scale] for x, y in points]
+    return data_url, preview.width, preview.height, scale, scaled_points
 
 
 def _image_digest(image: Image.Image) -> str:
