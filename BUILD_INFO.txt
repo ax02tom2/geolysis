@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-12 Asia/Taipei (UTC+08:00)
-Validated main code commit: f9b999e3207ff6d78aaa572f88bb290e1e6d0999
+Validated main code commit: 4b3862e5c59ad798acac3fffcebb15ee859a7c01
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 433 passed
-GitHub Actions validation run: 43131680957 (success; Python 3.11 compile passed; Streamlit AppTest included; 433 passed in 2.36 s; PR #94 residual-pore-pressure applicability correction; tested head 8a92e229d5b64b3f732d5d083b0972266d3ab898, merged to main at f9b999e3207ff6d78aaa572f88bb290e1e6d0999)
-Runtime smoke: PR #94 CI run 43131680957 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
+Latest verified automated suite: 439 passed
+GitHub Actions validation run: 43133501027 (success; Python 3.11 compile passed; Streamlit AppTest included; 439 passed in 1.83 s; PR #98 bidirectional horizontal seismic envelope correction; tested head 319decaf008f35191954139ab802e637f7e6b65c, merged to main at 4b3862e5c59ad798acac3fffcebb15ee859a7c01)
+Runtime smoke: PR #98 CI run 43133501027 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -181,3 +181,12 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - PR #94 merged to main at f9b999e3207ff6d78aaa572f88bb290e1e6d0999.
 - GitHub Actions run 43131680957: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 433 passed in 2.36 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-9c, Figure 9-1, §9-10(a), §9-10(c)(3), Eqs. 9-3/9-4.
+
+
+Module 5 bidirectional horizontal seismic envelope — PR #98
+- General seismic eccentricity/qeq and residual-excess-pore-pressure bearing-capacity paths now both evaluate +khW and −khW whenever kh is active, even if the user has not supplied a seismic base moment.
+- Existing seismic base moments still reverse sign with the horizontal earthquake direction; both V±kvW vertical combinations remain evaluated.
+- Added regression coverage for both paths without a seismic moment, and updated earlier expected load-combination counts/values.
+- Engineering boundary preserved: khW is not converted into an overturning moment without the structural analysis effective height/resultant moment; the UI warning remains.
+- PR #98 merged to main at 4b3862e5c59ad798acac3fffcebb15ee859a7c01.
+- GitHub Actions run 43133501027: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 439 passed in 1.83 s.
