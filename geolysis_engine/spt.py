@@ -108,8 +108,8 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
     Optional CSV columns: Soil_Behavior (cohesionless/cohesive),
     Apply_Dilatancy (true/false), Energy_Ratio_pct, Borehole_Factor,
     Sampler_Factor and Rod_Length_m. Global settings remain the fallback;
-    if global dilatancy is enabled, every profile row must explicitly declare
-    Apply_Dilatancy to avoid blanket correction of non-eligible soil layers.
+    if global dilatancy is enabled, every non-refusal cohesionless row must
+    explicitly declare Apply_Dilatancy to avoid blanket correction of ineligible layers.
     """
     out=[]
     if not rows: raise ValueError('逐深度資料不可為空')
@@ -152,7 +152,8 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
             out.append({**clean,'N60':None,'CE':None,'CB':None,'CS':None,'CR':None,
                 'CN_raw':None,'CN':None,'N1_60':None,'N1_60_dilatancy':None,
                 'N1_60_final':None,'soil_behavior':row_soil,
-                'dilatancy_applied':False,'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
+                'dilatancy_applied':False,'warnings':[],
+                'Correction_status':'拒錘／部分貫入：不可套用一般 N 值修正'})
             continue
         needs_cn = row_soil == "cohesionless" and cn_method != "不修正"
         if needs_cn and raw_stress is None:
