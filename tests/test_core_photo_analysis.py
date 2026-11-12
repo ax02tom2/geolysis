@@ -390,3 +390,31 @@ def test_core_log_tray_detection_has_single_cache_wrapper():
 
     assert callable(core_log._cached_tray_detection)
     assert hasattr(core_log._cached_tray_detection, "clear")
+
+
+def test_rqd_handoff_uses_v8_segments_key_and_computes_a_row_result():
+    from geolysis_ui.core_log import _rqd_segments_from_analysis
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    analysis = {
+        "success": True,
+        "segments": [{"x_start_px": 0, "x_end_px": 400, "length_mm": 1000.0}],
+        "gaps": [],
+        "uncertain": [],
+    }
+    segments = _rqd_segments_from_analysis(analysis)
+    result = estimate_rqd_from_image_segments(
+        segments, [], mm_per_px=2.5, row_length_mm=1000.0,
+        no_breaks_confirmed=True,
+    )
+    assert len(segments) == 1
+    assert result["ready"] is True
+    assert result["recovery_percent"] == 100.0
+    assert result["rqd_percent"] == 100.0
+
+
+def test_rqd_handoff_keeps_legacy_core_segments_fallback():
+    from geolysis_ui.core_log import _rqd_segments_from_analysis
+
+    legacy = {"core_segments": [{"x_start_px": 10, "x_end_px": 30}]}
+    assert _rqd_segments_from_analysis(legacy) == legacy["core_segments"]

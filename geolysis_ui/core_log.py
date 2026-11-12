@@ -76,6 +76,20 @@ def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str):
         )
 
 
+def _rqd_segments_from_analysis(analysis: dict) -> list[dict]:
+    """Map the V8 detector's public 'segments' output to the RQD estimator.
+
+    Keep the legacy core_segments fallback for cached/error payloads produced
+    by earlier engine versions; successful V8 results use the 'segments' key.
+    """
+    if not isinstance(analysis, dict):
+        return []
+    segments = analysis.get("segments")
+    if segments is None:
+        segments = analysis.get("core_segments", [])
+    return list(segments or [])
+
+
 def _row_label(record: Any) -> str:
     if record.depth_start_m is not None and record.depth_end_m is not None:
         return f"{record.depth_start_m:.1f}–{record.depth_end_m:.1f} m"
@@ -401,7 +415,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     )
 
                 result = estimate_rqd_from_image_segments(
-                    analysis.get("core_segments", []),
+                    _rqd_segments_from_analysis(analysis),
                     reviewed_breaks,
                     mm_per_px,
                     row_length_mm=1000.0,
