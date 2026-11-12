@@ -113,6 +113,9 @@ def render_module_4(expanded=False):
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
+                width4_calc,length4_calc=_module5_settlement_dimensions(width4,length4,transfer_qult4 is not None)
+                if transfer_qult4 is not None and (abs(width4_calc-width4)>1e-6 or abs(length4_calc-length4)>1e-6):
+                    st.info(f"偏心荷載沉陷分析採 Module 5 有效尺寸 B′×L′={width4_calc:.3f}×{length4_calc:.3f} m，而非原始尺寸 B×L={width4:.3f}×{length4:.3f} m（USACE 2025 §5-2a）。")
                 qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
                 q4_input=(transfer_qeq4 if transfer_qeq4 is not None else q4)
                 if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
@@ -145,7 +148,7 @@ def render_module_4(expanded=False):
                         m3_profile_data4['Burland_Material'].fillna('').astype(str).str.strip().ne('').any())
                     avg_bb=burland_burbidge_average_n60_from_ground_profile(
                         m3_profile_data4.to_dict('records'),foundation_depth_m=df_bb4,
-                        width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
+                        width_m=width4_calc,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
                         loose_layer_thickness_m=loose_layer4,
                         gravel_adjustment=(gravel4 if not m3_has_burland_material4 else False),
                         fine_sand_saturated=(fine_sat4 if not m3_has_burland_material4 else False))
@@ -165,7 +168,7 @@ def render_module_4(expanded=False):
                         prof_bb['Burland_Material'].notna().any() and
                         prof_bb['Burland_Material'].fillna('').astype(str).str.strip().ne('').any())
                     avg_bb=burland_burbidge_average_n60_from_profile(prof_bb.to_dict('records'),
-                        width_m=width4,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
+                        width_m=width4_calc,granular_layer_thickness_m=hs4,n_decreases_with_depth=ndecrease4,
                         loose_layer_thickness_m=loose_layer4,
                         gravel_adjustment=(gravel4 if not manual_has_burland_material4 else False),
                         fine_sand_saturated=(fine_sat4 if not manual_has_burland_material4 else False))
@@ -181,11 +184,11 @@ def render_module_4(expanded=False):
                     ]),hide_index=True,use_container_width=True)
                 elif gravel4 or fine_sat4:
                     st.warning("目前以單一平均 N60 輸入；粒料修正將套用於平均值作近似。正式計算應先逐筆修正影響深度內的 N60，再計算算術平均；可使用模組三剖面或貼上 CSV。")
-                zi_bb4=1.43*(width4/0.3048)**0.7*0.3048
-                if ndecrease4: zi_bb4=min(2.0*width4,loose_layer4)
+                zi_bb4=1.43*(width4_calc/0.3048)**0.7*0.3048
+                if ndecrease4: zi_bb4=min(2.0*width4_calc,loose_layer4)
                 if hs4 < zi_bb4-1e-9 and not ndecrease4:
                     st.warning("Hs 小於 Zi，依 USACE 式 7-33 套用有限厚度修正 C2。請確認下伏層的變形特性與有限厚度修正假設相符；若下伏層仍有顯著壓縮或較軟，C2 折減可能低估沉陷，應改用分層 CPT／DMT／固結沉陷分析。")
-                bb_args=dict(n60_average=n60_used4,width_m=width4,length_m=length4,
+                bb_args=dict(n60_average=n60_used4,width_m=width4_calc,length_m=length4_calc,
                     initial_effective_stress_kpa=sig04,preconsolidation_stress_kpa=sigp4,
                     granular_layer_thickness_m=hs4,years=years4,load_type=loadtype4,
                     overconsolidated=oc4,gravel_adjustment=(gravel4 if not profile_text4.strip() and not use_m3_spt4 else False),
@@ -237,6 +240,9 @@ def render_module_4(expanded=False):
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
                 dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type)
+                dmtB_calc,dmtL_calc=_module5_settlement_dimensions(dmtB,dmtL,dmt_transfer_qult is not None)
+                if dmt_transfer_qult is not None and (abs(dmtB_calc-dmtB)>1e-6 or abs(dmtL_calc-dmtL)>1e-6):
+                    st.info(f"DMT 沉陷採有效尺寸 B′×L′={dmtB_calc:.3f}×{dmtL_calc:.3f} m（USACE 2025 §5-2a）。")
                 dmtqult=(dmt_transfer_qult if dmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult"))
                 dmtq_input=(dmt_transfer_qeq if dmt_transfer_qeq is not None else dmtq)
             with c:
@@ -256,7 +262,7 @@ def render_module_4(expanded=False):
                     dmt_layers=pd.read_csv(StringIO(dmt_text)).to_dict("records")
                     if dmt_mode=="MDMT":
                         result_dmt=dmt_modulus_settlement_2025(
-                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            layers=dmt_layers,footing_width_m=dmtB_calc,footing_length_m=dmtL_calc,
                             gross_pressure_kpa=dmtq_input,base_effective_stress_kpa=dmtsig,
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
@@ -304,6 +310,9 @@ def render_module_4(expanded=False):
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
                 cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType)
+                cptB_calc,cptL_calc=_module5_settlement_dimensions(cptB,cptL,cpt_transfer_qult is not None)
+                if cpt_transfer_qult is not None and (abs(cptB_calc-cptB)>1e-6 or abs(cptL_calc-cptL)>1e-6):
+                    st.info(f"CPT 沉陷採有效尺寸 B′×L′={cptB_calc:.3f}×{cptL_calc:.3f} m（USACE 2025 §5-2a）。")
                 cptQult=(cpt_transfer_qult if cpt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult"))
                 cptq_input=(cpt_transfer_qeq if cpt_transfer_qeq is not None else cptq)
                 cptFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_cpt_fs")
@@ -322,7 +331,7 @@ def render_module_4(expanded=False):
                 else:
                     cptLayers=pd.read_csv(StringIO(cptText)).to_dict("records")
                     cptResult=schmertmann_cpt_settlement_2025(
-                        layers=cptLayers,footing_width_m=cptB,footing_length_m=cptL,
+                        layers=cptLayers,footing_width_m=cptB_calc,footing_length_m=cptL_calc,
                         gross_pressure_kpa=cptq_input,base_effective_stress_kpa=cptSigD,
                         peak_effective_stress_kpa=cptSigP,years=cptYears,
                         ultimate_bearing_kpa=(cptQult if cptQult>0 else None),
@@ -353,6 +362,9 @@ def render_module_4(expanded=False):
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
                 pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound))
+                pmtB_calc,pmtL_calc=_module5_settlement_dimensions(pmtB,pmtL,pmt_transfer_qult is not None)
+                if pmt_transfer_qult is not None and (abs(pmtB_calc-pmtB)>1e-6 or abs(pmtL_calc-pmtL)>1e-6):
+                    st.info(f"PMT 沉陷採有效尺寸 B′×L′={pmtB_calc:.3f}×{pmtL_calc:.3f} m；λd、λc 應依有效 L′/B′ 核對（USACE 2025 §5-2a）。")
                 pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
                 pmtq_input=(pmt_transfer_qeq if pmt_transfer_qeq is not None else pmtq)
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
@@ -400,7 +412,7 @@ def render_module_4(expanded=False):
                         st.error("非圓形基礎須先依文獻圖 7-11 確認 λd、λc。")
                     else:
                         pmtResult=menard_rousseau_pmt_settlement_2025(
-                            pmt_moduli=pmtRows,footing_width_m=pmtB,footing_length_m=pmtL,
+                            pmt_moduli=pmtRows,footing_width_m=pmtB_calc,footing_length_m=pmtL_calc,
                             gross_pressure_kpa=pmtq_input,base_effective_stress_kpa=pmtSigD,
                             equivalent_net_limit_pressure_kpa=pmtPne,
                             yield_pressure_kpa=pmtPy,
@@ -466,6 +478,9 @@ def render_module_4(expanded=False):
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
                 clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,include_qeq=False)
+                qB_calc,qL_calc=_module5_settlement_dimensions(qB,qL,clay_transfer_qa is not None)
+                if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):
+                    st.info(f"一維固結沉陷採 Module 5 有效尺寸 B′×L′={qB_calc:.3f}×{qL_calc:.3f} m（USACE 2025 §5-2a）。")
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
@@ -473,8 +488,8 @@ def render_module_4(expanded=False):
                 stress_ratio_clay4=None
                 if layers_text4.strip():
                     layer_rows=pd.read_csv(StringIO(layers_text4)).to_dict('records')
-                    r=consolidation_allowable_pressure_layers(layers=layer_rows,footing_width_m=qB,
-                        footing_length_m=qL,target_settlement_mm=target4,stress_method=stress_method_clay4,
+                    r=consolidation_allowable_pressure_layers(layers=layer_rows,footing_width_m=qB_calc,
+                        footing_length_m=qL_calc,target_settlement_mm=target4,stress_method=stress_method_clay4,
                         max_pressure_kpa=max_clay_q)
                     qa_clay_settlement=r['qa_primary_consolidation_kpa']
                     st.dataframe(pd.DataFrame(r['layer_results']),hide_index=True,use_container_width=True)
@@ -484,10 +499,10 @@ def render_module_4(expanded=False):
                 else:
                     if zc < Hc/2.0 - 1e-9:
                         raise ValueError("單一壓縮層頂面位於基礎底以上；請使 z ≥ H/2，或改用多層 CSV 正確描述層界。")
-                    stress_ratio_clay4=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
-                        else boussinesq_rectangular_center_factor(qB,qL,zc))
+                    stress_ratio_clay4=((qB_calc*qL_calc)/((qB_calc+zc)*(qL_calc+zc)) if stress_method_clay4=='2:1'
+                        else boussinesq_rectangular_center_factor(qB_calc,qL_calc,zc))
                     depth_review_clay4=consolidation_influence_depth_review(
-                        footing_width_m=qB,footing_length_m=qL,
+                        footing_width_m=qB_calc,footing_length_m=qL_calc,
                         profile_bottom_m=zc+Hc/2.0,stress_method=stress_method_clay4)
                     for _depth_warning in depth_review_clay4.get("warnings", []): st.warning(_depth_warning)
                     st.caption(f"單層壓縮範圍底深 {depth_review_clay4['profile_bottom_m']:.2f} m；USACE 最低影響深度 {depth_review_clay4['minimum_influence_depth_m']:.2f} m；底界估算 Iσ={depth_review_clay4['bottom_stress_factor']:.3f}。若下伏仍有可壓縮土層，請改用多層 CSV 納入。")
@@ -516,8 +531,8 @@ def render_module_4(expanded=False):
                         try:
                             layer_rows_time4=pd.read_csv(StringIO(layers_text4)).to_dict("records")
                             primary_layers_time4=consolidation_settlement_layers(
-                                layers=layer_rows_time4,footing_width_m=qB,
-                                footing_length_m=qL,net_pressure_kpa=qa_clay_final,
+                                layers=layer_rows_time4,footing_width_m=qB_calc,
+                                footing_length_m=qL_calc,net_pressure_kpa=qa_clay_final,
                                 stress_method=stress_method_clay4)
                             time_template_rows4=[]
                             for i,row in enumerate(primary_layers_time4["layer_results"],1):
@@ -634,7 +649,7 @@ def render_module_4(expanded=False):
                         st.warning("Es 預設 10 MPa 僅供示範運算，不是建議設計值。請以工作應變範圍的試驗或經場址校正的相關式取代；不可直接把 SPT N 值當成 Es。若無可靠 Es，請不要採用此即時沉陷數值。")
                     try:
                         immediate4=immediate_elastic_settlement(net_pressure_kpa=q_im4,
-                            footing_width_m=qB,soil_modulus_mpa=es_im4,
+                            footing_width_m=qB_calc,soil_modulus_mpa=es_im4,
                             poisson_ratio=nu_im4,influence_factor=ip_im4[1])
                         st.metric("即時／彈性沉陷 δi",f"{immediate4['immediate_settlement_mm']:.2f} mm")
                         st.caption(immediate4['method']+"；"+immediate4['limitations'])
