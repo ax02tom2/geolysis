@@ -1,10 +1,10 @@
 # geolysis 大地工程分析系統｜Web 版
 
-本專案為 Streamlit 網頁版，保留五個大地工程分析模組。岩心照片判釋與 RQD 影像流程已獨立，不屬於本 Web 專案。
+本專案為 Streamlit 網頁版，包含五個大地工程分析模組，以及模組一的整孔岩心柱狀圖 DOCX／PDF 解析與逐列 RQD 影像初估。影像分析採本機 OpenCV 演算法，不依賴付費 AI 服務；所有 RQD 候選仍須由使用者覆核。
 
 ## 五個分析模組
 
-1. **Hoek–Brown 岩體參數**：GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；可估算等效 Mohr–Coulomb 參數。輸出受圍壓範圍與適用模式限制。
+1. **岩體參數與岩心分析**：Hoek–Brown 的 GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；另支援整孔 DOCX／PDF 岩心柱狀圖匯入、每列 1 m 採取率與 RQD 影像初估、疑似斷裂標示及人工覆核。Hoek–Brown 輸出受圍壓範圍與適用模式限制。
 2. **土壤分類**：USCS 與 AASHTO 分類、級配與塑性指標檢核。
 3. **SPT 全修正**：能量、鑽孔、取樣器、桿長、上覆壓力與逐深度剖面修正。
 4. **沉陷與容許壓力**：Burland–Burbidge 沉陷估算、單層／多層主固結、時間率、立即沉陷、次壓縮、差異沉陷與開挖回彈。
@@ -16,7 +16,7 @@
 - **多層承載力穿刺**：可輸入多層水平土層強度與厚度，依 USACE 2025 Eqs. 5-17／5-18 對影響深度內的較弱下層採 2V:1H 擴散，取控制承載力。
 - **地震承載力**：提供 kh／kv 偽靜力基礎作用包絡；另依 USACE 2025 Eqs. 9-3／9-4，計算殘餘超額孔隙水壓比 ru 對砂狀土 Nγ 項的折減。此功能不代表可將可液化或顯著強度損失地盤視為可接受淺基礎地盤。
 - **基底滑動**：依 USACE 2025 Eqs. 5-28／5-30 計算界面摩擦、黏著與揚壓力；可手動輸入主動／已折減被動土壓，或依 Eqs. 5-31 至 5-35 自動估算 Rankine developed earth pressure。荷載組合明確區分常時／靜力 FS ≥ 2.0 與含地震荷載 FS ≥ 1.1；選擇地震組合只切換最低 FS，地震慣性力仍須由使用者納入 H、V 與土壓輸入。
-- **整體穩定**：Bishop 簡化法手動切片計算，以及均質土、水平地下水位、圓弧滑動面的網格搜尋。
+- **整體穩定**：Bishop 簡化法手動切片計算，以及均質土強度、水平地下水位、圓弧滑動面的網格搜尋；自動搜尋的切片重量在地下水位以上採濕單位重 γ_moist，以下採飽和單位重 γ_sat，孔隙水壓另依水位計算。
 - 原有靜力承載力與上述新增檢核彼此獨立；不得把單一承載力 FS 當成滑動或整體穩定 FS。
 
 ## 已知適用限制
@@ -24,7 +24,7 @@
 - 斜坡／基底傾斜修正目前採 USACE Meyerhof-based 係數組；鄰接坡體 FS > 1.3 是地表坡角係數的適用前提；不等同 AASHTO/FHWA 全套設計方法。
 - 多層承載力目前實作強上層覆蓋弱下層的 2V:1H 穿刺簡化法；不等同任意多層、任意破壞面之數值分析。
 - 地震功能包括偽靜力作用包絡及 ru 對 Nγ 項折減；尚未整合完整地震時程、土體慣性極限分析、液化後殘餘強度剖面、側向擴展與震陷。
-- Bishop 自動搜尋限均質土、圓弧滑面及水平地下水位；不含分層土、非圓弧滑面、地表附加荷載、地震及三維效應。正式設計應加密搜尋並以 Spencer／Morgenstern–Price 等方法交叉驗證。
+- Bishop 自動搜尋限均質 c′／φ′ 強度、圓弧滑面及水平地下水位；切片重量可區分 γ_moist 與 γ_sat，但不含分層強度、非圓弧滑面、地表附加荷載、地震及三維效應。正式設計應加密搜尋並以 Spencer／Morgenstern–Price 等方法交叉驗證。
 - 基底滑動的主動／被動土壓力需由使用者以 developed strength 另行計算後輸入；常時與地震荷載組合分別採不同最低 FS，不能把地震例外值套用到常時分析。
 
 ## 本機啟動
@@ -39,7 +39,7 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件僅保留 Web 介面實際使用的 Streamlit、Pandas 與 Plotly；工程計算由專案內的 `geolysis_engine/` 套件執行。
+Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件包含 Streamlit、Pandas、Plotly，以及岩心影像與文件解析所需的 OpenCV headless、PyMuPDF、python-docx；工程計算由專案內的 `geolysis_engine/` 套件執行。
 
 ## 審查修正與公式追溯
 
@@ -58,7 +58,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 
 CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
-GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測試、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查與 Streamlit AppTest 頁面載入 smoke test。最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
+GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 本版完整測試為 542 passed、1 skipped；最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 
 ## 工程使用限制
 
@@ -84,6 +84,9 @@ GitHub Actions 使用 Python 3.11，執行 Python 編譯、工程計算回歸測
 
 - `app.py`：頁面設定、系統標題、側邊欄與五個模組的協調入口。
 - `geolysis_ui/module1.py` 至 `module5.py`：各工程模組的輸入欄位、互動與結果呈現。
+- `geolysis_ui/core_log.py`：整孔 DOCX／PDF 岩心柱狀圖、原始頁面疊圖、逐列 RQD 初估及人工覆核。
+- `core_log_parser.py`：PDF／DOCX 內嵌岩心影像擷取與列深度解析。
+- `core_photo_analysis.py`：岩心本體分段、空隙／不確定區與斷裂候選分析。
 - `geolysis_ui/__init__.py`：集中匯出各模組的 render 函式。
 
 目前保留原本的單頁呈現、側邊欄模組選擇與 expander 收合方式；此階段只分離程式責任，不改成 Streamlit 多頁導覽，以免改變既有操作習慣。
