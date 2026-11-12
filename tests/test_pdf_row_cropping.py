@@ -93,3 +93,28 @@ def test_core_log_parser_attaches_depths_from_row_end_labels_without_start_input
         (0.0, 1.0), (1.0, 2.0), (2.0, 3.0)
     ]
     assert warnings == []
+
+
+def test_pdf_parser_uses_decimal_row_end_depths_without_manual_start_depth():
+    from io import BytesIO
+    import fitz
+    from PIL import Image
+    from core_log_parser import parse_pdf_core_log
+
+    page_image = Image.new("RGB", (480, 480), (25, 95, 190))
+    image_buffer = BytesIO()
+    page_image.save(image_buffer, format="PNG")
+
+    document = fitz.open()
+    page = document.new_page(width=600, height=800)
+    page.insert_image(fitz.Rect(20, 100, 500, 580), stream=image_buffer.getvalue())
+    for index, depth_end in enumerate(("1.0", "2.0", "3.0", "4.0")):
+        page.insert_text((510, 160 + index * 120), depth_end, fontsize=10)
+
+    parsed = parse_pdf_core_log(document.tobytes(), start_depth_m=None, row_length_m=1.0)
+    records = parsed["records"]
+    assert len(records) == 4
+    assert [(r.depth_start_m, r.depth_end_m) for r in records] == [
+        (0.0, 1.0), (1.0, 2.0), (2.0, 3.0), (3.0, 4.0)
+    ]
+    assert parsed["depth_source"] == "PDF 列尾深度標籤"
