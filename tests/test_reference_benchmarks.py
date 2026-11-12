@@ -4103,3 +4103,16 @@ def test_bishop_manual_slice_csv_rejects_ambiguous_dual_weight_headers():
     frame = pd.DataFrame({"weight_kN": [100.0], "weight_kN_per_m": [100.0]})
     with pytest.raises(ValueError, match="不可同時提供"):
         _normalize_bishop_weight_column(frame)
+
+
+def test_bishop_rejects_slice_with_nonpositive_effective_normal_contact():
+    slices = [
+        {"width_m": 1.0, "weight_kN": 10.0, "base_angle_deg": 10.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 12.0},
+        {"width_m": 1.0, "weight_kN": 100.0, "base_angle_deg": 15.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 0.0},
+        {"width_m": 1.0, "weight_kN": 100.0, "base_angle_deg": 20.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 0.0},
+    ]
+    with pytest.raises(ValueError, match="無正向有效法向接觸"):
+        bishop_simplified_factor_of_safety(slices=slices)
