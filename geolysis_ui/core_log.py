@@ -412,6 +412,11 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 reviewed_breaks = []
                 if candidates:
                     st.markdown("**疑似斷裂／岩心間隙位置（請逐一確認）**")
+                    if any(candidate.get("candidate_type") == "core_gap" for candidate in candidates):
+                        st.caption(
+                            "間隙判讀：機械破損會合併 RQD 岩心段但不增加採取率；"
+                            "影像分割誤判會回補該間隙長度；天然節理與岩心缺失不合併。"
+                        )
                     for candidate_index, candidate in enumerate(candidates):
                         distance = float(candidate.get("distance_mm", 0.0))
                         suggested = candidate.get("suggested_class", "不確定／需人工確認")
