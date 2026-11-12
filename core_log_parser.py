@@ -200,11 +200,12 @@ def parse_docx_core_log(data: bytes, start_depth_m: float | None = None,
         raise ValueError("文件中沒有找到符合格式的岩心箱照片表格。請確認是由岩心柱狀圖工具輸出的 DOCX。")
     _attach_depths(records, start_depth_m, row_length_m)
     _validate_row_sequence(records, warnings)
-    has_depth_labels = any(r.depth_end_label_m is not None for r in records)
+    depth_label_count = sum(r.depth_end_label_m is not None for r in records)
     return {"records": records, "warnings": warnings,
             "pages_detected": page_no, "rows_detected": len(records),
             "borehole_id": None,
-            "depth_source": ("DOCX 列尾深度標籤" if has_depth_labels
+            "depth_source": ("DOCX 列尾深度標籤" if depth_label_count == len(records)
+                             else "DOCX 部分列尾深度標籤" if depth_label_count
                              else "使用者輸入" if start_depth_m is not None else None),
             "format": "docx"}
 
@@ -344,8 +345,13 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
 
     if not records:
         raise ValueError("PDF 中沒有找到符合格式的岩心箱照片。請確認是由岩心柱狀圖工具輸出的 PDF。")
-    has_depth_labels = any(r.depth_end_label_m is not None for r in records)
-    depth_source = "PDF 列尾深度標籤" if has_depth_labels else ("使用者輸入" if start_depth_m is not None else None)
+    depth_label_count = sum(r.depth_end_label_m is not None for r in records)
+    has_depth_labels = depth_label_count > 0
+    depth_source = (
+        "PDF 列尾深度標籤" if depth_label_count == len(records)
+        else "PDF 部分列尾深度標籤" if has_depth_labels
+        else "使用者輸入" if start_depth_m is not None else None
+    )
     if start_depth_m is None and not has_depth_labels and records:
         first_record = records[0]
         first_page = next((v for v in page_views if v.get("page") == first_record.page), None)
@@ -408,10 +414,12 @@ def _validate_row_sequence(records: list[CoreRowRecord], warnings: list[str]):
                 )
                 break
         return
+    if nums:
+        warnings.append(f"列號辨識不完整：辨識到 {len(nums)} / {len(records)} 列。")
+    if depth_rows:
+        warnings.append(f"深度標籤辨識不完整：辨識到 {len(depth_rows)} / {len(records)} 列。")
     if not nums and not depth_rows:
         warnings.append("未讀取到列號或列尾深度；目前只能檢視照片，不能自動建立深度索引。")
-    elif len(depth_rows) != len(records):
-        warnings.append(f"深度標籤辨識不完整：辨識到 {len(depth_rows)} / {len(records)} 列。")
 
 
 def parse_core_log(data: bytes, filename: str, start_depth_m: float | None = None,
