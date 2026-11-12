@@ -5,7 +5,7 @@ import math
 import plotly.graph_objects as go
 from geolysis_engine import (
     hoek_brown_parameters, hoek_brown_structure_applicability,
-    gsi_quantitative_from_rqd_jcond,
+    gsi_quantitative_from_rqd_jcond, gsi_scale_effect_warning,
 )
 
 
@@ -630,6 +630,12 @@ def render_module_1(expanded=False):
             gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=gamma_default, step=0.5, key="geolysis_gamma_general")
             h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
                 value=20.0, step=1.0, key="hb_analysis_height_m")
+            _gsi_scale_warning = gsi_scale_effect_warning(
+                application=("slope" if "邊坡" in app_type else ("tunnel" if "隧道" in app_type else "general")),
+                height_m=h_slope,
+            )
+            if _gsi_scale_warning:
+                st.warning(_gsi_scale_warning)
             sigma3_general = None
             if "一般淺層" in app_type:
                 sigma3_general = st.number_input("自訂有效圍壓上限 σ3_max [MPa]", min_value=0.001, max_value=250.0, value=1.0, step=0.1, key="hb_sigma3_general")
