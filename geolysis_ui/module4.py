@@ -464,6 +464,8 @@ def render_module_4(expanded=False):
                     st.caption(f"固結剖面底深 {r['profile_bottom_m']:.2f} m；USACE 最低影響深度 {r['minimum_influence_depth_m']:.2f} m；底界估算 Iσ={r['bottom_stress_factor']:.3f}。此為深度完整性篩檢，仍須依下伏層壓縮性判斷是否延伸。")
                     st.caption("分層表逐層列出應力影響係數、應力增量及主固結沉陷；總沉陷為各層沉陷量加總。若提供 Stress_factor（0–1），該層會優先採用輸入值；請僅填入經核對的 USACE 範例／圖表或獨立應力分析值，空白則依上方 Boussinesq／2:1 方法計算。")
                 else:
+                    if zc < Hc/2.0 - 1e-9:
+                        raise ValueError("單一壓縮層頂面位於基礎底以上；請使 z ≥ H/2，或改用多層 CSV 正確描述層界。")
                     stress_ratio_clay4=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
                         else boussinesq_rectangular_center_factor(qB,qL,zc))
                     depth_review_clay4=consolidation_influence_depth_review(
