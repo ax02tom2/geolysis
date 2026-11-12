@@ -1235,7 +1235,7 @@ def estimate_rqd_from_image_segments(
             "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1) if intervals else None,
             "rqd_percent": None, "recovered_length_mm": round(total_core_mm, 1) if intervals else None,
             "unresolved_count": len(unresolved),
-            "warning": "採取率可先依岩心本體區間初估；尚有斷裂候選未覆核，暫不估算本列 RQD。",
+            "warning": "採取率可先依岩心本體區間初估；尚有斷裂／間隙候選未覆核，暫不估算本列 RQD。",
         }
 
     intervals = []
