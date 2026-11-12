@@ -502,7 +502,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     ]
     assert not calculation_errors, (
         f"{calculation_errors}; state="
-        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs')]}"
+        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_dmt_mode','m4_dmt_layers','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_cpt_layers','m4_cpt_soil_confirm','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs','m4_pmt_layers','m4_pmt_pne','m4_pmt_py')]}; transfer={app.session_state.get('m5_bearing_transfer')}"
     )
     expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
