@@ -135,6 +135,10 @@ def test_module5_confirmed_bearing_result_is_published_to_module4():
     assert transfer["complete_capacity_model"] is True
     assert transfer["qult_gross_kpa"] > 0
     assert transfer["qa_net_kpa"] > 0
+    assert transfer["B_effective_m"] == pytest.approx(2.0)
+    assert transfer["L_effective_m"] == pytest.approx(3.0)
+    assert transfer["base_inclination_deg"] == pytest.approx(0.0)
+    assert transfer["ground_inclination_deg"] == pytest.approx(0.0)
     transfer_checkbox_key = f"m4_bb_use_m5_{transfer['transfer_id']}"
     assert any(widget.key == transfer_checkbox_key for widget in app.checkbox)
 
