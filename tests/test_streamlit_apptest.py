@@ -299,6 +299,9 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
 
     assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
     assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
+    assert not any(widget.key == "m5x_slide_gamma" for widget in app.number_input)
+    assert not any(str(widget.key).startswith("m5x_slide_backfill_phi_") for widget in app.number_input)
+    assert not any(str(widget.key).startswith("m5x_slide_backfill_c_") for widget in app.number_input)
 
     uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
     uplift.set_value(1.0)
