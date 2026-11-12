@@ -201,12 +201,12 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
 
 def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     method = next(widget for widget in app.radio if widget.key == "gsi_method")
     method.set_value("鑽孔定量估算（FHWA Eq. 9-19）")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     rqd = next(widget for widget in app.text_input if widget.key == "gsi_quant_rqd_text")
     rqd.set_value("80")
@@ -221,19 +221,19 @@ def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
         widget = next(item for item in app.selectbox if item.key == key)
         widget.select(value)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
     assert gsi_input.value == 77.5
 
 
 def test_module5_defaults_uplift_force_from_base_pressure_and_full_footing_area():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     water = next(widget for widget in app.number_input if widget.key == "m5_dw")
     water.set_value(0.0)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Default Df=1.5 m, B=2 m, L=3 m; u_D=(Df-Dw)*9.81 kPa.
     expected_u = 1.5 * 9.81 * 2.0 * 3.0
@@ -244,13 +244,13 @@ def test_module5_defaults_uplift_force_from_base_pressure_and_full_footing_area(
 
 def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seismic_case():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
     next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(12.0)
     next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm").check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     static_u = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
     expected_hydrostatic = 1.5 * 9.81 * 2.0 * 3.0
@@ -258,14 +258,14 @@ def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seis
 
     next(widget for widget in app.selectbox if widget.key == "m5x_slide_case").select("含地震荷載")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     seismic_u = next(widget for widget in app.number_input if widget.key.startswith("m5x_slide_u_"))
     assert seismic_u.value == pytest.approx((1.5 * 9.81 + 12.0) * 2.0 * 3.0)
 
 
 def test_module5_seismic_uplift_exposes_dead_load_interpretation_caveat():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     warnings = [item.value for item in app.warning]
     assert any("§5-7(b)" in value and "§9-10(f)" in value and "Wf、Wc" in value
                for value in warnings)
@@ -277,13 +277,13 @@ def test_module5_seismic_uplift_exposes_dead_load_interpretation_caveat():
 
 def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     preset = "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）"
     rock = next(widget for widget in app.selectbox if widget.key == "hb_rock_type_for_mi")
     rock.select(preset)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     case_key = f"hb_ucs_case_{preset}"
     ucs_case = next(widget for widget in app.selectbox if widget.key == case_key)
@@ -294,17 +294,17 @@ def test_module1_alishan_tunnel_case_can_be_selected_and_calculated_in_streamlit
     disturbance = next(widget for widget in app.selectbox if widget.label == "開挖/自然擾動程度參考 (D)")
     disturbance.select("弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
 
 def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_run_on_manual_confirmation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     load_case = next(widget for widget in app.selectbox if widget.key == "m5x_slide_case")
     load_case.select("含地震荷載")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
     assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
@@ -317,7 +317,7 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm")
     pressure_confirm.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
     assert slide_button.disabled is True
 
@@ -326,19 +326,19 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     )
     earth_pressure_confirm.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
     assert slide_button.disabled is False
 
 
 def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     method = next(widget for widget in app.selectbox if widget.key == "m4_method")
     method.set_value("黏土：一維主固結沉陷控制法")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     layer_center = next(widget for widget in app.number_input if widget.key == "m4c_z")
     layer_center.set_value(1.0)
@@ -352,7 +352,7 @@ def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base(
 
 def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Produce a genuine transfer by running Module 5 through its public UI.
     loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
@@ -361,7 +361,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     calculate = next(widget for widget in app.button if widget.key == "m5_run")
     calculate.click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     transfer = app.session_state["m5_bearing_transfer"]
     assert transfer is not None
@@ -374,7 +374,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     )
     use_qult.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     conditions_key = (
         f"m4_bb_conditions_{transfer_id}_"
@@ -383,7 +383,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     use_qeq = next(
         widget for widget in app.checkbox
@@ -391,7 +391,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     )
     use_qeq.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # The default manual q is 150 kPa. The displayed adopted pressure must
     # equal the real Module 5 qeq, proving the Burland path consumes qeq.
@@ -401,7 +401,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
 
 def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     eccentric = next(
         widget for widget in app.checkbox
@@ -409,12 +409,12 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
     )
     eccentric.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_eb").set_value(0.10)
     next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_el").set_value(0.20)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert any("B′=1.800 m、L′=2.600 m" in item.value for item in app.caption)
     # Burland influence depth must use B'=1.8 m, not the physical B=2.0 m.
     assert any("影響深度 Zi = 1.51 m" in item.value for item in app.markdown)
@@ -427,19 +427,19 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
             "DMT：增量拘束模數法（USACE 2025）",
             "m4_dmt_mode",
             "m4_dmt_layers",
-            "Layer,depth_center_m,thickness_m,MDMT_kpa\\n1,0.5,1.0,10000\\n2,1.5,1.0,10000\\n3,2.5,1.0,10000\\n4,3.5,1.0,10000",
+            "Layer,depth_center_m,thickness_m,MDMT_kpa\n1,0.5,1.0,10000\n2,1.5,1.0,10000\n3,2.5,1.0,10000\n4,3.5,1.0,10000",
         ),
         (
             "CPT：Schmertmann 沉陷法（USACE 2025）",
             None,
             "m4_cpt_layers",
-            "Layer,thickness_m,qc_kpa\\n1,1.0,8000\\n2,1.0,8500\\n3,1.0,9000\\n4,1.0,9500\\n5,1.0,10000",
+            "Layer,thickness_m,qc_kpa\n1,1.0,8000\n2,1.0,8500\n3,1.0,9000\n4,1.0,9500\n5,1.0,10000",
         ),
         (
             "PMT：Ménard–Rousseau 法（USACE 2025）",
             None,
             "m4_pmt_layers",
-            "group,E0_kpa\\nE1,12000\\nE2,13000\\nE345,14000\\nE678,15000\\nE916,16000",
+            "group,E0_kpa\nE1,12000\nE2,13000\nE345,14000\nE678,15000\nE916,16000",
         ),
     ],
 )
@@ -447,20 +447,20 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     method_label, method_key, csv_key, csv_text
 ):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
     app.run()
     next(widget for widget in app.button if widget.key == "m5_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     transfer = app.session_state["m5_bearing_transfer"]
     assert transfer is not None
     assert transfer["qeq_gross_kpa"] < transfer["qult_gross_kpa"] / 3.0
 
     next(widget for widget in app.selectbox if widget.key == "m4_method").select(method_label)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Match Module 5's physical 2 m × 3 m footing before accepting the transfer.
     geometry_key = {
@@ -495,7 +495,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
         next(widget for widget in app.checkbox if widget.key == "m4_pmt_lambda_confirm").check()
     next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     calculation_errors = [
         item.value for item in app.error
         if any(token in item.value for token in ("DMT 沉陷估算失敗", "CPT 沉陷估算失敗", "PMT 沉陷估算失敗"))
