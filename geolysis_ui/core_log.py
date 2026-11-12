@@ -29,7 +29,13 @@ logger = logging.getLogger(__name__)
 
 
 def _image_digest(image: Image.Image) -> str:
-    return hashlib.sha256(image.convert("RGB").tobytes()).hexdigest()
+    rgb = image.convert("RGB")
+    digest = hashlib.sha256()
+    # Dimensions are part of image identity: identical pixel bytes reshaped
+    # to a different width/height must never reuse a cached geometry result.
+    digest.update(f"{rgb.width}x{rgb.height}:RGB\\0".encode("ascii"))
+    digest.update(rgb.tobytes())
+    return digest.hexdigest()
 
 
 @st.cache_data(
