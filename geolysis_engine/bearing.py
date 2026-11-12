@@ -490,7 +490,7 @@ def _validate_seismic_ru_applicability(*, non_liquefiable_confirmed,
     """
     if factor_of_safety_liquefaction is None:
         if not non_liquefiable_confirmed:
-            raise ValueError('請提供 FS_liq>1.0、確認無顯著側向擴展，並確認 ru 來源；舊版呼叫僅接受較嚴格的不液化確認')
+            raise ValueError('舊版呼叫須確認不液化／無循環剪力強度損失；新版請提供 FS_liq>1.0、確認無顯著側向擴展，並確認 ru 來源')
         return None
     fsliq=_finite('剪力區液化安全係數 FS_liq',factor_of_safety_liquefaction)
     if fsliq<=1.0:
