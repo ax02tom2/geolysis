@@ -69,6 +69,8 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
         "qeq_gross_kpa": 180.0,
         "B_m": 2.0,
         "L_m": 3.0,
+        "B_effective_m": 1.6,
+        "L_effective_m": 2.4,
         "Df_m": 1.5,
         "Dw_m": 2.0,
         "footing_type": "isolated",
@@ -96,7 +98,7 @@ def test_module4_rejects_module5_transfer_when_foundation_geometry_differs():
     transfer = {
         "transfer_id": "test12345678", "qult_gross_kpa": 1200.0,
         "qa_net_kpa": 360.0, "qa_gross_kpa": 410.0, "qeq_gross_kpa": 180.0,
-        "B_m": 2.0, "L_m": 3.0, "Df_m": 1.5, "Dw_m": 2.0,
+        "B_m": 2.0, "L_m": 3.0, "B_effective_m": 1.6, "L_effective_m": 2.4, "Df_m": 1.5, "Dw_m": 2.0,
         "footing_type": "isolated", "source": "手動輸入", "theory": "Meyerhof",
         "FS_bearing": 6.0, "passes_bearing": True,
     }
@@ -395,3 +397,22 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     # equal the real Module 5 qeq, proving the Burland path consumes qeq.
     expected = f"目前 q 採用值 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
+
+
+def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    eccentric = next(
+        widget for widget in app.checkbox
+        if widget.key == "m4_bb_eccentric_settlement"
+    )
+    eccentric.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_eb").set_value(0.10)
+    next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_el").set_value(0.20)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert any("B′=1.800 m、L′=2.600 m" in item.value for item in app.caption)
