@@ -52,13 +52,13 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
 def _pmt_transfer_footing_type(width_m, length_m, round_footing=False):
     """Map PMT geometry to Module 5's capacity-transfer footing categories.
 
-    Module 5 publishes continuous for strip footings (L/B >= 10) and isolated
+    Module 5 publishes continuous for strip footings (L/B > 10) and isolated
     for rectangular footings. Round PMT footings stay distinct because Module 5
     does not provide a circular-footing capacity category.
     """
     if round_footing:
         return "round"
-    return "continuous" if float(length_m) / float(width_m) >= 10.0 else "isolated"
+    return "continuous" if float(length_m) / float(width_m) > 10.0 else "isolated"
 
 
 def render_module_4(expanded=False):
