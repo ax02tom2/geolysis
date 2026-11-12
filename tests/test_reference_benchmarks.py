@@ -3871,6 +3871,7 @@ def test_seismic_eccentricity_and_residual_bearing_share_identical_load_envelope
         c_kpa=0.0, phi_deg=30.0,
         gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
         B=common["B"], L=common["L"], Df=1.5, water_depth=5.0,
+        eccentricity_B=common["eccentricity_B"],
         seismic_moment_B_kNm=common["seismic_moment_B_kNm"],
         base_uplift_pressure_kpa=common["base_uplift_pressure_kpa"],
         factor_of_safety_liquefaction=1.2,
