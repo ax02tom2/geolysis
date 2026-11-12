@@ -4272,3 +4272,26 @@ def test_consolidation_layer_results_include_influence_depth_review():
     assert result["profile_bottom_m"] == pytest.approx(1.0)
     assert result["minimum_influence_depth_m"] == pytest.approx(4.0)
     assert result["warnings"]
+
+
+def test_consolidation_allowable_pressure_layers_preserves_depth_review_metadata():
+    layers = [{
+        "Depth_center_m": 0.5,
+        "Thickness_m": 1.0,
+        "e0": 0.8,
+        "Cc": 0.3,
+        "Cr": 0.05,
+        "Sigma0_kPa": 100.0,
+        "SigmaP_kPa": 150.0,
+    }]
+    result = consolidation_allowable_pressure_layers(
+        layers=layers,
+        footing_width_m=2.0,
+        footing_length_m=3.0,
+        target_settlement_mm=25.0,
+        stress_method="Boussinesq",
+        max_pressure_kpa=500.0,
+    )
+    assert result["profile_bottom_m"] == pytest.approx(1.0)
+    assert result["minimum_influence_depth_m"] == pytest.approx(4.0)
+    assert result["warnings"]
