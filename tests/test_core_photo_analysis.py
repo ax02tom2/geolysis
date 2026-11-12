@@ -353,3 +353,68 @@ def test_v8_all_blue_row_is_rejected_as_no_visible_core():
     image = Image.new("RGB", (600, 180), (25, 95, 190))
     result = analyze_core_row_v8(image, mm_per_px=1.0)
     assert result["success"] is False
+
+
+def test_rqd_handoff_uses_v8_segments_key_and_computes_a_row_result():
+    from geolysis_ui.core_log import _rqd_segments_from_analysis
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    analysis = {
+        "success": True,
+        "segments": [{"x_start_px": 0, "x_end_px": 400, "length_mm": 1000.0}],
+        "gaps": [],
+        "uncertain": [],
+    }
+    segments = _rqd_segments_from_analysis(analysis)
+    result = estimate_rqd_from_image_segments(
+        segments, [], mm_per_px=2.5, row_length_mm=1000.0,
+        no_breaks_confirmed=True,
+    )
+    assert len(segments) == 1
+    assert result["ready"] is True
+    assert result["recovery_percent"] == 100.0
+    assert result["rqd_percent"] == 100.0
+
+
+def test_rqd_handoff_keeps_legacy_core_segments_fallback():
+    from geolysis_ui.core_log import _rqd_segments_from_analysis
+
+    legacy = {"core_segments": [{"x_start_px": 10, "x_end_px": 30}]}
+    assert _rqd_segments_from_analysis(legacy) == legacy["core_segments"]
+
+
+def test_core_log_row_analysis_is_cached_by_image_scale_and_engine_fingerprint(monkeypatch):
+    from geolysis_ui import core_log
+
+    calls = {"core": 0, "breaks": 0}
+
+    def fake_core(image, mm_per_px):
+        calls["core"] += 1
+        return {"success": True, "segments": [], "gaps": [], "uncertain": []}
+
+    def fake_breaks(image, mm_per_px):
+        calls["breaks"] += 1
+        return {"success": True, "candidates": []}
+
+    monkeypatch.setattr(core_log, "analyze_core_row_v8", fake_core)
+    monkeypatch.setattr(core_log, "detect_core_break_candidates_v1", fake_breaks)
+    core_log._cached_row_analysis.clear()
+
+    image = Image.new("RGB", (320, 120), (130, 120, 110))
+    core_log._cached_row_analysis(image, 1000.0 / 320.0, "cache-test-v1")
+    core_log._cached_row_analysis(image.copy(), 1000.0 / 320.0, "cache-test-v1")
+    assert calls == {"core": 1, "breaks": 1}
+
+    core_log._cached_row_analysis(image, 0.5, "cache-test-v1")
+    assert calls == {"core": 2, "breaks": 2}
+
+    core_log._cached_row_analysis(image, 1000.0 / 320.0, "cache-test-v2")
+    assert calls == {"core": 3, "breaks": 3}
+    core_log._cached_row_analysis.clear()
+
+
+def test_core_log_tray_detection_has_cache_clear_interface():
+    from geolysis_ui import core_log
+
+    assert callable(core_log._cached_tray_detection)
+    assert hasattr(core_log._cached_tray_detection, "clear")
