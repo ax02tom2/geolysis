@@ -552,6 +552,10 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     )
                 if not analysis.get("success"):
                     st.warning(analysis.get("warning", "本列影像分析未通過品質檢核。"))
+                if break_result.get("supplemental_candidate_count", 0) > 0:
+                    st.caption(break_result.get("warning", "已加入補充低信心斷裂候選；請人工覆核。"))
+                if break_result.get("supplemental_warning"):
+                    st.warning(break_result["supplemental_warning"])
                 if not break_result.get("success"):
                     st.warning(break_result.get("warning", "斷裂候選分析未通過品質檢核。"))
 
