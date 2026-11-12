@@ -229,6 +229,8 @@ def render_module_4(expanded=False):
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
+                    for dmt_warning in result_dmt.get("warnings", []):
+                        st.warning(dmt_warning)
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
                     if result_dmt["capacity_limit_governs"]:
                         st.warning(f"輸入 gross q／qeq={dmtq:.1f} kPa 高於 qult/FS={result_dmt['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")

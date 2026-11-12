@@ -3927,3 +3927,33 @@ def test_fhwa_quantitative_gsi_rejects_invalid_rqd_and_non_table_ratings():
             separation_rating=5, roughness_rating=5, infilling_rating=4,
             weathering_rating=5,
         )
+
+
+def test_usace_dmt_typical_kd_range_is_a_warning_not_a_hard_rejection():
+    layers = [
+        {"thickness_m": 0.2, "p0_bar": 2.0, "p1_bar": 3.0,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(10)
+    ]
+    # KD = 1.5, below the typical 2–20 range in USACE §3-9c(2).
+    result = dmt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+    )
+    assert result["layer_results"][0]["KD"] == pytest.approx(1.5)
+    assert any("常見範圍 2–20" in warning for warning in result["warnings"])
+    assert result["settlement_mm"] > 0
+
+
+def test_usace_dmt_typical_kd_range_does_not_warn_for_typical_values():
+    layers = [
+        {"thickness_m": 0.2, "p0_bar": 2.5, "p1_bar": 3.5,
+         "u0_bar": 0.5, "sigma_v0_eff_bar": 1.0}
+        for _ in range(10)
+    ]
+    result = dmt_settlement_2025(
+        layers=layers, footing_width_m=1.0, footing_length_m=1.0,
+        gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
+    )
+    assert result["layer_results"][0]["KD"] == pytest.approx(2.0)
+    assert result["warnings"] == []
