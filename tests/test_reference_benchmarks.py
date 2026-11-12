@@ -3293,7 +3293,7 @@ def test_general_seismic_qeq_subtracts_user_confirmed_residual_base_pressure():
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
         seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
         footing_type="spread", B=2.0, L=3.0,
-        allowable_bearing_pressure_kpa=200.0,
+        allowable_bearing_pressure_kpa=100.0,
         base_uplift_pressure_kpa=60.0,
     )
     case = result["cases"][0]
