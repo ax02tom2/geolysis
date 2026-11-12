@@ -825,3 +825,26 @@ Module 5 partial shear-zone pore-pressure weighting — PR #85
 - PR #85 merged at a10e5e957921f5bd0980c5ff53543229b6549529.
 - GitHub Actions run 43001923263: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 423 passed in 1.57 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(c)(3)(b), Figure 5-4 and Eqs. 9-3/9-4.
+
+
+Module 5 seismic extreme-event overturning criterion — PR #89
+
+- Replaced the static middle-third-only seismic interpretation with the USACE EM 1110-1-1905 (2025) §9-10(e) extreme-event geometry: the resultant must remain within the footing footprint, effective dimensions must be valid, and effective bearing pressure must not exceed the applicable allowable pressure.
+- The static middle-third status remains separately visible as a reference. It is not the sole extreme-event pass/fail condition.
+- Added optional user-supplied seismic q_allow. When q_allow is absent, the app reports geometry only and does not declare overall seismic overturning/bearing safety.
+- Applied the same footprint/effective-dimension distinction to the residual-pore-pressure seismic branch.
+- Added regression tests for footprint geometry, middle-third separation and qeq≤q_allow.
+- PR #89 merged to main.
+- GitHub Actions run 43004121928: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 425 passed in 2.38 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(e); Table 2-1 Note 3 is retained as the static middle-third reference.
+
+Module 5 seismic qeq hydrostatic base-uplift correction — PR #91
+
+- Corrected the general seismic eccentricity and residual-pore-pressure branches to compute effective equivalent bearing pressure with hydrostatic base uplift deducted: qeq=V/A′−u_D for spread footings and qeq=V/B′−u_D for continuous footings, following USACE EM 1110-1-1905 (2025), Eqs. 5-2/5-3.
+- Module 5 reuses the existing footing embedment Df and groundwater depth Dw to calculate u_D=γ_w·max(Df−Dw,0), with γ_w=9.81 kN/m³. No additional user input is required.
+- A non-positive qeq is not treated as a bearing-pressure pass. Gross pressure, base uplift and effective qeq are retained separately in the calculation results.
+- The code explicitly does not infer residual seismic excess-pore-pressure uplift from ru and does not claim the separate §9-10(f) uplift FS≥1.5 check is complete. A residual pore-pressure profile and uplift stability assessment remain necessary.
+- Added three regression tests: hydrostatic uplift deduction in the general seismic qeq path, rejection of a non-positive effective qeq as a pass, and hydrostatic uplift deduction in the residual-pore-pressure qeq path.
+- PR #91 merged to main at caed90fd5c94be43a95d6dfb6b1c6edb6e49d5c3.
+- GitHub Actions run 43130632085: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 428 passed in 1.68 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3 and §9-10(e)/(f).
