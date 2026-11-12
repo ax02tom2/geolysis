@@ -3626,3 +3626,26 @@ def test_spt_profile_applies_dilatancy_only_to_explicitly_flagged_rows():
     )
     assert result[0]["dilatancy_applied"] is True
     assert result[1]["dilatancy_applied"] is False
+
+
+def test_spt_correction_rejects_borehole_and_sampler_factors_outside_usace_table():
+    with pytest.raises(ValueError, match="CB 需 1.00–1.15"):
+        spt_correct(
+            12.0, 60.0, 1.20, 1.0, 8.0, 100.0,
+            "Liao & Whitman", 2.0, soil_behavior="cohesionless",
+        )
+    with pytest.raises(ValueError, match="CS 需 1.00–1.30"):
+        spt_correct(
+            12.0, 60.0, 1.0, 1.40, 8.0, 100.0,
+            "Liao & Whitman", 2.0, soil_behavior="cohesionless",
+        )
+
+
+def test_spt_correction_warns_when_energy_ratio_or_rod_length_exceeds_table_ranges():
+    result = spt_correct(
+        12.0, 140.0, 1.0, 1.0, 35.0, 100.0,
+        "Liao & Whitman", 2.0, soil_behavior="cohesionless",
+    )
+    assert result["CR"] == pytest.approx(1.0)
+    assert any("50–130%" in warning for warning in result["warnings"])
+    assert any("30 m" in warning for warning in result["warnings"])
