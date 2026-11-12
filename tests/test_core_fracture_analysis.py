@@ -54,10 +54,12 @@ def test_rqd_estimate_waits_for_manual_review_of_every_candidate():
 def test_natural_joint_splits_core_but_mechanical_break_does_not():
     segments = [{"x_start_px": 0, "x_end_px": 800}]
     natural = estimate_rqd_from_image_segments(
-        segments, [{"distance_mm": 950, "review_class": "天然節理"}], 1.25
+        segments, [{"distance_mm": 950, "review_class": "天然節理"}], 1.25,
+        row_review_confirmed=True
     )
     mechanical = estimate_rqd_from_image_segments(
-        segments, [{"distance_mm": 950, "review_class": "機械破損"}], 1.25
+        segments, [{"distance_mm": 950, "review_class": "機械破損"}], 1.25,
+        row_review_confirmed=True
     )
     assert natural["ready"] is True
     assert natural["recovery_percent"] == 100.0
@@ -273,3 +275,31 @@ def test_core_loss_gap_review_does_not_rejoin_or_add_missing_length():
     assert result["recovery_percent"] == 70.0
     assert result["rqd_percent"] == 70.0
     assert result["piece_lengths_mm"] == [400.0, 300.0]
+
+
+def test_rejected_break_candidate_still_requires_whole_row_review_confirmation():
+    segments = [{"x_start_px": 0, "x_end_px": 800}]
+    rejected = [{"distance_mm": 500, "review_class": "非斷裂／誤判"}]
+    pending = estimate_rqd_from_image_segments(segments, rejected, 1.25)
+    assert pending["ready"] is False
+    assert pending["recovery_percent"] == 100.0
+    assert pending["rqd_percent"] is None
+
+    confirmed = estimate_rqd_from_image_segments(
+        segments, rejected, 1.25, row_review_confirmed=True
+    )
+    assert confirmed["ready"] is True
+    assert confirmed["rqd_percent"] == 100.0
+
+
+def test_natural_joint_candidate_also_requires_review_of_all_continuous_intervals():
+    segments = [{"x_start_px": 0, "x_end_px": 800}]
+    natural = [{"distance_mm": 500, "review_class": "天然節理"}]
+    pending = estimate_rqd_from_image_segments(segments, natural, 1.25)
+    assert pending["ready"] is False
+    assert pending["rqd_percent"] is None
+    confirmed = estimate_rqd_from_image_segments(
+        segments, natural, 1.25, row_review_confirmed=True
+    )
+    assert confirmed["ready"] is True
+    assert confirmed["rqd_percent"] == 100.0

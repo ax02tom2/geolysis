@@ -446,20 +446,19 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                             key=f"core_break_review_{file_digest[:10]}_{index}_{review_fingerprint}_{candidate_index}",
                         )
                         reviewed_breaks.append({**candidate, "review_class": review})
-                no_breaks_confirmed = False
-                if not break_result.get("candidates") and analysis.get("success") and break_result.get("success"):
-                    no_breaks_confirmed = st.checkbox(
-                        "已人工檢視所有連續岩心本體區段，確認沒有漏掉需要切分 RQD 的天然節理",
-                        value=False,
-                        key=f"core_no_breaks_{file_digest[:10]}_{index}_{review_fingerprint}",
-                    )
+                row_review_confirmed = st.checkbox(
+                    "已人工檢視本列全部連續岩心區段及疑似候選，確認天然節理／機械破損／岩心缺失分類完成",
+                    value=False,
+                    key=f"core_row_review_{file_digest[:10]}_{index}_{review_fingerprint}",
+                    help="即使演算法找到候選，也可能漏掉其他天然節理。未完成整列影像覆核前，系統只顯示採取率初估，不定稿 RQD。",
+                )
 
                 result = estimate_rqd_from_image_segments(
                     _rqd_segments_from_analysis(analysis),
                     reviewed_breaks,
                     mm_per_px,
                     row_length_mm=1000.0,
-                    no_breaks_confirmed=no_breaks_confirmed,
+                    row_review_confirmed=row_review_confirmed,
                 )
                 m1, m2, m3 = st.columns(3)
                 recovery = result.get("recovery_percent")

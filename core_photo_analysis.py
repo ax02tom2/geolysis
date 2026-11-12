@@ -1215,14 +1215,15 @@ def estimate_rqd_from_image_segments(
     row_length_mm: float = 1000.0,
     rqd_threshold_mm: float = 100.0,
     no_breaks_confirmed: bool = False,
+    row_review_confirmed: bool | None = None,
 ) -> dict:
-    """Estimate per-row recovery/RQD after every detected break is reviewed.
+    """Estimate per-row recovery/RQD only after explicit whole-row human review.
 
     Core intervals come from the image occupancy detector. Natural-joint traces
     split intervals; a gap between two core intervals is rejoined only when every
     review for that interval pair confirms mechanical break or false gap. Core
     loss remains excluded; a false image gap restores its measured interval to
-    recovery length. This is a preliminary image estimate, not measured RQD.
+    recovery length. RQD is withheld until all continuous intervals and detected\n    candidates have been inspected. ``no_breaks_confirmed`` remains a backward-\n    compatible alias for ``row_review_confirmed``. This is not measured RQD.
     """
     import math
 
@@ -1271,12 +1272,12 @@ def estimate_rqd_from_image_segments(
         }
 
     total_core_mm = sum(b - a for a, b in intervals)
-    # 沒有偵測到候選不等於確認沒有天然節理；因此可保留影像初估採取率，
-    # 但不能把整段岩心自動視為一整段合格岩心並回報 RQD=100%。
-    fracture_line_candidates = [
-        item for item in breaks if item.get("candidate_type") != "core_gap"
-    ]
-    if not fracture_line_candidates and not no_breaks_confirmed:
+    review_confirmed = (
+        bool(no_breaks_confirmed)
+        if row_review_confirmed is None
+        else bool(row_review_confirmed)
+    )
+    if not review_confirmed:
         return {
             "success": True, "ready": False,
             "recovery_percent": round(total_core_mm / row_length_mm * 100.0, 1),
@@ -1285,7 +1286,12 @@ def estimate_rqd_from_image_segments(
             "rqd_length_mm": None,
             "piece_lengths_mm": [],
             "unresolved_count": 0,
-            "warning": "未找到明確橫向斷裂線候選，不代表沒有天然節理；請人工檢視所有連續岩心區段，確認沒有漏檢後再估算 RQD。",
+            "warning": (
+                "採取率可先依影像岩心區間初估；RQD 尚未定稿。"
+                "請人工檢視本列全部連續岩心區段及所有疑似候選，"
+                "確認天然節理、機械破損與岩心缺失分類完成後，再確認本列覆核。"
+                "未找到候選也不代表沒有天然節理。"
+            ),
         }
 
     piece_lists = []
