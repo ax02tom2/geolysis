@@ -279,6 +279,18 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
 
     if not records:
         raise ValueError("PDF 中沒有找到符合格式的岩心箱照片。請確認是由岩心柱狀圖工具輸出的 PDF。")
+    depth_source = "使用者輸入" if start_depth_m is not None else None
+    if start_depth_m is None and records:
+        first_record = records[0]
+        first_page = next((v for v in page_views if v.get("page") == first_record.page), None)
+        inferred = _infer_start_depth_from_header(
+            first_page.get("header_depth_range_m") if first_page else None,
+            first_record.row_number,
+            row_length_m,
+        )
+        if inferred is not None:
+            start_depth_m = inferred
+            depth_source = "PDF 頁首深度範圍與列號推定"
     _attach_depths(records, start_depth_m, row_length_m)
     _validate_row_sequence(records, warnings)
     borehole_ids = [v["borehole_id"] for v in page_views if v.get("borehole_id")]
@@ -293,8 +305,23 @@ def parse_pdf_core_log(data: bytes, start_depth_m: float | None = None,
             "pages_detected": len(page_views), "rows_detected": len(records),
             "borehole_id": borehole_ids[0] if borehole_ids else None,
             "header_depth_range_m": depth_ranges[0] if depth_ranges else None,
+            "depth_source": depth_source,
             "warnings": warnings, "metadata_warnings": metadata_warnings,
             "format": "pdf"}
+
+
+def _infer_start_depth_from_header(
+    header_depth_range_m: tuple[float, float] | None,
+    first_row_number: int | None,
+    row_length_m: float,
+) -> float | None:
+    """Infer the depth origin from a readable PDF page range and global row number."""
+    if not header_depth_range_m or first_row_number is None:
+        return None
+    row_length = float(row_length_m)
+    if not math.isfinite(row_length) or row_length <= 0:
+        raise ValueError("row_length_m 必須是有限且大於 0 的數值。")
+    return float(header_depth_range_m[0]) - (int(first_row_number) - 1) * row_length
 
 
 def _validate_row_sequence(records: list[CoreRowRecord], warnings: list[str]):
