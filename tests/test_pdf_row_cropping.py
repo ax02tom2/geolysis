@@ -54,3 +54,42 @@ def test_pdf_header_depth_inference_uses_first_global_row_number():
     assert _infer_start_depth_from_header((20.0, 40.0), 21, 1.0) == 0.0
     assert _infer_start_depth_from_header((20.0, 40.0), 1, 1.0) == 20.0
     assert _infer_start_depth_from_header(None, 1, 1.0) is None
+
+
+def test_core_log_parser_reads_decimal_and_interval_row_end_depth_labels():
+    from core_log_parser import _parse_row_label
+
+    decimal = _parse_row_label("21.0")
+    assert decimal == {
+        "row_number": None,
+        "depth_start_label_m": None,
+        "depth_end_label_m": 21.0,
+    }
+    with_unit = _parse_row_label("22 m")
+    assert with_unit["depth_end_label_m"] == 22.0
+    interval = _parse_row_label("22.0–23.0m")
+    assert interval["depth_start_label_m"] == 22.0
+    assert interval["depth_end_label_m"] == 23.0
+    integer_row = _parse_row_label("23")
+    assert integer_row["row_number"] == 23
+
+
+def test_core_log_parser_attaches_depths_from_row_end_labels_without_start_input():
+    from core_log_parser import CoreRowRecord, _attach_depths, _validate_row_sequence
+
+    records = [
+        CoreRowRecord(
+            page=1, box_index=1, row_in_box=i + 1, row_number=None,
+            depth_start_m=None, depth_end_m=None, width_px=1000, height_px=100,
+            image=Image.new("RGB", (1000, 100)), source="test", warnings=[],
+            depth_end_label_m=float(i + 1),
+        )
+        for i in range(3)
+    ]
+    warnings = []
+    _attach_depths(records, start_depth_m=None, row_length_m=1.0)
+    _validate_row_sequence(records, warnings)
+    assert [(r.depth_start_m, r.depth_end_m) for r in records] == [
+        (0.0, 1.0), (1.0, 2.0), (2.0, 3.0)
+    ]
+    assert warnings == []
