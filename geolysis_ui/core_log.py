@@ -479,7 +479,11 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     "RQD (%)": rqd,
                     "疑似斷裂／間隙": len(candidates),
                     "不確定區": len(uncertain_regions),
-                    "覆核": "完成" if result.get("ready") else "待覆核",
+                    "覆核": (
+                        "待覆核" if not result.get("ready")
+                        else "有不確定區" if uncertain_regions
+                        else "完成"
+                    ),
                 })
 
         st.markdown("**本孔逐深度成果表**")
