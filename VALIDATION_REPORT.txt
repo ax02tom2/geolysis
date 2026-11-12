@@ -2,12 +2,12 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 4b3862e5c59ad798acac3fffcebb15ee859a7c01
-Latest validation run: 43133501027 (PR #98; success)
+Validated main code commit: f73fbce1a555f7360c6be93d16b5b1565f3a1ee7
+Latest validation run: 43134122171 (PR #100; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43133501027
+- Run ID: 43134122171
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,8 +15,8 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 439 passed
-- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 440 passed
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; additional test explicitly selected the Module 1 parameter source in Module 5
 - Widget-key and web-scope static checks: passed
 
 Engineering review corrections previously merged:
@@ -872,3 +872,25 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - PR #98 merged to main at 4b3862e5c59ad798acac3fffcebb15ee859a7c01.
 - GitHub Actions run 43133501027: success; Python 3.11 compile passed; Streamlit AppTest included; 439 passed in 1.83 s.
 - Reference basis: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(e), §9-10(c)(3), Eqs. 9-3/9-4.
+
+## Module 5 — seismic uplift stability (PR #96)
+
+- Implemented the separate seismic uplift stability component per USACE EM 1110-1-1905 (2025), §9-10(f), using the §5-7 Eq. 5-36 methodology.
+- Both vertical seismic directions are evaluated; only structure weight Ws is adjusted by ±kvWs. The governing FS_uplift is compared against the required minimum 1.5.
+- The UI requires Wf+Ws+Wc and total base uplift U to be confirmed. U must include hydrostatic and residual excess pore-water pressure integrated over the full base. A hydrostatic-only lower-bound check, full-base-area check and unit consistency check prevent common underestimation errors.
+- U=0 is explicitly reported as “not calculated”, not as a passing FS.
+- Four regression tests cover the vertical inertia treatment, FS below 1.5, zero uplift not being treated as pass, and weight-definition validation.
+- PR #96 merged to main at e9f9bd190e5fbb446203e9a1b97db52957c111b8; CI run 43132488304: 437 passed; compileall and Streamlit AppTest passed.
+
+## Module 1 → Module 5 Hoek–Brown handoff and foundation applicability (PR #100)
+
+- Module 1 now publishes its current Hoek–Brown result and input metadata in explicit Streamlit session state on every rerun, including clearing stale results when Module 1 calculation is invalid.
+- Module 5 consumes those shared values rather than referencing Module 1 local variables. This repairs the previously broken “Module 1 Hoek–Brown equivalent parameters” source path.
+- Module 5 blocks slope/tunnel-derived equivalent c′–φ′ pairs from direct use in shallow-foundation bearing calculations. It requires Module 1 general shallow-analysis mode with user-entered σ3,max, plus explicit confirmations that the fitted confinement range represents the foundation bearing shear zone and that the material is highly fractured rock/rockfill with median block size ≤B/50.
+- This guard follows USACE EM 1110-1-1905 (31 Jul 2025), §1-7(b): the soil-foundation methods do not apply to intact, jointed, layered or fractured rock; highly fractured rock and rockfill may be treated similarly to dense granular soils when the median particle/block size is not greater than 1/50 of footing width.
+- Added an AppTest that selects the Module 1 parameter source and verifies the session-state handoff without an uncaught exception.
+- PR #100 merged to main at f73fbce1a555f7360c6be93d16b5b1565f3a1ee7; CI run 43134122171: 440 passed; compileall and Streamlit AppTest passed.
+
+## Superseding note for earlier seismic validation entries
+
+- Earlier entries stating that residual seismic base uplift and the §9-10(f) uplift FS check were unsupported describe the implementation before PR #96. They are superseded: PR #96 added the dedicated uplift FS check. The user must still provide a correctly integrated total uplift resultant U; the application does not generate a site-specific residual pore-pressure profile automatically.
