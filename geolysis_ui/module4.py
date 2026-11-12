@@ -485,7 +485,7 @@ def render_module_4(expanded=False):
                 logging.exception("Menard-Rousseau PMT settlement calculation failed")
                 st.error(f"PMT 沉陷估算失敗：{exc}")
         elif method4.startswith('砂土：'):
-            st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。")
+            st.caption("舊版 USACE EM 1110-1-1905（1992）Meyerhof SPT 經驗式；已由 2025 版手冊取代，僅保留作歷史方法比較，不作預設設計方法。此簡化式僅輸入單一 B，未處理偏心有效面積、qeq 或長寬比效應；僅限同心垂直荷載初步比較，偏心工況請改用現行方法。")
             a,b,c=st.columns(3)
             with a:
                 n4=st.number_input("基礎影響範圍代表 N60",min_value=1.0,max_value=100.0,value=float(max(1,round(st.session_state.get('m3_current_n60',18.0),1))),step=1.0,key='m4_n60')
