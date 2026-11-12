@@ -674,6 +674,9 @@ def render_module_5(expanded=False):
             slide_is_line5=(slide_footing5=="continuous")
             slide_force_unit5="kN/m" if slide_is_line5 else "kN"
             slide_area_unit5="m²/m" if slide_is_line5 else "m²"
+            hydrostatic_uD5=max(0.0,(float(df5)-float(dw5))*9.81)
+            uplift_base_area5=float(B5)*(1.0 if slide_is_line5 else float(L5))
+            hydrostatic_U_ref5=base_uplift_pressure_kpa5*uplift_base_area5
             # Reset the default U estimate when base pressure, geometry or footing
             # unit convention changes; the reviewer can still override the value.
             uplift_default_signature5=hashlib.sha1(
@@ -709,9 +712,6 @@ def render_module_5(expanded=False):
             slide_uplift_weights_confirmed5=st.checkbox("已確認 Wf+Ws+Wc 為可計入抗浮的永久重量，且上方 W 代表結構重量 Ws 並包含於此總重量",value=False,key="m5x_uplift_weights_confirm")
             slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓",value=False,key="m5x_uplift_pressure_confirm")
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
-            hydrostatic_uD5=max(0.0,(float(df5)-float(dw5))*9.81)
-            uplift_base_area5=float(B5)*(1.0 if slide_is_line5 else float(L5))
-            hydrostatic_U_ref5=base_uplift_pressure_kpa5*uplift_base_area5
             st.caption(f"基底總孔隙水壓參考值 u_D={base_uplift_pressure_kpa5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 已確認殘餘超額孔壓 {base_uplift_pressure_kpa5-hydrostatic_uD5:.2f}）；對應 U_ref≈{hydrostatic_U_ref5:.2f} {slide_force_unit5}。")
             if abs(float(slide_area5)-uplift_base_area5)>max(0.01,0.01*uplift_base_area5):
                 st.warning("滑動面積 A 與基礎幾何 B×L（連續基礎 B×1 m）不一致；抗浮 U 應以完整基礎底面積積分，請核對 U。")
