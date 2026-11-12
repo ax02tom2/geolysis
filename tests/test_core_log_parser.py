@@ -131,7 +131,10 @@ def _pdf_fixture_with_cropped_two_row_box():
     draw.line((0, 100, 800, 100), fill="black", width=3)
     buf = BytesIO()
     two_rows.save(buf, format="JPEG", quality=90)
-    page.insert_image(fitz.Rect(40, 160, 470, 260), stream=buf.getvalue())
+    # A complete four-row box on the same page establishes the normal
+    # embedded-image height for this cropped two-row final box.
+    page.insert_image(fitz.Rect(40, 160, 470, 360), stream=_box_image())
+    page.insert_image(fitz.Rect(40, 380, 470, 480), stream=buf.getvalue())
     out = pdf.tobytes()
     pdf.close()
     return out
@@ -146,6 +149,6 @@ def test_pdf_missing_middle_label_does_not_drop_or_shift_core_rows():
 
 def test_pdf_cropped_partial_box_without_labels_infers_visible_rows_from_image_height():
     result = parse_pdf_core_log(_pdf_fixture_with_cropped_two_row_box(), start_depth_m=0.0)
-    assert result["rows_detected"] == 2
-    assert [r.row_in_box for r in result["records"]] == [1, 2]
-    assert all(r.image.height == 100 for r in result["records"])
+    assert result["rows_detected"] == 6
+    assert [r.row_in_box for r in result["records"][-2:]] == [1, 2]
+    assert [r.image.height for r in result["records"][-2:]] == [100, 100]
