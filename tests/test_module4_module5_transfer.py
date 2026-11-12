@@ -116,3 +116,27 @@ def test_module4_transfer_requires_explicit_matching_conditions(monkeypatch):
 
     assert qult is None
     assert qeq is None
+
+def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
+    transfer = _transfer_fixture()
+    _patch_transfer_ui(
+        monkeypatch,
+        transfer,
+        {
+            "m4_clay_use_m5_transfer123": True,
+            "m4_clay_conditions_transfer123_2.00_3.00_0.00_any": True,
+            "m4_clay_use_m5_qeq_transfer123": True,
+        },
+    )
+
+    qa_net, qeq = module4._module5_transfer_value(
+        key_prefix="m4_clay",
+        label="淨容許承載力 qa,net（FS=3.0）",
+        field="qa_net_kpa",
+        width_m=2.0,
+        length_m=3.0,
+        include_qeq=False,
+    )
+
+    assert qa_net == 300.0
+    assert qeq is None
