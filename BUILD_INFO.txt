@@ -6,8 +6,8 @@ Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
 Latest verified automated suite: 448 passed
-GitHub Actions validation run: 43144233663 (success; Python 3.11 compile passed; Streamlit AppTest included; 448 passed in 2.74 s; PR #110 seismic base residual pore-pressure qeq integration; tested head 562fa2c5c20ed067c3a3528db07523e74d067e43, merged to main at b660911300c6a1f1265aa30a6372dde279a4b52c)
-Runtime smoke: PR #110 CI run 43144233663 ran compileall and Streamlit AppTest; confirmed that seismic qeq ≤ q_allow is not evaluated until the base residual excess-pore-pressure input is confirmed, then verifies the total base pressure is passed into the general seismic eccentricity result
+GitHub Actions validation run: 43144643012 (success; Python 3.11 compile passed; Streamlit AppTest included; 448 passed in 3.18 s; PR #112 strengthened USACE Appendix C-1 row-wise benchmark; tested head 16437af38947a729630a414f7e9c682a4faf3863, merged to main at 45356cda8c76d67800031abe9c27501cd05e582c)
+Runtime smoke: PR #112 CI run 43144643012 ran compileall and Streamlit AppTest; PR #110's seismic base-pressure confirmation gate remains covered, and the Appendix C-1 benchmark now verifies all six layer stress factors, rounded induced stress increments and row settlements against Table C-1
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -243,3 +243,13 @@ Module 5 seismic residual base pore pressure in qeq — PR #110
 - PR #110 merged to main at b660911300c6a1f1265aa30a6372dde279a4b52c.
 - GitHub Actions run 43144233663: success; Python 3.11 compile passed; Streamlit AppTest passed; 448 passed in 2.74 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3; §9-10(f) for the separate uplift stability check.
+
+
+Module 4 Appendix C-1 row-wise benchmark verification — PR #112
+- Strengthened the existing six-layer USACE EM 1110-1-1905 (2025) Appendix C-1 test to verify each layer's influence factor, induced vertical stress increment and settlement against the corresponding published table row, in addition to the independent total settlement target of 0.0309 ft (0.37 in).
+- Documented the source of e0=1.0: Table C-1 reports Cc/(1+e0)=0.113 for strata 1–4 and 0.048 for strata 5–6, corresponding to Cc=0.226 and 0.096 respectively.
+- Intermediate Δσz values are compared using the table's displayed rounding; individual settlement rows use a tolerance consistent with the table's four-decimal-foot rounding.
+- No engine formula or UI behavior changed; this is a stronger independent benchmark regression.
+- PR #112 merged to main at 45356cda8c76d67800031abe9c27501cd05e582c.
+- GitHub Actions run 43144643012: success; Python 3.11 compile passed; 448 passed in 3.18 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-1, Steps 7–9, Eqs. 6-6, 6-9 and 7-8.

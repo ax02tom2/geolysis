@@ -3,11 +3,11 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 Repository: ax02tom2/geolysis
 Branch: main
 Validated main code commit: b660911300c6a1f1265aa30a6372dde279a4b52c
-Latest validation run: 43144233663 (PR #110; success)
+Latest validation run: 43144643012 (PR #112; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43144233663
+- Run ID: 43144643012
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -948,3 +948,12 @@ Module 5 seismic residual base pore pressure in qeq — PR #110
 - PR #110 merged to main at b660911300c6a1f1265aa30a6372dde279a4b52c.
 - GitHub Actions run 43144233663: success; Python 3.11 compile and Streamlit AppTest passed; 448 tests passed in 2.74 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3 and §9-10(f).
+
+
+Appendix C-1 row-wise settlement benchmark strengthening — PR #112
+- The six-layer benchmark now checks each Table C-1 influence factor, induced stress increment and rounded settlement row, not only the final sum.
+- Verified e0=1.0 from the source table's Cc/(1+e0) columns: 0.113 with Cc=0.226 for strata 1–4, and 0.048 with Cc=0.096 for strata 5–6.
+- The independent total remains approximately 0.0309 ft (0.37 in).
+- PR #112 merged to main at 45356cda8c76d67800031abe9c27501cd05e582c.
+- GitHub Actions run 43144643012: success; compileall and Streamlit AppTest passed; 448 tests passed in 3.18 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-1, Steps 7–9, Eqs. 6-6, 6-9 and 7-8.
