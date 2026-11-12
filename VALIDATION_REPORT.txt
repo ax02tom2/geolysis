@@ -1,13 +1,13 @@
-Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)\n- PR #114 merged as 9e3705d810d89358be9fc99eb4d4d9a21ae6f96c after successful CI on tested head d91c8ba0b3f5b40e00122fc533286c4a6208935b.\n- 451 tests passed in 3.45 s; Python 3.11 compileall and Streamlit AppTest passed.\n- Added three independent USACE EM 1110-1-1905 (2025) Module 5 sliding benchmarks.\n\nValidation report — 2026-11-12 Asia/Taipei (UTC+08:00)
+Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)\n- PR #114 merged as 9e3705d810d89358be9fc99eb4d4d9a21ae6f96c after successful CI on tested head d91c8ba0b3f5b40e00122fc533286c4a6208935b.\n- PR #116 merged as bb5172ac58db8fcadca441501ea0465f97af7889 after successful CI on tested head 0fa95ce2e3f8cc1886c38f0a79de60974e2303be; both Bishop UI paths now explicitly disclose static-only scope and exclude seismic global-stability effects.\n- 451 tests passed in 3.40 s; Python 3.11 compileall and Streamlit AppTest passed.\n- Added three independent USACE EM 1110-1-1905 (2025) Module 5 sliding benchmarks.\n\nValidation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 9e3705d810d89358be9fc99eb4d4d9a21ae6f96c
-Latest validation run: 43146283692 (PR #114; success)
+Validated main code commit: bb5172ac58db8fcadca441501ea0465f97af7889
+Latest validation run: 43146632835 (PR #116; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43146283692
+- Run ID: 43146632835
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
