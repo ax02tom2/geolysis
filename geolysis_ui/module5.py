@@ -901,6 +901,8 @@ def render_module_5(expanded=False):
                 st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
                 if auto_bishop.get("search_boundary_warning"):
                     st.warning(auto_bishop["search_boundary_warning"])
+                if auto_bishop.get("profile_boundary_warning"):
+                    st.warning(auto_bishop["profile_boundary_warning"])
                 st.caption(auto_bishop["limitations"])
     
     
