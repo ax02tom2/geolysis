@@ -379,11 +379,14 @@ def render_module_5(expanded=False):
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
+                if layered["applicability_warning"]:
+                    st.warning(layered["applicability_warning"])
                 _render_bearing_safety_check(
                     qult_kpa=layered["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
-                    footing_type=footing_kind5,complete_capacity_model=not layer_check_unsupported,
-                    incomplete_reason="兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5)
+                    footing_type=footing_kind5,
+                    complete_capacity_model=(not layer_check_unsupported and layered["within_usace_shear_zone_range"]),
+                    incomplete_reason=(layered["applicability_warning"] or "兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。"),load_confirmed=loads_confirmed5)
                 st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
                 st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
                 st.caption(layered["limitations"])

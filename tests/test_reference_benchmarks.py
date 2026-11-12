@@ -3724,3 +3724,32 @@ def test_base_uplift_pressure_readiness_accepts_confirmed_reference_and_flags_la
         load_case="static", pressure_confirmed=False,
     )
     assert dry_static["ready"] is True
+
+
+def test_layered_punching_reports_usace_shear_zone_depth_applicability():
+    from geolysis_engine import layered_bearing_capacity_punching
+
+    isolated_ok = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=500.0, q_ult_weak_kpa=200.0,
+        strong_layer_thickness_m=2.0, footing_width_m=2.0,
+        footing_length_m=3.0, footing_type="isolated",
+    )
+    assert isolated_ok["within_usace_shear_zone_range"] is True
+    assert isolated_ok["recommended_depth_range_m"] == pytest.approx((1.0, 4.0))
+    assert isolated_ok["applicability_warning"] is None
+
+    isolated_out = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=500.0, q_ult_weak_kpa=200.0,
+        strong_layer_thickness_m=0.5, footing_width_m=2.0,
+        footing_length_m=3.0, footing_type="isolated",
+    )
+    assert isolated_out["within_usace_shear_zone_range"] is False
+    assert "不可標示為完整" in isolated_out["applicability_warning"]
+
+    strip_out = layered_bearing_capacity_punching(
+        q_ult_strong_kpa=500.0, q_ult_weak_kpa=200.0,
+        strong_layer_thickness_m=1.5, footing_width_m=2.0,
+        footing_length_m=10.0, footing_type="continuous",
+    )
+    assert strip_out["within_usace_shear_zone_range"] is False
+    assert strip_out["recommended_depth_range_m"] == pytest.approx((2.0, 8.0))

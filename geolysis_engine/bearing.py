@@ -431,14 +431,24 @@ def layered_bearing_capacity_punching(*, q_ult_strong_kpa, q_ult_weak_kpa,
         raise ValueError('基礎型式須為 isolated 或 continuous')
     if footing_type=='isolated':
         spread=((B+hs)*(L+hs))/(B*L)
+        depth_min,depth_max=0.5*B,2.0*B
     else:
         spread=(B+hs)/B
+        depth_min,depth_max=1.0*B,4.0*B
+    within_range=(depth_min-1e-9<=hs<=depth_max+1e-9)
+    applicability_warning=None if within_range else (
+        f"強上層厚度 Hs={hs:.3f} m 不在 USACE 2025 對應剪力區深度範圍 "
+        f"{depth_min:.3f}–{depth_max:.3f} m；本結果僅供探索，不可標示為完整穿刺設計檢核。"
+    )
     q_punch=spread*q2
     q=min(q1,q_punch)
     mode='上層一般承載力控制' if q1<=q_punch else '強上層穿刺至弱下層控制'
     return {'qult_kpa':q,'qult_strong_kpa':q1,'qult_weak_kpa':q2,
         'load_spread_factor':spread,'punching_capacity_kpa':q_punch,
         'controlling_mode':mode,'strong_layer_thickness_m':hs,
+        'recommended_depth_range_m':(depth_min,depth_max),
+        'within_usace_shear_zone_range':within_range,
+        'applicability_warning':applicability_warning,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-17/5-18; 2V:1H',
         'limitations':'適用強上層覆蓋弱下層的簡化穿刺檢核；弱層需位於相應承載力剪力區範圍（方／矩形約 0.5B–2B，條形約 1B–4B）。兩層 q_ult 須採相同載重、排水條件及修正係數體系；不取代多層有限元素或完整破壞機制分析。'}
 
