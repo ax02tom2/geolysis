@@ -1246,6 +1246,46 @@ def _layer_stress_factor(B,L,z,method):
     if method=='Boussinesq': return boussinesq_rectangular_center_factor(B,L,z)
     raise ValueError('應力分布方法須為 2:1 或 Boussinesq')
 
+
+def consolidation_influence_depth_review(*, footing_width_m, footing_length_m,
+                                          profile_bottom_m, stress_method='Boussinesq'):
+    """Screen consolidation profile depth against USACE 2025 §6-6(c)/Table 7-3.
+
+    The minimum depth is 2B for rectangular/axisymmetric footings and 6B for
+    strip footings (L/B > 10). A deeper profile is flagged when the estimated
+    bottom stress influence remains >= 0.1. This is a review warning, not a
+    substitute for evaluating the settlement contribution of deeper layers.
+    """
+    B = _finite('基礎寬度 B', footing_width_m)
+    L = _finite('基礎長度 L', footing_length_m)
+    depth = _finite('固結剖面底深', profile_bottom_m)
+    if B <= 0 or L <= 0 or depth <= 0:
+        raise ValueError('基礎尺寸及固結剖面底深必須大於 0')
+    B_short = min(B, L)
+    L_long = max(B, L)
+    is_strip = (L_long / B_short) > 10.0
+    minimum_depth = (6.0 if is_strip else 2.0) * B_short
+    bottom_factor = _layer_stress_factor(B, L, depth, stress_method)
+    warnings = []
+    if depth < minimum_depth - 1e-9:
+        warnings.append(
+            f"固結剖面底深 {depth:.2f} m 未達 USACE 2025 最低影響深度 "
+            f"{minimum_depth:.2f} m（{'6B 條形基礎' if is_strip else '2B 獨立／矩形基礎'}）；"
+            "請補足下伏分層，或確認剖面底部已達不再顯著壓縮的硬層／基岩。"
+        )
+    if bottom_factor >= 0.1 - 1e-9:
+        warnings.append(
+            f"固結剖面底界估算應力影響係數 Iσ={bottom_factor:.3f}，仍未低於 0.10；"
+            "下伏土層可能仍有不可忽略的沉陷貢獻，應延伸分層或提出下伏層不壓縮的工程依據。"
+        )
+    return {
+        "profile_bottom_m": depth,
+        "minimum_influence_depth_m": minimum_depth,
+        "bottom_stress_factor": bottom_factor,
+        "footing_type": "continuous" if is_strip else "isolated",
+        "warnings": warnings,
+    }
+
 def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m,
                                     net_pressure_kpa, stress_method='Boussinesq'):
     """Sum 1-D primary consolidation settlement over multiple layers."""
@@ -1289,8 +1329,14 @@ def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m
             raise ValueError('壓縮層頂面不可位於基礎底以上；請檢查 Depth_center_m 與 Thickness_m')
         if i and row['Depth_center_m']-row['Thickness_m']/2 < results[i-1]['Depth_center_m']+results[i-1]['Thickness_m']/2-1e-9:
             raise ValueError('分層厚度互相重疊；請檢查各層中心深度與厚度')
+    profile_bottom = max(row["Depth_center_m"] + row["Thickness_m"] / 2.0 for row in results)
+    depth_review = consolidation_influence_depth_review(
+        footing_width_m=B, footing_length_m=L,
+        profile_bottom_m=profile_bottom, stress_method=stress_method,
+    )
     return {'settlement_mm':sum(x['Settlement_mm'] for x in results),
-            'layer_results':results,'method':f'分層一維主固結；{stress_method} 應力分布'}
+            'layer_results':results,'method':f'分層一維主固結；{stress_method} 應力分布',
+            **depth_review}
 
 def consolidation_allowable_pressure_layers(*, layers, footing_width_m, footing_length_m,
                                             target_settlement_mm, stress_method='Boussinesq',
@@ -1311,4 +1357,8 @@ def consolidation_allowable_pressure_layers(*, layers, footing_width_m, footing_
         footing_length_m=footing_length_m,net_pressure_kpa=lo,stress_method=stress_method)
     return {'qa_primary_consolidation_kpa':lo,'search_limit_reached':at_limit['settlement_mm']<=target,
             'settlement_mm':final['settlement_mm'],'layer_results':final['layer_results'],
+            'profile_bottom_m':final['profile_bottom_m'],
+            'minimum_influence_depth_m':final['minimum_influence_depth_m'],
+            'bottom_stress_factor':final['bottom_stress_factor'],
+            'footing_type':final['footing_type'],'warnings':final['warnings'],
             'method':final['method']}

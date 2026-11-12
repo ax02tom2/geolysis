@@ -3,7 +3,7 @@ import streamlit as st
 import logging
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
+from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
 
 
 
@@ -460,10 +460,19 @@ def render_module_4(expanded=False):
                         max_pressure_kpa=max_clay_q)
                     qa_clay_settlement=r['qa_primary_consolidation_kpa']
                     st.dataframe(pd.DataFrame(r['layer_results']),hide_index=True,use_container_width=True)
+                    for _depth_warning in r.get("warnings", []): st.warning(_depth_warning)
+                    st.caption(f"固結剖面底深 {r['profile_bottom_m']:.2f} m；USACE 最低影響深度 {r['minimum_influence_depth_m']:.2f} m；底界估算 Iσ={r['bottom_stress_factor']:.3f}。此為深度完整性篩檢，仍須依下伏層壓縮性判斷是否延伸。")
                     st.caption("分層表逐層列出應力影響係數、應力增量及主固結沉陷；總沉陷為各層沉陷量加總。若提供 Stress_factor（0–1），該層會優先採用輸入值；請僅填入經核對的 USACE 範例／圖表或獨立應力分析值，空白則依上方 Boussinesq／2:1 方法計算。")
                 else:
+                    if zc < Hc/2.0 - 1e-9:
+                        raise ValueError("單一壓縮層頂面位於基礎底以上；請使 z ≥ H/2，或改用多層 CSV 正確描述層界。")
                     stress_ratio_clay4=((qB*qL)/((qB+zc)*(qL+zc)) if stress_method_clay4=='2:1'
                         else boussinesq_rectangular_center_factor(qB,qL,zc))
+                    depth_review_clay4=consolidation_influence_depth_review(
+                        footing_width_m=qB,footing_length_m=qL,
+                        profile_bottom_m=zc+Hc/2.0,stress_method=stress_method_clay4)
+                    for _depth_warning in depth_review_clay4.get("warnings", []): st.warning(_depth_warning)
+                    st.caption(f"單層壓縮範圍底深 {depth_review_clay4['profile_bottom_m']:.2f} m；USACE 最低影響深度 {depth_review_clay4['minimum_influence_depth_m']:.2f} m；底界估算 Iσ={depth_review_clay4['bottom_stress_factor']:.3f}。若下伏仍有可壓縮土層，請改用多層 CSV 納入。")
                     r=consolidation_allowable_pressure(target_settlement_mm=target4,footing_pressure_factor=stress_ratio_clay4,
                         layer_thickness_m=Hc,initial_void_ratio=e0,compression_index=Cc,recompression_index=Cr,
                         initial_effective_stress_kpa=sig0,preconsolidation_stress_kpa=sigp,

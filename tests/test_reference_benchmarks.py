@@ -14,6 +14,7 @@ from geolysis_engine import (
     burland_burbidge_average_n60_from_profile,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
+    consolidation_allowable_pressure_layers,
     consolidation_time_rate,
     classify_uscs_aashto,
     hoek_brown_parameters,
@@ -39,6 +40,7 @@ from geolysis_engine import (
     schmertmann_cpt_settlement_2025,
     menard_rousseau_pmt_settlement_2025,
     usace_footing_type,
+    consolidation_influence_depth_review,
 )
 
 
@@ -4211,3 +4213,86 @@ def test_usace_footing_type_uses_strict_length_to_width_ratio_boundary(
 def test_usace_footing_type_rejects_nonpositive_dimensions():
     with pytest.raises(ValueError, match="必須大於 0"):
         usace_footing_type(footing_width_m=0.0, footing_length_m=2.0)
+
+
+def test_consolidation_depth_review_flags_short_profile_and_significant_bottom_stress():
+    review = consolidation_influence_depth_review(
+        footing_width_m=2.0,
+        footing_length_m=3.0,
+        profile_bottom_m=1.0,
+        stress_method="Boussinesq",
+    )
+    assert review["footing_type"] == "isolated"
+    assert review["minimum_influence_depth_m"] == pytest.approx(4.0)
+    assert review["profile_bottom_m"] == pytest.approx(1.0)
+    assert review["bottom_stress_factor"] >= 0.1
+    assert len(review["warnings"]) == 2
+
+
+def test_consolidation_depth_review_uses_six_b_for_strip_and_flags_deeper_stress():
+    review = consolidation_influence_depth_review(
+        footing_width_m=1.0,
+        footing_length_m=10.1,
+        profile_bottom_m=5.9,
+        stress_method="Boussinesq",
+    )
+    assert review["footing_type"] == "continuous"
+    assert review["minimum_influence_depth_m"] == pytest.approx(6.0)
+    assert review["warnings"]
+
+
+def test_consolidation_depth_review_accepts_deep_profile_with_negligible_stress():
+    review = consolidation_influence_depth_review(
+        footing_width_m=1.0,
+        footing_length_m=1.0,
+        profile_bottom_m=5.0,
+        stress_method="Boussinesq",
+    )
+    assert review["minimum_influence_depth_m"] == pytest.approx(2.0)
+    assert review["bottom_stress_factor"] < 0.1
+    assert review["warnings"] == []
+
+
+def test_consolidation_layer_results_include_influence_depth_review():
+    layers = [{
+        "Depth_center_m": 0.5,
+        "Thickness_m": 1.0,
+        "e0": 0.8,
+        "Cc": 0.3,
+        "Cr": 0.05,
+        "Sigma0_kPa": 100.0,
+        "SigmaP_kPa": 150.0,
+    }]
+    result = consolidation_settlement_layers(
+        layers=layers,
+        footing_width_m=2.0,
+        footing_length_m=3.0,
+        net_pressure_kpa=100.0,
+        stress_method="Boussinesq",
+    )
+    assert result["profile_bottom_m"] == pytest.approx(1.0)
+    assert result["minimum_influence_depth_m"] == pytest.approx(4.0)
+    assert result["warnings"]
+
+
+def test_consolidation_allowable_pressure_layers_preserves_depth_review_metadata():
+    layers = [{
+        "Depth_center_m": 0.5,
+        "Thickness_m": 1.0,
+        "e0": 0.8,
+        "Cc": 0.3,
+        "Cr": 0.05,
+        "Sigma0_kPa": 100.0,
+        "SigmaP_kPa": 150.0,
+    }]
+    result = consolidation_allowable_pressure_layers(
+        layers=layers,
+        footing_width_m=2.0,
+        footing_length_m=3.0,
+        target_settlement_mm=25.0,
+        stress_method="Boussinesq",
+        max_pressure_kpa=500.0,
+    )
+    assert result["profile_bottom_m"] == pytest.approx(1.0)
+    assert result["minimum_influence_depth_m"] == pytest.approx(4.0)
+    assert result["warnings"]
