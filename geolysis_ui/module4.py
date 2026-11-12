@@ -273,7 +273,7 @@ def render_module_4(expanded=False):
             a,b,c=st.columns(3)
             with a:
                 dmtB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_dmt_b")
-                dmtL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_dmt_l")
+                dmtL=st.number_input("基礎長邊 L [m]",min_value=float(dmtB),max_value=100.0,value=float(max(dmtB,2.0)),step=0.1,key="m4_dmt_l")
                 dmt_type=usace_footing_type(footing_width_m=dmtB,footing_length_m=dmtL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={dmtL/dmtB:.2f} 自動判定：{'連續條形基礎' if dmt_type=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
@@ -343,7 +343,7 @@ def render_module_4(expanded=False):
             a,b,c=st.columns(3)
             with a:
                 cptB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_cpt_b")
-                cptL=st.number_input("基礎長邊 L [m]",0.3,100.0,2.0,0.1,key="m4_cpt_l")
+                cptL=st.number_input("基礎長邊 L [m]",min_value=float(cptB),max_value=100.0,value=float(max(cptB,2.0)),step=0.1,key="m4_cpt_l")
                 cptType=usace_footing_type(footing_width_m=cptB,footing_length_m=cptL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={cptL/cptB:.2f} 自動判定：{'連續條形基礎' if cptType=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
