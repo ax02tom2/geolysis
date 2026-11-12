@@ -3753,3 +3753,62 @@ def test_layered_punching_reports_usace_shear_zone_depth_applicability():
     )
     assert strip_out["within_usace_shear_zone_range"] is False
     assert strip_out["recommended_depth_range_m"] == pytest.approx((2.0, 8.0))
+
+
+def test_usace_dmt_rm_all_four_equation_branches():
+    # Independently evaluate the four USACE EM 1110-1-1905 Eq. 3-41 branches.
+    cases = [
+        (0.5, 2.0, "Eq. 3-41a (ID≤0.6)", max(0.85, 0.14 + 2.36 * math.log10(2.0))),
+        (1.5, 4.0, "Eq. 3-41b (0.6<ID<3)", (
+            (0.14 + 0.15 * (1.5 - 0.6))
+            + (2.5 - (0.14 + 0.15 * (1.5 - 0.6))) * math.log10(4.0)
+        )),
+        (3.5, 4.0, "Eq. 3-41c (ID≥3)", 0.5 + 2.0 * math.log10(4.0)),
+        (0.5, 12.0, "Eq. 3-41d (KD>10)", 0.32 + 2.18 * math.log10(12.0)),
+    ]
+    for id_value, kd_value, expected_branch, expected_rm in cases:
+        layers = [
+            {
+                "thickness_m": 0.1,
+                "p0_bar": 2.0,
+                "p1_bar": 2.0 + id_value,
+                "u0_bar": 1.0,
+                "sigma_v0_eff_bar": 1.0 / kd_value,
+            }
+            for _ in range(20)
+        ]
+        result = dmt_settlement_2025(
+            layers=layers,
+            footing_width_m=1.0,
+            footing_length_m=1.0,
+            gross_pressure_kpa=200.0,
+            base_effective_stress_kpa=50.0,
+        )
+        first = result["layer_results"][0]
+        assert first["ID"] == pytest.approx(id_value)
+        assert first["KD"] == pytest.approx(kd_value)
+        assert first["RM_branch"] == expected_branch
+        assert first["RM"] == pytest.approx(expected_rm, rel=1e-12)
+
+def test_usace_schmertmann_cpt_interpolates_es_peak_depth_and_iz_for_intermediate_aspect_ratio():
+    # USACE EM 1110-1-1905 (2025), §7-12: interpolate between axisymmetric
+    # L/B=1 and plane-strain L/B=10; Eq. 7-23 uses the printed 0.111 coefficient.
+    B, ratio, qc = 1.0, 5.5, 1000.0
+    layers = [{"thickness_m": 0.25, "qc_kpa": qc} for _ in range(12)]
+    result = schmertmann_cpt_settlement_2025(
+        layers=layers,
+        footing_width_m=B,
+        footing_length_m=B * ratio,
+        gross_pressure_kpa=200.0,
+        base_effective_stress_kpa=50.0,
+        peak_effective_stress_kpa=100.0,
+        soil_applicability_confirmed=True,
+    )
+    assert result["peak_depth_m"] == pytest.approx(0.75 * B)
+    assert result["influence_depth_required_m"] == pytest.approx(3.0 * B)
+    assert result["layer_results"][0]["Es_kPa"] == pytest.approx(3.0 * qc)
+    first = result["layer_results"][0]
+    expected_iz = first["Iz_axisymmetric"] + 0.111 * 4.5 * (
+        first["Iz_plane_strain"] - first["Iz_axisymmetric"]
+    )
+    assert first["Iz_used"] == pytest.approx(expected_iz)
