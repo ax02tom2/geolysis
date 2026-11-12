@@ -65,7 +65,7 @@ def test_case_based_mi_and_ucs_reference_pairing(mi_case, ucs_case, mode, should
         ("砂岩 Sandstone", 17, 60, 0.5, False),
     ],
 )
-def test_case_reference_gsi_and_disturbance_ranges(case, gsi, disturbance, should_warn):
+def test_case_reference_gsi_and_disturbance_ranges(case, mi, gsi, disturbance, should_warn):
     from geolysis_ui.module1 import _hb_case_parameter_warning
 
     warning = _hb_case_parameter_warning(case, mi, gsi, disturbance)
