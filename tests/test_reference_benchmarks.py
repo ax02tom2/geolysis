@@ -30,6 +30,7 @@ from geolysis_engine import (
     seismic_foundation_eccentricity_cases,
     foundation_sliding_factor_of_safety,
     foundation_sliding_pseudostatic_cases,
+    developed_rankine_sliding_earth_pressures,
     seismic_uplift_stability_cases,
     bishop_simplified_factor_of_safety,
     usace_settlement_design_pressure,
@@ -3370,3 +3371,69 @@ def test_residual_pore_pressure_qeq_subtracts_total_base_pressure():
     assert result["base_uplift_pressure_kpa"] == pytest.approx(20.0)
     assert all(case["average_contact_pressure_kpa"] == pytest.approx(1000.0/6.0-20.0)
                for case in result["cases"])
+
+
+def test_developed_rankine_sliding_pressures_match_usace_2025_equations_5_31_to_5_35():
+    # USACE EM 1110-1-1905 (2025), Eqs. 5-31 to 5-35.
+    gamma, depth, length = 18.0, 2.0, 3.0
+    phi, cohesion, fs = 30.0, 12.0, 2.0
+    phi_d = math.degrees(math.atan(math.tan(math.radians(phi)) / fs))
+    c_d = cohesion / fs
+    sin_d = math.sin(math.radians(phi_d))
+    ka = (1.0 - sin_d) / (1.0 + sin_d)
+    kp = 1.0 / ka
+
+    result = developed_rankine_sliding_earth_pressures(
+        effective_unit_weight_kn_m3=gamma,
+        footing_depth_m=depth,
+        footing_length_m=length,
+        friction_angle_deg=phi,
+        cohesion_kpa=cohesion,
+        fs_sliding=fs,
+        load_case="static",
+    )
+
+    expected_pa = max((0.5 * gamma * depth * ka - 2.0 * c_d) * depth * length, 0.0)
+    expected_pp = (0.5 * gamma * depth * kp + 2.0 * c_d) * depth * length
+    assert result["developed_phi_deg"] == pytest.approx(phi_d)
+    assert result["developed_cohesion_kpa"] == pytest.approx(c_d)
+    assert result["Ka_developed"] == pytest.approx(ka)
+    assert result["Kp_developed"] == pytest.approx(kp)
+    assert result["active_force_kN"] == pytest.approx(expected_pa)
+    assert result["passive_force_kN"] == pytest.approx(expected_pp)
+
+
+def test_developed_rankine_sliding_pressures_enforce_load_case_minimum_fs():
+    args = dict(
+        effective_unit_weight_kn_m3=18.0,
+        footing_depth_m=2.0,
+        footing_length_m=3.0,
+        friction_angle_deg=30.0,
+        cohesion_kpa=10.0,
+        fs_sliding=1.9,
+    )
+    with pytest.raises(ValueError, match="不得低於 2.0"):
+        developed_rankine_sliding_earth_pressures(**args, load_case="static")
+    seismic = developed_rankine_sliding_earth_pressures(
+        **{**args, "fs_sliding": 1.1}, load_case="seismic"
+    )
+    assert seismic["FS_minimum_required"] == pytest.approx(1.1)
+
+
+def test_sliding_passive_resistance_is_capped_at_total_driving_force():
+    result = foundation_sliding_factor_of_safety(
+        vertical_load_kN=1000.0,
+        uplift_kN=100.0,
+        horizontal_load_kN=100.0,
+        area_m2=10.0,
+        friction_angle_deg=30.0,
+        cohesion_kpa=0.0,
+        adhesion_ratio=0.0,
+        active_force_kN=20.0,
+        passive_force_kN=500.0,
+        fs_required=2.0,
+    )
+    assert result["passive_resistance_used_kN"] == pytest.approx(120.0)
+    assert result["driving_force_kN"] == pytest.approx(0.0)
+    assert result["passive_resistance_capped"] is True
+    assert result["passive_balance_controls"] is True
