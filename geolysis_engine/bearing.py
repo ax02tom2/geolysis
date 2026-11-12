@@ -543,7 +543,7 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         eccentricity_B=0.0, eccentricity_L=0.0,
         seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
         static_moment_B_sign=1, static_moment_L_sign=1,
-        allowable_bearing_pressure_kpa=None):
+        allowable_bearing_pressure_kpa=None, base_uplift_pressure_kpa=0.0):
     """Evaluate seismic resultant location, effective area and optional q_allow check.
 
     Static eccentricities are converted to signed moments V·e. Seismic
@@ -573,6 +573,9 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
     qallow=None if allowable_bearing_pressure_kpa is None else _finite('地震設計容許承載壓力 q_allow',allowable_bearing_pressure_kpa)
     if qallow is not None and qallow<=0:
         raise ValueError('地震設計容許承載壓力 q_allow 必須大於 0')
+    base_uplift=_finite('基礎底面靜水揚壓 u_D',base_uplift_pressure_kpa)
+    if base_uplift<0:
+        raise ValueError('基礎底面靜水揚壓 u_D 不可為負值')
     if footing_type not in ('spread','strip'):
         raise ValueError('基礎型式須為 spread 或 strip')
     if V<=0 or W<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0:
@@ -609,8 +612,10 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
             middle_L=(footing_type=='strip' or eL<=Lv/6.0+1e-9)
             middle_pass=middle_B and middle_L
             area_eff=(Be if footing_type=='strip' else Be*Le) if contact_pass else None
-            qeq=(Ve/area_eff if area_eff and area_eff>0 else None)
-            qallow_pass=(None if qallow is None or qeq is None else qeq<=qallow)
+            qeq_gross=(Ve/area_eff if area_eff and area_eff>0 else None)
+            qeq=(qeq_gross-base_uplift if qeq_gross is not None else None)
+            uplift_contact_pass=(None if qeq is None else qeq>0.0)
+            qallow_pass=(None if qallow is None or qeq is None else qeq>0.0 and qeq<=qallow)
             overall_pass=(None if qallow is None else geometry_pass and qallow_pass is True)
             footprint_util=max(eB/(Bv/2.0),eL/(Lv/2.0) if footing_type=='spread' else 0.0)
             middle_util=max(eB/(Bv/6.0),eL/(Lv/6.0) if footing_type=='spread' else 0.0)
@@ -622,7 +627,9 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
                 status='合力仍在基礎範圍內，但超出靜力中三分點；地震須另核 qeq≤q_allow'
             else:
                 status='合力在基礎範圍內且靜力中三分點亦符合'
-            if qallow_pass is False:
+            if qeq is not None and qeq<=0.0:
+                status+='；扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核'
+            elif qallow_pass is False:
                 status+='；有效承載壓力超過 q_allow'
             cases.append({
                 'horizontal_earthquake_sign':hsign,
@@ -637,7 +644,10 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
                 'footprint_L_limit_m':(Lv/2.0 if footing_type=='spread' else None),
                 'B_effective_m':Be,'L_effective_m':Le,
                 'effective_area_m2':area_eff,
+                'gross_average_contact_pressure_kpa':qeq_gross,
+                'base_uplift_pressure_kpa':base_uplift,
                 'average_contact_pressure_kpa':qeq,
+                'uplift_contact_pass':uplift_contact_pass,
                 'allowable_bearing_pressure_kpa':qallow,
                 'bearing_pressure_pass':qallow_pass,
                 'resultant_within_footprint':resultant_inside,
@@ -665,17 +675,21 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         'bearing_pressure_passes':qallow_passes,
         'overall_seismic_overturning_passes':overall_passes,
         'allowable_bearing_pressure_kpa':qallow,
+        'base_uplift_pressure_kpa':base_uplift,
+        'uplift_stability_check_complete':False,
+        'uplift_contact_passes':all(row['uplift_contact_pass'] is True for row in cases),
         'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
         'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
         'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
         'method':'USACE EM 1110-1-1905 (2025), §9-10(e); static middle-third reference: Table 2-1 Note 3',
-        'limitations':'地震極端事件幾何檢核依 USACE §9-10(e)：合力須位於基礎底面範圍內，並以偏心距計算 B′、L′；中三分點另列為靜力參考，不作為地震極端事件唯一判定。完整檢核仍須將 qeq 與適用規範／專案所定的地震容許承載壓力 q_allow 比較；未輸入 q_allow 時，本工具只回報幾何檢核，不代表整體傾覆／承載安全通過。系統不自行套用地震容許承載力提高係數。M_B,E/M_L,E 為 +kh 方向的帶符號水平地震基礎底彎矩，反向地震作用假設彎矩線性反號；若有非線性、扭轉或方向性結構分析，應分別輸入各方向結果。未處理任意水平方位角、雙向同時地震、基底／地表傾斜及土體慣性。'
+        'limitations':'地震極端事件幾何檢核依 USACE §9-10(e)：合力須位於基礎底面範圍內，並以偏心距計算 B′、L′；中三分點另列為靜力參考，不作為地震極端事件唯一判定。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；但不包含地震殘餘超額孔隙水壓造成的額外上拔，也不取代 §9-10(f) uplift FS≥1.5 檢核，該項仍須另行完成。完整承載檢核仍須將 qeq 與適用規範／專案所定的地震容許承載壓力 q_allow 比較；未輸入 q_allow 時不代表整體安全通過。系統不自行套用地震容許承載力提高係數。M_B,E/M_L,E 為 +kh 方向的帶符號水平地震基礎底彎矩，反向地震作用假設彎矩線性反號；若有非線性、扭轉或方向性結構分析，應分別輸入各方向結果。未處理任意水平方位角、雙向同時地震、基底／地表傾斜及土體慣性.'
     }
 
 def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         horizontal_load_kN, kh, kv, footing_type, residual_excess_pore_pressure_ratio,
         c_kpa, phi_deg, gamma_moist, gamma_sub, gamma_below, B, L, Df,
-        water_depth, seismic_weight_kN=None, eccentricity_B=0.0, eccentricity_L=0.0,
+        water_depth, seismic_weight_kN=None, base_uplift_pressure_kpa=0.0,
+        eccentricity_B=0.0, eccentricity_L=0.0,
         seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
         static_moment_B_sign=1, static_moment_L_sign=1,
         base_inclination_deg=0.0, ground_inclination_deg=0.0,
@@ -718,6 +732,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         raise ValueError('基礎型式須為 spread 或 strip')
     V=_finite('靜態垂直力 V',vertical_load_kN)
     H=_finite('靜態水平力 H',horizontal_load_kN)
+    base_uplift=_finite('基礎底面靜水揚壓 u_D',base_uplift_pressure_kpa)
+    if base_uplift<0:
+        raise ValueError('基礎底面靜水揚壓 u_D 不可為負值')
     khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
     Bv=_finite('基礎短邊 B',B)
@@ -780,7 +797,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                 'overturning_check_pass':(eB_case<Bv/2.0 and (eL_case<Lv/2.0 if footing_type=='spread' else True) and Be>0 and (footing_type=='strip' or Le>0) and (footing_type=='strip' or Le>=Be)),
                 'overturning_utilization':max(eB_case/(Bv/2.0),eL_case/(Lv/2.0) if footing_type=='spread' else 0.0),
                 'B_effective_m':Be,'L_effective_m':Le,
+                'base_uplift_pressure_kpa':base_uplift,
+                'gross_average_contact_pressure_kpa':None,
                 'average_contact_pressure_kpa':None,
+                'uplift_contact_pass':False,
             }
             invalid_reason=None
             if Be<=0 or (footing_type=='spread' and Le<=0):
@@ -830,9 +850,14 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
                     effective_unit_weight_unaffected_kn_m3=gamma_unaffected_input)
                 qu=resistance['qu_seismic_kpa']
                 reason=None
+            gross_qeq=Ve/(Be*Le if footing_type=='spread' else Be)
+            qeq=gross_qeq-base_uplift
             cases.append({
                 **common,
-                'average_contact_pressure_kpa':Ve/(Be*Le if footing_type=='spread' else Be),
+                'gross_average_contact_pressure_kpa':gross_qeq,
+                'base_uplift_pressure_kpa':base_uplift,
+                'average_contact_pressure_kpa':qeq,
+                'uplift_contact_pass':qeq>0.0,
                 'load_inclination_beta_deg':corrected['load_inclination_beta_2025_deg'],
                 **factors,'correction_product':product,
                 'gamma_effective_eq_5_19_kn_m3':corrected['gamma_effective'],
@@ -859,6 +884,8 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'partial_shear_zone_affected_fraction':(None if full_shear_zone_confirmed else partial_fraction),
         'gamma_effective_susceptible_kn_m3':(None if full_shear_zone_confirmed else gamma_susceptible_input),
         'gamma_effective_unaffected_kn_m3':(None if full_shear_zone_confirmed else gamma_unaffected_input),
+        'base_uplift_pressure_kpa':base_uplift,
+        'uplift_stability_check_complete':False,
         'static_moment_B_kNm':static_MB,'static_moment_L_kNm':static_ML,
         'seismic_moment_B_kNm':MBe,'seismic_moment_L_kNm':MLe,
         'seismic_moment_included':(abs(MBe)>1e-12 or abs(MLe)>1e-12),
@@ -871,7 +898,7 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         'middle_third_failed_cases':[case for case in cases if not case.get('middle_third_pass',False)],
         'middle_third_governing_case':max(cases,key=lambda case:case.get('middle_third_utilization',0.0)),
         'method':'USACE EM 1110-1-1905 (2025), §9-10(e), Tables 5-2/5-3, Eq. 5-19 and Eqs. 9-3/9-4 with per-case effective footing dimensions',
-        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。若兩分量均為 0，代表本次未納入地震彎矩。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考，不作為地震極端事件唯一判定。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算地震 qeq／FS、液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析。'
+        'limitations':'已逐一評估地震水平力正反向及垂直 kv 增減組合；靜力偏心距轉為 V·e，並將輸入的地震基礎底彎矩按水平地震方向反號，逐組合計算 eB=|M_B|/V_eq、eL=|M_L|/V_eq 與 B′=B−2eB、L′=L−2eL，再依 USACE Meyerhof-based Nγ 抗力程序計算。qeq 依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D；地震殘餘超額孔隙水壓造成的額外上拔尚未納入，也未完成 §9-10(f) uplift FS≥1.5，故不得宣稱完整地震 uplift 安全。地震彎矩須由結構分析取得並傳至基礎底面；輸入的 M_B,E、M_L,E 定義為 +kh 方向的帶符號分量，反向作用時系統自動反號。地震傾覆幾何依 USACE §9-10(e) 檢核合力是否仍在基礎 footprint 內、有效尺寸是否為正；中三分點另列為靜力參考。有效承載壓力仍須另與適用規範的 q_allow 比較。此處仍為單一水平作用軸向包絡，並未處理任意方位角、扭轉耦合或雙向水平地震同時作用。剪力區孔壓影響可選完整區或部分區；部分區以使用者輸入的加權比例 f 與兩種有效單位重計算 γ′b=f(1−ru)γ′sus+(1−f)γ′unaffected，f 必須依剪力區內土層分布／體積估算，不會由全孔深度自動推定。結果僅為地震孔壓折減後極限抗力；未計算液化後殘餘強度、側向擴展、震陷及場址整體液化適用性。若任一組合造成有效尺寸非正或有效長短軸交換，系統停止提供控制承載力，須另作接觸壓力／雙向偏心分析.'
     }
 
 def bearing_capacity_in_situ(*, test_type, measurements, drainage, B, L, Df,
