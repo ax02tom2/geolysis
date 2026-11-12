@@ -611,6 +611,8 @@ def test_core_measurement_inputs_reject_nan_and_infinity():
 
 
 def test_core_indices_flags_recovered_length_exceeding_drilled_interval():
+    import pytest
+
     result = calculate_core_indices(1.0, [600.0, 500.0])
     assert result["over_recovery"] is True
     assert result["recovery_percent"] == pytest.approx(110.0)
