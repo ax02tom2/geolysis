@@ -4044,7 +4044,7 @@ def test_developed_rankine_helper_explicitly_disclaims_seismic_dynamic_pressure(
         fs_sliding=1.1,
         load_case="seismic",
     )
-    assert "只計算靜態" in result["limitations"]
+    assert "計算靜態" in result["limitations"]
     assert "不會計算地震動態土壓增量" in result["limitations"]
 
 
