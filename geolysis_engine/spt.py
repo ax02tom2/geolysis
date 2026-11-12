@@ -68,7 +68,15 @@ def _profile_bool(value, *, default, label):
     normalized = str(value).strip().lower()
     if normalized in ("1", "1.0", "true", "yes", "y", "是", "套用"):
         return True
-    if normalized in ("0", "0.0", "false", "no", "n", "否", "不套用"):
+    # Refusal is a categorical field in field logs, not merely a checkbox.
+    # Accept common English/Traditional Chinese field terms while keeping
+    # Apply_Dilatancy restricted to explicit boolean values.
+    if label == "Refusal" and normalized in (
+        "refusal", "partial penetration", "partial_penetration",
+        "拒錘", "拒打", "拒貫", "部分貫入",
+    ):
+        return True
+    if normalized in ("0", "0.0", "false", "no", "n", "否", "不套用", "非拒錘", "非拒打"):
         return False
     raise ValueError(f"{label} 僅接受 true／false")
 

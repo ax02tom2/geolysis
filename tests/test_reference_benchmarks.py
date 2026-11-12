@@ -1949,6 +1949,37 @@ def test_spt_profile_uses_per_row_rod_length_and_preserves_refusal_rows():
     assert "拒錘" in result[1]["Correction_status"]
 
 
+
+@pytest.mark.parametrize("refusal_value", [
+    "refusal", "partial penetration", "拒錘", "拒打", "拒貫", "部分貫入",
+])
+def test_spt_profile_accepts_common_refusal_field_terms(refusal_value):
+    from geolysis_engine import spt_profile
+
+    result = spt_profile(
+        [{"Depth_m": 1.0, "N": 50, "Effective_Stress_kPa": 100.0,
+          "Refusal": refusal_value, "Penetration_mm": 80}],
+        energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+        rod_length_m=5.0, cn_method="Liao & Whitman",
+    )
+    assert len(result) == 1
+    assert result[0]["N60"] is None
+    assert result[0]["N1_60_final"] is None
+    assert "拒錘" in result[0]["Correction_status"]
+
+
+def test_spt_profile_does_not_accept_refusal_words_as_dilatancy_boolean():
+    from geolysis_engine import spt_profile
+
+    with pytest.raises(ValueError, match="Apply_Dilatancy"):
+        spt_profile(
+            [{"Depth_m": 1.0, "N": 20, "Effective_Stress_kPa": 100.0,
+              "Soil_Behavior": "cohesionless", "Apply_Dilatancy": "拒錘"}],
+            energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+            rod_length_m=5.0, cn_method="Liao & Whitman",
+        )
+
+
 @pytest.mark.parametrize(
     ("kwargs", "expected"),
     [
