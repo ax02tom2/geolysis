@@ -217,18 +217,20 @@ def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
 
 def test_module1_quantitative_gsi_imports_only_completed_core_photo_rqd_rows():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    app.session_state["core_log_rqd_summary"] = [
-        {"depth": "0.0–1.0m", "rqd_percent": 70.0, "review": "完成", "depth_length_m": 1.0},
-        {"depth": "1.0–2.0m", "rqd_percent": 90.0, "review": "完成", "depth_length_m": 1.0},
-        {"depth": "2.0–3.0m", "rqd_percent": 100.0, "review": "有不確定區", "depth_length_m": 1.0},
-    ]
-    app.session_state["core_log_rqd_source"] = {"filename": "borehole_core.pdf"}
-    app.run()
+    def seed_core_rqd():
+        app.session_state["core_log_rqd_summary"] = [
+            {"depth": "0.0–1.0m", "rqd_percent": 70.0, "review": "完成", "depth_length_m": 1.0},
+            {"depth": "1.0–2.0m", "rqd_percent": 90.0, "review": "完成", "depth_length_m": 1.0},
+            {"depth": "2.0–3.0m", "rqd_percent": 100.0, "review": "有不確定區", "depth_length_m": 1.0},
+        ]
+        app.session_state["core_log_rqd_source"] = {"filename": "borehole_core.pdf"}
 
     method = next(widget for widget in app.radio if widget.key == "gsi_method")
+    seed_core_rqd()
     method.set_value("鑽孔定量估算（FHWA Eq. 9-19）")
     app.run()
 
+    seed_core_rqd()
     depths = next(widget for widget in app.multiselect if widget.key == "gsi_quant_rqd_depths")
     depths.set_value(["0.0–1.0m", "1.0–2.0m"])
     choices = {
@@ -241,6 +243,7 @@ def test_module1_quantitative_gsi_imports_only_completed_core_photo_rqd_rows():
     for key, value in choices.items():
         widget = next(item for item in app.selectbox if item.key == key)
         widget.select(value)
+    seed_core_rqd()
     app.run()
 
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
