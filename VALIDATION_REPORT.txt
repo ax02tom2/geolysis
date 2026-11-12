@@ -848,3 +848,16 @@ Module 5 seismic qeq hydrostatic base-uplift correction — PR #91
 - PR #91 merged to main at caed90fd5c94be43a95d6dfb6b1c6edb6e49d5c3.
 - GitHub Actions run 43130632085: success; Python 3.11 compile passed; Streamlit AppTest included; full suite 428 passed in 1.68 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3 and §9-10(e)/(f).
+
+
+Module 5 residual excess pore-pressure applicability — PR #94
+
+- Replaced the UI's non-liquefiable-only confirmation with explicit FS_liq, lateral-spreading and ru-source applicability checks consistent with USACE EM 1110-1-1905 (2025), §9-9c and §9-10(c)(3).
+- FS_liq must be >1.0. The method permits marginal liquefaction (1.0<FS_liq≤1.4) when significant lateral spreading is not expected and ru is obtained from Figure 9-1 or site-specific pore-pressure analysis.
+- FS_liq≤1.0, expected significant lateral spreading, or an unverified ru source blocks the calculation and directs the user to residual-strength/punching/global-stability analyses as applicable.
+- ru is documented as residual excess pore pressure divided by initial effective overburden stress. The UI warns if ru=0 is entered for marginal FS_liq.
+- Full and user-weighted partial shear-zone paths remain supported. Legacy engine calls retain the stricter non-liquefiable confirmation for backward compatibility; the current UI uses the new explicit conditions.
+- Added five regression tests for the applicability boundaries and Module 5 integration.
+- PR #94 merged to main at f9b999e3207ff6d78aaa572f88bb290e1e6d0999.
+- GitHub Actions run 43131680957: success; Python 3.11 compile passed; Streamlit AppTest included; 433 passed in 2.36 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-9c, Figure 9-1, §9-10(a), §9-10(c)(3), Eqs. 9-3/9-4.
