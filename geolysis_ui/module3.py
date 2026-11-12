@@ -88,7 +88,7 @@ def render_module_3(expanded=False):
             st.session_state.pop("m3_current_n160",None)
             st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
-        st.caption("必要欄位：Depth_m、N。Effective_Stress_kPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
+        st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
         profile_confirm=st.checkbox("已確認 CSV 為本次鑽孔實測 SPT 資料（不是示範數據）",value=False,key="m3_profile_confirm")
