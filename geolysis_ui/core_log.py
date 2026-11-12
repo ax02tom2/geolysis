@@ -321,20 +321,98 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     tray_detection = None
                     apply_perspective = False
                     if perspective_enabled:
-                        tray_detection = _cached_tray_detection(rotated_row, engine_fingerprint)
-                        if tray_detection.get("success"):
+                        auto_detection = _cached_tray_detection(rotated_row, engine_fingerprint)
+                        auto_ok = bool(auto_detection.get("success"))
+                        if auto_ok:
+                            default_corners = auto_detection["corners"]
                             st.image(
-                                draw_tray_quadrilateral(rotated_row, tray_detection),
-                                caption="藍色托盤四角候選；請確認四個角都落在同一列托盤外框",
+                                draw_tray_quadrilateral(rotated_row, auto_detection),
+                                caption="自動四角候選；請確認四個角都落在同一列托盤內緣",
                                 use_container_width=True,
                             )
-                            apply_perspective = st.checkbox(
-                                "確認四角正確，套用透視校正",
-                                value=False,
-                                key=f"core_perspective_confirm_{file_digest[:10]}_{index}",
-                            )
                         else:
-                            st.warning(tray_detection.get("warning", "未能可靠偵測托盤外框；保留原圖。"))
+                            default_corners = [
+                                [rotated_row.width * 0.03, rotated_row.height * 0.03],
+                                [rotated_row.width * 0.97, rotated_row.height * 0.03],
+                                [rotated_row.width * 0.97, rotated_row.height * 0.97],
+                                [rotated_row.width * 0.03, rotated_row.height * 0.97],
+                            ]
+                            st.warning(auto_detection.get("warning", "自動偵測失敗；可嘗試手動指定四角。"))
+
+                        manual_enabled = st.checkbox(
+                            "手動微調托盤四角（可拖曳黃色控制點）",
+                            value=False,
+                            key=f"core_manual_corner_enabled_{file_digest[:10]}_{index}_{rotation}",
+                            help="自動四角偏移、照片歪斜或托盤邊框不完整時，可直接拖曳四個角點；不會修改上傳的原始 PDF。",
+                        )
+                        if manual_enabled:
+                            preview_data, preview_w, preview_h, preview_scale, scaled_default = _corner_editor_image_payload(
+                                rotated_row, default_corners
+                            )
+                            rotated_digest = _image_digest(rotated_row)[:10]
+                            manual_state_key = f"core_manual_corners_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}"
+                            editor_key = f"core_corner_editor_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}"
+                            stored_points = st.session_state.get(manual_state_key, scaled_default)
+                            editor_value = point_editor(
+                                image=preview_data,
+                                image_width=preview_w,
+                                image_height=preview_h,
+                                points=stored_points,
+                                key=editor_key,
+                            )
+                            if editor_value:
+                                try:
+                                    edited_preview_points = (
+                                        json.loads(editor_value)
+                                        if isinstance(editor_value, str)
+                                        else editor_value
+                                    )
+                                    st.session_state[manual_state_key] = edited_preview_points
+                                    stored_points = edited_preview_points
+                                except (TypeError, ValueError, json.JSONDecodeError):
+                                    st.warning("手動四角回傳格式無效；請重新拖曳控制點。")
+                            manual_ready = auto_ok or manual_state_key in st.session_state
+                            if manual_ready:
+                                original_points = [
+                                    [float(x) / preview_scale, float(y) / preview_scale]
+                                    for x, y in stored_points
+                                ]
+                                try:
+                                    validated_points = validate_tray_quadrilateral(
+                                        original_points, rotated_row.width, rotated_row.height
+                                    )
+                                    tray_detection = {
+                                        "success": True,
+                                        "corners": validated_points,
+                                        "method": "manual_corner_editor" if manual_state_key in st.session_state else "auto_corner_editor",
+                                    }
+                                    st.image(
+                                        draw_tray_quadrilateral(rotated_row, tray_detection),
+                                        caption="目前採用的四角位置；紅線為校正邊界，黃色點可拖曳微調",
+                                        use_container_width=True,
+                                    )
+                                    corner_signature = hashlib.sha256(
+                                        json.dumps(validated_points, ensure_ascii=False).encode("utf-8")
+                                    ).hexdigest()[:8]
+                                    apply_perspective = st.checkbox(
+                                        "確認目前四角，套用透視校正",
+                                        value=False,
+                                        key=f"core_perspective_confirm_{file_digest[:10]}_{index}_{corner_signature}",
+                                    )
+                                except (TypeError, ValueError) as exc:
+                                    st.warning(f"四角位置尚不符合有效凸四邊形：{exc}")
+                            elif not auto_ok:
+                                st.caption("請先拖曳四個黃色控制點，使其貼合托盤內緣，再確認套用。")
+                        elif auto_ok:
+                            tray_detection = auto_detection
+                            corner_signature = hashlib.sha256(
+                                json.dumps(tray_detection["corners"], ensure_ascii=False).encode("utf-8")
+                            ).hexdigest()[:8]
+                            apply_perspective = st.checkbox(
+                                "確認自動四角正確，套用透視校正",
+                                value=False,
+                                key=f"core_perspective_confirm_{file_digest[:10]}_{index}_{corner_signature}",
+                            )
                     crop_supported = min(record.image.width, record.image.height) >= 80
                     crop_enabled = st.checkbox(
                         "裁除托盤邊框（不改變原始檔案）",
