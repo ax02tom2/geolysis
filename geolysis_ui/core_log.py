@@ -440,9 +440,9 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         )
                         reviewed_breaks.append({**candidate, "review_class": review})
                 no_breaks_confirmed = False
-                if not candidates and analysis.get("success") and break_result.get("success"):
+                if not break_result.get("candidates") and analysis.get("success") and break_result.get("success"):
                     no_breaks_confirmed = st.checkbox(
-                        "已人工檢視本列影像，確認沒有需要切分 RQD 的天然節理",
+                        "已人工檢視所有連續岩心本體區段，確認沒有漏掉需要切分 RQD 的天然節理",
                         value=False,
                         key=f"core_no_breaks_{file_digest[:10]}_{index}_{review_fingerprint}",
                     )
