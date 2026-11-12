@@ -350,8 +350,8 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                                 rotated_row, default_corners
                             )
                             rotated_digest = _image_digest(rotated_row)[:10]
-                            manual_state_key = f"core_manual_corners_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}"
-                            editor_key = f"core_corner_editor_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}"
+                            manual_state_key = f"core_manual_corners_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}_{engine_fingerprint[:8]}"
+                            editor_key = f"core_corner_editor_{file_digest[:10]}_{index}_{rotation}_{rotated_digest}_{engine_fingerprint[:8]}"
                             stored_points = st.session_state.get(manual_state_key, scaled_default)
                             editor_value = point_editor(
                                 image=preview_data,
