@@ -237,9 +237,14 @@ def render_module_5(expanded=False):
             if '模組一' in src5:
                 st.warning(f"本次使用模組一等效 Mohr–Coulomb 參數；其 c′、ϕ′係在 σ3,max={sig3_max:.3f} MPa 範圍內擬合，須確認與淺基礎破壞應力範圍相符。若不相符，請改用試驗參數或重新設定模組一圍壓範圍。")
             st.warning(result5['limitations'])
+            settlement_transfer_geometry_supported5=(
+                abs(float(H5))<=1e-6 and abs(float(eB5))<=1e-6 and abs(float(eL5))<=1e-6
+                and abs(float(base_ang5))<=1e-6 and abs(float(ground_ang5))<=1e-6
+            )
             if (loads_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
-                    and bearing_check5.get("FS_bearing") is not None):
+                    and bearing_check5.get("FS_bearing") is not None
+                    and settlement_transfer_geometry_supported5):
                 transfer_id5=hashlib.sha256(repr(m5_input_signature).encode("utf-8")).hexdigest()[:12]
                 m5_transfer_candidate={
                     "transfer_id":transfer_id5,
@@ -250,9 +255,16 @@ def render_module_5(expanded=False):
                     "B_m":float(B5),"L_m":float(L5),"Df_m":float(df5),"Dw_m":float(dw5),
                     "footing_type":str(main_footing_type5),"source":str(src5),
                     "theory":str(theory5),"FS_bearing":float(bearing_check5["FS_bearing"]),
+                    "H_kN":float(H5),"eB_m":float(eB5),"eL_m":float(eL5),
+                    "base_angle_deg":float(base_ang5),"ground_angle_deg":float(ground_ang5),
                     "passes_bearing":bool(bearing_check5["passes_bearing"]),
                     "load_confirmed":True,"complete_capacity_model":True,
                 }
+            elif (loads_confirmed5 and main_load_complete
+                    and bearing_check5.get("passes_middle_third")
+                    and bearing_check5.get("FS_bearing") is not None
+                    and not settlement_transfer_geometry_supported5):
+                st.warning("Module 4 沉陷方法的跨模組承載力帶入目前僅支援水平基底／地表、中央垂直荷載；本次 H、偏心距或坡度不為零，請勿直接移用 qult／qa,net。")
         new_transfer_id5=(m5_transfer_candidate["transfer_id"] if m5_transfer_candidate else None)
         old_transfer_id5=st.session_state.get("_m5_bearing_transfer_id")
         if old_transfer_id5!=new_transfer_id5:
