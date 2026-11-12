@@ -20,6 +20,8 @@ def test_docx_pdf_core_log_and_rqd_workflow_is_available_in_web_app():
     assert "機械破損" in CORE_UI
     assert "旋轉／托盤邊緣校正" in CORE_UI
     assert "裁除托盤邊框" in CORE_UI
+    assert "自動偵測藍色托盤四角" in CORE_UI
+    assert "確認四角正確，套用透視校正" in CORE_UI
     for forbidden in ("qwen3-vl", "ollama_status", "core_local_vlm"):
         assert forbidden not in APP_AND_UI
 
