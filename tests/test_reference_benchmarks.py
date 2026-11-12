@@ -3995,7 +3995,8 @@ def test_usace_dmt_typical_kd_range_does_not_warn_for_typical_values():
         gross_pressure_kpa=200.0, base_effective_stress_kpa=50.0,
     )
     assert result["layer_results"][0]["KD"] == pytest.approx(2.0)
-    assert result["warnings"] == []
+    assert not any("KD 超出" in warning for warning in result["warnings"])
+    assert any("尚未低於 0.10" in warning for warning in result["warnings"])
 
 
 def test_fhwa_gsi_scale_effect_warning_only_triggers_for_slopes_over_20m():
