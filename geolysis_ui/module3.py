@@ -7,6 +7,18 @@ from io import StringIO
 from geolysis_engine import spt_correct, spt_profile
 
 
+_SPT_REFUSAL_LABELS = {
+    "true", "1", "1.0", "yes", "y", "refusal",
+    "partial penetration", "partial_penetration",
+    "拒錘", "拒打", "拒貫", "部分貫入",
+}
+
+
+def _spt_refusal_mask(values):
+    """Normalize the refusal labels accepted by the SPT engine for UI warnings."""
+    return values.astype(str).str.strip().str.lower().isin(_SPT_REFUSAL_LABELS)
+
+
 def render_module_3(expanded=False):
     # ==============================================================================
     # 模組三：SPT 標準貫入試驗全修正
@@ -104,7 +116,7 @@ def render_module_3(expanded=False):
                     if 'Refusal' in out.columns and out['N1_60_final'].isna().any():
                         st.warning("表格中的拒錘／部分貫入列已排除一般 N 值修正與剖面連線；請依原始貫入紀錄個別判讀。")
                     high_n=out['N']>=50
-                    refusal_mask=(out['Refusal'].astype(str).str.lower().isin(['true','1','1.0','yes','y','refusal','拒錘','部分貫入']) if 'Refusal' in out.columns else pd.Series(False,index=out.index))
+                    refusal_mask=(_spt_refusal_mask(out['Refusal']) if 'Refusal' in out.columns else pd.Series(False,index=out.index))
                     if (high_n & ~refusal_mask).any():
                         st.warning("剖面仍有 N≥50 且未標記 Refusal 的測點；請逐筆核對拒錘／部分貫入紀錄，必要時補上 Refusal 欄位。")
                     st.download_button('下載修正後 SPT CSV',out.to_csv(index=False).encode('utf-8-sig'),'SPT_corrected.csv','text/csv',key='m3_download')
