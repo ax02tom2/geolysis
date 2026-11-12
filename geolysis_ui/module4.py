@@ -268,7 +268,7 @@ def render_module_4(expanded=False):
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     else:
                         result_dmt=dmt_settlement_2025(
-                            layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
+                            layers=dmt_layers,footing_width_m=dmtB_calc,footing_length_m=dmtL_calc,
                             gross_pressure_kpa=dmtq_input,base_effective_stress_kpa=dmtsig,
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
