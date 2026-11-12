@@ -2681,6 +2681,8 @@ def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
         (9.5,3.0,.49,5.89,.09,.20,.096,.012),
         (12.5,3.0,.59,5.99,.05,.12,.096,.012),
     ]
+    # Table C-1 reports Cc/(1+e0)=0.113 for strata 1–4 and 0.048
+    # for strata 5–6; with Cc=0.226/0.096, each gives e0=1.0.
     layers = [
         {"Layer":i+1,"Depth_center_m":z*ft,"Thickness_m":H*ft,
          "e0":1.0,"Cc":Cc,"Cr":Cr,"Sigma0_kPa":s0*tsf,
@@ -2696,8 +2698,16 @@ def test_usace_2025_appendix_c1_e_log_p_consolidation_settlement():
            else (Cr/2.0)*math.log10(sp/s0)+(Cc/2.0)*math.log10((s0+.438*Iz)/sp))
         for z,H,s0,sp,ds,Iz,Cc,Cr in data
     )
+    expected_layer_settlement_ft = [.0071,.0102,.0064,.0053,.0013,.0006]
     assert len(result["layer_results"]) == 6
-    assert result["layer_results"][0]["Stress_factor"] == pytest.approx(1.0)
+    assert [row["Stress_factor"] for row in result["layer_results"]] == pytest.approx(
+        [row[5] for row in data],abs=1e-9)
+    # Verify the intermediate stress increments against the rounded Table C-1 rows.
+    assert [row["Delta_sigma_kPa"]/tsf for row in result["layer_results"]] == pytest.approx(
+        [row[4] for row in data],abs=.005)
+    # Verify each published layer settlement, not only the final sum.
+    assert [row["Settlement_mm"]/304.8 for row in result["layer_results"]] == pytest.approx(
+        expected_layer_settlement_ft,abs=.00005)
     assert result["settlement_mm"]/304.8 == pytest.approx(expected_ft,abs=1e-9)
     assert result["settlement_mm"]/304.8 == pytest.approx(.03087,abs=.0001)
     assert result["settlement_mm"]/25.4 == pytest.approx(.37,abs=.01)
