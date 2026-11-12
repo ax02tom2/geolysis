@@ -3,7 +3,10 @@ import streamlit as st
 import logging
 import math
 import plotly.graph_objects as go
-from geolysis_engine import hoek_brown_parameters, hoek_brown_structure_applicability
+from geolysis_engine import (
+    hoek_brown_parameters, hoek_brown_structure_applicability,
+    gsi_quantitative_from_rqd_jcond,
+)
 
 
 def _gsi_sensitivity_values(structure_code, lower, upper):
@@ -99,8 +102,8 @@ def render_module_1(expanded=False):
         st.subheader("Hoek–Brown 岩體強度參數")
     
     
-        # GSI 交叉判讀表：依 Hoek & Marinos (2000) 原始圖的結構／表面品質趨勢作初步區間估讀。
-        # 數值是工程初判範圍，不是原圖提供的精確格點值；N/A 組合不強行產生 GSI。
+        # GSI 定性矩陣是原圖趨勢的工程初判估讀，不是文獻提供的精確數值格點。
+        # 有 RQD 與完整節理條件評分時，優先可改用 FHWA Eq. 9.19 定量計算。
         gsi_struct_options = [
             "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面",
             "B. 塊狀 (Blocky)：三組左右不連續面交切，塊體互鎖、近立方體",
@@ -129,21 +132,97 @@ def render_module_1(expanded=False):
         judge_col, visual_col = st.columns([0.42, 0.58], gap="large")
         with judge_col:
             st.markdown("**岩體現況判讀**")
+            gsi_method = st.radio(
+                "GSI 判讀方式",
+                ["定性圖表初判", "鑽孔定量估算（FHWA Eq. 9-19）"],
+                horizontal=True,
+                key="gsi_method",
+            )
             gsi_struct = st.selectbox("① 岩體結構／破碎型態", gsi_struct_options, index=1, key="gsi_structure_class")
-            gsi_cond = st.selectbox("② 不連續面表面品質", gsi_cond_options, index=2, key="gsi_surface_class")
             _struct_code = gsi_struct[0]
-            _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0], 2)
-            _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-            if _gsi_recommended is None:
-                st.error("此組合不適用一般 GSI 判讀圖，請改採片理／剪切帶專用評估；系統不會自行編造數值。")
+            gsi_quant_result = None
+            gsi_selection_valid = False
+            _gsi_recommended = None
+            _rec_lo, _rec_hi, _rec_mid = 0, 100, 50
+            if gsi_method == "定性圖表初判":
+                gsi_cond = st.selectbox("② 不連續面表面品質", gsi_cond_options, index=2, key="gsi_surface_class")
+                _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0], 2)
+                _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
+                if _gsi_recommended is None:
+                    st.error("此組合在目前定性判讀矩陣中沒有可用的初判區間；請改採鑽孔定量法或其他適用的岩體／結構面分析，不會自行補造數值。")
+                else:
+                    _rec_lo, _rec_hi = _gsi_recommended
+                    _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
+                    gsi_selection_valid = True
+                    st.markdown("**定性圖表初判結果**")
+                    result_col1, result_col2 = st.columns(2)
+                    result_col1.metric("工程初判區間", f"{_rec_lo}–{_rec_hi}")
+                    result_col2.metric("建議代表值", str(_rec_mid))
+                    st.caption("此區間是依圖表趨勢作工程初判估讀，不是原文獻逐格列出的精確數值；正式設計仍須以現地岩體結構與節理狀況覆核。")
             else:
-                _rec_lo, _rec_hi = _gsi_recommended
-                _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
-                st.markdown("**依目前兩項選擇得到的 GSI 初判**")
-                result_col1, result_col2 = st.columns(2)
-                result_col1.metric("建議區間", f"{_rec_lo}–{_rec_hi}")
-                result_col2.metric("建議代表值", str(_rec_mid))
-                st.caption("此值依岩體結構與不連續面表面品質交叉判讀；下方計算欄位會以此代表值作為該組合的初始 GSI，可再人工修正。")
+                st.caption("FHWA-NHI-16-072 Eq. 9.19：GSI = 1.5 × JCond₈₉ + RQD / 2。JCond₈₉ 依 Table 9-8，由五項不連續面條件評分加總。")
+                rqd_text = st.text_input(
+                    "鑽孔 RQD (%)",
+                    value="",
+                    placeholder="輸入 0–100 的實測或影像覆核 RQD",
+                    key="gsi_quant_rqd_text",
+                )
+                persistence_options = {
+                    "小於 1 m（6）": 6, "1–3 m（4）": 4, "3–10 m（2）": 2,
+                    "10–20 m（1）": 1, "大於 20 m（0）": 0,
+                }
+                separation_options = {
+                    "無分離（6）": 6, "小於 0.1 mm（5）": 5,
+                    "0.1–1.0 mm（4）": 4, "1–5 mm（1）": 1, "大於 5 mm（0）": 0,
+                }
+                roughness_options = {
+                    "非常粗糙（6）": 6, "粗糙（5）": 5, "稍粗糙（3）": 3,
+                    "平滑（1）": 1, "鏡面／擦痕面（0）": 0,
+                }
+                infilling_options = {
+                    "無充填（6）": 6, "硬質充填小於 5 mm（4）": 4,
+                    "硬質充填大於 5 mm（2）": 2, "軟質充填小於 5 mm（2）": 2,
+                    "軟質充填大於 5 mm（0）": 0,
+                }
+                weathering_options = {
+                    "未風化（6）": 6, "微風化（5）": 5, "中度風化（3）": 3,
+                    "高度風化（1）": 1, "完全分解（0）": 0,
+                }
+                rating_cols = st.columns(2)
+                with rating_cols[0]:
+                    persistence_label = st.selectbox("節理持續性", list(persistence_options), index=None, placeholder="請選擇", key="gsi_jcond_persistence")
+                    separation_label = st.selectbox("節理分離／開口", list(separation_options), index=None, placeholder="請選擇", key="gsi_jcond_separation")
+                    roughness_label = st.selectbox("節理面粗糙度", list(roughness_options), index=None, placeholder="請選擇", key="gsi_jcond_roughness")
+                with rating_cols[1]:
+                    infilling_label = st.selectbox("節理充填物", list(infilling_options), index=None, placeholder="請選擇", key="gsi_jcond_infilling")
+                    weathering_label = st.selectbox("節理壁風化程度", list(weathering_options), index=None, placeholder="請選擇", key="gsi_jcond_weathering")
+                labels_complete = all(x is not None for x in (
+                    persistence_label, separation_label, roughness_label,
+                    infilling_label, weathering_label,
+                ))
+                if rqd_text.strip() and labels_complete:
+                    try:
+                        gsi_quant_result = gsi_quantitative_from_rqd_jcond(
+                            rqd_percent=float(rqd_text),
+                            persistence_rating=persistence_options[persistence_label],
+                            separation_rating=separation_options[separation_label],
+                            roughness_rating=roughness_options[roughness_label],
+                            infilling_rating=infilling_options[infilling_label],
+                            weathering_rating=weathering_options[weathering_label],
+                        )
+                        _rec_mid = float(gsi_quant_result["GSI"])
+                        _rec_lo = max(0, int(math.floor(_rec_mid - 5)))
+                        _rec_hi = min(100, int(math.ceil(_rec_mid + 5)))
+                        gsi_selection_valid = True
+                        result_col1, result_col2 = st.columns(2)
+                        result_col1.metric("JCond₈₉", str(gsi_quant_result["JCond89"]))
+                        result_col2.metric("定量 GSI", f"{_rec_mid:.1f}")
+                        st.caption(f"定量敏感度帶：{_rec_lo}–{_rec_hi}（GSI 計算值 ±5；不是統計信賴區間）。")
+                    except (TypeError, ValueError) as exc:
+                        st.error(f"定量 GSI 無法計算：{exc}")
+                else:
+                    st.info("請輸入 RQD，並完成五項不連續面條件評分，才會產生定量 GSI。")
+                _cond_code = 2
     
         with visual_col:
             st.markdown("**GSI 判讀參考圖**")
@@ -211,15 +290,10 @@ def render_module_1(expanded=False):
     - [Hoek & Brown (2018), The Hoek–Brown failure criterion and GSI](https://doi.org/10.1016/j.jrmge.2018.08.001)
                 """)
     
-        _struct_code = gsi_struct[0]
-        _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0],2)
-        _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
-        gsi_selection_valid = _gsi_recommended is not None
         if gsi_selection_valid:
-            _rec_lo, _rec_hi = _gsi_recommended
-            gsi_lower = int(st.session_state.get(f"gsi_lower_{_struct_code}_{_cond_code}", _rec_lo))
-            gsi_upper = int(st.session_state.get(f"gsi_upper_{_struct_code}_{_cond_code}", _rec_hi))
-            gsi_default = int(round((gsi_lower + gsi_upper) / 2)) if gsi_lower <= gsi_upper else int(round((_rec_lo + _rec_hi)/2))
+            gsi_lower = int(st.session_state.get(f"gsi_lower_{gsi_method}_{_struct_code}_{_cond_code}", _rec_lo))
+            gsi_upper = int(st.session_state.get(f"gsi_upper_{gsi_method}_{_struct_code}_{_cond_code}", _rec_hi))
+            gsi_default = min(gsi_upper, max(gsi_lower, round(float(_rec_mid) * 2.0) / 2.0)) if gsi_lower <= gsi_upper else round(float(_rec_mid) * 2.0) / 2.0
         else:
             gsi_lower, gsi_upper, gsi_default = 0, 100, 50
     
@@ -229,10 +303,18 @@ def render_module_1(expanded=False):
         with hb_col1:
             st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
             default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
-            gsi_key = f"gsi_representative_value_{_struct_code}_{_cond_code}"
-            if gsi_key not in st.session_state:
-                st.session_state[gsi_key] = int(default_gsi_val)
-            gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0, max_value=100, step=1, key=gsi_key)
+            gsi_key = f"gsi_representative_value_{gsi_method}_{_struct_code}_{_cond_code}"
+            gsi_signature_key = f"{gsi_key}_source_signature"
+            gsi_source_signature = (
+                gsi_method, _struct_code, _cond_code,
+                round(float(_rec_mid), 4) if gsi_selection_valid else None,
+            )
+            if st.session_state.get(gsi_signature_key) != gsi_source_signature:
+                st.session_state[gsi_key] = float(default_gsi_val)
+                st.session_state[gsi_signature_key] = gsi_source_signature
+            elif gsi_key not in st.session_state:
+                st.session_state[gsi_key] = float(default_gsi_val)
+            gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0.0, max_value=100.0, step=0.5, format="%.1f", key=gsi_key, disabled=not gsi_selection_valid)
             if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
                 st.warning("目前 GSI 代表值超出人工判讀區間，請確認是否有意調整。")
             
@@ -612,7 +694,10 @@ def render_module_1(expanded=False):
                 st.metric(r"岩體整體抗壓強度 $\sigma_{cm}$", f"{sig_cm:.2f} MPa ({sig_cm*1000:.0f} kPa)")
                 st.metric(r"岩體抗拉強度 $\sigma_t$", f"{sig_t_mass:.3f} MPa（負值代表拉應力）")
                 st.caption(rf"**Hoek-Brown 準則常數**：$m_b = {mb:.3f}$ ｜ $s = {s_hb:.5f}$ ｜ $a = {a_hb:.3f}$ ｜ $\sigma_{{3,max}}={sig3_max:.3f}$ MPa")
-                st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
+                if gsi_method == "定性圖表初判":
+                    st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
+                elif gsi_quant_result is not None:
+                    st.caption(f"定量依據：RQD={gsi_quant_result['RQD_percent']:.1f}%、JCond₈₉={gsi_quant_result['JCond89']}、GSI={gsi_quant_result['GSI']:.1f}。")
                 if gsi_lower <= gsi_upper:
                     try:
                         _gsi_values = _gsi_sensitivity_values(_struct_code, gsi_lower, gsi_upper)
