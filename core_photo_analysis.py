@@ -1269,7 +1269,7 @@ def estimate_rqd_from_image_segments(
             "rqd_length_mm": None,
             "piece_lengths_mm": [],
             "unresolved_count": 0,
-            "warning": "未找到明確橫向斷裂線候選；請人工檢視所有連續岩心區段，確認沒有漏掉天然節理後再估算 RQD。",
+            "warning": "未找到明確橫向斷裂線候選，不代表沒有天然節理；請人工檢視所有連續岩心區段，確認沒有漏檢後再估算 RQD。",
         }
 
     piece_lists = []
