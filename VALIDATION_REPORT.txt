@@ -2,12 +2,12 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: 3ee2805564fc24cc177e74c454fac40fdb0e5af2
-Latest validation run: 43136991432 (PR #108; success)
+Validated main code commit: b660911300c6a1f1265aa30a6372dde279a4b52c
+Latest validation run: 43144233663 (PR #110; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43136991432
+- Run ID: 43144233663
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,8 +15,8 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 445 passed
-- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, independent soil/interface defaults, confirmed Module 5→Module 4 capacity transfer, and Bishop no-default/confirmation safeguards exercised
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 448 passed
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection, advanced HB applicability disablement, independent soil/interface defaults, confirmed Module 5→Module 4 capacity transfer, Bishop no-default/confirmation safeguards, and Module 5 seismic base residual-pressure qeq confirmation gating exercised
 - Widget-key and web-scope static checks: passed
 
 Engineering review corrections previously merged:
@@ -937,3 +937,14 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - Bishop slope c′ and φ′ are independent inputs, defaulting to zero rather than inheriting Module 5 foundation-bearing parameters.
 - Auto-search confirmation is tied to profile, c′/φ′, unit weight, groundwater and search range. Changing any of these inputs invalidates the confirmation and prior result.
 - PR #108 merged to main at 3ee2805564fc24cc177e74c454fac40fdb0e5af2; CI run 43136991432: 445 passed; Python compileall and Streamlit AppTest passed.
+
+
+Module 5 seismic residual base pore pressure in qeq — PR #110
+- Added a project-specific average residual excess pore pressure input at the footing base, Δu_res,base, with explicit confirmation. The UI does not infer it from the residual pore-pressure ratio ru used for the bearing shear zone.
+- Both general seismic qeq and residual-pore-pressure qeq now deduct total base pore pressure u_D = hydrostatic pressure + confirmed Δu_res,base, consistent with USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3.
+- The qeq ≤ q_allow check is not reported as complete until the base residual-pressure state is confirmed. The pressure and confirmation state are included in result signatures, preventing stale results after edits.
+- The separate §9-10(f) uplift check still requires the total uplift resultant U integrated over the whole footing base; its hydrostatic/residual-pressure lower-bound reference now includes confirmed Δu_res,base.
+- Two engine regressions and one Streamlit AppTest added.
+- PR #110 merged to main at b660911300c6a1f1265aa30a6372dde279a4b52c.
+- GitHub Actions run 43144233663: success; Python 3.11 compile and Streamlit AppTest passed; 448 tests passed in 2.74 s.
+- Reference: USACE EM 1110-1-1905 (31 Jul 2025), §5-2(b), Eqs. 5-2/5-3 and §9-10(f).
