@@ -242,7 +242,7 @@ def render_module_4(expanded=False):
                     else:
                         result_dmt=dmt_settlement_2025(
                             layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
-                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            gross_pressure_kpa=dmtq_input,base_effective_stress_kpa=dmtsig,
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
