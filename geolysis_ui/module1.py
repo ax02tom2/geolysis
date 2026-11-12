@@ -358,7 +358,7 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone", "頁岩 Shale", "泥岩／黏土岩 Mudstone / Claystone",
                 "粉砂岩 Siltstone", "板岩 Slate", "片岩 Schist",
                 "礫岩／角礫岩 Conglomerate / Breccia", "石灰岩 Limestone",
-                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", "片岩 Schist（蘇花公路案例）", "自訂輸入 mi"
+                "安山岩 Andesite", "花崗岩 Granite", "片麻岩 Gneiss", "大理岩 Marble", "砂岩 Sandstone（台灣南莊層三軸案例）", "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", "片岩 Schist（蘇花公路案例）", "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）", "自訂輸入 mi"
             ], key="hb_rock_type_for_mi")
             # Hoek / Marinos & Hoek 文獻表列典型值與變異範圍；用於初估，非特定工址試驗值。
             mi_reference = {
@@ -376,7 +376,8 @@ def render_module_1(expanded=False):
                 "大理岩 Marble": (9, 6, 12, "Hoek/Marinos：9 ± 3；一般完整岩石文獻值，非特定工址試驗值。"),
                 "砂岩 Sandstone（台灣南莊層三軸案例）": (7.752, 7.752, 7.752, "台灣南莊層單一完整岩心案例三軸反算 mi=7.752；不是砂岩通用值。"),
                 "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": (15, 13, 21, "台鐵宜蘭線瑞芳段風化砂岩回算案例：研究初始參考 mi=17±4，案例分析採用 mi=15；敏感度範圍保留初始參考值。"),
-                "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。")
+                "片岩 Schist（蘇花公路案例）": (10, 10, 10, "蘇花公路工程報告採用 mi=10；屬工程分析採用值，不等同完整三軸試驗統計值。"),
+                "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": (10, 10, 10, "阿里山42號隧道計畫表 3-2-1 採用 mi=10；同表註記砂岩 mi=17±4、頁岩 mi=6±2。mi=10 僅供重現該計畫設計組合，不是砂岩／頁岩通用值。")
             }
             if rock_preset == "自訂輸入 mi":
                 mi_low = mi_high = mi = st.number_input("完整岩石材料常數 mi（自訂）", min_value=1.0, max_value=50.0,
@@ -399,6 +400,9 @@ def render_module_1(expanded=False):
                 elif rock_preset == "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）":
                     st.info("2020 年台鐵宜蘭線瑞芳段風化砂岩崩塌回算案例（Shao et al., 2021）：分析採用 mi=15、σci=25–35 MPa；回算適用範圍 GSI=20–30、D=0.8–0.9。研究內文的初始參數範圍較寬（GSI=15–40、D=0.7–0.9），上述較窄區間是回算後的案例結果，不是台灣砂岩通用值。")
                     st.markdown("[查看台鐵宜蘭線瑞芳段風化砂岩回算研究](https://www.mdpi.com/2071-1050/13/23/13452)")
+                elif rock_preset == "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）":
+                    st.info("阿里山森林鐵路42號隧道計畫（2018）表 3-2-1：邊坡 UCS=43.3 MPa、GSI=60、mi=10、D=0.7；隧道 II 類 UCS=65.7 MPa、GSI=80、mi=10、D=0.5；III 類 UCS=43.3 MPa、GSI=60、mi=10、D=0.5；IV 類 UCS=21.4 MPa、GSI=40、mi=10、D=0.5。報告註記砂岩 mi=17±4、頁岩 mi=6±2；計畫表的 mi=10 是特定設計採用值，不能泛化。")
+                    st.markdown("[查看阿里山森林鐵路42號隧道計畫（表 3-2-1）](https://www.forest.gov.tw/file/70068)")
     
             st.markdown("**完整岩石單軸抗壓強度 σci（UCS）**")
             st.caption("UCS 是完整岩塊強度，會直接進入 Hoek–Brown 計算。沒有試驗值時，可先選同岩性案例參考值；不可用岩體強度或節理面強度替代。")
