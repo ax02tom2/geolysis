@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-12 Asia/Taipei (UTC+08:00)
-Validated main code commit: a3010e2a5b031d9a952da7b00bc84a39469b55ad
+Validated main code commit: 3ee2805564fc24cc177e74c454fac40fdb0e5af2
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
-Latest verified automated suite: 444 passed
-GitHub Actions validation run: 43136481395 (success; Python 3.11 compile passed; Streamlit AppTest included; 444 passed in 2.51 s; PR #106 Module 5→Module 4 validated bearing-capacity transfer; tested head 693d802abb18f6c52871e3e615a9cb919702d0e9, merged to main at a3010e2a5b031d9a952da7b00bc84a39469b55ad)
-Runtime smoke: PR #106 CI run 43136481395 ran compileall and the Streamlit AppTest regression suite, including an end-to-end confirmed Module 5 bearing calculation that published a validated transfer control in Module 4
+Latest verified automated suite: 445 passed
+GitHub Actions validation run: 43136991432 (success; Python 3.11 compile passed; Streamlit AppTest included; 445 passed in 3.49 s; PR #108 Bishop input/applicability safeguards; tested head e3945e445a7ec5849da79e4ba6b0daa62a3b6771, merged to main at 3ee2805564fc24cc177e74c454fac40fdb0e5af2)
+Runtime smoke: PR #108 CI run 43136991432 ran compileall and Streamlit AppTest, including checks that both Bishop workflows start without illustrative data and remain disabled until project-specific inputs and confirmations are supplied
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -223,3 +223,11 @@ Module 5 → Module 4 validated bearing-capacity transfer — PR #106
 - Module 5 input changes or withdrawal of load confirmation clear the transfer; a controlled rerun updates Module 4 immediately.
 - AppTest exercises a confirmed Module 5 bearing calculation and verifies the Module 4 transfer checkbox is rendered; unit tests verify geometry mismatch rejection and confirmation requirements.
 - PR #106 merged to main at a3010e2a5b031d9a952da7b00bc84a39469b55ad; CI run 43136481395: 444 passed in 2.51 s; compileall and Streamlit AppTest passed.
+
+
+Module 5 Bishop project-input safeguards — PR #108
+- Removed the default illustrative three-slice Bishop CSV. The manual-slice workflow now starts empty and requires project-specific slice data plus a context-bound confirmation that width, weight, base angle, c′, φ′ and pore pressure belong to the same project slip surface.
+- Removed the default illustrative ground profile from the homogeneous circular-search workflow. A project-specific profile is required.
+- Bishop auto-search c′ and φ′ no longer inherit Module 5 foundation-bearing parameters; both start at zero and must be independently entered as slope-specific strengths.
+- The auto-search confirmation is keyed to profile, strength, unit weight, groundwater and search range; changing those inputs invalidates the prior confirmation and result.
+- PR #108 merged to main at 3ee2805564fc24cc177e74c454fac40fdb0e5af2; CI run 43136991432: 445 passed in 3.49 s; compileall and Streamlit AppTest passed.
