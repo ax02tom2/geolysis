@@ -1124,7 +1124,9 @@ def test_bishop_simplified_rejects_insufficient_slices_and_bad_pore_pressure():
 
 
 def test_bishop_circular_search_finds_a_valid_critical_surface():
-    profile=[(0,10),(5,8),(10,0),(20,0)]
+    # Extend both ends of the profile so candidate circles must intersect
+    # the ground internally instead of being truncated at the input boundary.
+    profile=[(-15,0),(-7,0),(0,10),(5,8),(10,0),(20,0),(30,0)]
     r=bishop_circular_search(ground_profile=profile,cohesion_kpa=10,
         friction_angle_deg=25,unit_weight_kn_m3=18,
         center_x_values=[3,5],center_y_values=[8,10,12],
