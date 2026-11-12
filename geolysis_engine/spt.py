@@ -145,13 +145,13 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
             raise ValueError(f"深度 {depth:g} m 為非凝聚性土層且套用 CN，必須提供 Effective_Stress_KPa")
         row_stress = None if raw_stress is None else _finite('Effective_Stress_kPa',raw_stress)
         if needs_cn and row_stress <= 0:
-            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_kPa 必須大於 0")
+            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_KPa 必須大於 0")
         if row_stress is not None and row_stress <= 0:
-            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_kPa 若有提供必須大於 0")
+            raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_KPa 若有提供必須大於 0")
         clean={**row,'Depth_m':depth,'N':measured_n,'Effective_Stress_KPa':row_stress}
         row_rod_length=_finite('逐深度鑽桿長度',_profile_value(row, "Rod_Length_m", rod_length_m))
         result=spt_correct(clean['N'],row_er,row_cb,row_cs,row_rod_length,
-                      clean['Effective_Stress_kPa'],cn_method,cn_cap,
+                      clean['Effective_Stress_KPa'],cn_method,cn_cap,
                       soil_behavior=row_soil,apply_dilatancy=row_dilatancy)
         out.append({**clean,'Rod_Length_m':row_rod_length,
             'Energy_Ratio_pct_used':row_er,'Borehole_Factor_used':result['CB'],
