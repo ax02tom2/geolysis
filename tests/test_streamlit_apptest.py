@@ -305,7 +305,7 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
 
     uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
     uplift.set_value(1.0)
-    pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_slide_uplift_pressure_confirm")
+    pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm")
     pressure_confirm.check()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
