@@ -1643,10 +1643,10 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stres
             ("E678", 22000.0), ("E916", 25000.0),
         ]
     ]
-    # For a 2 m square footing, this layer bottom is 4.25 m (> 2B).
-    # At its centre (z=4 m), the Boussinesq I_sigma is still > 0.10,
+    # For a 2 m square footing, the entire layer is below 2B.
+    # At its centre (z=4.1 m), Boussinesq I_sigma remains > 0.10,
     # so USACE's significant-stress depth check requires it to be included.
-    soft_layer = {"depth_center_m": 4.0, "thickness_m": 0.5,
+    soft_layer = {"depth_center_m": 4.1, "thickness_m": 0.1,
                   "E_L_kpa": 5000.0, "pne_kpa": 600.0}
     result = menard_rousseau_pmt_settlement_2025(
         pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
@@ -1657,8 +1657,8 @@ def test_usace_2025_menard_rousseau_pmt_soft_layer_extends_beyond_2b_while_stres
         round_footing=True, soft_layers=[soft_layer],
         soft_layer_profile_reviewed=True,
     )
-    expected_iz = boussinesq_rectangular_center_factor(2.0, 2.0, 4.0)
-    assert soft_layer["depth_center_m"] + soft_layer["thickness_m"] / 2.0 > 4.0
+    expected_iz = boussinesq_rectangular_center_factor(2.0, 2.0, 4.1)
+    assert soft_layer["depth_center_m"] - soft_layer["thickness_m"] / 2.0 > 4.0
     assert expected_iz > 0.10
     assert result["soft_layer_results"][0]["I_sigma"] == pytest.approx(expected_iz)
     assert result["soft_layer_settlement_mm"] > 0.0
