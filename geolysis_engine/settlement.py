@@ -831,7 +831,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
     soft_details = []
     soft_total_m = 0.0
     if soft_layers:
-        minimum_soft_depth = (6.0 if L / B > 10.0 else 2.0) * B
+        minimum_soft_depth = (6.0 if L / B >= 10.0 else 2.0) * B
         soft_intervals = []
         for index, row in enumerate(soft_layers, 1):
             H = _finite("軟弱層厚度", row.get("thickness_m"))
@@ -850,7 +850,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             raw_iz = row.get("I_sigma")
             if raw_iz is not None and not (isinstance(raw_iz, float) and math.isnan(raw_iz)):
                 Iz = _finite("軟弱層應力影響係數 I_sigma", raw_iz)
-            elif L / B > 10.0:
+            elif L / B >= 10.0:
                 a = B / 2.0
                 Iz = (2.0 / math.pi) * (math.atan(a / z) + a * z / (a*a + z*z))
             else:
