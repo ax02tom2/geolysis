@@ -277,7 +277,7 @@ def render_module_4(expanded=False):
                 dmt_type=usace_footing_type(footing_width_m=dmtB,footing_length_m=dmtL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={dmtL/dmtB:.2f} 自動判定：{'連續條形基礎' if dmt_type=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
-                dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
+                dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
                 dmtB_calc,dmtL_calc,dmt_eB,dmt_eL=_settlement_eccentricity_inputs("m4_dmt",dmtB,dmtL,dmt_type)
                 dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type,eccentricity_B_m=dmt_eB,eccentricity_L_m=dmt_eL)
@@ -347,7 +347,7 @@ def render_module_4(expanded=False):
                 cptType=usace_footing_type(footing_width_m=cptB,footing_length_m=cptL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={cptL/cptB:.2f} 自動判定：{'連續條形基礎' if cptType=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
-                cptq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_q")
+                cptq=st.number_input("基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_q")
                 cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
@@ -401,7 +401,9 @@ def render_module_4(expanded=False):
                 pmtRound=st.checkbox("圓形基礎（λd = λc = 1；L 取等效直徑）",value=False,key="m4_pmt_round")
                 pmtL=pmtB if pmtRound else st.number_input("基礎長度 L [m]",min_value=float(pmtB),max_value=100.0,value=float(max(pmtB,2.0)),step=0.1,key="m4_pmt_l")
             with b:
-                pmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_pmt_q")
+                pmt_pressure_label=("圓形基礎 gross q [kPa]（目前不支援偏心橢圓有效面積，偏心時請勿直接輸入 qeq）"
+                    if pmtRound else "基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]")
+                pmtq=st.number_input(pmt_pressure_label,1.0,5000.0,150.0,5.0,key="m4_pmt_q")
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
@@ -410,8 +412,8 @@ def render_module_4(expanded=False):
                 pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=pmt_type_transfer,eccentricity_B_m=pmt_eB,eccentricity_L_m=pmt_eL)
                 if pmt_transfer_qult is not None:
                     pmtB_calc,pmtL_calc=_module5_settlement_dimensions(pmtB,pmtL,True)
-                if pmt_transfer_qult is not None and (abs(pmtB_calc-pmtB)>1e-6 or abs(pmtL_calc-pmtL)>1e-6):
-                    st.info(f"PMT 沉陷採有效尺寸 B′×L′={pmtB_calc:.3f}×{pmtL_calc:.3f} m；λd、λc 應依有效 L′/B′ 核對（USACE 2025 §5-2a）。")
+                if abs(pmtB_calc-pmtB)>1e-6 or abs(pmtL_calc-pmtL)>1e-6:
+                    st.info(f"PMT 沉陷採有效尺寸 B′×L′={pmtB_calc:.3f}×{pmtL_calc:.3f} m；有效長寬比 L′/B′={pmtL_calc/pmtB_calc:.2f}，λd、λc 應依此比值核對（USACE 2025 §5-2a）。")
                 pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
                 pmtq_input=(pmt_transfer_qeq if pmt_transfer_qeq is not None else pmtq)
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
@@ -439,7 +441,7 @@ def render_module_4(expanded=False):
                 with y:
                     pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",1.0,1.5,1.44,0.01,key="m4_pmt_lc")
                 st.caption("Figure 7-11 圖示約 λd=1.1–2.35、λc=1.08–1.44（L/B 約 1–10）；輸入範圍限制在圖表座標內，且 λd 不可小於 λc。預設採圖表高端值作保守起始值，請依實際 L/B 讀圖後調整；若 L/B>10，不可外插，請採圖表 L/B=10 端點並註明。")
-                pmtLambdaConfirmed=st.checkbox("已依實際 L/B 從 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
+                pmtLambdaConfirmed=st.checkbox("已依本次採用的 L/B（偏心時為 L′/B′）從 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
             pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key="m4_pmt_deep_confirm")
             pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
                 value="",height=90,key="m4_pmt_soft_layers",
