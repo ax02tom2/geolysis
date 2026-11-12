@@ -18,6 +18,8 @@ from core_photo_analysis import (
     draw_core_fracture_candidates,
     draw_core_row_analysis_v8,
     estimate_rqd_from_image_segments,
+    crop_tray_insets,
+    rotate_image,
 )
 
 logger = logging.getLogger(__name__)
@@ -213,7 +215,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
         page_views = parsed.get("page_views", [])
         if page_views:
             st.markdown("**原始頁面與偵測疊圖**")
-            st.caption("綠色：岩心本體候選；紅色：空隙候選；黃色：不確定區；藍框：逐列範圍。")
+            st.caption("綠色：岩心本體候選；紅色：空隙候選；黃色：不確定區；藍框：逐列範圍。此頁為原始方向初估，逐列校正結果見下方。")
             for page_view in page_views:
                 page_overlay = _make_page_overlay(page_view, row_items)
                 st.image(
@@ -236,7 +238,32 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
             record = item["record"]
             index = item["index"]
             with st.expander(f"{_row_label(record)}｜第 {index + 1} 列覆核", expanded=False):
-                st.image(item["overlay"], caption="本列原始影像與偵測疊圖", use_container_width=True)
+                st.image(item["overlay"], caption="本列原始方向初估疊圖", use_container_width=True)
+                with st.expander("影像旋轉／托盤邊緣校正", expanded=False):
+                    rotation = st.selectbox(
+                        "順時針旋轉角度",
+                        [0, 180],
+                        index=0,
+                        key=f"core_rotation_{file_digest[:10]}_{index}",
+                    )
+                    crop_supported = min(record.image.width, record.image.height) >= 80
+                    crop_enabled = st.checkbox(
+                        "裁除托盤邊框（不改變原始檔案）",
+                        value=False,
+                        disabled=not crop_supported,
+                        key=f"core_crop_enabled_{file_digest[:10]}_{index}",
+                    )
+                    if not crop_supported:
+                        st.caption("本列影像短邊小於 80 px，暫不提供邊框裁切；可使用 1 m 量測範圍校正。")
+                    if crop_enabled:
+                        crop_cols = st.columns(4)
+                        left_pct = crop_cols[0].slider("左 (%)", 0, 20, 1, key=f"core_crop_l_{file_digest[:10]}_{index}")
+                        right_pct = crop_cols[1].slider("右 (%)", 0, 20, 1, key=f"core_crop_r_{file_digest[:10]}_{index}")
+                        top_pct = crop_cols[2].slider("上 (%)", 0, 20, 1, key=f"core_crop_t_{file_digest[:10]}_{index}")
+                        bottom_pct = crop_cols[3].slider("下 (%)", 0, 20, 1, key=f"core_crop_b_{file_digest[:10]}_{index}")
+                    else:
+                        left_pct = right_pct = top_pct = bottom_pct = 0
+
                 calibrate = st.checkbox(
                     "校正本列實際 1 m 量測範圍（排除托盤邊框及端部空隙）",
                     value=False,
@@ -244,10 +271,31 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 )
                 analysis = item["analysis"]
                 break_result = item["breaks"]
+                # 180° rotation preserves the horizontal 1 m axis. Cropping only
+                # removes frame margins; retain the original row scale unless the
+                # user explicitly calibrates a measured 1 m span below.
+                row_measurement = rotate_image(record.image, rotation)
+                crop_meta = None
+                if crop_enabled:
+                    try:
+                        row_measurement, crop_meta = crop_tray_insets(
+                            row_measurement, left_pct, right_pct, top_pct, bottom_pct
+                        )
+                    except Exception as exc:
+                        st.warning(f"托盤邊框裁切未套用：{exc}；改用旋轉後原圖繼續分析。")
                 mm_per_px = item["mm_per_px"]
-                measured_row = record.image
+                measured_row = row_measurement
+                if rotation or crop_enabled:
+                    analysis, break_result = _cached_row_analysis(
+                        row_measurement, mm_per_px, engine_fingerprint
+                    )
+                    corrected_overlay = draw_core_row_analysis_v8(row_measurement, analysis)
+                    corrected_overlay = draw_core_fracture_candidates(corrected_overlay, break_result)
+                    st.image(corrected_overlay, caption="旋轉／裁切校正後疊圖", use_container_width=True)
+                    if crop_meta:
+                        st.caption(crop_meta["warning"])
                 if calibrate:
-                    width = record.image.width
+                    width = row_measurement.width
                     x_span = st.slider(
                         "1 m 量測範圍（像素起點、終點）",
                         min_value=0,
@@ -258,7 +306,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     )
                     try:
                         measured_row, row_cal = calibrate_row_measurement_span(
-                            record.image, x_span[0], x_span[1], 1000.0
+                            row_measurement, x_span[0], x_span[1], 1000.0
                         )
                         mm_per_px = row_cal["mm_per_px"]
                         analysis, break_result = _cached_row_analysis(
