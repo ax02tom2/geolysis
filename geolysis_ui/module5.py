@@ -581,14 +581,19 @@ def render_module_5(expanded=False):
             slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及地震殘餘超額孔隙水壓",value=False,key="m5x_uplift_pressure_confirm")
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             hydrostatic_uD5=max(0.0,(float(df5)-float(dw5))*9.81)
-            hydrostatic_U_ref5=hydrostatic_uD5*float(slide_area5)
+            uplift_base_area5=float(B5)*(1.0 if slide_is_line5 else float(L5))
+            hydrostatic_U_ref5=hydrostatic_uD5*uplift_base_area5
             st.caption(f"地下水靜水壓參考值 uD={hydrostatic_uD5:.2f} kPa；對應基底揚壓合力 U_hydro≈{hydrostatic_U_ref5:.2f} {slide_force_unit5}。若有地震殘餘超額孔壓，U 應再增加其基底壓力積分。")
+            if abs(float(slide_area5)-uplift_base_area5)>max(0.01,0.01*uplift_base_area5):
+                st.warning("滑動面積 A 與基礎幾何 B×L（連續基礎 B×1 m）不一致；抗浮 U 應以完整基礎底面積積分，請核對 U。")
             if slide_u5+1e-9<hydrostatic_U_ref5:
                 st.warning("目前輸入 U 小於僅由地下水位估算的靜水揚壓參考值；請核對基底面積、水位及 U，避免低估揚壓。")
             if not uplift_units_match5:
                 st.warning("抗浮檢核的基礎型式與上方地震重量 W 的單位型式不同；請將兩者統一為 kN 或 kN/m 後再計算。")
-            slide_uplift_ready5=(slide_load_case5=="seismic" and slide_u5>0 and slide_uplift_resisting_weight5>0
-                and slide_uplift_weights_confirmed5 and slide_uplift_pressure_confirmed5 and uplift_units_match5)
+            slide_uplift_ready5=(slide_load_case5=="seismic" and slide_u5>0 and slide_u5+1e-9>=hydrostatic_U_ref5
+                and slide_uplift_resisting_weight5>0 and slide_uplift_weights_confirmed5
+                and slide_uplift_pressure_confirmed5 and uplift_units_match5
+                and abs(float(slide_area5)-uplift_base_area5)<=max(0.01,0.01*uplift_base_area5))
             st.caption(f"USACE 2025 表 2-1：常時滑動 FS ≥ 2.0；只有含地震荷載組合時，註 2 才允許降至 FS ≥ 1.1。目前組合最低要求：{slide_min_fs5:.1f}。地震抗浮另依 §9-10(f) 要求 FS≥1.5，不可使用滑動 FS=1.1 取代。")
             st.caption("地震模式會自動讀取上方 Module 5 的 kh、kv、W，組合 H_eq=H+khW 與 V_eq=V±kvW，並取兩組垂直方向中較小的滑動 FS。此處 H、V 請輸入未含地震增量的靜力基準值，避免重複計入。基底揚壓 U 與 Pa/Pp 仍須依實際水位及控制水平作用方向另行確認；不對稱回填幾何請輸入正反向中較不利的 Pa/Pp。另有獨立地震抗浮 FS 檢核：Wf+Ws+Wc、Ws 與 U 必須依 §5-7／§9-10(f) 定義輸入。")
             auto_earth5=st.checkbox("依 USACE developed strength 自動估算 Rankine 主動／被動土壓",value=False,key="m5x_slide_auto_earth")
@@ -664,16 +669,16 @@ def render_module_5(expanded=False):
                         resisting_weight_kN=slide_uplift_resisting_weight5,
                         structure_seismic_weight_kN=seismic_weight5,
                         uplift_force_kN=slide_u5,kv=kv5,fs_required=1.5)
-                    uplift_sig=(slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
+                    uplift_sig=(slide_load_case5,slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
                         slide_uplift_weights_confirmed5,slide_uplift_pressure_confirmed5,
-                        slide_footing5,seismic_footing5,slide_area5,df5,dw5,B5,L5)
+                        slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5)
                     store_result_state(st.session_state,"m5x_uplift_result","m5x_uplift_signature",uplift,uplift_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震抗浮計算失敗：{exc}")
-            uplift_sig=(slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
+            uplift_sig=(slide_load_case5,slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
                 slide_uplift_weights_confirmed5,slide_uplift_pressure_confirmed5,
-                slide_footing5,seismic_footing5,slide_area5,df5,dw5,B5,L5)
+                slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5)
             uplift,uplift_is_current=read_result_state(st.session_state,"m5x_uplift_result","m5x_uplift_signature",uplift_sig)
             if uplift and uplift_is_current and uplift.get("applicable"):
                 st.metric("控制地震抗浮安全係數 FS_uplift",f"{uplift['FS_uplift']:.2f}",
