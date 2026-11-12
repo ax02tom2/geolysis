@@ -28,6 +28,11 @@ _HB_PAIRED_CASES = {
 
 def _hb_case_pair_warning(rock_preset, ucs_case_label, ucs_mode):
     """Warn when a case-derived mi is paired with another case's UCS."""
+    if rock_preset in _HB_PAIRED_CASES and ucs_mode == "依現場敲擊分級初估":
+        return (
+            f"目前 mi 來自「{rock_preset}」的特定案例，但 UCS 改採現場敲擊分級估值；"
+            "兩者不是同一組試驗參數。此組合僅供初步敏感度分析，正式設計應優先取得同岩性完整岩心 UCS／三軸資料。"
+        )
     if ucs_mode != "採用台灣岩性案例參考值" or not ucs_case_label:
         return None
     expected_ucs = _HB_PAIRED_CASES.get(rock_preset)
