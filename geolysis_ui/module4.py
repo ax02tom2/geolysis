@@ -33,7 +33,7 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     if not use_value:
         return None
     st.caption(
-        f"來源：Module 5 {transfer['theory']}；qult={transfer['qult_gross_kpa']:.1f} kPa；"
+        f"來源：Module 5 {transfer['theory']}（主承載力水平基底／地表分析）；qult={transfer['qult_gross_kpa']:.1f} kPa；"
         f"qa,net={transfer['qa_net_kpa']:.1f} kPa；qeq={transfer['qeq_gross_kpa']:.1f} kPa；"
         f"FS_bearing={transfer['FS_bearing']:.2f}。"
     )
