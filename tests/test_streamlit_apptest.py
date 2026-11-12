@@ -40,7 +40,7 @@ def test_module5_hoebrown_source_cannot_bypass_advanced_soil_applicability_guard
         assert widget.disabled, f"{key} must be disabled until HB foundation applicability is confirmed"
 
     for key in ("m5x_slide_phi_hb", "m5x_slide_backfill_phi_hb",
-                "m5x_auto_c_hb", "m5x_auto_phi_hb"):
+                "m5x_auto_c_slope", "m5x_auto_phi_slope"):
         widget = next(item for item in app.number_input if item.key == key)
         assert widget.value == 0.0, f"{key} must not inherit Module 1 HB strength by default"
 
