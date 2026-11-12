@@ -38,6 +38,8 @@ def test_invalid_gsi_range_is_rejected():
          "南莊層砂岩｜隧道完整岩心試驗單一案例", "採用台灣岩性案例參考值", True),
         ("砂岩 Sandstone（台灣南莊層三軸案例）",
          None, "已有實驗室 UCS 試驗值", False),
+        ("砂岩 Sandstone（台灣南莊層三軸案例）",
+         None, "依現場敲擊分級初估", True),
     ],
 )
 def test_case_based_mi_and_ucs_reference_pairing(mi_case, ucs_case, mode, should_warn):
