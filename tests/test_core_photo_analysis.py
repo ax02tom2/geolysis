@@ -563,3 +563,33 @@ def test_core_review_fingerprint_changes_with_pixels_scale_and_engine():
     assert _core_review_fingerprint(changed_shape, 2.5, "engine-a") != baseline
     assert _core_review_fingerprint(image, 2.6, "engine-a") != baseline
     assert _core_review_fingerprint(image, 2.5, "engine-b") != baseline
+
+
+def test_rqd_requires_full_core_review_when_only_gap_candidates_exist():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    segments = [
+        {"x_start_px": 0, "x_end_px": 25},
+        {"x_start_px": 30, "x_end_px": 500},
+    ]
+    gap = {
+        "candidate_type": "core_gap",
+        "left_segment_index": 0,
+        "right_segment_index": 1,
+        "gap_start_mm": 50.0,
+        "gap_end_mm": 60.0,
+        "distance_mm": 55.0,
+        "review_class": "機械破損",
+    }
+    pending = estimate_rqd_from_image_segments(
+        segments, [gap], mm_per_px=2.0, row_length_mm=1000.0,
+        no_breaks_confirmed=False,
+    )
+    reviewed = estimate_rqd_from_image_segments(
+        segments, [gap], mm_per_px=2.0, row_length_mm=1000.0,
+        no_breaks_confirmed=True,
+    )
+    assert pending["ready"] is False
+    assert pending["rqd_percent"] is None
+    assert reviewed["ready"] is True
+    assert reviewed["piece_lengths_mm"] == [990.0]
