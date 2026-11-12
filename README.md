@@ -58,7 +58,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 
 CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
-GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 本版完整測試為 547 passed、1 skipped；最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
+GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 本版完整測試為 559 passed、1 skipped；最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 
 ## 工程使用限制
 
