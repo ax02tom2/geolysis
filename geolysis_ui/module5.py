@@ -809,6 +809,18 @@ def render_module_5(expanded=False):
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
             slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5)
+            slide_sig=_sliding_result_signature(
+                (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,
+                 slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
+                 seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
+                 slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
+                base_pressure_reference_kN=base_pressure_U_ref5,
+                uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
+                uplift_pressure_ready=slide_uplift_pressure_ready5,
+                footing_area_matches_base=slide_base_area_match5,
+                footing_units_match=uplift_units_match5,
+                seismic_earth_pressure_ready=slide_earth_pressure_ready5,
+            )
             if st.button("計算基底滑動安全係數",key="m5x_slide_run",disabled=not slide_run_ready5):
                 try:
                     if auto_earth5:
@@ -843,18 +855,6 @@ def render_module_5(expanded=False):
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"基底滑動計算失敗：{exc}")
-            slide_sig=_sliding_result_signature(
-                (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,
-                 slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
-                 seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
-                 slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
-                base_pressure_reference_kN=base_pressure_U_ref5,
-                uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
-                uplift_pressure_ready=slide_uplift_pressure_ready5,
-                footing_area_matches_base=slide_base_area_match5,
-                footing_units_match=uplift_units_match5,
-                seismic_earth_pressure_ready=slide_earth_pressure_ready5,
-            )
             slide, slide_is_current = read_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide_sig)
             if slide and slide_is_current:
                 st.metric("FS 滑動", "∞" if math.isinf(slide["FS_sliding"]) else f"{slide['FS_sliding']:.2f}",
