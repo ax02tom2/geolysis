@@ -397,3 +397,22 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     # equal the real Module 5 qeq, proving the Burland path consumes qeq.
     expected = f"目前 q 採用值 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
+
+
+def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    eccentric = next(
+        widget for widget in app.checkbox
+        if widget.key == "m4_bb_eccentric_settlement"
+    )
+    eccentric.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_eb").set_value(0.10)
+    next(widget for widget in app.number_input if widget.key == "m4_bb_settlement_el").set_value(0.20)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert any("B′=1.800 m、L′=2.600 m" in item.value for item in app.caption)
