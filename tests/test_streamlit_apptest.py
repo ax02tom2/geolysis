@@ -531,3 +531,23 @@ def test_module2_classification_result_clears_when_confirmation_is_revoked():
     next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").uncheck()
     app.run()
     assert app.session_state.get("m2_result") is None
+
+
+@pytest.mark.parametrize(
+    ("angle_key", "angle_value"),
+    [("m5x_base_angle", 5.0), ("m5x_ground_angle", 10.0)],
+)
+def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle_key, angle_value):
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5_run").click()
+    app.run()
+    assert app.session_state.get("m5_bearing_transfer") is not None
+
+    next(widget for widget in app.number_input if widget.key == angle_key).set_value(angle_value)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5_bearing_transfer") is None
