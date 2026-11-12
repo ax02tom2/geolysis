@@ -3766,7 +3766,7 @@ def test_usace_dmt_rm_all_four_equation_branches(id_value, kd_value, expected_br
 
 def test_usace_schmertmann_cpt_interpolates_es_peak_depth_and_iz_for_intermediate_aspect_ratio():
     # USACE EM 1110-1-1905 (2025), §7-12: interpolate between axisymmetric
-    # L/B=1 and plane-strain L/B=10 for intermediate rectangular footings.
+    # L/B=1 and plane-strain L/B=10; Eq. 7-23 uses the printed 0.111 coefficient.
     B, ratio, qc = 1.0, 5.5, 1000.0
     layers = [{"thickness_m": 0.25, "qc_kpa": qc} for _ in range(12)]
     result = schmertmann_cpt_settlement_2025(
