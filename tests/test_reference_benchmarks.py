@@ -3666,3 +3666,22 @@ def test_spt_profile_global_dilatancy_does_not_require_flag_on_refusal_rows():
     assert result[0]["N60"] is None
     assert result[0]["dilatancy_applied"] is False
     assert result[1]["dilatancy_applied"] is False
+
+
+def test_uscs_and_aashto_group_symbols_include_chinese_interpretations():
+    from geolysis_engine.classification import _uscs_description, _aashto_description
+
+    assert "級配不良砂土" in _uscs_description("SP-SC")
+    assert "黏土質細料" in _uscs_description("SP-SC")
+    assert "邊界區" in _uscs_description("CL-ML")
+    assert "烘乾" in _uscs_description("OL（暫定）")
+    assert "高液限黏土" in _aashto_description("A-7-5")
+    assert "PI ≤ LL − 30" in _aashto_description("A-7-5")
+
+
+def test_uscs_missing_gradation_description_does_not_claim_final_group():
+    from geolysis_engine.classification import _uscs_description
+
+    description = _uscs_description("G? (缺少 D10/D30/D60)")
+    assert "不能判定" in description
+    assert "D10" in description
