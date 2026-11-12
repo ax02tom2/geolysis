@@ -14,6 +14,7 @@ from geolysis_engine import (
     burland_burbidge_average_n60_from_profile,
     boussinesq_rectangular_center_factor,
     consolidation_settlement_layers,
+    consolidation_allowable_pressure_layers,
     consolidation_time_rate,
     classify_uscs_aashto,
     hoek_brown_parameters,
