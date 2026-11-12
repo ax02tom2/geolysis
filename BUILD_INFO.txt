@@ -1,13 +1,13 @@
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-12 Asia/Taipei (UTC+08:00)
-Validated main code commit: f73fbce1a555f7360c6be93d16b5b1565f3a1ee7
+Validated main code commit: c35204d5b1645e7929766ca7b61d9d9e72fb6081
 Python CI: 3.11
 Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
 Latest verified automated suite: 440 passed
-GitHub Actions validation run: 43134122171 (success; Python 3.11 compile passed; Streamlit AppTest included; 440 passed in 2.32 s; PR #100 Module 1→Module 5 Hoek–Brown handoff and applicability guard; tested head a4f850e26f317867361a19f66999fb93610066e4, merged to main at f73fbce1a555f7360c6be93d16b5b1565f3a1ee7)
-Runtime smoke: PR #100 CI run 43134122171 ran compileall and the Streamlit AppTest regression suite, including explicit selection of the Module 1 parameter source, in addition to the engine and reference benchmarks
+GitHub Actions validation run: 43134482262 (success; Python 3.11 compile passed; Streamlit AppTest included; 440 passed in 2.73 s; PR #102 Hoek–Brown confirmation freshness guard; tested head d18b5f8a822c6453801fbf9096610c3a45f06578, merged to main at c35204d5b1645e7929766ca7b61d9d9e72fb6081)
+Runtime smoke: PR #102 CI run 43134482262 ran compileall and the Streamlit AppTest regression suite, in addition to the engine and reference benchmarks
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
 Engineering checks: USACE 2025 adjacent-slope FS, effective-width depth factors, groundwater Eq. 5-19, static/seismic sliding FS and 66 published worked-example benchmarks (53 Appendix B plus Appendix C-1, C-2B, C-2E, C-3a, C-3b, C-3c, C-4, C-5, C-6b, C-7b, C-7c, C-7d and C-7e), alongside equation-level regression tests for Bishop Appendix F, ASTM D2487, AASHTO M 145 and USACE SPT correction thresholds.
 Scope: five engineering modules; Streamlit Web application only.
@@ -204,3 +204,11 @@ Module 1→Module 5 Hoek–Brown parameter handoff — PR #100
 - Added AppTest for selecting the Module 1 parameter source; the test verifies the shared state exists and the page raises no uncaught exception.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §1-7(b): the soil-foundation methods do not apply to intact, jointed, layered or fractured rock; highly fractured rock/rockfill may be treated similarly to dense granular material when the median particle/block size is not greater than 1/50 of footing width.
 - PR #100 merged to main at f73fbce1a555f7360c6be93d16b5b1565f3a1ee7; CI run 43134122171: 440 passed, compileall and Streamlit AppTest passed.
+
+
+Module 5 Hoek–Brown confirmation freshness — PR #102
+- Re-keyed the material-applicability and representative-confinement confirmations to the current Module 1 Hoek–Brown fit and foundation context.
+- Changes to GSI/mi/UCS/D/σ3,max, structure code, B/L/footing type, Df, groundwater depth, soil unit weights, V/H, eccentricities, load inclination, theory or interface adhesion create a new confirmation context; prior checkboxes are not silently reused.
+- Displayed the current B/50 limit in metres so the USACE EM 1110-1-1905 (2025) §1-7(b) block-size criterion is visible when confirming.
+- PR #102 merged to main at c35204d5b1645e7929766ca7b61d9d9e72fb6081.
+- GitHub Actions run 43134482262: success; Python 3.11 compile passed; Streamlit AppTest included; 440 passed in 2.73 s.
