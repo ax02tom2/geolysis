@@ -41,10 +41,13 @@ def render_module_3(expanded=False):
             if rod_len>30:
                 st.warning("鑽桿長度超過 30 m；USACE EM 1110-1-1905（2025）表 4-6 的 CR 參考範圍為 10–30 m。本工具目前仍以 CR=1.00 延用計算，但此範圍屬表列範圍外推，請依實際設備與採用規範確認。")
         with c:
-            sigma_v=st.number_input("有效覆土應力 σ'v [kPa]",1.0,2000.0,95.0,5.0,key="m3_sv")
             soil_behavior=st.selectbox("土層性質",["砂土／非凝聚性土壤","黏土／凝聚性土壤"],key="m3_soil_behavior")
             soil_behavior_code="cohesionless" if soil_behavior.startswith("砂土") else "cohesive"
             cn_method=st.selectbox("覆土壓力修正 CN",["Liao & Whitman","Seed & Idriss","Skempton","不修正"],key="m3_cnmethod",disabled=(soil_behavior_code=="cohesive"))
+            needs_cn=(soil_behavior_code=="cohesionless" and cn_method!="不修正")
+            sigma_v=st.number_input("有效覆土應力 σ'v [kPa]",1.0,2000.0,95.0,5.0,key="m3_sv",disabled=(not needs_cn))
+            if not needs_cn:
+                st.caption("本筆為黏土或選擇不套用 CN；有效覆土應力不參與 N60／(N1)60 計算，可不輸入。")
             cn_cap=st.number_input("CN 上限（USACE 2025：最高 2.0；Seed–Idriss 液化法自動不超過 1.7）",1.0,2.0,2.0,0.1,key="m3_cncap")
             st.caption("Liao & Whitman 與 Seed & Idriss 的 CN 基本式均為 √(Pa/σ′v)；兩者在本工具的差別是 Seed & Idriss 液化評估慣例另將 CN 上限限制為 1.7。選擇方法時請依分析目的與採用文獻，不代表兩者是不同的基本公式。")
             dilatancy_allowed=(soil_behavior_code=="cohesionless" and cn_method!="不修正")
@@ -62,7 +65,7 @@ def render_module_3(expanded=False):
             try:
                 if n_measured <= 0:
                     raise ValueError("一般貫入 N 值必須大於 0；若為拒錘／部分貫入請勾選相應選項")
-                current=spt_correct(n_measured,er,cb,cs,rod_len,sigma_v,cn_method,cn_cap,
+                current=spt_correct(n_measured,er,cb,cs,rod_len,(sigma_v if needs_cn else None),cn_method,cn_cap,
                     soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
                 r1,r2,r3=st.columns(3)
                 r1.metric("N60",f"{current['N60']:.2f}")
@@ -85,7 +88,7 @@ def render_module_3(expanded=False):
             st.session_state.pop("m3_current_n160",None)
             st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
-        st.caption("必要欄位：Depth_m、N、Effective_Stress_kPa。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
+        st.caption("必要欄位：Depth_m、N。Effective_Stress_kPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_kPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
         profile_confirm=st.checkbox("已確認 CSV 為本次鑽孔實測 SPT 資料（不是示範數據）",value=False,key="m3_profile_confirm")
@@ -94,14 +97,29 @@ def render_module_3(expanded=False):
         if profile_confirm:
             try:
                 prof=pd.read_csv(csv_file) if csv_file is not None else pd.read_csv(StringIO(csv_text))
-                required={'Depth_m','N','Effective_Stress_kPa'}
+                required={'Depth_m','N'}
                 if required.issubset(prof.columns) and len(prof):
-                    if prof[list(required)].isnull().any().any() or (prof['Effective_Stress_kPa']<=0).any() or (prof['N']<0).any():
-                        raise ValueError('CSV 含空值、負 N 值或非正有效覆土應力')
+                    if prof[list(required)].isnull().any().any() or (prof['N']<0).any():
+                        raise ValueError('CSV 的 Depth_m／N 不可空白，N 不可為負值')
                     if 'Soil_Behavior' not in prof.columns:
                         st.warning("CSV 未提供 Soil_Behavior；本次逐深度剖面會沿用上方單一土壤性質設定。若鑽孔包含砂土與黏土交互層，請加入 Soil_Behavior 欄，逐列填 cohesionless 或 cohesive，避免 CN 修正套用錯誤。")
+                        prof['Soil_Behavior']=soil_behavior_code
+                    else:
+                        prof['Soil_Behavior']=prof['Soil_Behavior'].fillna('').astype(str).str.strip().str.lower().replace('',soil_behavior_code)
+                    if 'Refusal' not in prof.columns:
+                        prof['Refusal']=False
+                    if 'Effective_Stress_KPa' not in prof.columns:
+                        prof['Effective_Stress_KPa']=None
+                    row_soil=prof['Soil_Behavior'].astype(str).str.strip().str.lower()
+                    refusal_rows=_spt_refusal_mask(prof['Refusal'])
+                    needs_stress=(row_soil=='cohesionless') & (cn_method!='不修正') & (~refusal_rows)
+                    stress_values=pd.to_numeric(prof['Effective_Stress_KPa'],errors='coerce')
+                    if needs_stress.any() and stress_values.loc[needs_stress].isna().any():
+                        raise ValueError('套用 CN 的非凝聚性土層必須提供 Effective_Stress_KPa；黏土及拒錘列可留空。')
+                    if needs_stress.any() and (stress_values.loc[needs_stress]<=0).any():
+                        raise ValueError('套用 CN 的非凝聚性土層 Effective_Stress_KPa 必須大於 0。')
                     if dilatancy and 'Apply_Dilatancy' not in prof.columns:
-                        st.warning("CSV 未提供 Apply_Dilatancy；已勾選的膨脹修正會套用至所有 cohesionless 列。只有地下水位以下的飽和細砂／粉土且 (N1)60>15 才可套用，混合土層請加入 Apply_Dilatancy 欄逐列指定 true／false。")
+                        st.warning("CSV 未提供 Apply_Dilatancy；已勾選的膨脹修正會沿用至所有 cohesionless 列。只有地下水位以下的飽和細砂／粉土且 (N1)60>15 才可套用；混合土層務必加入 Apply_Dilatancy 欄逐列指定 true／false。")
                     rows=prof.to_dict('records')
                     corrected=spt_profile(rows,energy_ratio_pct=er,borehole_factor=cb,sampler_factor=cs,rod_length_m=rod_len,
                         cn_method=cn_method,cn_cap=cn_cap,soil_behavior=soil_behavior_code,apply_dilatancy=dilatancy)
@@ -121,7 +139,7 @@ def render_module_3(expanded=False):
                         st.warning("剖面仍有 N≥50 且未標記 Refusal 的測點；請逐筆核對拒錘／部分貫入紀錄，必要時補上 Refusal 欄位。")
                     st.download_button('下載修正後 SPT CSV',out.to_csv(index=False).encode('utf-8-sig'),'SPT_corrected.csv','text/csv',key='m3_download')
                     st.session_state['m3_profile_result']=out
-                else: st.info('請提供 Depth_m、N、Effective_Stress_kPa 三欄；未提供完整欄位前不執行剖面計算。')
+                else: st.info('請提供 Depth_m、N 兩欄；Effective_Stress_KPa 依土層行為與 CN 修正需求條件式必填。')
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
                 st.error(f"逐深度資料檢核失敗：{exc}")
