@@ -184,3 +184,52 @@ def test_pdf_five_boxes_per_page_extracts_all_twenty_one_metre_rows():
     ]
     assert all(row.image.width == 800 and row.image.height == 100 for row in result["records"])
     assert result["warnings"] == []
+
+
+def _pdf_fixture_58m_three_pages():
+    pdf = fitz.open()
+    box_bytes = _box_image()
+    row_end = 0
+    for page_index, box_count in enumerate((5, 5, 5)):
+        page = pdf.new_page(width=595, height=1190)
+        depth_start = page_index * 20
+        depth_end = (20, 40, 58)[page_index]
+        page.insert_text((50, 45), f"BH No. BH-58 Depth {depth_start:.1f}~{depth_end:.1f}m", fontsize=10)
+        for box_index in range(box_count):
+            y0 = 150 + box_index * 205
+            visible_rows = 2 if page_index == 2 and box_index == 4 else 4
+            if visible_rows == 4:
+                image_bytes = box_bytes
+                y1 = y0 + 200
+            else:
+                partial = Image.new("RGB", (800, 200), "white")
+                draw = ImageDraw.Draw(partial)
+                draw.line((0, 100, 800, 100), fill="black", width=3)
+                buf = BytesIO()
+                partial.save(buf, format="JPEG", quality=90)
+                image_bytes = buf.getvalue()
+                y1 = y0 + 100
+            page.insert_image(fitz.Rect(50, y0, 480, y1), stream=image_bytes)
+            for row_index in range(visible_rows):
+                row_end += 1
+                y = y0 + (row_index + 0.5) * (50 if visible_rows == 4 else 50)
+                page.insert_text((490, y + 3), f"{row_end:.1f}", fontsize=9)
+    out = pdf.tobytes()
+    pdf.close()
+    return out
+
+
+def test_pdf_58m_borehole_extracts_three_pages_and_preserves_final_partial_box():
+    result = parse_pdf_core_log(_pdf_fixture_58m_three_pages())
+    assert result["pages_detected"] == 3
+    assert result["rows_detected"] == 58
+    assert result["borehole_id"] == "BH-58"
+    assert result["depth_source"] == "PDF 列尾深度標籤"
+    assert [(row.depth_start_m, row.depth_end_m) for row in result["records"]] == [
+        (float(i), float(i + 1)) for i in range(58)
+    ]
+    assert [row.page for row in result["records"]].count(1) == 20
+    assert [row.page for row in result["records"]].count(2) == 20
+    assert [row.page for row in result["records"]].count(3) == 18
+    assert [row.image.height for row in result["records"][-2:]] == [100, 100]
+    assert result["warnings"] == []
