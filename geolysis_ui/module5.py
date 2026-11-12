@@ -122,16 +122,10 @@ def render_module_5(expanded=False):
                     st.error("目前 Module 1 等效參數是依邊坡／隧道圍壓範圍擬合，不可直接移用至淺基礎承載力。請先在 Module 1 選擇「一般淺層分析」，並輸入具工程依據的基礎剪力區 σ3,max。")
                 if phi_hb_deg>50:
                     st.error("模組一等效摩擦角超過本模組承載力公式目前支援的 50° 上限；系統不會把它截斷成 50° 後計算。")
-                hb_bearing_material_confirmed5=st.checkbox(
-                    "已確認基礎承載剪力區為高度破碎岩體／岩屑狀岩體，且中值岩塊尺寸不大於 B/50；不是完整、少數節理控制或層狀岩盤",
-                    value=False,key="m5_hb_bearing_material_confirmed")
-                hb_stress_range_confirmed5=st.checkbox(
-                    f"已確認 Module 1 的等效 c′、ϕ′ 擬合圍壓上限 σ3,max={sig3_max:.3f} MPa，代表本基礎承載剪力區的圍壓範圍",
-                    value=False,key="m5_hb_stress_range_confirmed")
                 st.caption("適用性依 USACE EM 1110-1-1905（2025）§1-7(b)：一般淺基礎土壤方法不適用完整、節理、層狀或破裂岩盤；僅高度破碎岩體／岩屑狀材料在岩塊尺度相對基礎寬度足夠小時，才可視為類似密實顆粒土評估。Hoek–Brown 等效 Mohr–Coulomb 參數亦須在代表本基礎剪力區的 σ3 範圍內擬合。")
-            hb_bearing_source_valid5=(hb_current is not None and hb_application=="general"
-                and phi_hb_deg<=50 and hb_bearing_material_confirmed5
-                and hb_stress_range_confirmed5)
+            hb_bearing_material_confirmed5=False
+            hb_stress_range_confirmed5=False
+            hb_confirmation_signature=""
         with c:
             gamma5=st.number_input("基礎底以上總單位重 γ_D [kN/m³]",10.0,30.0,18.5,0.5,key='m5_gamma')
             same_gamma_below5=st.checkbox("基礎底下與上覆土同一土層",value=True,key='m5_same_gamma_below')
@@ -154,6 +148,26 @@ def render_module_5(expanded=False):
         with vcol: V5=st.number_input("垂直載重 V [kN；連續基礎請用 kN/m]（Q+Wf）",0.1,1000000.0,1000.0,10.0,key='m5_v')
         st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力 Q+Wf，包含結構荷載、基礎自重及基礎上覆土重。連續條形基礎的 V、H 應採每延米線荷載（kN/m）。請勿直接以任意預設值作設計輸入。")
         loads_confirmed5=st.checkbox("已確認 V 為本次設計總垂直力 Q+Wf（含基礎自重及覆土）",value=False,key="m5_loads_confirmed")
+        if use_hb5 and hb_current is not None:
+            # Re-key confirmations to the actual HB fit and foundation stress
+            # context so changes to B/L/Df/water level/soil unit weights/load
+            # cannot silently inherit an earlier engineering confirmation.
+            hb_confirmation_signature=(
+                f"{gsi:.0f}-{mi:.2f}-{sig_ci:.2f}-{d_factor:.2f}-{sig3_max:.3f}-"
+                f"{hb_application}-{hb_metadata.get('structure_code','')}-"
+                f"{B5:.2f}-{L5:.2f}-{df5:.2f}-{dw5:.2f}-"
+                f"{gamma5:.2f}-{gamma_below5:.2f}-{gsub5:.2f}-{V5:.1f}-"
+                f"{main_footing_type5}"
+            )
+            hb_bearing_material_confirmed5=st.checkbox(
+                f"已確認基礎承載剪力區為高度破碎岩體／岩屑狀岩體，且中值岩塊尺寸 ≤ B/50 = {B5/50:.3f} m；不是完整、少數節理控制或層狀岩盤",
+                value=False,key=f"m5_hb_material_{hb_confirmation_signature}")
+            hb_stress_range_confirmed5=st.checkbox(
+                f"已確認 Module 1 等效 c′、ϕ′ 擬合圍壓上限 σ3,max={sig3_max:.3f} MPa，代表本基礎承載剪力區的圍壓範圍",
+                value=False,key=f"m5_hb_range_{hb_confirmation_signature}")
+        hb_bearing_source_valid5=(hb_current is not None and hb_application=="general"
+            and phi_hb_deg<=50 and hb_bearing_material_confirmed5
+            and hb_stress_range_confirmed5)
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
             st.session_state['m5_eB']=0.0
@@ -171,7 +185,7 @@ def render_module_5(expanded=False):
         st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi),hb_application,
             str(hb_metadata.get("structure_code",""))) if use_hb5 and hb_current is not None else ()
-        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5))
+        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5))
         if st.button("計算極限承載力",key='m5_run'):
             clear_result_state(st.session_state, 'm5_result', 'm5_result_signature')
             if use_hb5 and not hb_bearing_source_valid5:
