@@ -3520,6 +3520,8 @@ def test_bishop_slice_weight_splits_moist_and_saturated_soil_at_water_table():
 
 
 def test_bishop_circular_search_uses_saturated_weight_below_groundwater():
+    from geolysis_engine import bishop_circular_search
+
     profile = [(0.0, 10.0), (5.0, 8.0), (10.0, 0.0), (20.0, 0.0)]
     common = dict(
         ground_profile=profile, cohesion_kpa=10.0, friction_angle_deg=25.0,
