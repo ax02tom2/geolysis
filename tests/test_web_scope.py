@@ -9,7 +9,7 @@ APP_AND_UI = APP + "\n" + UI_SOURCE + "\n" + CORE_UI
 
 
 def test_five_engineering_modules_remain():
-    for label in ("模組一：Hoek-Brown", "模組二：土壤分類", "模組三：SPT", "模組四：容許承載力", "模組五：極限承載力"):
+    for label in ("模組一：岩體參數與岩心分析", "模組二：土壤分類", "模組三：SPT", "模組四：容許承載力", "模組五：極限承載力"):
         assert label in APP_AND_UI
 
 
@@ -18,6 +18,8 @@ def test_docx_pdf_core_log_and_rqd_workflow_is_available_in_web_app():
     assert "上傳整孔岩心柱狀圖" in CORE_UI
     assert "天然節理" in CORE_UI
     assert "機械破損" in CORE_UI
+    assert "旋轉／托盤邊緣校正" in CORE_UI
+    assert "裁除托盤邊框" in CORE_UI
     for forbidden in ("qwen3-vl", "ollama_status", "core_local_vlm"):
         assert forbidden not in APP_AND_UI
 
