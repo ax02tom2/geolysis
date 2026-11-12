@@ -3685,3 +3685,42 @@ def test_uscs_missing_gradation_description_does_not_claim_final_group():
     description = _uscs_description("G? (缺少 D10/D30/D60)")
     assert "不能判定" in description
     assert "D10" in description
+
+
+def test_base_uplift_pressure_readiness_blocks_underestimated_or_unconfirmed_uplift():
+    from geolysis_engine import base_uplift_pressure_readiness
+
+    assert not base_uplift_pressure_readiness(
+        uplift_force_kN=90.0, hydrostatic_reference_kN=100.0,
+        load_case="seismic", pressure_confirmed=True,
+    )["ready"]
+    assert not base_uplift_pressure_readiness(
+        uplift_force_kN=100.0, hydrostatic_reference_kN=100.0,
+        load_case="seismic", pressure_confirmed=False,
+    )["ready"]
+    assert not base_uplift_pressure_readiness(
+        uplift_force_kN=100.0, hydrostatic_reference_kN=0.0,
+        load_case="static", pressure_confirmed=False,
+    )["ready"]
+
+
+def test_base_uplift_pressure_readiness_accepts_confirmed_reference_and_flags_larger_u():
+    from geolysis_engine import base_uplift_pressure_readiness
+
+    exact = base_uplift_pressure_readiness(
+        uplift_force_kN=100.0, hydrostatic_reference_kN=100.0,
+        load_case="seismic", pressure_confirmed=True,
+    )
+    assert exact["ready"] is True
+    assert exact["exceeds_reference"] is False
+    larger = base_uplift_pressure_readiness(
+        uplift_force_kN=120.0, hydrostatic_reference_kN=100.0,
+        load_case="static", pressure_confirmed=True,
+    )
+    assert larger["ready"] is True
+    assert larger["exceeds_reference"] is True
+    dry_static = base_uplift_pressure_readiness(
+        uplift_force_kN=0.0, hydrostatic_reference_kN=0.0,
+        load_case="static", pressure_confirmed=False,
+    )
+    assert dry_static["ready"] is True
