@@ -232,6 +232,12 @@ def render_module_4(expanded=False):
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
                     if result_dmt["capacity_limit_governs"]:
                         st.warning(f"輸入 gross q／qeq={dmtq:.1f} kPa 高於 qult/FS={result_dmt['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
+                    if result_dmt.get("profile_ends_at_minimum_depth"):
+                        st.warning(
+                            f"本次 DMT 剖面僅達最低影響深度 {result_dmt['influence_depth_required_m']:.2f} m。"
+                            "USACE Table 7-4 規定若底部應力增量仍不可忽略，須繼續納入更深土層；"
+                            "請確認底部 Δσz 已可忽略，否則補入更深 DMT 分層後重算。系統不自行判定此工程門檻。"
+                        )
                     st.dataframe(pd.DataFrame(result_dmt["layer_results"]),hide_index=True,use_container_width=True)
                     if result_dmt["settlement_mm"]>dmtTarget:
                         st.warning("估算沉陷超過目前設定的參考容許值；實際容許值仍須依結構型式、使用需求及差異沉陷共同決定。")
