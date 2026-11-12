@@ -5,10 +5,17 @@ from unittest.mock import patch
 import pytest
 
 from streamlit.testing.v1 import AppTest
-from geolysis_ui.module4 import _module5_transfer_value
+from geolysis_ui.module4 import _module5_transfer_value, _pmt_transfer_footing_type
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_pmt_capacity_transfer_maps_strip_and_rectangular_footings_to_module5_types():
+    assert _pmt_transfer_footing_type(2.0, 3.0, False) == "isolated"
+    assert _pmt_transfer_footing_type(2.0, 20.0, False) == "isolated"
+    assert _pmt_transfer_footing_type(2.0, 21.0, False) == "continuous"
+    assert _pmt_transfer_footing_type(2.0, 2.0, True) == "round"
 
 
 def test_streamlit_app_renders_without_uncaught_exception():
