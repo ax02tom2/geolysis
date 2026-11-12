@@ -40,6 +40,8 @@ def test_invalid_gsi_range_is_rejected():
          None, "已有實驗室 UCS 試驗值", False),
         ("砂岩 Sandstone（台灣南莊層三軸案例）",
          None, "依現場敲擊分級初估", True),
+        ("片岩 Schist（蘇花公路案例）",
+         "中央山脈東翼變質雜岩片岩／片麻岩｜東部山區區域範圍", "採用台灣岩性案例參考值", True),
     ],
 )
 def test_case_based_mi_and_ucs_reference_pairing(mi_case, ucs_case, mode, should_warn):
