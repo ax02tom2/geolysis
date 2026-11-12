@@ -379,8 +379,23 @@ def render_module_5(expanded=False):
             seismic_qallow5=st.number_input("地震設計容許承載壓力 q_allow [kPa]（0＝未提供，不判定整體通過）",
                 min_value=0.0,max_value=50000.0,value=0.0,step=1.0,key="m5x_seismic_qallow",help="請依適用建築法規／專案設計準則輸入；系統不自動套用地震容許承載力提高係數，也不直接以靜力 qult/FS 代替。")
             seismic_qallow_value5=(seismic_qallow5 if seismic_qallow5>0 else None)
+            residual_base_excess_pore_pressure_kpa5=st.number_input(
+                "基礎底面殘餘超額孔隙水壓 Δu_res,base [kPa]",0.0,100000.0,0.0,1.0,
+                key="m5x_residual_base_u",
+                help="若基礎底面土層亦受地震超額孔壓影響，可依 Δu_res,base=ru×σ′v0(Df) 估算；σ′v0 必須依實際分層土層與水位計算。有場址專屬孔壓分析時，優先輸入基底平均殘餘超額孔壓。")
+            base_residual_pressure_confirmed5=st.checkbox(
+                "已確認基礎底面殘餘超額孔隙水壓 Δu_res,base；輸入 0 代表確認基礎底面沒有額外殘餘超額孔壓",
+                value=False,key="m5x_residual_base_u_confirm")
+            base_hydrostatic_uD5=max(0.0,(float(df5)-float(dw5))*9.81)
+            base_uplift_pressure_kpa5=base_hydrostatic_uD5+(residual_base_excess_pore_pressure_kpa5 if base_residual_pressure_confirmed5 else 0.0)
+            seismic_qallow_for_base_pressure5=(seismic_qallow_value5 if base_residual_pressure_confirmed5 else None)
+            st.caption(f"地震 qeq 使用基底總孔隙水壓 u_D={base_uplift_pressure_kpa5:.2f} kPa（靜水壓 {base_hydrostatic_uD5:.2f} + 已確認殘餘超額孔壓 {base_uplift_pressure_kpa5-base_hydrostatic_uD5:.2f} kPa）。")
+            if seismic_qallow_value5 is not None and not base_residual_pressure_confirmed5:
+                st.warning("已輸入 q_allow，但尚未確認基礎底面殘餘超額孔隙水壓；系統暫不執行 qeq≤q_allow 通過判定，以免漏扣地震殘餘孔壓。")
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
-                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,seismic_qallow_value5,max(0.0,(float(df5)-float(dw5))*9.81))
+                seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,
+                seismic_qallow_for_base_pressure5,base_uplift_pressure_kpa5,
+                residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
             if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run"):
                 try:
                     seismic_ecc5=seismic_foundation_eccentricity_cases(
@@ -392,8 +407,8 @@ def render_module_5(expanded=False):
                         seismic_moment_L_kNm=seismic_moment_L5,
                         static_moment_B_sign=static_moment_B_sign5,
                         static_moment_L_sign=static_moment_L_sign5,
-                        allowable_bearing_pressure_kpa=seismic_qallow_value5,
-                        base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
+                        allowable_bearing_pressure_kpa=seismic_qallow_for_base_pressure5,
+                        base_uplift_pressure_kpa=base_uplift_pressure_kpa5)
                     store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
                 except Exception as ecc_exc:
                     logging.exception("Unhandled application calculation error")
@@ -406,7 +421,7 @@ def render_module_5(expanded=False):
                     st.error("至少一組地震載重組合的合力超出基礎底面範圍、有效尺寸非正或有效軸向交換；須另作接觸／抗拔／雙向偏心分析。")
                 if not seismic_ecc5["middle_third_passes"]:
                     st.info("部分組合超出靜力中間三分點。依 USACE §9-10(e)，地震極端事件的判斷不以靜力中三分點作唯一標準；仍須確認 qeq 不超過適用的地震容許承載壓力，若專案規範另要求中三分點則仍應遵守。")
-                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D={seismic_ecc5['base_uplift_pressure_kpa']:.2f} kPa；地震殘餘超額孔壓額外上拔及 uplift FS≥1.5 仍須另行檢核。")
+                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面總孔隙水壓 u_D={seismic_ecc5['base_uplift_pressure_kpa']:.2f} kPa；其中殘餘超額孔壓由使用者確認輸入，不由 ru 自動推估。")
                 if not seismic_ecc5["uplift_contact_passes"]:
                     st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
                 if seismic_ecc5["bearing_pressure_check_complete"]:
@@ -415,7 +430,10 @@ def render_module_5(expanded=False):
                     if seismic_ecc5["overall_seismic_overturning_passes"] is False:
                         st.error("地震傾覆／承載整體檢核未通過：合力位置或有效承載壓力至少一項不符合。")
                 else:
-                    st.warning("尚未提供適用規範／專案的地震 q_allow；目前只有合力位置與有效尺寸幾何檢核，不代表整體地震傾覆／承載通過。")
+                    if seismic_qallow_value5 is not None and not base_residual_pressure_confirmed5:
+                        st.warning("尚未確認基礎底面殘餘超額孔隙水壓；目前僅回報合力位置與幾何，暫不判定 qeq≤q_allow。")
+                    else:
+                        st.warning("尚未提供適用規範／專案的地震 q_allow；目前只有合力位置與有效尺寸幾何檢核，不代表整體地震傾覆／承載通過。")
                 st.dataframe(_seismic_case_dataframe(seismic_ecc5["cases"],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(seismic_ecc5["limitations"])
             if st.button("計算地震等效載重",key="m5x_seismic_run"):
@@ -510,13 +528,15 @@ def render_module_5(expanded=False):
                         ground_inclination_deg=ground_ang5,
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
-                        base_uplift_pressure_kpa=max(0.0,(float(df5)-float(dw5))*9.81))
+                        base_uplift_pressure_kpa=base_uplift_pressure_kpa5)
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
-                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5))
+                        (V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5,
+                        base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
-            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5)
+            sr_sig=(V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5,
+                base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
@@ -529,17 +549,20 @@ def render_module_5(expanded=False):
                 if not sr.get("middle_third_check_pass",True):
                     st.info("至少一組地震組合超出靜力中間三分點。地震極端事件不以此作唯一判定；仍須檢核有效承載壓力是否不超過適用的地震 q_allow。")
                 st.caption(f"適用性輸入：FS_liq={sr['factor_of_safety_liquefaction']:.2f}；ru={sr['ru']:.2f}；已確認無顯著側向擴展及 ru 來源。")
-                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面靜水揚壓 u_D={sr['base_uplift_pressure_kpa']:.2f} kPa；地震殘餘超額孔壓額外上拔及 uplift FS≥1.5 尚未納入，必須另行檢核。")
+                st.caption(f"已依 USACE 式 5-2／5-3 扣除基礎底面總孔隙水壓 u_D={sr['base_uplift_pressure_kpa']:.2f} kPa；此值含已確認輸入的基底殘餘超額孔壓。")
                 if any(case.get("average_contact_pressure_kpa") is not None and case["average_contact_pressure_kpa"]<=0 for case in sr["cases"]):
                     st.error("至少一組地震組合扣除基礎底面靜水揚壓後未維持正向接觸壓力，須另作抗浮／揚壓檢核。")
-                if seismic_qallow_value5 is not None:
+                if seismic_qallow_for_base_pressure5 is not None:
                     sr_qallow_cases=[case for case in sr["cases"] if case.get("average_contact_pressure_kpa") is not None]
-                    sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(0.0<case["average_contact_pressure_kpa"]<=seismic_qallow_value5 for case in sr_qallow_cases))
+                    sr_qallow_pass=(len(sr_qallow_cases)==len(sr["cases"]) and all(0.0<case["average_contact_pressure_kpa"]<=seismic_qallow_for_base_pressure5 for case in sr_qallow_cases))
                     st.metric("孔壓折減分支地震 qeq ≤ q_allow","全部組合符合" if sr_qallow_pass else "有組合超過／無有效值")
                     if not sr_qallow_pass:
                         st.error("孔壓折減分支至少一組有效承載壓力超過 q_allow，或無法計算有效接觸壓力。")
                 else:
-                    st.warning("未提供地震設計容許承載壓力 q_allow；本分支僅回報孔壓折減極限抗力與偏心幾何，不代表地震承載安全通過。")
+                    if seismic_qallow_value5 is not None and not base_residual_pressure_confirmed5:
+                        st.warning("尚未確認基礎底面殘餘超額孔隙水壓；本分支暫不判定 qeq≤q_allow。")
+                    else:
+                        st.warning("未提供地震設計容許承載壓力 q_allow；本分支僅回報孔壓折減極限抗力與偏心幾何，不代表地震承載安全通過。")
                 st.dataframe(_seismic_case_dataframe(sr['cases'],seismic_footing5),hide_index=True,use_container_width=True)
                 st.caption(sr["limitations"])
     
@@ -582,8 +605,8 @@ def render_module_5(expanded=False):
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             hydrostatic_uD5=max(0.0,(float(df5)-float(dw5))*9.81)
             uplift_base_area5=float(B5)*(1.0 if slide_is_line5 else float(L5))
-            hydrostatic_U_ref5=hydrostatic_uD5*uplift_base_area5
-            st.caption(f"地下水靜水壓參考值 uD={hydrostatic_uD5:.2f} kPa；對應基底揚壓合力 U_hydro≈{hydrostatic_U_ref5:.2f} {slide_force_unit5}。若有地震殘餘超額孔壓，U 應再增加其基底壓力積分。")
+            hydrostatic_U_ref5=base_uplift_pressure_kpa5*uplift_base_area5
+            st.caption(f"基底總孔隙水壓參考值 u_D={base_uplift_pressure_kpa5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 已確認殘餘超額孔壓 {base_uplift_pressure_kpa5-hydrostatic_uD5:.2f}）；對應 U_ref≈{hydrostatic_U_ref5:.2f} {slide_force_unit5}。")
             if abs(float(slide_area5)-uplift_base_area5)>max(0.01,0.01*uplift_base_area5):
                 st.warning("滑動面積 A 與基礎幾何 B×L（連續基礎 B×1 m）不一致；抗浮 U 應以完整基礎底面積積分，請核對 U。")
             if slide_u5+1e-9<hydrostatic_U_ref5:
@@ -671,14 +694,16 @@ def render_module_5(expanded=False):
                         uplift_force_kN=slide_u5,kv=kv5,fs_required=1.5)
                     uplift_sig=(slide_load_case5,slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
                         slide_uplift_weights_confirmed5,slide_uplift_pressure_confirmed5,
-                        slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5)
+                        slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5,
+                        base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
                     store_result_state(st.session_state,"m5x_uplift_result","m5x_uplift_signature",uplift,uplift_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震抗浮計算失敗：{exc}")
             uplift_sig=(slide_load_case5,slide_uplift_resisting_weight5,seismic_weight5,slide_u5,kv5,
                 slide_uplift_weights_confirmed5,slide_uplift_pressure_confirmed5,
-                slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5)
+                slide_footing5,seismic_footing5,slide_area5,uplift_base_area5,df5,dw5,B5,L5,
+                base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
             uplift,uplift_is_current=read_result_state(st.session_state,"m5x_uplift_result","m5x_uplift_signature",uplift_sig)
             if uplift and uplift_is_current and uplift.get("applicable"):
                 st.metric("控制地震抗浮安全係數 FS_uplift",f"{uplift['FS_uplift']:.2f}",
