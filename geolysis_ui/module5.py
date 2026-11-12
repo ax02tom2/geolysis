@@ -148,26 +148,6 @@ def render_module_5(expanded=False):
         with vcol: V5=st.number_input("垂直載重 V [kN；連續基礎請用 kN/m]（Q+Wf）",0.1,1000000.0,1000.0,10.0,key='m5_v')
         st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力 Q+Wf，包含結構荷載、基礎自重及基礎上覆土重。連續條形基礎的 V、H 應採每延米線荷載（kN/m）。請勿直接以任意預設值作設計輸入。")
         loads_confirmed5=st.checkbox("已確認 V 為本次設計總垂直力 Q+Wf（含基礎自重及覆土）",value=False,key="m5_loads_confirmed")
-        if use_hb5 and hb_current is not None:
-            # Re-key confirmations to the actual HB fit and foundation stress
-            # context so changes to B/L/Df/water level/soil unit weights/load
-            # cannot silently inherit an earlier engineering confirmation.
-            hb_confirmation_signature=(
-                f"{gsi:.0f}-{mi:.2f}-{sig_ci:.2f}-{d_factor:.2f}-{sig3_max:.3f}-"
-                f"{hb_application}-{hb_metadata.get('structure_code','')}-"
-                f"{B5:.2f}-{L5:.2f}-{df5:.2f}-{dw5:.2f}-"
-                f"{gamma5:.2f}-{gamma_below5:.2f}-{gsub5:.2f}-{V5:.1f}-"
-                f"{main_footing_type5}"
-            )
-            hb_bearing_material_confirmed5=st.checkbox(
-                f"已確認基礎承載剪力區為高度破碎岩體／岩屑狀岩體，且中值岩塊尺寸 ≤ B/50 = {B5/50:.3f} m；不是完整、少數節理控制或層狀岩盤",
-                value=False,key=f"m5_hb_material_{hb_confirmation_signature}")
-            hb_stress_range_confirmed5=st.checkbox(
-                f"已確認 Module 1 等效 c′、ϕ′ 擬合圍壓上限 σ3,max={sig3_max:.3f} MPa，代表本基礎承載剪力區的圍壓範圍",
-                value=False,key=f"m5_hb_range_{hb_confirmation_signature}")
-        hb_bearing_source_valid5=(hb_current is not None and hb_application=="general"
-            and phi_hb_deg<=50 and hb_bearing_material_confirmed5
-            and hb_stress_range_confirmed5)
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
             st.session_state['m5_eB']=0.0
@@ -182,6 +162,26 @@ def render_module_5(expanded=False):
         if theory5=='Terzaghi': st.caption("Terzaghi 本頁不支援偏心荷載；切換至 Terzaghi 時偏心距會重設為 0。")
         load_dir5=st.selectbox("水平力方向（Vesic 公式）",['parallel_B','parallel_L'],format_func=lambda x:'平行短邊 B' if x=='parallel_B' else '平行長邊 L',disabled=(theory5!='Vesic' or main_footing_type5=='continuous'),key='m5_load_dir')
         adhesion5=st.number_input("基底黏著係數 ca/c（Hansen／Vesic）",0.0,1.0,0.6,0.1,key='m5_adhesion',disabled=(theory5 not in ('Hansen','Vesic')))
+        if use_hb5 and hb_current is not None:
+            # Re-key confirmations to all relevant source and foundation inputs;
+            # a changed load, geometry, water level or soil profile requires review.
+            hb_confirmation_signature=(
+                f"{gsi:.0f}-{mi:.2f}-{sig_ci:.2f}-{d_factor:.2f}-{sig3_max:.3f}-"
+                f"{hb_application}-{hb_metadata.get('structure_code','')}-"
+                f"{B5:.2f}-{L5:.2f}-{df5:.2f}-{dw5:.2f}-"
+                f"{gamma5:.2f}-{gamma_below5:.2f}-{gsub5:.2f}-{V5:.1f}-{H5:.1f}-"
+                f"{eB5:.3f}-{eL5:.3f}-{beta5:.1f}-{main_footing_type5}-"
+                f"{theory5}-{failure_mode5}-{load_dir5}-{adhesion5:.2f}"
+            )
+            hb_bearing_material_confirmed5=st.checkbox(
+                f"已確認基礎承載剪力區為高度破碎岩體／岩屑狀岩體，且中值岩塊尺寸 ≤ B/50 = {B5/50:.3f} m；不是完整、少數節理控制或層狀岩盤",
+                value=False,key=f"m5_hb_material_{hb_confirmation_signature}")
+            hb_stress_range_confirmed5=st.checkbox(
+                f"已確認 Module 1 等效 c′、ϕ′ 擬合圍壓上限 σ3,max={sig3_max:.3f} MPa，代表本基礎承載剪力區的圍壓範圍",
+                value=False,key=f"m5_hb_range_{hb_confirmation_signature}")
+        hb_bearing_source_valid5=(hb_current is not None and hb_application=="general"
+            and phi_hb_deg<=50 and hb_bearing_material_confirmed5
+            and hb_stress_range_confirmed5)
         st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi),hb_application,
             str(hb_metadata.get("structure_code",""))) if use_hb5 and hb_current is not None else ()
