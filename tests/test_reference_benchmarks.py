@@ -3537,3 +3537,62 @@ def test_bishop_circular_search_uses_saturated_weight_below_groundwater():
     assert split["unit_weight_moist_kn_m3"] == pytest.approx(18.0)
     assert split["unit_weight_sat_kn_m3"] == pytest.approx(20.0)
     assert split["FS"] != pytest.approx(legacy["FS"])
+
+
+def test_spt_cohesive_soil_does_not_require_effective_stress_for_n60():
+    result = spt_correct(
+        12.0, 75.0, 1.15, 1.20, 5.0, None,
+        "Liao & Whitman", 2.0, soil_behavior="cohesive",
+    )
+    expected_n60 = 12.0 * 1.25 * 1.0 * 1.20 * 0.85
+    assert result["N60"] == pytest.approx(expected_n60)
+    assert result["CB"] == pytest.approx(1.0)
+    assert result["CN"] == pytest.approx(1.0)
+    assert result["N1_60"] == pytest.approx(expected_n60)
+
+
+def test_spt_cohesionless_no_cn_option_does_not_require_effective_stress():
+    result = spt_correct(
+        12.0, 60.0, 1.0, 1.0, 10.0, None,
+        "不修正", 2.0, soil_behavior="cohesionless",
+    )
+    assert result["N60"] == pytest.approx(12.0)
+    assert result["CN"] == pytest.approx(1.0)
+    assert result["N1_60"] == pytest.approx(12.0)
+
+
+def test_spt_cohesionless_cn_correction_still_requires_effective_stress():
+    with pytest.raises(ValueError, match="有效覆土應力"):
+        spt_correct(
+            12.0, 60.0, 1.0, 1.0, 10.0, None,
+            "Liao & Whitman", 2.0, soil_behavior="cohesionless",
+        )
+
+
+def test_spt_profile_accepts_cohesive_and_refusal_rows_without_effective_stress():
+    from geolysis_engine import spt_profile
+
+    result = spt_profile(
+        [
+            {"Depth_m": 1.0, "N": 12.0, "Soil_Behavior": "cohesive"},
+            {"Depth_m": 2.0, "N": 50.0, "Soil_Behavior": "cohesionless", "Refusal": True},
+        ],
+        energy_ratio_pct=60.0, borehole_factor=1.05, sampler_factor=1.0,
+        rod_length_m=8.0, cn_method="Liao & Whitman",
+    )
+    assert result[0]["N60"] == pytest.approx(12.0 * 0.95)
+    assert result[0]["CN"] == pytest.approx(1.0)
+    assert result[0]["Effective_Stress_KPa"] is None
+    assert result[1]["N60"] is None
+    assert result[1]["Effective_Stress_KPa"] is None
+
+
+def test_spt_profile_requires_effective_stress_only_for_nonrefusal_cohesionless_rows_using_cn():
+    from geolysis_engine import spt_profile
+
+    with pytest.raises(ValueError, match="Effective_Stress_kPa"):
+        spt_profile(
+            [{"Depth_m": 1.0, "N": 12.0, "Soil_Behavior": "cohesionless"}],
+            energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+            rod_length_m=8.0, cn_method="Liao & Whitman",
+        )
