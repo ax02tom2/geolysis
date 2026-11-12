@@ -167,8 +167,12 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
     assert result["bearing_pressure_check_complete"] is False
 
     pressure.set_value(12.0)
+    app.run()
+    assert app.session_state["m5x_residual_base_u"] == 12.0
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm")
     confirmation.check()
     app.run()
+    assert app.session_state["m5x_residual_base_u_confirm"] is True
     calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
     calculate.click()
     app.run()
