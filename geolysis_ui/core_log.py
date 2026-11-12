@@ -450,7 +450,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 rqd = result.get("rqd_percent")
                 m1.metric("採取率初估", "—" if recovery is None else f"{recovery:.1f}%")
                 m2.metric("RQD 初估", "待覆核" if rqd is None else f"{rqd:.1f}%")
-                m3.metric("疑似斷裂候選", str(len(candidates)))
+                m3.metric("疑似斷裂／間隙候選", str(len(candidates)))
                 if result.get("warning"):
                     st.caption(result["warning"])
                 if not analysis.get("success"):
@@ -462,7 +462,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     "深度": _row_label(record),
                     "採取率初估 (%)": recovery,
                     "RQD (%)": rqd,
-                    "疑似斷裂": len(candidates),
+                    "疑似斷裂／間隙": len(candidates),
                     "覆核": "完成" if result.get("ready") else "待覆核",
                 })
 
