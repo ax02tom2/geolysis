@@ -80,12 +80,34 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
         F=0.5*F+0.5*newF
     raise ValueError('Bishop 迭代未收斂；請檢查切片幾何、孔壓與強度資料')
 
+def _bishop_slice_total_weight(*, width_m, ground_elevation_m, base_elevation_m,
+        groundwater_elevation_m, gamma_moist_kn_m3, gamma_sat_kn_m3):
+    """Compute slice weight with moist soil above and saturated soil below a horizontal water table."""
+    width = _finite("切片寬度", width_m)
+    ground = _finite("切片地表高程", ground_elevation_m)
+    base = _finite("切片底面高程", base_elevation_m)
+    gamma_moist = _finite("地下水位以上單位重", gamma_moist_kn_m3)
+    gamma_sat = _finite("地下水位以下飽和單位重", gamma_sat_kn_m3)
+    if width <= 0 or gamma_moist <= 0 or gamma_sat <= 0:
+        raise ValueError("切片寬度及土壤單位重必須大於 0")
+    height = max(0.0, ground - base)
+    if groundwater_elevation_m is None:
+        saturated_height = 0.0
+    else:
+        gw = _finite("地下水位高程", groundwater_elevation_m)
+        saturated_height = max(0.0, min(ground, gw) - base)
+    moist_height = max(0.0, height - saturated_height)
+    return width * (gamma_moist * moist_height + gamma_sat * saturated_height)
+
+
 def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         unit_weight_kn_m3, center_x_values, center_y_values, radius_values,
-        slice_count=20, groundwater_elevation=None, gamma_water=9.81):
+        slice_count=20, groundwater_elevation=None, gamma_water=9.81,
+        unit_weight_moist_kn_m3=None, unit_weight_sat_kn_m3=None):
     """Grid-search circular slip surfaces and evaluate each with Bishop simplified.
-    Coordinates use metres and elevations (positive upward); uniform soil only.
-    Ground profile is a sorted list of (x, elevation) pairs.
+    Coordinates use metres and elevations (positive upward). Strength is homogeneous;
+    slice weights may use separate moist/saturated unit weights across a horizontal
+    groundwater elevation. Ground profile is a sorted list of (x, elevation) pairs.
     """
     if len(ground_profile)<3:
         raise ValueError('地表剖面至少需要 3 個 (x, elevation) 點')
@@ -93,8 +115,11 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
     if len({p[0] for p in profile})!=len(profile):
         raise ValueError('地表剖面 x 座標不可重複')
     c=_finite('土壤凝聚力',cohesion_kpa); phi=_finite('土壤摩擦角',friction_angle_deg)
-    gamma=_finite('土壤單位重',unit_weight_kn_m3); gw=_finite('水單位重',gamma_water)
-    if c<0 or not 0<=phi<=50 or gamma<=0 or gw<=0 or int(slice_count)<5:
+    gamma_legacy=_finite('土壤單位重',unit_weight_kn_m3)
+    gamma_moist=_finite('地下水位以上單位重',gamma_legacy if unit_weight_moist_kn_m3 is None else unit_weight_moist_kn_m3)
+    gamma_sat=_finite('地下水位以下飽和單位重',gamma_legacy if unit_weight_sat_kn_m3 is None else unit_weight_sat_kn_m3)
+    gw=_finite('水單位重',gamma_water)
+    if c<0 or not 0<=phi<=50 or gamma_moist<=0 or gamma_sat<=0 or gw<=0 or int(slice_count)<5:
         raise ValueError('土壤強度、單位重或切片數不合理')
     xs=[_finite('圓心 x',x) for x in center_x_values]
     ys=[_finite('圓心 y',y) for y in center_y_values]
@@ -146,7 +171,11 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                     if height<=0: continue
                     alpha=math.degrees(math.atan2(yr-yl,width))
                     pore=0.0 if gw_elev is None else gw*max(0.0,gw_elev-ym)
-                    slices.append({'width_m':width,'weight_kN':gamma*height*width,
+                    slice_weight=_bishop_slice_total_weight(
+                        width_m=width,ground_elevation_m=gm,base_elevation_m=ym,
+                        groundwater_elevation_m=gw_elev,
+                        gamma_moist_kn_m3=gamma_moist,gamma_sat_kn_m3=gamma_sat)
+                    slices.append({'width_m':width,'weight_kN':slice_weight,
                         'base_angle_deg':alpha,'cohesion_kpa':c,
                         'friction_angle_deg':phi,'pore_pressure_kpa':pore})
                 if len(slices)<5: continue
@@ -174,8 +203,11 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                       if boundary else None)
     return {**best,'evaluated_surfaces':evaluated,
         'search_boundary_warning':boundary_warning,
+        'unit_weight_moist_kn_m3':gamma_moist,
+        'unit_weight_sat_kn_m3':gamma_sat,
+        'water_table_weighting':gw_elev is not None,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
-        'limitations':'目前假設均質土層、水平地下水位、圓弧滑動面與簡化 Bishop 法；不含分層土、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
+        'limitations':'目前假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
 
 def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,

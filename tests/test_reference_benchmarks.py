@@ -3505,3 +3505,35 @@ def test_spt_ui_refusal_mask_accepts_engine_refusal_vocabulary(label):
 
     result = _spt_refusal_mask(pd.Series([label, "false", "正常"]))
     assert result.tolist() == [True, False, False]
+
+
+def test_bishop_slice_weight_splits_moist_and_saturated_soil_at_water_table():
+    from geolysis_engine.stability import _bishop_slice_total_weight
+
+    weight = _bishop_slice_total_weight(
+        width_m=2.0, ground_elevation_m=10.0, base_elevation_m=4.0,
+        groundwater_elevation_m=7.0,
+        gamma_moist_kn_m3=18.0, gamma_sat_kn_m3=20.0,
+    )
+    # 3 m above water table at 18 kN/m³ and 3 m below at 20 kN/m³.
+    assert weight == pytest.approx(228.0)
+
+
+def test_bishop_circular_search_uses_saturated_weight_below_groundwater():
+    from geolysis_engine import bishop_circular_search
+
+    profile = [(0.0, 10.0), (5.0, 8.0), (10.0, 0.0), (20.0, 0.0)]
+    common = dict(
+        ground_profile=profile, cohesion_kpa=10.0, friction_angle_deg=25.0,
+        center_x_values=[6.0], center_y_values=[12.0], radius_values=[15.0],
+        slice_count=20, groundwater_elevation=6.0,
+    )
+    split = bishop_circular_search(
+        **common, unit_weight_kn_m3=18.0,
+        unit_weight_moist_kn_m3=18.0, unit_weight_sat_kn_m3=20.0,
+    )
+    legacy = bishop_circular_search(**common, unit_weight_kn_m3=18.0)
+    assert split["water_table_weighting"] is True
+    assert split["unit_weight_moist_kn_m3"] == pytest.approx(18.0)
+    assert split["unit_weight_sat_kn_m3"] == pytest.approx(20.0)
+    assert split["FS"] != pytest.approx(legacy["FS"])

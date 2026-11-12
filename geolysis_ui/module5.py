@@ -845,10 +845,12 @@ def render_module_5(expanded=False):
                 bishop_phi5=st.number_input("均質土坡體 φ′ [°]",0.0,50.0,0.0,1.0,key="m5x_auto_phi_slope")
                 st.caption("此自動搜尋是均質土坡穩定分析，須輸入坡體專屬 c′、φ′；不會自動沿用 Module 1／Module 5 的基礎承載力參數。")
             with bb:
-                bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
+                bishop_gamma_moist5=st.number_input("地下水位以上濕單位重 γ_moist [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma_moist")
                 bishop_has_gw5=st.checkbox("納入地下水位",value=False,key="m5x_auto_has_gw")
                 bishop_gw5=(st.number_input("地下水位高程 [m]",-1000.0,1000.0,0.0,0.5,key="m5x_auto_gw")
                             if bishop_has_gw5 else None)
+                bishop_gamma_sat5=(st.number_input("地下水位以下飽和單位重 γ_sat [kN/m³]",10.0,30.0,20.0,0.5,key="m5x_auto_gamma_sat")
+                                   if bishop_has_gw5 else bishop_gamma_moist5)
             with bc:
                 center_x_min5=st.number_input("圓心 x 最小值 [m]",-100.0,1000.0,3.0,0.5,key="m5x_cxmin")
                 center_x_max5=st.number_input("圓心 x 最大值 [m]",-100.0,1000.0,7.0,0.5,key="m5x_cxmax")
@@ -857,12 +859,12 @@ def render_module_5(expanded=False):
             radii_csv5=st.text_input("搜尋半徑 [m]（逗號分隔）","8,10,12,15",key="m5x_radii")
             slices_auto5=st.number_input("每一滑動面切片數",5,100,20,1,key="m5x_auto_slices")
             bishop_auto_context5=(
-                profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,
+                profile_csv5,bishop_c5,bishop_phi5,bishop_gamma_moist5,bishop_gamma_sat5,bishop_has_gw5,bishop_gw5,
                 center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5
             )
             bishop_auto_context_id5=hashlib.sha256(repr(bishop_auto_context5).encode("utf-8")).hexdigest()[:12]
             bishop_auto_confirmed5=st.checkbox(
-                "已確認地表剖面、坡體 c′／φ′、單位重、地下水位及圓弧搜尋範圍均為本工程資料",
+                "已確認地表剖面、坡體 c′／φ′、濕／飽和單位重、地下水位及圓弧搜尋範圍均為本工程資料",
                 value=False,key=f"m5x_auto_bishop_confirm_{bishop_auto_context_id5}")
             auto_sig=(src5,bishop_auto_context5,bool(bishop_auto_confirmed5))
             if st.button("搜尋最低 Bishop FS",key="m5x_auto_bishop_run",
@@ -874,7 +876,9 @@ def render_module_5(expanded=False):
                     radii=[float(x.strip()) for x in radii_csv5.split(",") if x.strip()]
                     search=bishop_circular_search(ground_profile=pprof[["x_m","elevation_m"]].values.tolist(),
                         cohesion_kpa=bishop_c5,friction_angle_deg=bishop_phi5,
-                        unit_weight_kn_m3=bishop_gamma5,
+                        unit_weight_kn_m3=bishop_gamma_moist5,
+                        unit_weight_moist_kn_m3=bishop_gamma_moist5,
+                        unit_weight_sat_kn_m3=bishop_gamma_sat5,
                         center_x_values=[center_x_min5+(center_x_max5-center_x_min5)*i/8 for i in range(9)],
                         center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                         radius_values=radii,slice_count=slices_auto5,
