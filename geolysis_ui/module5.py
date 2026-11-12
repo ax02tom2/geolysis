@@ -760,11 +760,14 @@ def render_module_5(expanded=False):
                 slide_load_case5,slide_seismic_earth_pressure_confirmed5)
             if not slide_earth_pressure_ready5:
                 st.warning("尚未確認地震作用下 Pa／Pp 的方向與增量；滑動計算按鈕保持停用。")
-            slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
-            slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_backfill_phi_{'hb' if use_hb5 else 'manual'}")
-            slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
-            if use_hb5:
-                st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
+            if slide_load_case5=="seismic":
+                slide_gamma5=slide_backfill_phi5=slide_backfill_c5=None
+            else:
+                slide_gamma5=st.number_input("回填土有效單位重 γ′ [kN/m³]",1.0,25.0,float(max(1.0,min(25.0,gsub5))),0.5,key="m5x_slide_gamma")
+                slide_backfill_phi5=st.number_input("回填土摩擦角 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_backfill_phi_{'hb' if use_hb5 else 'manual'}")
+                slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
+                if use_hb5:
+                    st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
             slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5)
             if st.button("計算基底滑動安全係數",key="m5x_slide_run",disabled=not slide_run_ready5):
                 try:
