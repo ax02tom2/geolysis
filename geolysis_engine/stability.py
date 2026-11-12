@@ -261,7 +261,7 @@ def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_wei
     if U==0:
         return {
             'cases':[],'applicable':False,'FS_uplift':None,
-            'FS_required':1.5,'passes':None,
+            'FS_required':fs,'passes':None,
             'resisting_weight_kN':Wres,'structure_seismic_weight_kN':Ws,
             'uplift_force_kN':U,'kv':kvv,
             'method':'USACE EM 1110-1-1905 (2025), §9-10(f), §5-7 Eq. 5-36',
