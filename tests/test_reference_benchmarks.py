@@ -3596,3 +3596,33 @@ def test_spt_profile_requires_effective_stress_only_for_nonrefusal_cohesionless_
             energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
             rod_length_m=8.0, cn_method="Liao & Whitman",
         )
+
+
+def test_spt_profile_requires_explicit_per_row_dilatancy_flags_when_enabled_globally():
+    from geolysis_engine import spt_profile
+
+    with pytest.raises(ValueError, match="Apply_Dilatancy"):
+        spt_profile(
+            [{"Depth_m": 1.0, "N": 20.0, "Effective_Stress_KPa": 100.0}],
+            energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+            rod_length_m=8.0, cn_method="Liao & Whitman",
+            apply_dilatancy=True,
+        )
+
+
+def test_spt_profile_applies_dilatancy_only_to_explicitly_flagged_rows():
+    from geolysis_engine import spt_profile
+
+    result = spt_profile(
+        [
+            {"Depth_m": 1.0, "N": 20.0, "Effective_Stress_KPa": 100.0,
+             "Soil_Behavior": "cohesionless", "Apply_Dilatancy": True},
+            {"Depth_m": 2.0, "N": 20.0, "Effective_Stress_KPa": 100.0,
+             "Soil_Behavior": "cohesionless", "Apply_Dilatancy": False},
+        ],
+        energy_ratio_pct=60.0, borehole_factor=1.0, sampler_factor=1.0,
+        rod_length_m=8.0, cn_method="Liao & Whitman",
+        apply_dilatancy=True,
+    )
+    assert result[0]["dilatancy_applied"] is True
+    assert result[1]["dilatancy_applied"] is False
