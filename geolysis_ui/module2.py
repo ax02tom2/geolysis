@@ -64,6 +64,8 @@ def render_module_2(expanded=False):
             r1.success(f"USCS：{result['USCS']}")
             r2.success(f"AASHTO：{result['AASHTO']}")
             r3.metric("群指數 GI",result['GI'])
+            st.caption(f"USCS 組別意義：{result['USCS_description']}")
+            st.caption(f"AASHTO 組別意義：{result['AASHTO_description']}")
             if result['peat']:
                 st.caption("泥炭／高度有機土：PI、Cu、Cc 與篩分析比例不適用。")
             else:
