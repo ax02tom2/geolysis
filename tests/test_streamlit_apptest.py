@@ -103,3 +103,26 @@ def test_module4_rejects_module5_transfer_when_foundation_geometry_differs():
         )
     assert value is None
     checkbox.assert_not_called()
+
+
+
+def test_module5_confirmed_bearing_result_is_published_to_module4():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed.check()
+    app.run()
+    calculate = next(widget for widget in app.button if widget.key == "m5_run")
+    calculate.click()
+    app.run()
+
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    transfer = app.session_state["m5_bearing_transfer"]
+    assert transfer is not None
+    assert transfer["load_confirmed"] is True
+    assert transfer["complete_capacity_model"] is True
+    assert transfer["qult_gross_kpa"] > 0
+    assert transfer["qa_net_kpa"] > 0
+    transfer_checkbox_key = f"m4_bb_use_m5_{transfer['transfer_id']}"
+    assert any(widget.key == transfer_checkbox_key for widget in app.checkbox)
