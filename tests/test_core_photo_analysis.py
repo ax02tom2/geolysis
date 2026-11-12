@@ -358,7 +358,7 @@ def test_v8_all_blue_row_is_rejected_as_no_visible_core():
 def test_core_log_row_analysis_is_cached_by_image_scale_and_engine_fingerprint(monkeypatch):
     from geolysis_ui import core_log
 
-    calls = {"core": 0, "breaks": 0}
+    calls = {"core": 0, "breaks": 0, "gradient": 0}
 
     def fake_core(image, mm_per_px):
         calls["core"] += 1
@@ -368,20 +368,25 @@ def test_core_log_row_analysis_is_cached_by_image_scale_and_engine_fingerprint(m
         calls["breaks"] += 1
         return {"success": True, "candidates": []}
 
+    def fake_gradient(image, mm_per_px):
+        calls["gradient"] += 1
+        return {"success": True, "candidates": []}
+
     monkeypatch.setattr(core_log, "analyze_core_row_v8", fake_core)
     monkeypatch.setattr(core_log, "detect_core_break_candidates_v1", fake_breaks)
+    monkeypatch.setattr(core_log, "detect_core_discontinuity_candidates", fake_gradient)
     core_log._cached_row_analysis.clear()
 
     image = Image.new("RGB", (320, 120), (130, 120, 110))
     core_log._cached_row_analysis(image, 1000.0 / 320.0, "cache-test-v1")
     core_log._cached_row_analysis(image.copy(), 1000.0 / 320.0, "cache-test-v1")
-    assert calls == {"core": 1, "breaks": 1}
+    assert calls == {"core": 1, "breaks": 1, "gradient": 1}
 
     core_log._cached_row_analysis(image, 0.5, "cache-test-v1")
-    assert calls == {"core": 2, "breaks": 2}
+    assert calls == {"core": 2, "breaks": 2, "gradient": 2}
 
     core_log._cached_row_analysis(image, 1000.0 / 320.0, "cache-test-v2")
-    assert calls == {"core": 3, "breaks": 3}
+    assert calls == {"core": 3, "breaks": 3, "gradient": 3}
     core_log._cached_row_analysis.clear()
 
 
@@ -653,3 +658,46 @@ def test_image_rqd_and_detection_functions_reject_nonfinite_parameters():
         detect_core_break_candidates_v1(row, float("inf"))
     with pytest.raises(ValueError, match="有限"):
         build_core_gap_review_candidates({}, float("nan"))
+
+
+def test_core_log_merges_gradient_candidates_as_low_confidence_manual_review_cues():
+    from geolysis_ui.core_log import _merge_core_break_candidates
+
+    primary = {
+        "success": True,
+        "candidates": [{
+            "candidate_id": "F1", "x_px": 250, "distance_mm": 250.0,
+            "suggested_class": "疑似機械破損特徵", "confidence": "低",
+        }],
+    }
+    supplemental = {
+        "success": True,
+        "candidates": [
+            {"x_px": 252, "distance_mm": 252.0, "signal_score": 3.1},
+            {"x_px": 500, "distance_mm": 500.0, "signal_score": 3.8},
+        ],
+    }
+    result = _merge_core_break_candidates(primary, supplemental, min_separation_mm=25.0)
+
+    assert result["success"] is True
+    assert len(result["candidates"]) == 2
+    assert result["supplemental_candidate_count"] == 1
+    assert result["supplemental_duplicate_count"] == 1
+    added = next(item for item in result["candidates"] if item["candidate_id"] == "D1")
+    assert added["distance_mm"] == 500.0
+    assert added["suggested_class"] == "不確定／需人工確認"
+    assert added["confidence"] == "低"
+    assert "必須人工確認" in added["cue"]
+
+
+def test_core_log_does_not_use_gradient_candidates_when_primary_image_quality_fails():
+    from geolysis_ui.core_log import _merge_core_break_candidates
+
+    primary = {"success": False, "candidates": [], "warning": "藍色托盤背景品質不足"}
+    supplemental = {
+        "success": True,
+        "candidates": [{"x_px": 200, "distance_mm": 200.0, "signal_score": 4.0}],
+    }
+    result = _merge_core_break_candidates(primary, supplemental)
+    assert result["success"] is False
+    assert result["candidates"] == []
