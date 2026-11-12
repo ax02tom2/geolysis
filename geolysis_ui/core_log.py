@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 from core_log_parser import parse_core_log
 from core_photo_analysis import (
     analyze_core_row_v8,
+    build_core_gap_review_candidates,
     calibrate_row_measurement_span,
     detect_core_break_candidates_v1,
     draw_core_fracture_candidates,
@@ -34,6 +35,12 @@ def _image_digest(image: Image.Image) -> str:
     digest.update(f"{rgb.width}x{rgb.height}:RGB\\0".encode("ascii"))
     digest.update(rgb.tobytes())
     return digest.hexdigest()
+
+
+def _core_review_fingerprint(image: Image.Image, mm_per_px: float, engine_fingerprint: str) -> str:
+    """Invalidate manual fracture/gap reviews when image, scale or engine changes."""
+    payload = f"{_image_digest(image)}|{float(mm_per_px):.9g}|{engine_fingerprint}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
 @st.cache_data(
@@ -128,7 +135,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
     with st.expander("岩心柱狀圖解析與 RQD 初估", expanded=expanded):
         st.caption(
             "支援整孔 DOCX／PDF。每列依 1.0 m 初估採取率與 RQD；"
-            "先顯示原始頁面疊圖，再逐列覆核疑似天然節理、機械破損及不確定位置。"
+            "先顯示原始頁面疊圖，再逐列覆核疑似斷裂線跡、岩心間隙及不確定位置。"
         )
         uploaded = st.file_uploader(
             "上傳整孔岩心柱狀圖（DOCX／PDF）",
@@ -374,7 +381,7 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         max_value=width,
                         value=(0, width),
                         step=1,
-                        key=f"core_span_{file_digest[:10]}_{index}",
+                        key=f"core_span_{file_digest[:10]}_{index}_{_image_digest(row_measurement)[:10]}",
                     )
                     try:
                         measured_row, row_cal = calibrate_row_measurement_span(
@@ -396,26 +403,48 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                         })
                         continue
 
-                candidates = break_result.get("candidates", [])
+                review_fingerprint = _core_review_fingerprint(
+                    measured_row, mm_per_px, engine_fingerprint
+                )
+                candidates = list(break_result.get("candidates", []))
+                if break_result.get("success"):
+                    candidates.extend(build_core_gap_review_candidates(analysis, mm_per_px))
                 reviewed_breaks = []
                 if candidates:
-                    st.markdown("**疑似斷裂位置（請逐一確認）**")
+                    st.markdown("**疑似斷裂／岩心間隙位置（請逐一確認）**")
                     for candidate_index, candidate in enumerate(candidates):
                         distance = float(candidate.get("distance_mm", 0.0))
                         suggested = candidate.get("suggested_class", "不確定／需人工確認")
+                        if candidate.get("candidate_type") == "core_gap":
+                            gap_start = float(candidate.get("gap_start_mm", distance))
+                            gap_end = float(candidate.get("gap_end_mm", distance))
+                            candidate_label = (
+                                f"{candidate['candidate_id']}｜岩心間隙 {gap_start:.0f}–{gap_end:.0f} mm"
+                                f"｜建議：{suggested}"
+                            )
+                            review_options = [
+                                "待確認", "天然節理", "機械破損",
+                                "岩心缺失／採取損失", "非斷裂／誤判",
+                            ]
+                        else:
+                            candidate_label = (
+                                f"{candidate['candidate_id']}｜距量測起點 {distance:.0f} mm"
+                                f"｜建議：{suggested}"
+                            )
+                            review_options = ["待確認", "天然節理", "機械破損", "非斷裂／誤判"]
                         review = st.selectbox(
-                            f"候選 {candidate_index + 1}｜距量測起點 {distance:.0f} mm｜建議：{suggested}",
-                            ["待確認", "天然節理", "機械破損", "非斷裂／誤判"],
+                            candidate_label,
+                            review_options,
                             index=0,
-                            key=f"core_break_review_{file_digest[:10]}_{index}_{candidate_index}",
+                            key=f"core_break_review_{file_digest[:10]}_{index}_{review_fingerprint}_{candidate_index}",
                         )
                         reviewed_breaks.append({**candidate, "review_class": review})
                 no_breaks_confirmed = False
-                if not candidates and analysis.get("success") and break_result.get("success"):
+                if not break_result.get("candidates") and analysis.get("success") and break_result.get("success"):
                     no_breaks_confirmed = st.checkbox(
-                        "已人工檢視本列影像，確認沒有需要切分 RQD 的天然節理",
+                        "已人工檢視所有連續岩心本體區段，確認沒有漏掉需要切分 RQD 的天然節理",
                         value=False,
-                        key=f"core_no_breaks_{file_digest[:10]}_{index}",
+                        key=f"core_no_breaks_{file_digest[:10]}_{index}_{review_fingerprint}",
                     )
 
                 result = estimate_rqd_from_image_segments(
@@ -430,9 +459,15 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 rqd = result.get("rqd_percent")
                 m1.metric("採取率初估", "—" if recovery is None else f"{recovery:.1f}%")
                 m2.metric("RQD 初估", "待覆核" if rqd is None else f"{rqd:.1f}%")
-                m3.metric("疑似斷裂候選", str(len(candidates)))
+                m3.metric("疑似斷裂／間隙候選", str(len(candidates)))
                 if result.get("warning"):
                     st.caption(result["warning"])
+                uncertain_regions = analysis.get("uncertain", []) if isinstance(analysis, dict) else []
+                if uncertain_regions:
+                    st.warning(
+                        f"本列有 {len(uncertain_regions)} 個黃色不確定區，尚未納入岩心本體長度；"
+                        "採取率與 RQD 可能偏低，請依原始影像逐區覆核。"
+                    )
                 if not analysis.get("success"):
                     st.warning(analysis.get("warning", "本列影像分析未通過品質檢核。"))
                 if not break_result.get("success"):
@@ -442,8 +477,13 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     "深度": _row_label(record),
                     "採取率初估 (%)": recovery,
                     "RQD (%)": rqd,
-                    "疑似斷裂": len(candidates),
-                    "覆核": "完成" if result.get("ready") else "待覆核",
+                    "疑似斷裂／間隙": len(candidates),
+                    "不確定區": len(uncertain_regions),
+                    "覆核": (
+                        "待覆核" if not result.get("ready")
+                        else "有不確定區" if uncertain_regions
+                        else "完成"
+                    ),
                 })
 
         st.markdown("**本孔逐深度成果表**")
