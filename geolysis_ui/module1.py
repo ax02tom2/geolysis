@@ -304,7 +304,15 @@ def render_module_1(expanded=False):
             st.markdown("##### 1. 岩塊強度與裂隙結構 (GSI & mi)")
             default_gsi_val = gsi_default if 'gsi_default' in locals() else 50
             gsi_key = f"gsi_representative_value_{gsi_method}_{_struct_code}_{_cond_code}"
-            if gsi_key not in st.session_state:
+            gsi_signature_key = f"{gsi_key}_source_signature"
+            gsi_source_signature = (
+                gsi_method, _struct_code, _cond_code,
+                round(float(_rec_mid), 4) if gsi_selection_valid else None,
+            )
+            if st.session_state.get(gsi_signature_key) != gsi_source_signature:
+                st.session_state[gsi_key] = float(default_gsi_val)
+                st.session_state[gsi_signature_key] = gsi_source_signature
+            elif gsi_key not in st.session_state:
                 st.session_state[gsi_key] = float(default_gsi_val)
             gsi = st.number_input("GSI 代表值（可直接調整）", min_value=0.0, max_value=100.0, step=0.5, format="%.1f", key=gsi_key, disabled=not gsi_selection_valid)
             if 'gsi_lower' in locals() and 'gsi_upper' in locals() and gsi_lower <= gsi_upper and not (gsi_lower <= gsi <= gsi_upper):
