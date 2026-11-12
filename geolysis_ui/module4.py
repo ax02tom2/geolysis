@@ -44,12 +44,12 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         return None, None
     transfer_id=str(transfer["transfer_id"])
     use_value=st.checkbox(
-        f"使用 Module 5 目前有效的 {label}（{float(transfer[field]):.1f} kPa）",
+        f"使用 Module 5 靜力主承載力結果的 {label}（{float(transfer[field]):.1f} kPa）",
         value=False,key=f"{key_prefix}_use_m5_{transfer_id}")
     if not use_value:
         return None, None
     st.caption(
-        f"來源：Module 5 {transfer['theory']}（主承載力水平基底／地表分析）；qult={transfer['qult_gross_kpa']:.1f} kPa；"
+        f"來源：Module 5 {transfer['theory']}（靜力主承載力；水平基底／水平地表）；不含地震、斜坡地表或傾斜基底修正；qult={transfer['qult_gross_kpa']:.1f} kPa；"
         f"qa,net={transfer['qa_net_kpa']:.1f} kPa；qeq={transfer['qeq_gross_kpa']:.1f} kPa；"
         f"FS_bearing={transfer['FS_bearing']:.2f}。"
     )
