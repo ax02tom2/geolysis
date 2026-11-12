@@ -231,7 +231,7 @@ def render_module_5(expanded=False):
                 st.write(f"有效寬度 B′ = {result5['B_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
             else:
                 st.write(f"有效尺寸 B′ × L′ = {result5['B_effective']:.2f} × {result5['L_effective']:.2f} m ｜ {q_label5} = {result5['q_surcharge']:.2f} kPa ｜ 剪力區深度 H = {result5['shear_zone_depth']:.2f} m ｜ Nγ 項平均有效單位重 γ' = {result5['gamma_effective']:.2f} kN/m³")
-            st.caption(f"供模組四比較：qa,gross（以淨承載力除 FS 後加回覆土）= {result5['qa_gross']:.1f} kPa；qa,net = {result5['qa_net']:.1f} kPa。砂土／礫土模組四採總壓力，使用前者；黏土主固結模組採淨壓力，使用後者。")
+            st.caption(f"模組四沉陷承載力上限可帶入：砂土／礫土使用 qult={result5['qu_gross']:.1f} kPa 並由模組四套用其 FS；黏土主固結使用 qa,net(FS=3.0)={result5['qu_net']/3.0:.1f} kPa。頁面 qa,net(FS={fs5:.1f})={result5['qa_net']:.1f} kPa 仍依目前選定 FS 顯示，不直接作為 USACE 靜力最低 FS 的跨模組值。")
             st.caption(f"qult/FS 的參考換算值為 {result5['qa_gross_direct_FS']:.1f} kPa；這不是工址實際安全係數。實際 FS 必須以本頁下方 qeq=V/A′−uD 與 qult 比較，不能以容許承載力欄位取代。")
             if theory5=='Terzaghi': st.caption(f"Terzaghi {result5['failure_mode']}：採用 c = {result5['c_used']:.2f} kPa、ϕ = {result5['phi_used']:.2f}°；承載力因子依 USACE 表列值線性插值。")
             if '模組一' in src5:
@@ -244,8 +244,8 @@ def render_module_5(expanded=False):
                 m5_transfer_candidate={
                     "transfer_id":transfer_id5,
                     "qult_gross_kpa":float(result5["qu_gross"]),
-                    "qa_gross_kpa":float(result5["qa_gross"]),
-                    "qa_net_kpa":float(result5["qa_net"]),
+                    "qa_gross_kpa":float(result5["qu_net"]/3.0+result5["q_surcharge"]),
+                    "qa_net_kpa":float(result5["qu_net"]/3.0),
                     "qeq_gross_kpa":float(bearing_check5["qeq_gross_kpa"]),
                     "B_m":float(B5),"L_m":float(L5),"Df_m":float(df5),"Dw_m":float(dw5),
                     "footing_type":str(main_footing_type5),"source":str(src5),
