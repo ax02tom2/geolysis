@@ -736,9 +736,10 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
         ru_source_confirmed=False):
     """USACE 2025 residual-pore-pressure bearing resistance for level geometry.
 
-    Supports full shear-zone influence or a user-weighted partial shear-zone
-    effective unit weight. It remains restricted to sand-like, non-liquefiable
-    soils without cyclic strength loss and is not a seismic factor of safety.
+    Supports full or user-weighted partial shear-zone influence for sand-like
+    soils with FS_liq > 1.0, no significant lateral spreading, and ru sourced
+    from Figure 9-1 or site-specific pore-pressure analysis. Legacy callers may
+    retain the stricter non-liquefiable confirmation. This is not a seismic FS.
     """
     c=_finite('有效凝聚力 c′',c_kpa)
     phi=_finite('有效摩擦角 φ′',phi_deg)
