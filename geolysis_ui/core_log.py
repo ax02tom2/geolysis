@@ -282,9 +282,10 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 with st.expander("影像旋轉／托盤邊緣校正", expanded=False):
                     rotation = st.selectbox(
                         "順時針旋轉角度",
-                        [0, 180],
+                        [0, 90, 180, 270],
                         index=0,
                         key=f"core_rotation_{file_digest[:10]}_{index}",
+                        help="支援 0°、90°、180°、270°。旋轉 90°／270° 後會沿校正後的水平列寬重新估算名義 1 m 比例；若原圖有比例尺，請再使用下方量測校正。",
                     )
                     rotated_row = rotate_image(record.image, rotation)
                     perspective_enabled = st.checkbox(
@@ -338,7 +339,13 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                 # removes frame margins; retain the original row scale unless the
                 # user explicitly calibrates a measured 1 m span below.
                 row_measurement = rotated_row
-                mm_per_px = item["mm_per_px"]
+                mm_per_px = (
+                    1000.0 / max(1, rotated_row.width)
+                    if rotation in (90, 270)
+                    else item["mm_per_px"]
+                )
+                if rotation in (90, 270):
+                    st.caption("已依旋轉後的水平列寬重新換算名義比例；此值仍是 1 m 假設，請優先使用實際比例尺校正。")
                 perspective_applied = False
                 if apply_perspective and tray_detection:
                     try:
