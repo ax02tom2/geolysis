@@ -506,6 +506,19 @@ def render_module_1(expanded=False):
             c_hb_kpa=hb_current['c_equiv_kpa']; em_gpa=hb_current['Em_gpa']
         else:
             mb=s_hb=a_hb=sig_cm=sig_c_mass=sig_t_mass=sig3_max=sig3n=phi_hb_deg=sin_phi=c_hb_mpa=c_hb_kpa=em_gpa=0.0
+
+        # Explicit, current cross-module handoff.  Module 5 must not depend on
+        # local variables from this renderer or silently reuse stale values.
+        st.session_state["geolysis_hb_current"] = hb_current
+        st.session_state["geolysis_hb_metadata"] = {
+            "gsi": float(gsi),
+            "mi": float(mi),
+            "sigma_ci_mpa": float(sig_ci),
+            "disturbance": float(d_factor),
+            "sigma3_max_mpa": float(sig3_max),
+            "application": str(hb_application),
+            "structure_code": str(_struct_code),
+        }
     
         with hb_col3:
             st.markdown("##### 3. 等效莫耳－庫倫與岩體參數成果")
