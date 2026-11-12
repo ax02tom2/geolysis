@@ -2,12 +2,12 @@ Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: f73fbce1a555f7360c6be93d16b5b1565f3a1ee7
-Latest validation run: 43134122171 (PR #100; success)
+Validated main code commit: c35204d5b1645e7929766ca7b61d9d9e72fb6081
+Latest validation run: 43134482262 (PR #102; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 43134122171
+- Run ID: 43134482262
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -16,7 +16,7 @@ Automated GitHub Actions result:
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
 - Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 440 passed
-- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; additional test explicitly selected the Module 1 parameter source in Module 5
+- Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception; Module 1 parameter-source selection and current confirmation-key flow exercised
 - Widget-key and web-scope static checks: passed
 
 Engineering review corrections previously merged:
@@ -894,3 +894,13 @@ Module 5 residual excess pore-pressure applicability — PR #94
 ## Superseding note for earlier seismic validation entries
 
 - Earlier entries stating that residual seismic base uplift and the §9-10(f) uplift FS check were unsupported describe the implementation before PR #96. They are superseded: PR #96 added the dedicated uplift FS check. The user must still provide a correctly integrated total uplift resultant U; the application does not generate a site-specific residual pore-pressure profile automatically.
+
+
+## Module 5 — Hoek–Brown confirmation freshness (PR #102)
+
+- Material applicability and representative-confinement confirmations are now keyed to the current Hoek–Brown input signature and the current shallow-foundation context.
+- The confirmation context includes GSI, mi, UCS, disturbance, σ3,max, structure class, footing geometry/type, embedment, groundwater depth, unit weights, vertical/horizontal loads, eccentricities, load inclination, bearing theory and interface adhesion.
+- Changing a relevant input creates a new checkbox key, requiring the user to re-confirm the applicability and confinement assumptions rather than silently reusing an earlier confirmation.
+- The UI displays B/50 in metres to make the USACE EM 1110-1-1905 (2025) §1-7(b) median block-size criterion explicit.
+- PR #102 merged to main at c35204d5b1645e7929766ca7b61d9d9e72fb6081.
+- GitHub Actions run 43134482262: success; compileall and Streamlit AppTest passed; 440 tests passed in 2.73 s.
