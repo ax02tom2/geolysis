@@ -6,6 +6,7 @@ Streamlit: 1.67.0
 Pandas: 3.1.1
 Plotly: 7.1.0
 Latest verified automated suite: 451 passed
+Latest repository CI: run 43147393499 (success; PR #117 documentation-only update; Python 3.11 compile passed; Streamlit AppTest included; 451 passed). Validated application-code commit remains bb5172ac58db8fcadca441501ea0465f97af7889.
 GitHub Actions validation run: 43146632835 (success; Python 3.11 compile passed; Streamlit AppTest included; 451 passed in 3.40 s; PR #116 labels both Bishop global-stability paths as static-only and explicitly excludes kh/kv, seismic excess pore-pressure generation, post-liquefaction residual strength and lateral spreading; tested PR head 0fa95ce2e3f8cc1886c38f0a79de60974e2303be, merged to main at bb5172ac58db8fcadca441501ea0465f97af7889)
 Runtime smoke: PR #116 CI run 43146632835 compiled app.py/geolysis_engine/geolysis_ui and ran Streamlit AppTest; 451 tests passed, including UI assertions that both manual-slice and automatic-search Bishop checks disclose static-only scope.
 Structure: geolysis_engine domain package; geolysis_ui module renderers and shared state helpers.
