@@ -239,7 +239,6 @@ def render_module_5(expanded=False):
             st.warning(result5['limitations'])
             settlement_transfer_geometry_supported5=(
                 abs(float(H5))<=1e-6 and abs(float(eB5))<=1e-6 and abs(float(eL5))<=1e-6
-                and abs(float(base_ang5))<=1e-6 and abs(float(ground_ang5))<=1e-6
             )
             if (loads_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
@@ -256,7 +255,7 @@ def render_module_5(expanded=False):
                     "footing_type":str(main_footing_type5),"source":str(src5),
                     "theory":str(theory5),"FS_bearing":float(bearing_check5["FS_bearing"]),
                     "H_kN":float(H5),"eB_m":float(eB5),"eL_m":float(eL5),
-                    "base_angle_deg":float(base_ang5),"ground_angle_deg":float(ground_ang5),
+                    "scope":"Module 5 primary level-base/level-ground bearing result",
                     "passes_bearing":bool(bearing_check5["passes_bearing"]),
                     "load_confirmed":True,"complete_capacity_model":True,
                 }
@@ -264,7 +263,7 @@ def render_module_5(expanded=False):
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
                     and not settlement_transfer_geometry_supported5):
-                st.warning("Module 4 沉陷方法的跨模組承載力帶入目前僅支援水平基底／地表、中央垂直荷載；本次 H、偏心距或坡度不為零，請勿直接移用 qult／qa,net。")
+                st.warning("Module 4 沉陷方法的跨模組承載力帶入目前僅支援中央垂直荷載（H=0、eB=eL=0）。跨模組值取自 Module 5 主承載力的水平基底／地表分析，不會自動採用另行計算的斜坡／傾斜基底結果；若實際基底或地表有坡度，請勿直接移用。")
         new_transfer_id5=(m5_transfer_candidate["transfer_id"] if m5_transfer_candidate else None)
         old_transfer_id5=st.session_state.get("_m5_bearing_transfer_id")
         if old_transfer_id5!=new_transfer_id5:
