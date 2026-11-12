@@ -521,8 +521,9 @@ def test_rqd_merges_mechanical_core_gap_but_not_natural_joint_or_core_loss():
     assert natural["rqd_percent"] == 94.0
     assert core_loss["piece_lengths_mm"] == [50.0, 940.0]
     assert core_loss["rqd_percent"] == 94.0
-    assert false_gap["piece_lengths_mm"] == [990.0]
-    assert false_gap["rqd_percent"] == 99.0
+    assert false_gap["recovery_percent"] == 100.0
+    assert false_gap["piece_lengths_mm"] == [1000.0]
+    assert false_gap["rqd_percent"] == 100.0
 
 
 def test_rqd_does_not_merge_gap_pair_when_multiple_gap_reviews_conflict():

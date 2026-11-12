@@ -1210,7 +1210,8 @@ def estimate_rqd_from_image_segments(
     Core intervals come from the image occupancy detector. Natural-joint traces
     split intervals; a gap between two core intervals is rejoined only when every
     review for that interval pair confirms mechanical break or false gap. Core
-    loss remains excluded. This is a preliminary image estimate, not measured RQD.
+    loss remains excluded; a false image gap restores its measured interval to
+    recovery length. This is a preliminary image estimate, not measured RQD.
     """
     import math
 
@@ -1288,6 +1289,7 @@ def estimate_rqd_from_image_segments(
     # A reviewed mechanical/false gap joins the recovered lengths on either
     # side, but the empty gap itself is never added to recovery or piece length.
     gap_classes_by_pair = {}
+    false_gap_lengths_by_pair = {}
     for item in breaks:
         if item.get("candidate_type") != "core_gap":
             continue
@@ -1298,13 +1300,26 @@ def estimate_rqd_from_image_segments(
             and right_index == left_index + 1
             and 0 <= left_index < len(piece_lists) - 1
         ):
-            gap_classes_by_pair.setdefault((left_index, right_index), set()).add(
-                item.get("review_class")
-            )
+            pair = (left_index, right_index)
+            gap_classes_by_pair.setdefault(pair, set()).add(item.get("review_class"))
+            if item.get("review_class") == "非斷裂／誤判":
+                gap_length = max(
+                    0.0,
+                    float(item.get("gap_end_mm", 0.0))
+                    - float(item.get("gap_start_mm", 0.0)),
+                )
+                false_gap_lengths_by_pair[pair] = (
+                    false_gap_lengths_by_pair.get(pair, 0.0) + gap_length
+                )
     gap_merge_pairs = {
         pair for pair, classes in gap_classes_by_pair.items()
         if classes and classes.issubset({"機械破損", "非斷裂／誤判"})
     }
+    false_gap_fill_mm = sum(
+        length for pair, length in false_gap_lengths_by_pair.items()
+        if pair in gap_merge_pairs
+    )
+    total_core_mm = min(row_length_mm, total_core_mm + false_gap_fill_mm)
 
     piece_lengths = []
     for index, lengths in enumerate(piece_lists):
@@ -1312,7 +1327,10 @@ def estimate_rqd_from_image_segments(
             index > 0 and (index - 1, index) in gap_merge_pairs
             and piece_lengths and lengths
         ):
-            piece_lengths[-1] += lengths[0]
+            piece_lengths[-1] += (
+                lengths[0]
+                + false_gap_lengths_by_pair.get((index - 1, index), 0.0)
+            )
             piece_lengths.extend(lengths[1:])
         else:
             piece_lengths.extend(lengths)
