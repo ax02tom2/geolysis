@@ -344,3 +344,12 @@ def test_custom_four_row_boundaries_reject_order_and_too_short_rows():
         calculate_fixed_tray_row_layout(image, row_boundaries_pct=[2, 50, 75])
     with pytest.raises(ValueError, match="必須提供"):
         calculate_fixed_tray_row_layout(image, row_boundaries_pct=[25, 75])
+
+
+def test_v8_all_blue_row_is_rejected_as_no_visible_core():
+    from PIL import Image
+    from core_photo_analysis import analyze_core_row_v8
+
+    image = Image.new("RGB", (600, 180), (25, 95, 190))
+    result = analyze_core_row_v8(image, mm_per_px=1.0)
+    assert result["success"] is False

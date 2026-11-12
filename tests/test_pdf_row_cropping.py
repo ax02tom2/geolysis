@@ -46,3 +46,11 @@ def test_h25_1b_real_pdf_regression_when_fixture_is_available():
     assert records[-1].image.height >= 100
     assert records[-2].image.tobytes() != records[-1].image.tobytes()
     assert not parsed["warnings"]
+
+
+def test_pdf_header_depth_inference_uses_first_global_row_number():
+    from core_log_parser import _infer_start_depth_from_header
+
+    assert _infer_start_depth_from_header((20.0, 40.0), 21, 1.0) == 0.0
+    assert _infer_start_depth_from_header((20.0, 40.0), 1, 1.0) == 20.0
+    assert _infer_start_depth_from_header(None, 1, 1.0) is None

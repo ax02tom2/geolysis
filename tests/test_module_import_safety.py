@@ -22,3 +22,4 @@ def test_app_does_not_force_reload_core_module():
     source = app.read_text(encoding="utf-8")
     assert "importlib.reload(" not in source
     assert "CORE_ANALYSIS_SOURCE_SHA256" in source
+    assert "render_core_log_analysis" in source
