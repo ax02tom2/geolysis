@@ -496,5 +496,13 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    calculation_errors = [
+        item.value for item in app.error
+        if any(token in item.value for token in ("DMT 沉陷估算失敗", "CPT 沉陷估算失敗", "PMT 沉陷估算失敗"))
+    ]
+    assert not calculation_errors, (
+        f"{calculation_errors}; state="
+        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs')]}"
+    )
     expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
