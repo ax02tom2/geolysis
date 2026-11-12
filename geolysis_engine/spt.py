@@ -143,7 +143,7 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
         needs_cn = row_soil == "cohesionless" and cn_method != "不修正"
         if needs_cn and raw_stress is None:
             raise ValueError(f"深度 {depth:g} m 為非凝聚性土層且套用 CN，必須提供 Effective_Stress_KPa")
-        row_stress = None if raw_stress is None else _finite('Effective_Stress_kPa',raw_stress)
+        row_stress = None if raw_stress is None else _finite('Effective_Stress_KPa',raw_stress)
         if needs_cn and row_stress <= 0:
             raise ValueError(f"深度 {depth:g} m 的 Effective_Stress_KPa 必須大於 0")
         if row_stress is not None and row_stress <= 0:
