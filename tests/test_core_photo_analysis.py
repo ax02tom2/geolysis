@@ -523,3 +523,30 @@ def test_rqd_merges_mechanical_core_gap_but_not_natural_joint_or_core_loss():
     assert core_loss["rqd_percent"] == 94.0
     assert false_gap["piece_lengths_mm"] == [990.0]
     assert false_gap["rqd_percent"] == 99.0
+
+
+def test_rqd_does_not_merge_gap_pair_when_multiple_gap_reviews_conflict():
+    from core_photo_analysis import build_core_gap_review_candidates, estimate_rqd_from_image_segments
+
+    analysis = {
+        "success": True,
+        "segments": [
+            {"x_start_px": 0, "x_end_px": 25},
+            {"x_start_px": 40, "x_end_px": 500},
+        ],
+        "gaps": [
+            {"x_start_px": 25, "x_end_px": 30, "length_mm": 10.0},
+            {"x_start_px": 35, "x_end_px": 40, "length_mm": 10.0},
+        ],
+    }
+    gaps = build_core_gap_review_candidates(analysis, mm_per_px=2.0)
+    assert len(gaps) == 2
+    reviewed = [
+        {**gaps[0], "review_class": "機械破損"},
+        {**gaps[1], "review_class": "天然節理"},
+    ]
+    result = estimate_rqd_from_image_segments(
+        analysis["segments"], reviewed, mm_per_px=2.0, row_length_mm=1000.0,
+    )
+    assert result["piece_lengths_mm"] == [50.0, 920.0]
+    assert result["rqd_percent"] == 92.0
