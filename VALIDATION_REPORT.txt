@@ -1,13 +1,13 @@
-Validation report — 2026-11-11 Asia/Taipei (UTC+08:00)
+Validation report — 2026-11-12 Asia/Taipei (UTC+08:00)
 
 Repository: ax02tom2/geolysis
 Branch: main
-Validated main code commit: d0997fb539a2a815295388a5413b357e4a4cac32
-Latest validation run: 42935178184 (PR #20 source tree before squash merge; success)
+Validated main code commit: 4b3862e5c59ad798acac3fffcebb15ee859a7c01
+Latest validation run: 43133501027 (PR #98; success)
 
 Automated GitHub Actions result:
 - Workflow: Geolysis automated tests
-- Run ID: 42935178184
+- Run ID: 43133501027
 - Conclusion: success
 - Python: 3.11
 - Streamlit: 1.67.0 (pinned)
@@ -15,7 +15,7 @@ Automated GitHub Actions result:
 - Plotly: 7.1.0 (pinned)
 - Dependency installation: passed
 - Compile: app.py, geolysis_engine package and geolysis_ui package passed
-- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 247 passed
+- Engineering, package-boundary, UI state, web-app regression and independent reference benchmark tests: 439 passed
 - Streamlit AppTest: app.py orchestrator and all five UI modules rendered without an uncaught exception
 - Widget-key and web-scope static checks: passed
 
@@ -861,3 +861,14 @@ Module 5 residual excess pore-pressure applicability — PR #94
 - PR #94 merged to main at f9b999e3207ff6d78aaa572f88bb290e1e6d0999.
 - GitHub Actions run 43131680957: success; Python 3.11 compile passed; Streamlit AppTest included; 433 passed in 2.36 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), §9-9c, Figure 9-1, §9-10(a), §9-10(c)(3), Eqs. 9-3/9-4.
+
+
+## Module 5 — bidirectional horizontal seismic envelope (PR #98)
+
+- Corrected both general seismic eccentricity/qeq and residual-excess-pore-pressure bearing-capacity paths to evaluate +khW and −khW whenever kh is active, even without a supplied seismic foundation-base moment.
+- Seismic base moments supplied by structural analysis continue to reverse sign with the horizontal earthquake direction. Both V±kvW combinations remain evaluated.
+- Added regression tests for both calculation paths without seismic base moment; updated previous expected combination counts and horizontal loads.
+- The application still does not infer a base overturning moment from khW alone because the structural effective height and load path must come from structural analysis. The UI warning remains in place.
+- PR #98 merged to main at 4b3862e5c59ad798acac3fffcebb15ee859a7c01.
+- GitHub Actions run 43133501027: success; Python 3.11 compile passed; Streamlit AppTest included; 439 passed in 1.83 s.
+- Reference basis: USACE EM 1110-1-1905 (31 Jul 2025), §9-10(e), §9-10(c)(3), Eqs. 9-3/9-4.
