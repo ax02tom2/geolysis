@@ -862,7 +862,7 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
             # induced vertical stress remains significant (Delta-sigma_z >=
             # 0.1 times the applied net pressure). I_sigma is Delta-sigma_z/q_net.
             layer_bottom = interval[1]
-            if layer_bottom > minimum_soft_depth + 1e-9 and Iz < 0.1 - 1e-9:
+            if interval[0] >= minimum_soft_depth - 1e-9 and Iz < 0.1 - 1e-9:
                 raise ValueError(
                     f"PMT 軟弱層第 {index} 筆位於最低檢核深度 "
                     f"{minimum_soft_depth:.2f} m 以下，且 I_sigma={Iz:.3f}<0.10；"
