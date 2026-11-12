@@ -3325,3 +3325,38 @@ def test_seismic_uplift_fs_requires_resisting_weight_to_include_structure_weight
             uplift_force_kN=100.0,
             kv=0.1,
         )
+
+
+
+def test_general_seismic_qeq_subtracts_user_confirmed_residual_base_pressure():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        allowable_bearing_pressure_kpa=100.0,
+        base_uplift_pressure_kpa=60.0,
+    )
+    case = result["cases"][0]
+    assert case["gross_average_contact_pressure_kpa"] == pytest.approx(1000.0 / 6.0)
+    assert case["base_uplift_pressure_kpa"] == pytest.approx(60.0)
+    assert case["average_contact_pressure_kpa"] == pytest.approx(1000.0 / 6.0 - 60.0)
+    assert case["bearing_pressure_pass"] is False
+
+
+def test_residual_pore_pressure_qeq_subtracts_total_base_pressure():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        kh=0.0, kv=0.0, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=1.0,
+        base_uplift_pressure_kpa=20.0,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+        full_shear_zone_confirmed=True,
+    )
+    assert result["base_uplift_pressure_kpa"] == pytest.approx(20.0)
+    assert all(case["average_contact_pressure_kpa"] == pytest.approx(1000.0/6.0-20.0)
+               for case in result["cases"])
