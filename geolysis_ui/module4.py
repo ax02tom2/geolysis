@@ -9,11 +9,11 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 
 
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
-        footing_type=None, depth_m=None):
-    """Return a current Module 5 capacity value only after geometry/context confirmation."""
+        footing_type=None, depth_m=None, include_qeq=True):
+    """Return the selected Module 5 capacity value and optional equivalent gross pressure."""
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
-        return None
+        return None, None
     width_match=abs(float(width_m)-float(transfer["B_m"]))<=0.01
     length_match=abs(float(length_m)-float(transfer["L_m"]))<=0.01
     depth_match=(depth_m is None or abs(float(depth_m)-float(transfer["Df_m"]))<=0.01)
@@ -25,13 +25,13 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
             f"Df={transfer['Df_m']:.2f} m、型式={transfer['footing_type']}；"
             f"請統一基礎尺寸／埋深／型式，或改用手動輸入。"
         )
-        return None
+        return None, None
     transfer_id=str(transfer["transfer_id"])
     use_value=st.checkbox(
         f"使用 Module 5 目前有效的 {label}（{float(transfer[field]):.1f} kPa）",
         value=False,key=f"{key_prefix}_use_m5_{transfer_id}")
     if not use_value:
-        return None
+        return None, None
     st.caption(
         f"來源：Module 5 {transfer['theory']}（主承載力水平基底／地表分析）；qult={transfer['qult_gross_kpa']:.1f} kPa；"
         f"qa,net={transfer['qa_net_kpa']:.1f} kPa；qeq={transfer['qeq_gross_kpa']:.1f} kPa；"
@@ -45,8 +45,13 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         value=False,key=context_key)
     if not same_conditions:
         st.warning("尚未確認沉陷分析與 Module 5 的埋深、地下水位、地層及載重條件一致；目前不套用跨模組承載力。")
-        return None
-    return float(transfer[field])
+        return None, None
+    use_qeq=False
+    if include_qeq:
+        use_qeq=st.checkbox(
+            f"同時採用 Module 5 的 gross 等效壓力 qeq（{float(transfer['qeq_gross_kpa']):.1f} kPa）",
+            value=False,key=f"{key_prefix}_use_m5_qeq_{transfer_id}")
+    return float(transfer[field]), (float(transfer["qeq_gross_kpa"]) if use_qeq else None)
 
 
 def _pmt_transfer_footing_type(width_m, length_m, round_footing=False):
@@ -89,8 +94,9 @@ def render_module_4(expanded=False):
             with c:
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
-                transfer_qult4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
+                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
                 qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
+                q4_input=(transfer_qeq4 if transfer_qeq4 is not None else q4)
                 if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
@@ -170,14 +176,14 @@ def render_module_4(expanded=False):
                 pressure_check4=None
                 if qult4>0:
                     pressure_check4=usace_settlement_design_pressure(
-                        gross_equivalent_pressure_kpa=q4,
+                        gross_equivalent_pressure_kpa=q4_input,
                         ultimate_bearing_kpa=qult4,
                         factor_of_safety=fs_bb4)
                     q4_used=pressure_check4['design_pressure_kpa']
                     capacity_limit4=pressure_check4['capacity_pressure_limit_kpa']
                     max_q4=min(5000.0,capacity_limit4)
                     if pressure_check4['capacity_limit_governs']:
-                        st.warning(f"輸入 q／qeq={q4:.1f} kPa 高於 qult/FS={capacity_limit4:.1f} kPa；依 USACE 2025 沉陷壓力限制，計算改採 qult/FS。")
+                        st.warning(f"輸入 q／qeq={q4_input:.1f} kPa 高於 qult/FS={capacity_limit4:.1f} kPa；依 USACE 2025 沉陷壓力限制，計算改採 qult/FS。")
                     st.caption(f"承載力壓力上限：qult/FS = {qult4:.1f}/{fs_bb4:.2f} = {capacity_limit4:.1f} kPa。")
                 else:
                     q4_used=q4
@@ -211,8 +217,9 @@ def render_module_4(expanded=False):
             with b:
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
-                dmt_transfer_qult=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type)
+                dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type)
                 dmtqult=(dmt_transfer_qult if dmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_dmt_qult"))
+                dmtq_input=(dmt_transfer_qeq if dmt_transfer_qeq is not None else dmtq)
             with c:
                 dmtfs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_dmt_fs")
                 if dmtqult>0 and dmtfs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
@@ -231,13 +238,13 @@ def render_module_4(expanded=False):
                     if dmt_mode=="MDMT":
                         result_dmt=dmt_modulus_settlement_2025(
                             layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
-                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            gross_pressure_kpa=dmtq_input,base_effective_stress_kpa=dmtsig,
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     else:
                         result_dmt=dmt_settlement_2025(
                             layers=dmt_layers,footing_width_m=dmtB,footing_length_m=dmtL,
-                            gross_pressure_kpa=dmtq,base_effective_stress_kpa=dmtsig,
+                            gross_pressure_kpa=dmtq_input,base_effective_stress_kpa=dmtsig,
                             ultimate_bearing_kpa=(dmtqult if dmtqult>0 else None),
                             factor_of_safety=dmtfs,footing_type=dmt_type)
                     st.metric("DMT 估算總沉陷",f"{result_dmt['settlement_mm']:.2f} mm")
@@ -245,7 +252,7 @@ def render_module_4(expanded=False):
                         st.warning(dmt_warning)
                     st.write(f"採用 gross 壓力 = {result_dmt['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {result_dmt['net_pressure_increment_kpa']:.1f} kPa ｜ 參考容許沉陷 = {dmtTarget:.1f} mm")
                     if result_dmt["capacity_limit_governs"]:
-                        st.warning(f"輸入 gross q／qeq={dmtq:.1f} kPa 高於 qult/FS={result_dmt['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
+                        st.warning(f"輸入 gross q／qeq={dmtq_input:.1f} kPa 高於 qult/FS={result_dmt['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                     if result_dmt.get("profile_ends_at_minimum_depth"):
                         st.warning(
                             f"本次 DMT 剖面僅達最低影響深度 {result_dmt['influence_depth_required_m']:.2f} m。"
@@ -276,8 +283,9 @@ def render_module_4(expanded=False):
                 cptSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_cpt_sigD")
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
-                cpt_transfer_qult=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType)
+                cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType)
                 cptQult=(cpt_transfer_qult if cpt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_cpt_qult"))
+                cptq_input=(cpt_transfer_qeq if cpt_transfer_qeq is not None else cptq)
                 cptFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_cpt_fs")
                 if cptQult>0 and cptFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 cptYears=st.number_input("載重作用時間 [年]",0.01,100.0,50.0,0.5,key="m4_cpt_years")
@@ -295,7 +303,7 @@ def render_module_4(expanded=False):
                     cptLayers=pd.read_csv(StringIO(cptText)).to_dict("records")
                     cptResult=schmertmann_cpt_settlement_2025(
                         layers=cptLayers,footing_width_m=cptB,footing_length_m=cptL,
-                        gross_pressure_kpa=cptq,base_effective_stress_kpa=cptSigD,
+                        gross_pressure_kpa=cptq_input,base_effective_stress_kpa=cptSigD,
                         peak_effective_stress_kpa=cptSigP,years=cptYears,
                         ultimate_bearing_kpa=(cptQult if cptQult>0 else None),
                         factor_of_safety=cptFs,footing_type=cptType,
@@ -303,7 +311,7 @@ def render_module_4(expanded=False):
                     st.metric("CPT 估算總沉陷",f"{cptResult['settlement_mm']:.2f} mm")
                     st.write(f"採用 gross 壓力 = {cptResult['gross_pressure_used_kpa']:.1f} kPa ｜ 新增壓力 = {cptResult['net_pressure_increment_kpa']:.1f} kPa ｜ Izp = {cptResult['Iz_peak']:.3f} ｜ C1 = {cptResult['C1_embedment']:.3f} ｜ C2 = {cptResult['C2_creep']:.3f}")
                     if cptResult["capacity_limit_governs"]:
-                        st.warning(f"輸入 gross q／qeq={cptq:.1f} kPa 高於 qult/FS={cptResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
+                        st.warning(f"輸入 gross q／qeq={cptq_input:.1f} kPa 高於 qult/FS={cptResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                     st.dataframe(pd.DataFrame(cptResult["layer_results"]),hide_index=True,use_container_width=True)
                     if cptQult<=0:
                         st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
@@ -324,8 +332,9 @@ def render_module_4(expanded=False):
                 pmtSigD=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_pmt_sigD")
                 pmtPne=st.number_input("PMT 等效淨極限壓力 pne [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_pne")
             with c:
-                pmt_transfer_qult=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound))
+                pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound))
                 pmtQu=(pmt_transfer_qult if pmt_transfer_qult is not None else st.number_input("模組五 gross qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key="m4_pmt_qult"))
+                pmtq_input=(pmt_transfer_qeq if pmt_transfer_qeq is not None else pmtq)
                 pmtFs=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key="m4_pmt_fs")
                 if pmtQu>0 and pmtFs<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 pmtPy=st.number_input("PMT 屈服壓力 Py [kPa]",0.0,20000.0,0.0,10.0,key="m4_pmt_py")
@@ -372,7 +381,7 @@ def render_module_4(expanded=False):
                     else:
                         pmtResult=menard_rousseau_pmt_settlement_2025(
                             pmt_moduli=pmtRows,footing_width_m=pmtB,footing_length_m=pmtL,
-                            gross_pressure_kpa=pmtq,base_effective_stress_kpa=pmtSigD,
+                            gross_pressure_kpa=pmtq_input,base_effective_stress_kpa=pmtSigD,
                             equivalent_net_limit_pressure_kpa=pmtPne,
                             yield_pressure_kpa=pmtPy,
                             soil_type=pmtSoil,consolidation_state=pmtState,
@@ -388,7 +397,7 @@ def render_module_4(expanded=False):
                             st.dataframe(pd.DataFrame(pmtResult["soft_layer_results"]),hide_index=True,use_container_width=True)
                         st.write(f"採用 gross 壓力 = {pmtResult['gross_pressure_used_kpa']:.1f} kPa ｜ Ed = {pmtResult['Ed_kpa']:.0f} kPa ｜ Ec = {pmtResult['Ec_kpa']:.0f} kPa ｜ αd = {pmtResult['alpha_d']:.3f} ｜ αc = {pmtResult['alpha_c']:.3f}")
                         if pmtResult["capacity_limit_governs"]:
-                            st.warning(f"輸入 gross q／qeq={pmtq:.1f} kPa 高於 qult/FS={pmtResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
+                            st.warning(f"輸入 gross q／qeq={pmtq_input:.1f} kPa 高於 qult/FS={pmtResult['capacity_pressure_limit_kpa']:.1f} kPa；依 USACE 2025 壓力限制，沉陷計算已改採 qult/FS。")
                         st.dataframe(pd.DataFrame([{"分組":k,"調和平均 E0 [kPa]":v} for k,v in pmtResult["group_harmonic_means_kpa"].items()]),hide_index=True,use_container_width=True)
                         if pmtQu<=0:
                             st.warning("未輸入模組五 qult；此結果未套用 USACE 2025 的 qult/FS 壓力上限。")
@@ -436,7 +445,7 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                clay_transfer_qa=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL)
+                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,include_qeq=False)
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
