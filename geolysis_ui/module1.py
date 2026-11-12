@@ -514,9 +514,6 @@ def render_module_1(expanded=False):
             _case_pair_warning = _hb_case_pair_warning(rock_preset, ucs_case_selected_label, ucs_mode)
             if _case_pair_warning:
                 st.warning(_case_pair_warning)
-            _case_parameter_warning = _hb_case_parameter_warning(rock_preset, mi, gsi, d_factor)
-            if _case_parameter_warning:
-                st.warning(_case_parameter_warning)
             st.caption(f"換算應力單位：$\\sigma_{{ci}} = {sig_ci * 1000.0:.0f}\\text{{ kPa}}$")
     
         with hb_col2:
@@ -538,6 +535,9 @@ def render_module_1(expanded=False):
             d_factor = st.slider("擾動因子 D（可直接調整）", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
             d_range_low = d_range_high = d_factor
             st.caption("D 表示開挖／爆破損傷；天然節理破碎已由 GSI 反映。")
+            _case_parameter_warning = _hb_case_parameter_warning(rock_preset, mi, gsi, d_factor)
+            if _case_parameter_warning:
+                st.warning(_case_parameter_warning)
             
             app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
                 "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
