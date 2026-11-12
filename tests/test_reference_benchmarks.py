@@ -1179,7 +1179,8 @@ def test_usace_seismic_pore_pressure_cases_auto_apply_table_factors_and_control_
         water_depth=5.0,
         non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
-    assert len(result["cases"]) == 2
+    assert len(result["cases"]) == 4
+    assert {case["horizontal_earthquake_sign"] for case in result["cases"]} == {-1, 1}
     controlling = result["governing_case"]
     beta = math.degrees(math.atan2(200.0, 900.0))
     flow_n = math.tan(math.radians(60.0)) ** 2
@@ -2770,8 +2771,9 @@ def test_usace_seismic_residual_cases_use_effective_seismic_weight_not_static_v(
         non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
     )
     assert result["seismic_weight_kN"] == pytest.approx(1200.0)
-    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0])
-    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([340.0, 340.0])
+    assert [case["vertical_load_kN"] for case in result["cases"]] == pytest.approx([880.0, 1120.0, 880.0, 1120.0])
+    assert [case["horizontal_load_kN"] for case in result["cases"]] == pytest.approx([140.0, 140.0, 340.0, 340.0])
+    assert [case["horizontal_earthquake_sign"] for case in result["cases"]] == [-1, -1, 1, 1]
     assert result["governing_case"]["vertical_sign"] == "向下減少"
 
 
@@ -2956,6 +2958,43 @@ def test_general_seismic_eccentricity_evaluates_four_signed_load_combinations():
     assert minus["eccentricity_B_m"] == pytest.approx(0.0)
     assert result["passes"] is True
     assert result["seismic_moment_included"] is True
+
+
+def test_general_seismic_eccentricity_envelopes_both_horizontal_directions_without_seismic_moment():
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=50.0,
+        seismic_weight_kN=1000.0, kh=0.1, kv=0.1,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.05,
+    )
+    assert len(result["cases"]) == 4
+    by_sign = {case["horizontal_earthquake_sign"]: case for case in result["cases"]
+               if case["vertical_load_kN"] == pytest.approx(900.0)}
+    assert by_sign[1]["horizontal_load_kN"] == pytest.approx(150.0)
+    assert by_sign[-1]["horizontal_load_kN"] == pytest.approx(50.0)
+    assert by_sign[1]["moment_B_kNm"] == pytest.approx(50.0)
+    assert by_sign[-1]["moment_B_kNm"] == pytest.approx(50.0)
+    assert result["seismic_moment_included"] is False
+
+
+def test_residual_pore_pressure_seismic_cases_envelope_both_horizontal_directions_without_moment():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=50.0,
+        kh=0.1, kv=0.1, seismic_weight_kN=1000.0,
+        footing_type="spread", residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0, phi_deg=30.0,
+        gamma_moist=18.5, gamma_sub=9.5, gamma_below=18.5,
+        B=2.0, L=3.0, Df=1.5, water_depth=1.0,
+        non_liquefiable_confirmed=True, full_shear_zone_confirmed=True,
+    )
+    assert len(result["cases"]) == 4
+    by_sign = {case["horizontal_earthquake_sign"]: case for case in result["cases"]
+               if case["vertical_load_kN"] == pytest.approx(900.0)}
+    assert by_sign[1]["horizontal_load_kN"] == pytest.approx(150.0)
+    assert by_sign[-1]["horizontal_load_kN"] == pytest.approx(50.0)
+    assert by_sign[1]["moment_B_kNm"] == pytest.approx(0.0)
+    assert by_sign[-1]["moment_B_kNm"] == pytest.approx(0.0)
+    assert result["seismic_moment_included"] is False
 
 
 def test_general_seismic_eccentricity_reports_middle_third_separately_from_footprint():

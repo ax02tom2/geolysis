@@ -625,7 +625,10 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         raise ValueError('V−kvW≤0，地震垂直組合已達零壓或上拔，無法計算壓縮接觸偏心距')
     static_MB=sign_MB*V*eB0
     static_ML=sign_ML*V*eL0
-    hsigns=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
+    # Horizontal earthquake inertia reverses even when no seismic base
+    # moment was supplied.  Keep both signs whenever kh is active so the
+    # H ± khW envelope is explicit in the reported load combinations.
+    hsigns=(-1,1) if (khv>1e-12 or abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
     cases=[]
     for hsign in hsigns:
         He=abs(H+hsign*khv*W)
@@ -801,7 +804,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     W=action['seismic_weight_kN']
     static_MB=sign_MB*V*eB0
     static_ML=sign_ML*V*eL0
-    horizontal_signs=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
+    # Include both directions of horizontal earthquake inertia whenever
+    # kh is active, even if no structural base moment was supplied.
+    horizontal_signs=(-1,1) if (khv>1e-12 or abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
     cases=[]
     for hsign in horizontal_signs:
         He=abs(H+hsign*khv*W)
