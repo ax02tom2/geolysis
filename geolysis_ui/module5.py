@@ -786,17 +786,22 @@ def render_module_5(expanded=False):
         with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
             st.caption("輸入同一圓弧滑動面的切片資料。底角正值代表朝滑動方向下降；各片 c′、φ′及孔隙水壓應使用該片底面平均值。")
             bishop_csv=st.text_area("切片 CSV：width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa",
-                value="width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n1,120,20,10,25,0\n1,100,10,10,25,0",
+                value="",placeholder="width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n…請填入本工程同一圓弧滑動面的各片資料",
                 height=120,key="m5x_bishop_csv")
-            if st.button("計算 Bishop 整體穩定 FS",key="m5x_bishop_run"):
+            bishop_slice_context5=hashlib.sha256(bishop_csv.encode("utf-8")).hexdigest()[:12]
+            bishop_slices_confirmed5=st.checkbox(
+                "已確認各切片寬度、重量、底角、c′、φ′及孔壓均取自本工程同一圓弧滑動面",
+                value=False,key=f"m5x_bishop_slices_confirm_{bishop_slice_context5}")
+            bishop_slice_sig=(bishop_csv,bool(bishop_slices_confirmed5))
+            if st.button("計算 Bishop 整體穩定 FS",key="m5x_bishop_run",disabled=(not bishop_csv.strip() or not bishop_slices_confirmed5)):
                 try:
                     slices=pd.read_csv(StringIO(bishop_csv)).to_dict("records")
                     bishop=bishop_simplified_factor_of_safety(slices=slices)
-                    store_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop, bishop_csv)
+                    store_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop, bishop_slice_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"Bishop 整體穩定計算失敗：{exc}")
-            bishop, bishop_is_current = read_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop_csv)
+            bishop, bishop_is_current = read_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop_slice_sig)
             if bishop and bishop_is_current:
                 st.metric("Bishop 簡化法 FS",f"{bishop['FS']:.3f}")
                 st.caption(f"迭代 {bishop['iterations']} 次；{bishop['limitations']}")
@@ -805,13 +810,13 @@ def render_module_5(expanded=False):
         with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
             st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
             profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
-                value="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0",height=90,key="m5x_profile")
+                value="",placeholder="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0\n…請改填本工程實際地表剖面",
+                height=90,key="m5x_profile")
             ba,bb,bc=st.columns(3)
             with ba:
-                bishop_c5=st.number_input("均質土 c′ [kPa]",0.0,10000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_auto_c_{'hb' if use_hb5 else 'manual'}")
-                bishop_phi5=st.number_input("均質土 φ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_auto_phi_{'hb' if use_hb5 else 'manual'}")
-                if use_hb5:
-                    st.warning("此自動 Bishop 搜尋是均質土坡穩定分析，不可直接使用 Module 1 的一般淺層承載力圍壓擬合；請輸入獨立的坡體 c′、φ′。目前已將欄位預設為 0。")
+                bishop_c5=st.number_input("均質土坡體 c′ [kPa]",0.0,10000.0,0.0,1.0,key="m5x_auto_c_slope")
+                bishop_phi5=st.number_input("均質土坡體 φ′ [°]",0.0,50.0,0.0,1.0,key="m5x_auto_phi_slope")
+                st.caption("此自動搜尋是均質土坡穩定分析，須輸入坡體專屬 c′、φ′；不會自動沿用 Module 1／Module 5 的基礎承載力參數。")
             with bb:
                 bishop_gamma5=st.number_input("均質土總單位重 γ [kN/m³]",10.0,30.0,18.0,0.5,key="m5x_auto_gamma")
                 bishop_has_gw5=st.checkbox("納入地下水位",value=False,key="m5x_auto_has_gw")
@@ -824,7 +829,17 @@ def render_module_5(expanded=False):
                 center_y_max5=st.number_input("圓心高程最大值 [m]",-100.0,1000.0,14.0,0.5,key="m5x_cymax")
             radii_csv5=st.text_input("搜尋半徑 [m]（逗號分隔）","8,10,12,15",key="m5x_radii")
             slices_auto5=st.number_input("每一滑動面切片數",5,100,20,1,key="m5x_auto_slices")
-            if st.button("搜尋最低 Bishop FS",key="m5x_auto_bishop_run"):
+            bishop_auto_context5=(
+                profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,
+                center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5
+            )
+            bishop_auto_context_id5=hashlib.sha256(repr(bishop_auto_context5).encode("utf-8")).hexdigest()[:12]
+            bishop_auto_confirmed5=st.checkbox(
+                "已確認地表剖面、坡體 c′／φ′、單位重、地下水位及圓弧搜尋範圍均為本工程資料",
+                value=False,key=f"m5x_auto_bishop_confirm_{bishop_auto_context_id5}")
+            auto_sig=(src5,bishop_auto_context5,bool(bishop_auto_confirmed5))
+            if st.button("搜尋最低 Bishop FS",key="m5x_auto_bishop_run",
+                    disabled=(not profile_csv5.strip() or not bishop_auto_confirmed5 or (bishop_c5<=0 and bishop_phi5<=0))):
                 try:
                     pprof=pd.read_csv(StringIO(profile_csv5))
                     if not {"x_m","elevation_m"}.issubset(pprof.columns):
@@ -837,11 +852,10 @@ def render_module_5(expanded=False):
                         center_y_values=[center_y_min5+(center_y_max5-center_y_min5)*i/8 for i in range(9)],
                         radius_values=radii,slice_count=slices_auto5,
                         groundwater_elevation=bishop_gw5)
-                    store_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", search, (src5,profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5))
+                    store_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", search, auto_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"圓弧搜尋失敗：{exc}")
-            auto_sig=(src5,profile_csv5,bishop_c5,bishop_phi5,bishop_gamma5,bishop_has_gw5,bishop_gw5,center_x_min5,center_x_max5,center_y_min5,center_y_max5,radii_csv5,slices_auto5)
             auto_bishop, auto_bishop_is_current = read_result_state(st.session_state, "m5x_auto_bishop_result", "m5x_auto_bishop_signature", auto_sig)
             if auto_bishop and auto_bishop_is_current:
                 st.metric("搜尋到的最低 Bishop FS",f"{auto_bishop['FS']:.3f}")
