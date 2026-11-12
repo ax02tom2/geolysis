@@ -146,3 +146,38 @@ def test_module5_bishop_methods_require_project_specific_inputs_and_confirmation
     assert bishop_phi.value == 0.0
     auto_button = next(widget for widget in app.button if widget.key == "m5x_auto_bishop_run")
     assert auto_button.disabled
+
+
+def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+
+    qallow = next(widget for widget in app.number_input if widget.key == "m5x_seismic_qallow")
+    qallow.set_value(100.0)
+    app.run()
+    pressure = next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u")
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm")
+    assert confirmation.value is False
+
+    calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
+    calculate.click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    result = app.session_state["m5x_seismic_ecc_result"]
+    assert result["bearing_pressure_check_complete"] is False
+
+    pressure = next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u")
+    pressure.set_value(12.0)
+    app.run()
+    assert app.session_state["m5x_residual_base_u"] == 12.0
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm")
+    confirmation.check()
+    app.run()
+    assert app.session_state["m5x_residual_base_u_confirm"] is True
+    calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
+    calculate.click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    result = app.session_state["m5x_seismic_ecc_result"]
+    assert abs(result["base_uplift_pressure_kpa"] - 12.0) < 1e-6
+    assert result["bearing_pressure_check_complete"] is True
