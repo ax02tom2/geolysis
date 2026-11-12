@@ -804,7 +804,9 @@ def seismic_bearing_capacity_residual_pore_pressure_cases(*, vertical_load_kN,
     W=action['seismic_weight_kN']
     static_MB=sign_MB*V*eB0
     static_ML=sign_ML*V*eL0
-    horizontal_signs=(-1,1) if (abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
+    # Include both directions of horizontal earthquake inertia whenever
+    # kh is active, even if no structural base moment was supplied.
+    horizontal_signs=(-1,1) if (khv>1e-12 or abs(MBe)>1e-12 or abs(MLe)>1e-12) else (1,)
     cases=[]
     for hsign in horizontal_signs:
         He=abs(H+hsign*khv*W)
