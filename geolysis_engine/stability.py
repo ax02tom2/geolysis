@@ -105,8 +105,9 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         slice_count=20, groundwater_elevation=None, gamma_water=9.81,
         unit_weight_moist_kn_m3=None, unit_weight_sat_kn_m3=None):
     """Grid-search circular slip surfaces and evaluate each with Bishop simplified.
-    Coordinates use metres and elevations (positive upward); uniform soil only.
-    Ground profile is a sorted list of (x, elevation) pairs.
+    Coordinates use metres and elevations (positive upward). Strength is homogeneous;
+    slice weights may use separate moist/saturated unit weights across a horizontal
+    groundwater elevation. Ground profile is a sorted list of (x, elevation) pairs.
     """
     if len(ground_profile)<3:
         raise ValueError('地表剖面至少需要 3 個 (x, elevation) 點')
