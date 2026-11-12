@@ -211,4 +211,5 @@ def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
         widget.select(value)
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
-    assert "定量 GSI" in "\\n".join(str(item.value) for item in app.metric)
+    gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
+    assert gsi_input.value == 77.5
