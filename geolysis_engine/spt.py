@@ -28,8 +28,16 @@ def spt_correct(n, energy_ratio_pct, borehole_factor, sampler_factor, rod_length
         raise ValueError('未知 CN 修正方法')
     needs_cn = soil_behavior == 'cohesionless' and cn_method != '不修正'
     sv = _finite("有效覆土應力", effective_stress_kpa) if needs_cn else None
-    if n<0 or er<=0 or er>150 or (needs_cn and sv<=0) or cb_in<=0 or cs<=0 or not 1<=cap<=2.0:
-        raise ValueError('SPT 輸入值超出合理範圍；套用 CN 時有效覆土應力須大於 0，能量比須 ≤150%，CN 上限須介於 1.0–2.0')
+    if (
+        n < 0 or er <= 0 or er > 150 or (needs_cn and sv <= 0)
+        or not 1.0 <= cb_in <= 1.15 or not 1.0 <= cs <= 1.30
+        or not 1.0 <= cap <= 2.0
+    ):
+        raise ValueError(
+            'SPT 輸入值超出 USACE 2025 修正係數範圍：CB 需 1.00–1.15、'
+            'CS 需 1.00–1.30；套用 CN 時有效覆土應力須大於 0，'
+            '能量比須 ≤150%，CN 上限須介於 1.0–2.0'
+        )
     if apply_dilatancy and (soil_behavior!='cohesionless' or cn_method=='不修正'):
         raise ValueError('膨脹修正僅能用於已完成覆土修正的飽和細砂／粉土')
     ce=er/60.0; cr=rod_factor(rod_length_m)
@@ -49,10 +57,16 @@ def spt_correct(n, energy_ratio_pct, borehole_factor, sampler_factor, rod_length
     n1_60_dil=n1_60
     if apply_dilatancy and n1_60>15:
         n1_60_dil=15.0+0.5*(n1_60-15.0)
+    warnings = []
+    if er < 50 or er > 130:
+        warnings.append("能量比超出 USACE 2025 Table 4-5 常見設備範圍（約 50–130%）；請核對能量量測與設備型式。")
+    if _finite('鑽桿長度', rod_length_m) > 30:
+        warnings.append("鑽桿長度超過 USACE 2025 Table 4-6 列示的 30 m 範圍；CR=1.00 為延伸使用，請確認專案依據。")
     return {'N60':n60,'CE':ce,'CB':cb,'CB_input':cb_in,'CS':cs,'CR':cr,
             'CN_raw':cn_raw,'CN':cn,'CN_cap_applied':(cap_used if soil_behavior=='cohesionless' and cn_method!='不修正' else None),'N1_60':n1_60,
             'N1_60_dilatancy':n1_60_dil,'N1_60_final':n1_60_dil,
-            'soil_behavior':soil_behavior,'dilatancy_applied':bool(apply_dilatancy and n1_60>15)}
+            'soil_behavior':soil_behavior,'dilatancy_applied':bool(apply_dilatancy and n1_60>15),
+            'warnings':warnings}
 
 def _profile_value(row, key, default):
     value = row.get(key, default)
