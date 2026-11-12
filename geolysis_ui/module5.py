@@ -243,6 +243,7 @@ def render_module_5(expanded=False):
             if (loads_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
+                    and float(result5.get("qu_net",0.0))>0.0
                     and settlement_transfer_geometry_supported5):
                 transfer_id5=hashlib.sha256(repr(m5_input_signature).encode("utf-8")).hexdigest()[:12]
                 m5_transfer_candidate={
