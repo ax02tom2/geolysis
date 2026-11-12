@@ -699,7 +699,7 @@ def render_module_5(expanded=False):
                 slide_v5=st.number_input(f"靜力總垂直力 V [{slide_force_unit5}]",0.1,1000000.0,float(V5),10.0,key="m5x_slide_v")
                 slide_u5=st.number_input(
                     f"基底揚壓力合力 U [{slide_force_unit5}]（依 u_D×完整底面積初估，可覆寫）",
-                    0.0,1000000.0,float(base_pressure_U_ref5),10.0,
+                    0.0,1000000000.0,float(base_pressure_U_ref5),10.0,
                     key=f"m5x_slide_u_{uplift_default_signature5}",
                     help="預設以基底平均總孔隙水壓 u_D 乘完整底面積 B×L（連續基礎 B×1 m）估算 U_ref；若孔壓分布不均、存在滲流或有場址專屬壓力圖，請改輸入壓力分布積分所得總揚壓合力。仍須勾選下方確認，不會把初估值自動視為已確認。")
                 slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
