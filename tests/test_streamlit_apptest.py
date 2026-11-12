@@ -352,27 +352,19 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
-    transfer_id = "apptestqeq123"
-    app.session_state["m5_bearing_transfer"] = {
-        "transfer_id": transfer_id,
-        "qult_gross_kpa": 1200.0,
-        "qa_gross_kpa": 410.0,
-        "qa_net_kpa": 360.0,
-        "qeq_gross_kpa": 180.0,
-        "B_m": 2.0,
-        "L_m": 3.0,
-        "Df_m": 1.5,
-        "Dw_m": 2.0,
-        "footing_type": "isolated",
-        "source": "AppTest",
-        "theory": "Meyerhof",
-        "FS_bearing": 3.0,
-        "passes_bearing": True,
-        "load_confirmed": True,
-        "complete_capacity_model": True,
-    }
+    # Produce a genuine transfer by running Module 5 through its public UI.
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed.check()
+    app.run()
+    calculate = next(widget for widget in app.button if widget.key == "m5_run")
+    calculate.click()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    transfer = app.session_state["m5_bearing_transfer"]
+    assert transfer is not None
+    assert transfer["qeq_gross_kpa"] > 0
+    transfer_id = transfer["transfer_id"]
 
     use_qult = next(
         widget for widget in app.checkbox
@@ -382,7 +374,10 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
-    conditions_key = f"m4_bb_conditions_{transfer_id}_2.00_3.00_1.50_any"
+    conditions_key = (
+        f"m4_bb_conditions_{transfer_id}_"
+        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_any"
+    )
     conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
     app.run()
@@ -396,6 +391,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
-    # The manual q field defaults to 150 kPa; 180 kPa proves the actual
-    # Burland calculation consumes Module 5's qeq rather than that manual value.
-    assert any("目前 q 採用值 = 180.0 kPa" in item.value for item in app.markdown)
+    # The default manual q is 150 kPa. The displayed adopted pressure must
+    # equal the real Module 5 qeq, proving the Burland path consumes qeq.
+    expected = f"目前 q 採用值 = {transfer['qeq_gross_kpa']:.1f} kPa"
+    assert any(expected in item.value for item in app.markdown)
