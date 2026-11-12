@@ -16,6 +16,7 @@ from core_photo_analysis import (
     build_core_gap_review_candidates,
     calibrate_row_measurement_span,
     detect_core_break_candidates_v1,
+    detect_core_discontinuity_candidates,
     draw_core_fracture_candidates,
     draw_core_row_analysis_v8,
     estimate_rqd_from_image_segments,
@@ -52,6 +53,61 @@ def _cached_tray_detection(image, engine_fingerprint: str):
     return detect_blue_tray_quadrilateral(image)
 
 
+def _merge_core_break_candidates(
+    primary: dict,
+    supplemental: dict,
+    min_separation_mm: float = 25.0,
+) -> dict:
+    """Merge low-confidence gradient cues into the primary geometry candidates."""
+    result = dict(primary or {})
+    if not result.get("success") or not isinstance(supplemental, dict) or not supplemental.get("success"):
+        return result
+
+    candidates = [dict(item) for item in result.get("candidates", [])]
+    added = 0
+    duplicates = 0
+    for item in supplemental.get("candidates", []):
+        x_px = int(item.get("x_px", 0))
+        distance = float(item.get("distance_mm", 0.0))
+        if any(abs(float(existing.get("distance_mm", 0.0)) - distance) < min_separation_mm
+               for existing in candidates):
+            duplicates += 1
+            continue
+        score = float(item.get("signal_score", 0.0))
+        candidates.append({
+            "candidate_id": f"D{added + 1}",
+            "candidate_type": "possible_transverse_discontinuity",
+            "x_px": x_px,
+            "distance_mm": round(distance, 1),
+            "suggested_class": "不確定／需人工確認",
+            "confidence": "低",
+            "review_status": "待人工確認",
+            "signal_score": round(score, 2),
+            "cue": (
+                f"補充梯度／暗像素訊號（score={score:.2f}）；"
+                "可能來自天然節理、機械破損、岩性紋理、陰影或反光，必須人工確認。"
+            ),
+        })
+        added += 1
+
+    candidates.sort(key=lambda item: float(item.get("distance_mm", 0.0)))
+    result["candidates"] = candidates
+    result["supplemental_candidate_count"] = added
+    result["supplemental_duplicate_count"] = duplicates
+    result["method"] = "hough_geometry_plus_gradient_darkness_review_v1"
+    if added:
+        result["warning"] = (
+            f"已合併舊版幾何線跡與補充梯度／暗像素訊號，新增 {added} 個低信心候選；"
+            "所有候選均須人工確認，不代表天然節理，也不得直接計入 RQD。"
+        )
+    elif not candidates:
+        result["warning"] = (
+            "未找到足夠明確的幾何線跡或補充梯度候選；不代表岩心沒有天然節理或機械破損，"
+            "仍須人工檢視整列影像。"
+        )
+    return result
+
+
 @st.cache_data(
     show_spinner=False,
     hash_funcs={Image.Image: _image_digest},
@@ -65,6 +121,19 @@ def _cached_row_analysis(image, mm_per_px, engine_fingerprint: str):
     try:
         core_result = analyze_core_row_v8(image, mm_per_px)
         break_result = detect_core_break_candidates_v1(image, mm_per_px)
+        if core_result.get("success") and break_result.get("success"):
+            try:
+                supplemental = detect_core_discontinuity_candidates(image, mm_per_px)
+                break_result = _merge_core_break_candidates(break_result, supplemental)
+            except Exception as supplemental_exc:
+                logger.warning(
+                    "Supplemental core discontinuity detection failed: %s",
+                    supplemental_exc,
+                )
+                break_result["supplemental_warning"] = (
+                    f"補充梯度候選偵測失敗（{type(supplemental_exc).__name__}）；"
+                    "保留原幾何線跡候選，請人工檢視。"
+                )
         return core_result, break_result
     except Exception:
         break_detection_traceback = traceback.format_exc()
