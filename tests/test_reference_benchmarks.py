@@ -1698,6 +1698,26 @@ def test_usace_2025_menard_pmt_rejects_design_pressure_above_yield_pressure():
 
 
 
+
+def test_usace_2025_menard_pmt_checks_applied_pressure_before_capacity_cap():
+    pmt = [
+        {"group": group, "E0_kpa": 12000.0}
+        for group in ("E1", "E2", "E345", "E678", "E916")
+    ]
+    # q=300 kPa exceeds Py=250 kPa, even though qult/FS=150 kPa.
+    # Table 7-5 Step 1 must check the applied pressure before Step 4's cap.
+    with pytest.raises(ValueError, match="實際輸入 gross q／qeq=300.0 kPa 超過 PMT 屈服壓力"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
+            gross_pressure_kpa=300.0, base_effective_stress_kpa=100.0,
+            equivalent_net_limit_pressure_kpa=1500.0,
+            yield_pressure_kpa=250.0,
+            soil_type="sand", consolidation_state="normally_consolidated",
+            round_footing=True, ultimate_bearing_kpa=450.0,
+            factor_of_safety=3.0, deep_uniform_deposit_confirmed=True,
+        )
+
+
 def test_usace_2025_appendix_c7b_dmt_modulus_settlement_table_rows():
     # Appendix C-7b, Table C-7a/C-7b (printed pp. 377-380).
     # The manual's row settlements sum to about 0.344 in; its printed total

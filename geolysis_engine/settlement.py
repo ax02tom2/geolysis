@@ -736,6 +736,12 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         if ld < lc:
             raise ValueError("USACE Figure 7-11 中 λd 曲線高於 λc；請核對兩個讀值與 L/B")
 
+    # USACE Table 7-5 Step 1 checks the actual gross (or gross-equivalent)
+    # pressure applied in the geotechnical problem against Py.  The later
+    # qult/FS cap in Step 4 is only the pressure used in the settlement
+    # equation; it must not conceal an applied load that exceeds Py.
+    if q > py:
+        raise ValueError(f"實際輸入 gross q／qeq={q:.1f} kPa 超過 PMT 屈服壓力 Py={py:.1f} kPa；須改用對應實際壓力的割線模數")
     if ultimate_bearing_kpa is not None:
         qult = _finite("極限承載力 qult", ultimate_bearing_kpa)
         if qult <= 0:
@@ -743,8 +749,6 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
         q_used = min(q, qult / fs)
     else:
         q_used = q
-    if q_used > py:
-        raise ValueError(f"採用 gross q／qeq={q_used:.1f} kPa 超過 PMT 屈服壓力 Py={py:.1f} kPa；須改用對應壓力的割線模數")
     q_net = q_used - sigD
     if q_net <= 0:
         raise ValueError("gross q／qeq 不大於基礎底初始有效應力，無正的新增壓力")
