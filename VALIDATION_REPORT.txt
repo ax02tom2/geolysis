@@ -1,9 +1,10 @@
 Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)
-- Validated main code commit: d1ca4c736842f7bf0fa434416665f8cd4dee452a.
-- Latest full-suite validation: GitHub Actions run 43161177916 (PR #156 tested head e9e86140a13292e913ce6edc9631b03f6304d6b4); success.
-- Full test directory: 578 passed, 1 skipped; Python 3.11 compileall passed.
-- Latest automated module/UI regression run: 43161178070; success. Streamlit module compilation and UI regression tests passed.
-- PR #156: SPT energy-ratio and rod-length extrapolation warnings are now displayed in single-point and depth-profile UI; profile warnings identify the affected depth.
+- Validated main application commit: 09082367133d79d69553ad7cc003f636079735dd (PR #158 merged).
+- Latest full-suite validation: GitHub Actions run 43162057708 (PR #158 tested head 01c0e2a8769ff089d7bfc7b76ebaf32857924788); success.
+- Full test directory: 583 passed, 1 skipped; Python 3.11 compileall passed.
+- Latest automated module/UI regression run: 43162057845; success. Streamlit module compilation and UI regression tests passed.
+- PR #156: SPT energy-ratio and rod-length extrapolation warnings are displayed in single-point and depth-profile UI; profile warnings identify the affected depth.
+- PR #158: full-height gaps between core bodies are now presented for manual classification. Mechanical/false gaps rejoin recovered pieces for RQD without adding the empty gap to recovery; natural joints and core-loss gaps remain separate. Uncertain occupancy regions are exposed in the depth table, and manual reviews reset when image, scale or engine fingerprint changes.
 
 Engineering and integration updates since the 451-test baseline:
 - PR #134: SPT effective-overburden-stress input is conditional; cohesive and refusal rows no longer require an unused stress value. Profile dilatancy is explicitly selected per eligible non-refusal cohesionless row.
