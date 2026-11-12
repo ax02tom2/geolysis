@@ -7,8 +7,15 @@
 1. **岩體參數與岩心分析**：Hoek–Brown 的 GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；另支援整孔 DOCX／PDF 岩心柱狀圖匯入、每列 1 m 採取率與 RQD 影像初估、疑似斷裂標示及人工覆核。Hoek–Brown 輸出受圍壓範圍與適用模式限制。
 2. **土壤分類**：USCS 與 AASHTO 分類、級配與塑性指標檢核。
 3. **SPT 全修正**：能量、鑽孔、取樣器、桿長、上覆壓力與逐深度剖面修正。
-4. **沉陷與容許壓力**：Burland–Burbidge 沉陷估算、單層／多層主固結、時間率、立即沉陷、次壓縮、差異沉陷與開挖回彈。
+4. **沉陷與容許壓力**：Burland–Burbidge、DMT（MDMT 與原始讀值修正）、CPT Schmertmann、PMT Ménard–Rousseau；另含單層／多層主固結、時間率、立即沉陷、次壓縮、差異沉陷與開挖回彈。各方法依適用性限制檢核分層深度與承載力壓力上限。
 5. **極限承載力與基礎穩定**：Terzaghi、Meyerhof、Hansen、Vesic；另含下列擴充分析。
+
+## 模組四／五跨模組壓力與偏心沉陷
+
+- 模組五可將**靜力主承載力**的 gross 極限承載力 qult、等效 gross 壓力 qeq 傳至模組四；砂土／礫土沉陷方法由模組四依其 FS 套用 qult/FS 上限，黏土主固結則使用 qa,net（FS=3.0），不把 gross qeq 誤當 net 壓力。
+- 跨模組帶入僅限中央垂直荷載（H=0、eB=eL=0）、水平基底／水平地表，且基礎尺寸、埋深、地下水位、地層與載重條件經使用者確認一致；不會把地震、斜坡地表或傾斜基底修正結果當成模組四靜力沉陷輸入。
+- 模組四手動分析偏心荷載時，可輸入 eB、eL，由系統依 B′=B−2eB、L′=L−2eL 建立有效尺寸，並要求壓力輸入採 gross equivalent pressure qeq。獨立／矩形基礎 qeq=V/(B′L′)−uD；連續基礎 qeq=V/B′−uD。PMT 圓形基礎偏心有效面積及歷史 Meyerhof SPT 簡化法不支援此偏心處理。
+- 模組五目前刻意不將偏心、水平力或斜坡／傾斜基底結果直接傳入模組四；若為此類工況，請在模組四採手動 qeq 與有效尺寸，並另行確認承載力上限。
 
 ## 模組五擴充分析（已納入程式及 UI）
 
@@ -58,7 +65,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 
 CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
-GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 本版完整測試為 609 passed、1 skipped；指定模組與 Web App 回歸測試為 521 passed；Python 編譯檢查通過。對應 GitHub Actions Full test suite run #43173311201 與 Geolysis automated tests run #43173311168（測試提交 `98bce418922c2492d418156017f42235c771c253`）；最新測試數與提交 SHA 請以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
+GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 最新主線完整測試為 **675 passed、1 skipped**；指定模組與 Web App 回歸測試為 **572 passed**；Python 編譯檢查通過。對應 GitHub Actions Full test suite run #43193933755 與 Geolysis automated tests run #43193933777（測試提交 `c36f5783eb3742f09773fdb3f345061ebea6a488`）。後續提交仍以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 的最新結果為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 
 ## 工程使用限制
 
