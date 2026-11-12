@@ -454,7 +454,19 @@ def render_module_1(expanded=False):
                     "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
                 "玄武岩｜台灣岩石工程性質彙整": (68.6, 343.2, 205.9,
                     "700–3500 kgf/cm²，換算約 68.6–343.2 MPa；範圍很寬，應做敏感度分析。",
-                    "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf")
+                    "https://www.nusc.gov.tw/share/file/fcma/S4j6ydizyqbQti9UaY3KmQ__.pdf"),
+                "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa": (43.3, 43.3, 43.3,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 邊坡設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa": (65.7, 65.7, 65.7,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 II 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa": (43.3, 43.3, 43.3,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 III 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068"),
+                "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa": (21.4, 21.4, 21.4,
+                    "阿里山森林鐵路42號隧道計畫表 3-2-1 隧道 IV 類設計參數；單一計畫設計輸入值，不是地層統計範圍。",
+                    "https://www.forest.gov.tw/file/70068")
             }
             # 2025 年《台灣中北部西部麓山帶沉積岩之力學特性》表 5：
             # 各項為表列單一試體 UCS，不應誤讀成地層統計上下限。
@@ -549,6 +561,12 @@ def render_module_1(expanded=False):
                 "砂岩 Sandstone（台灣南莊層三軸案例）": [k for k in _ucs_case_data if "南莊層砂岩｜隧道" in k],
                 "砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）": [k for k in _ucs_case_data if "東北部宜蘭線瑞芳段風化砂岩" in k],
                 "片岩 Schist（蘇花公路案例）": [k for k in _ucs_case_data if "片岩／片麻岩" in k],
+                "砂岩／頁岩互層（阿里山森林鐵路42號隧道案例）": [
+                    "阿里山42號隧道｜邊坡設計 UCS 43.3 MPa",
+                    "阿里山42號隧道｜隧道 II 類設計 UCS 65.7 MPa",
+                    "阿里山42號隧道｜隧道 III 類設計 UCS 43.3 MPa",
+                    "阿里山42號隧道｜隧道 IV 類設計 UCS 21.4 MPa",
+                ],
                 "頁岩 Shale": [k for k in _ucs_case_data if "頁岩" in k and "砂頁岩互層" not in k],
                 "泥岩／黏土岩 Mudstone / Claystone": [k for k in _ucs_case_data if "泥岩" in k],
                 "粉砂岩 Siltstone": [],
