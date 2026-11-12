@@ -168,7 +168,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
             if x0<=x<=x1:
                 return y0+(y1-y0)*(x-x0)/(x1-x0)
         return None
-    best=None; evaluated=0; failure_reasons={}
+    best=None; evaluated=0; failure_reasons={}; profile_boundary_clipped_candidates=0
     for cx in xs:
         for cy in ys:
             for radius in rs:
@@ -191,6 +191,13 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                         if end>start: runs.append((start,end))
                         start=None
                 if not runs: continue
+                # A valid circular slip surface must enter and exit the ground
+                # profile at actual intersections. If the lower arc is still
+                # below ground at either search-domain endpoint, the profile
+                # truncates the failure surface and cannot define its entry/exit.
+                if valid[0] or valid[-1]:
+                    profile_boundary_clipped_candidates += 1
+                    continue
                 i0,i1=max(runs,key=lambda z:scan[z[1]]-scan[z[0]])
                 x0,x1=scan[i0],scan[i1]
                 if x1-x0<(profile[-1][0]-profile[0][0])*0.03: continue
@@ -229,6 +236,8 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         detail='；'.join(f'{reason}（{count} 次）' for reason,count in
                         sorted(failure_reasons.items(),key=lambda x:x[1],reverse=True)[:3])
         suffix=f'；主要失敗原因：{detail}' if detail else '；候選圓弧未形成有效地表交點或切片幾何'
+        if profile_boundary_clipped_candidates:
+            suffix += f'；另有 {profile_boundary_clipped_candidates} 個候選圓弧在地表剖面邊界仍位於地表以下，缺少有效入／出口交點；請延伸地表剖面範圍'
         raise ValueError('搜尋範圍內未找到有效圓弧滑動面'+suffix+'；請擴大圓心／半徑範圍並檢查地表剖面')
     boundary=[]
     if best['center_x_m'] in (min(xs),max(xs)): boundary.append('圓心 x')
@@ -236,8 +245,15 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
     if best['radius_m'] in (min(rs),max(rs)): boundary.append('半徑')
     boundary_warning=('最低 FS 落在搜尋網格邊界（'+ '、'.join(boundary) +'），請擴大搜尋範圍並加密網格。'
                       if boundary else None)
+    profile_boundary_warning=(
+        f"已排除 {profile_boundary_clipped_candidates} 個在剖面邊界仍位於地表以下、缺少真實入／出口交點的圓弧候選；"
+        "若預期搜尋該類滑面，請延伸地表剖面範圍。"
+        if profile_boundary_clipped_candidates else None
+    )
     return {**best,'evaluated_surfaces':evaluated,
         'search_boundary_warning':boundary_warning,
+        'profile_boundary_clipped_candidates':profile_boundary_clipped_candidates,
+        'profile_boundary_warning':profile_boundary_warning,
         'unit_weight_moist_kn_m3':gamma_moist,
         'unit_weight_sat_kn_m3':gamma_sat,
         'water_table_weighting':gw_elev is not None,
