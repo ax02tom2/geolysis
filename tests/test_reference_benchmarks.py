@@ -3812,3 +3812,41 @@ def test_usace_schmertmann_cpt_interpolates_es_peak_depth_and_iz_for_intermediat
         first["Iz_plane_strain"] - first["Iz_axisymmetric"]
     )
     assert first["Iz_used"] == pytest.approx(expected_iz)
+
+
+def test_usace_2025_seismic_residual_pore_pressure_strip_footing_eq_9_3():
+    # USACE EM 1110-1-1905 (2025), Eq. 9-3:
+    # q_u = 1/2 * (1-r_u) * gamma_b * B' * N_gamma.
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="strip",
+        effective_unit_weight_kn_m3=12.0,
+        effective_width_m=2.5,
+        bearing_factor_ngamma=18.0,
+        residual_excess_pore_pressure_ratio=0.30,
+        shape_depth_inclination_factor=0.85,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+        full_shear_zone_confirmed=True,
+    )
+    expected = 0.5 * (1.0 - 0.30) * 12.0 * 2.5 * 18.0 * 0.85
+    assert result["qu_seismic_kpa"] == pytest.approx(expected)
+    assert result["footing_type"] == "strip"
+
+
+def test_usace_seismic_qeq_combines_eccentric_effective_area_and_base_uplift():
+    # USACE EM 1110-1-1905 (2025), Eqs. 5-2 and 5-4 to 5-8:
+    # q_eq = V/A' - u_D, A' = (B-2e_B)(L-2e_L).
+    result = seismic_foundation_eccentricity_cases(
+        vertical_load_kN=1000.0, horizontal_load_kN=0.0,
+        seismic_weight_kN=1000.0, kh=0.0, kv=0.0,
+        footing_type="spread", B=2.0, L=3.0,
+        eccentricity_B=0.40, eccentricity_L=0.25,
+        allowable_bearing_pressure_kpa=400.0,
+        base_uplift_pressure_kpa=60.0,
+    )
+    case = result["cases"][0]
+    effective_area = (2.0 - 2.0 * 0.40) * (3.0 - 2.0 * 0.25)
+    expected = 1000.0 / effective_area - 60.0
+    assert case["effective_area_m2"] == pytest.approx(effective_area)
+    assert case["average_contact_pressure_kpa"] == pytest.approx(expected)
