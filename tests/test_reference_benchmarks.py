@@ -3967,3 +3967,31 @@ def test_fhwa_gsi_scale_effect_warning_only_triggers_for_slopes_over_20m():
     assert "超過" in warning and "未自動折減" in warning
     assert gsi_scale_effect_warning(application="tunnel", height_m=100.0) is None
     assert gsi_scale_effect_warning(application="general", height_m=100.0) is None
+
+
+def test_base_uplift_pressure_readiness_accepts_loadcase_specific_base_pressure_reference():
+    from geolysis_engine import base_uplift_pressure_readiness
+
+    result = base_uplift_pressure_readiness(
+        uplift_force_kN=160.0, base_pressure_reference_kN=160.0,
+        load_case="seismic", pressure_confirmed=True,
+    )
+    assert result["ready"] is True
+    assert result["exceeds_reference"] is False
+    lower = base_uplift_pressure_readiness(
+        uplift_force_kN=150.0, base_pressure_reference_kN=160.0,
+        load_case="seismic", pressure_confirmed=True,
+    )
+    assert lower["ready"] is False
+    assert "適用基底壓力參考值" in lower["reason"]
+
+
+def test_base_uplift_pressure_readiness_rejects_conflicting_reference_aliases():
+    from geolysis_engine import base_uplift_pressure_readiness
+
+    with pytest.raises(ValueError, match="不可同時提供不同值"):
+        base_uplift_pressure_readiness(
+            uplift_force_kN=160.0, base_pressure_reference_kN=160.0,
+            hydrostatic_reference_kN=100.0, load_case="seismic",
+            pressure_confirmed=True,
+        )
