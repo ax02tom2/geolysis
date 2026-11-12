@@ -49,3 +49,22 @@ def test_case_based_mi_and_ucs_reference_pairing(mi_case, ucs_case, mode, should
 
     warning = _hb_case_pair_warning(mi_case, ucs_case, mode)
     assert (warning is not None) is should_warn
+
+
+@pytest.mark.parametrize(
+    ("case", "gsi", "disturbance", "should_warn"),
+    [
+        ("砂岩 Sandstone（台灣南莊層三軸案例）", 45, 0.5, False),
+        ("砂岩 Sandstone（台灣南莊層三軸案例）", 60, 0.5, True),
+        ("砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", 25, 0.85, False),
+        ("砂岩 Sandstone（東北部宜蘭線瑞芳段崩塌案例）", 35, 0.7, True),
+        ("片岩 Schist（蘇花公路案例）", 25, 0.7, False),
+        ("片岩 Schist（蘇花公路案例）", 30, 0.7, True),
+        ("砂岩 Sandstone", 60, 0.5, False),
+    ],
+)
+def test_case_reference_gsi_and_disturbance_ranges(case, gsi, disturbance, should_warn):
+    from geolysis_ui.module1 import _hb_case_parameter_warning
+
+    warning = _hb_case_parameter_warning(case, gsi, disturbance)
+    assert (warning is not None) is should_warn
