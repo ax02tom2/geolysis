@@ -345,3 +345,53 @@ def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base(
     app.run()
 
     assert any("壓縮層頂面位於基礎底以上" in item.value for item in app.error)
+
+
+
+def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Produce a genuine transfer by running Module 5 through its public UI.
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed.check()
+    app.run()
+    calculate = next(widget for widget in app.button if widget.key == "m5_run")
+    calculate.click()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    transfer = app.session_state["m5_bearing_transfer"]
+    assert transfer is not None
+    assert transfer["qeq_gross_kpa"] > 0
+    transfer_id = transfer["transfer_id"]
+
+    use_qult = next(
+        widget for widget in app.checkbox
+        if widget.key == f"m4_bb_use_m5_{transfer_id}"
+    )
+    use_qult.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    conditions_key = (
+        f"m4_bb_conditions_{transfer_id}_"
+        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_any"
+    )
+    conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
+    conditions.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    use_qeq = next(
+        widget for widget in app.checkbox
+        if widget.key == f"m4_bb_use_m5_qeq_{transfer_id}"
+    )
+    use_qeq.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # The default manual q is 150 kPa. The displayed adopted pressure must
+    # equal the real Module 5 qeq, proving the Burland path consumes qeq.
+    expected = f"目前 q 採用值 = {transfer['qeq_gross_kpa']:.1f} kPa"
+    assert any(expected in item.value for item in app.markdown)
