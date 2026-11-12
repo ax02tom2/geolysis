@@ -436,11 +436,11 @@ def test_rqd_natural_break_splits_piece_but_mechanical_break_rejoins():
     segments = [{"x_start_px": 0, "x_end_px": 400}]
     natural = estimate_rqd_from_image_segments(
         segments, [{"distance_mm": 950.0, "review_class": "天然節理"}],
-        mm_per_px=2.5, row_length_mm=1000.0,
+        mm_per_px=2.5, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
     mechanical = estimate_rqd_from_image_segments(
         segments, [{"distance_mm": 300.0, "review_class": "機械破損"}],
-        mm_per_px=2.5, row_length_mm=1000.0,
+        mm_per_px=2.5, row_length_mm=1000.0, no_breaks_confirmed=True,
     )
     assert natural["recovery_percent"] == 100.0
     assert natural["piece_lengths_mm"] == [950.0, 50.0]
