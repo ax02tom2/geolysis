@@ -81,8 +81,8 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
 
 def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations=500):
     """Bishop simplified circular limit-equilibrium method.
-    Each slice: width_m, weight_kN, base_angle_deg, cohesion_kpa,
-    friction_angle_deg, pore_pressure_kpa. Base length is width/cos(alpha).
+    Each slice: width_m, weight_kN (kN per metre out-of-plane), base_angle_deg,
+    cohesion_kpa, friction_angle_deg, pore_pressure_kpa. Base length is width/cos(alpha).
     """
     if not slices or len(slices)<3:
         raise ValueError('Bishop 至少需要 3 個切片')
@@ -99,6 +99,11 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
         u=_finite(f'第{i}片孔隙水壓',row.get('pore_pressure_kpa',0.0))
         if b<=0 or W<=0 or not -45<alpha<45 or c<0 or not 0<=phi<=50 or u<0:
             raise ValueError(f'第{i}片資料不合理（寬度、重量須正；底角需介於 ±45°；強度及孔壓不可負）')
+        if W - u*b <= 0:
+            raise ValueError(
+                f'第{i}片 W-u·b≤0，無正向有效法向接觸；簡化 Bishop 壓縮接觸假設不成立，'
+                '請檢查孔壓／重量，並另作張裂縫或高孔壓滑動面分析'
+            )
         clean.append((b,W,math.radians(alpha),c,math.radians(phi),u))
     driving=sum(W*math.sin(alpha) for _,W,alpha,_,_,_ in clean)
     # Normalize the sign convention so mirrored left/right slopes are equivalent.
@@ -120,7 +125,7 @@ def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations
             return {'FS':newF,'iterations':it,'converged':True,
                 'method':'Bishop simplified (circular slip surface; vertical interslice forces neglected)',
                 'slice_count':len(clean),
-                'limitations':'需由使用者提供同一圓弧滑動面之正確切片幾何、重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
+                'limitations':'二維每延米（出平面厚度 1 m）計算；切片重量為 kN/m，寬度為 m，c′與孔隙水壓為 kPa。需由使用者提供同一圓弧滑動面之正確切片幾何、每延米重量、底角、各片 c′、φ′及孔隙水壓；本函式不自動搜尋最危險圓弧、不處理地震、非圓弧、張裂縫、地表荷載或複雜分層孔壓。請另做滑動面搜尋與其他方法交叉比對。'}
         F=0.5*F+0.5*newF
     raise ValueError('Bishop 迭代未收斂；請檢查切片幾何、孔壓與強度資料')
 
@@ -171,6 +176,12 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
     if not xs or not ys or not rs or any(r<=0 for r in rs):
         raise ValueError('圓心搜尋範圍與半徑列表不可為空，半徑須大於 0')
     gw_elev=None if groundwater_elevation is None else _finite('地下水位高程',groundwater_elevation)
+    if gw_elev is not None and gw_elev > min(y for _, y in profile) + 1e-9:
+        raise ValueError(
+            '地下水位高程高於地表剖面最低點，代表存在地表積水／淹水；'
+            '本版 Bishop 自動搜尋未納入坡面外部靜水壓，請先採用不高於最低地表的水位，'
+            '或另行建立含外部水壓的穩定分析模型'
+        )
     def ground_y(x):
         for k in range(len(profile)-1):
             x0,y0=profile[k]; x1,y1=profile[k+1]
@@ -251,7 +262,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
         'unit_weight_sat_kn_m3':gamma_sat,
         'water_table_weighting':gw_elev is not None,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
-        'limitations':'目前假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
+        'limitations':'二維每延米（出平面厚度 1 m）計算，切片重量為 kN/m；假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
 
 def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,

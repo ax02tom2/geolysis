@@ -3536,7 +3536,7 @@ def test_bishop_circular_search_uses_saturated_weight_below_groundwater():
     common = dict(
         ground_profile=profile, cohesion_kpa=10.0, friction_angle_deg=25.0,
         center_x_values=[6.0], center_y_values=[12.0], radius_values=[15.0],
-        slice_count=20, groundwater_elevation=6.0,
+        slice_count=20, groundwater_elevation=-1.0,
     )
     split = bishop_circular_search(
         **common, unit_weight_kn_m3=18.0,
@@ -4066,3 +4066,67 @@ def test_seismic_sliding_earth_pressure_readiness_requires_explicit_manual_confi
     assert _slide_seismic_earth_pressure_ready("static", False) is True
     assert _slide_seismic_earth_pressure_ready("seismic", False) is False
     assert _slide_seismic_earth_pressure_ready("seismic", True) is True
+
+
+def test_bishop_manual_slice_csv_uses_canonical_per_metre_weight_header():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({
+        "width_m": [1.0],
+        "weight_kN_per_m": [100.0],
+        "base_angle_deg": [10.0],
+        "cohesion_kpa": [10.0],
+        "friction_angle_deg": [25.0],
+        "pore_pressure_kpa": [0.0],
+    })
+    normalized, legacy = _normalize_bishop_weight_column(frame)
+    assert legacy is False
+    assert normalized["weight_kN"].tolist() == [100.0]
+    assert "weight_kN_per_m" not in normalized.columns
+
+
+def test_bishop_manual_slice_csv_accepts_legacy_weight_header_as_per_metre():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({"weight_kN": [100.0]})
+    normalized, legacy = _normalize_bishop_weight_column(frame)
+    assert legacy is True
+    assert normalized["weight_kN"].tolist() == [100.0]
+
+
+def test_bishop_manual_slice_csv_rejects_ambiguous_dual_weight_headers():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({"weight_kN": [100.0], "weight_kN_per_m": [100.0]})
+    with pytest.raises(ValueError, match="不可同時提供"):
+        _normalize_bishop_weight_column(frame)
+
+
+def test_bishop_rejects_slice_with_nonpositive_effective_normal_contact():
+    slices = [
+        {"width_m": 1.0, "weight_kN": 10.0, "base_angle_deg": 10.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 12.0},
+        {"width_m": 1.0, "weight_kN": 100.0, "base_angle_deg": 15.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 0.0},
+        {"width_m": 1.0, "weight_kN": 100.0, "base_angle_deg": 20.0,
+         "cohesion_kpa": 5.0, "friction_angle_deg": 25.0, "pore_pressure_kpa": 0.0},
+    ]
+    with pytest.raises(ValueError, match="無正向有效法向接觸"):
+        bishop_simplified_factor_of_safety(slices=slices)
+
+
+def test_bishop_circular_search_rejects_ponded_groundwater_without_external_water_pressure():
+    from geolysis_engine import bishop_circular_search
+
+    with pytest.raises(ValueError, match="地表積水／淹水"):
+        bishop_circular_search(
+            ground_profile=[(0.0, 10.0), (5.0, 8.0), (10.0, 0.0), (20.0, 0.0)],
+            cohesion_kpa=10.0, friction_angle_deg=25.0,
+            unit_weight_kn_m3=18.0,
+            center_x_values=[6.0], center_y_values=[12.0], radius_values=[15.0],
+            slice_count=20, groundwater_elevation=6.0,
+            unit_weight_moist_kn_m3=18.0, unit_weight_sat_kn_m3=20.0,
+        )

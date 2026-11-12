@@ -11,6 +11,21 @@ from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bea
 
 
 
+def _normalize_bishop_weight_column(frame):
+    """Normalize manual Bishop slice weight to the 2D unit-width kN/m convention."""
+    normalized = frame.copy()
+    canonical = "weight_kN_per_m"
+    legacy = "weight_kN"
+    if canonical in normalized.columns and legacy in normalized.columns:
+        raise ValueError("Bishop CSV 不可同時提供 weight_kN_per_m 與舊欄名 weight_kN")
+    if canonical in normalized.columns:
+        normalized = normalized.rename(columns={canonical: legacy})
+        return normalized, False
+    if legacy in normalized.columns:
+        return normalized, True
+    raise ValueError("Bishop CSV 必須提供 weight_kN_per_m（每延米重量）欄位")
+
+
 def _slide_seismic_earth_pressure_ready(load_case, manual_seismic_pressure_confirmed):
     """Seismic sliding needs explicitly confirmed direction-specific Pa/Pp inputs."""
     return load_case != "seismic" or bool(manual_seismic_pressure_confirmed)
@@ -859,18 +874,22 @@ def render_module_5(expanded=False):
 
         with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
             st.warning("本 Bishop 計算目前僅為靜態圓弧滑動分析，不含 kh／kv 偽靜力、地震孔壓累積、液化後殘餘強度或側向擴展；不可將此 FS 當作地震整體穩定結果。USACE EM 1110-1-1905（2025）§1-7(f) 未提供靜態／地震邊坡穩定方法，應另依 EM 1110-2-1902 及場址地震設計要求分析。")
-            st.caption("輸入同一圓弧滑動面的切片資料。底角正值代表朝滑動方向下降；各片 c′、φ′及孔隙水壓應使用該片底面平均值。")
-            bishop_csv=st.text_area("切片 CSV：width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa",
-                value="",placeholder="width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n…請填入本工程同一圓弧滑動面的各片資料",
+            st.caption("輸入同一圓弧滑動面的切片資料。此為二維每延米（出平面厚度 1 m）分析：切片重量須用 kN/m，寬度用 m，c′及孔隙水壓用 kPa；底角正值代表朝滑動方向下降。")
+            bishop_csv=st.text_area("切片 CSV：width_m,weight_kN_per_m,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa",
+                value="",placeholder="width_m,weight_kN_per_m,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n…請填入本工程同一圓弧滑動面的各片資料",
                 height=120,key="m5x_bishop_csv")
             bishop_slice_context5=hashlib.sha256(bishop_csv.encode("utf-8")).hexdigest()[:12]
             bishop_slices_confirmed5=st.checkbox(
-                "已確認各切片寬度、重量、底角、c′、φ′及孔壓均取自本工程同一圓弧滑動面",
+                "已確認各切片寬度（m）、每延米重量（kN/m）、底角、c′、φ′及孔壓均取自本工程同一圓弧滑動面",
                 value=False,key=f"m5x_bishop_slices_confirm_{bishop_slice_context5}")
             bishop_slice_sig=(bishop_csv,bool(bishop_slices_confirmed5))
             if st.button("計算 Bishop 整體穩定 FS",key="m5x_bishop_run",disabled=(not bishop_csv.strip() or not bishop_slices_confirmed5)):
                 try:
-                    slices=pd.read_csv(StringIO(bishop_csv)).to_dict("records")
+                    bishop_frame=pd.read_csv(StringIO(bishop_csv))
+                    bishop_frame,legacy_bishop_weight_header=_normalize_bishop_weight_column(bishop_frame)
+                    if legacy_bishop_weight_header:
+                        st.warning("偵測到舊欄名 weight_kN；為維持相容，系統仍按二維每延米重量 kN/m 解讀。請更新 CSV 欄名為 weight_kN_per_m。")
+                    slices=bishop_frame.to_dict("records")
                     bishop=bishop_simplified_factor_of_safety(slices=slices)
                     store_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop, bishop_slice_sig)
                 except Exception as exc:
@@ -879,12 +898,12 @@ def render_module_5(expanded=False):
             bishop, bishop_is_current = read_result_state(st.session_state, "m5x_bishop_result", "m5x_bishop_signature", bishop_slice_sig)
             if bishop and bishop_is_current:
                 st.metric("Bishop 簡化法 FS",f"{bishop['FS']:.3f}")
-                st.caption(f"迭代 {bishop['iterations']} 次；{bishop['limitations']}")
+                st.caption(f"迭代 {bishop['iterations']} 次；切片重量採每延米 kN/m；{bishop['limitations']}")
     
     
         with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
             st.warning("本自動搜尋同樣僅計算靜態 Bishop FS，不含 kh／kv、地震孔壓累積、液化後殘餘強度或側向擴展；不可用來宣稱地震整體穩定通過。地震邊坡穩定須另依 EM 1110-2-1902 與適用的場址地震設計程序辦理。")
-            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
+            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。採二維每延米（出平面厚度 1 m），γ 用 kN/m³，計算切片重量為 kN/m；座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
             profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
                 value="",placeholder="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0\n…請改填本工程實際地表剖面",
                 height=90,key="m5x_profile")

@@ -21,3 +21,25 @@ def test_clear_result_state_removes_both_cached_values():
     state = {"result": {"qult": 1200.0}, "signature": (12.0, 30.0)}
     clear_result_state(state, "result", "signature")
     assert read_result_state(state, "result", "signature", (12.0, 30.0)) == (None, False)
+
+
+def test_result_state_signature_includes_calculation_revision():
+    from geolysis_ui.state import RESULT_STATE_REVISION
+
+    state = {}
+    signature = ("Bishop", "weight_kN_per_m")
+    store_result_state(state, "result", "signature", {"FS": 1.25}, signature)
+    assert state["signature"] == (RESULT_STATE_REVISION, signature)
+    assert read_result_state(state, "result", "signature", signature) == ({"FS": 1.25}, True)
+
+
+def test_unversioned_session_result_is_stale_after_calculation_revision_change():
+    state = {
+        "result": {"FS": 1.25},
+        "signature": ("Bishop", "weight_kN_per_m"),
+    }
+    result, is_current = read_result_state(
+        state, "result", "signature", ("Bishop", "weight_kN_per_m")
+    )
+    assert result == {"FS": 1.25}
+    assert is_current is False
