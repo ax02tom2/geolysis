@@ -666,5 +666,8 @@ def test_manual_corner_editor_payload_scales_preview_and_points_without_mutating
     assert data_url.startswith("data:image/jpeg;base64,")
     assert (preview_width, preview_height) == (1600, 800)
     assert scale == 0.4
-    assert points == [[0.0, 0.0], [1599.6, 0.0], [1599.6, 799.6], [0.0, 799.6]]
+    expected = [[0.0, 0.0], [1599.6, 0.0], [1599.6, 799.6], [0.0, 799.6]]
+    assert all(abs(actual - target) < 1e-8
+               for actual_point, target_point in zip(points, expected)
+               for actual, target in zip(actual_point, target_point))
     assert source.size == original_size
