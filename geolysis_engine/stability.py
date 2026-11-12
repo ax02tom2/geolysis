@@ -9,7 +9,7 @@ def base_uplift_pressure_readiness(*, uplift_force_kN,
         load_case, pressure_confirmed=False, tolerance_kN=0.01):
     """Gate sliding/uplift calculations against the applicable base-pressure reference.
 
-    The reference may include hydrostatic pressure alone (static), or hydrostatic plus confirmed residual excess pore pressure (seismic). Any positive U must be
+    The reference may include hydrostatic pressure alone (static), or hydrostatic plus confirmed residual excess pore pressure (seismic).\n    Any positive U must be
     confirmed; seismic combinations also require explicit confirmation when
     U=0 so zero is not mistaken for an unreviewed default.
     """
@@ -31,7 +31,7 @@ def base_uplift_pressure_readiness(*, uplift_force_kN,
     if U + tol < Uref:
         return {
             "ready":False,
-            "reason":f"輸入 U={U:.2f} kN 小於基底適用基底壓力參考值 U_ref={Uref:.2f} kN；不可用較小揚壓計算滑動／抗浮。",
+            "reason":f"輸入 U={U:.2f} kN 小於適用基底壓力參考值 U_ref={Uref:.2f} kN；不可用較小揚壓計算滑動／抗浮。",
             "exceeds_reference":False,
         }
     if (U>tol or load_case=="seismic") and not pressure_confirmed:
