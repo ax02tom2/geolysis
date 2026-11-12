@@ -418,3 +418,83 @@ def test_module4_burland_eccentric_settlement_uses_effective_dimensions():
     assert any("B′=1.800 m、L′=2.600 m" in item.value for item in app.caption)
     # Burland influence depth must use B'=1.8 m, not the physical B=2.0 m.
     assert any("影響深度 Zi = 1.51 m" in item.value for item in app.markdown)
+
+
+@pytest.mark.parametrize(
+    ("method_label", "method_key", "csv_key", "csv_text"),
+    [
+        (
+            "DMT：增量拘束模數法（USACE 2025）",
+            "m4_dmt_mode",
+            "m4_dmt_layers",
+            "Layer,depth_center_m,thickness_m,MDMT_kpa\\n1,0.5,1.0,10000\\n2,1.5,1.0,10000\\n3,2.5,1.0,10000\\n4,3.5,1.0,10000",
+        ),
+        (
+            "CPT：Schmertmann 沉陷法（USACE 2025）",
+            None,
+            "m4_cpt_layers",
+            "Layer,thickness_m,qc_kpa\\n1,1.0,8000\\n2,1.0,8500\\n3,1.0,9000\\n4,1.0,9500\\n5,1.0,10000",
+        ),
+        (
+            "PMT：Ménard–Rousseau 法（USACE 2025）",
+            None,
+            "m4_pmt_layers",
+            "group,E0_kpa\\nE1,8000\\nE2,9000\\nE345,10000\\nE678,11000\\nE916,12000",
+        ),
+    ],
+)
+def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
+    method_label, method_key, csv_key, csv_text
+):
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5_run").click()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    transfer = app.session_state["m5_bearing_transfer"]
+    assert transfer is not None
+    assert transfer["qeq_gross_kpa"] < transfer["qult_gross_kpa"] / 3.0
+
+    next(widget for widget in app.selectbox if widget.key == "m4_method").select(method_label)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Match Module 5's physical 2 m × 3 m footing before accepting the transfer.
+    geometry_key = {
+        "DMT：增量拘束模數法（USACE 2025）": "m4_dmt_l",
+        "CPT：Schmertmann 沉陷法（USACE 2025）": "m4_cpt_l",
+        "PMT：Ménard–Rousseau 法（USACE 2025）": "m4_pmt_l",
+    }[method_label]
+    next(widget for widget in app.number_input if widget.key == geometry_key).set_value(3.0)
+    app.run()
+
+    prefix = {
+        "DMT：增量拘束模數法（USACE 2025）": "m4_dmt",
+        "CPT：Schmertmann 沉陷法（USACE 2025）": "m4_cpt",
+        "PMT：Ménard–Rousseau 法（USACE 2025）": "m4_pmt",
+    }[method_label]
+    transfer_id = transfer["transfer_id"]
+    next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_{transfer_id}").check()
+    app.run()
+    condition_key = f"{prefix}_conditions_{transfer_id}_2.00_3.00_0.00_isolated"
+    next(widget for widget in app.checkbox if widget.key == condition_key).check()
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_qeq_{transfer_id}").check()
+
+    if method_key:
+        next(widget for widget in app.selectbox if widget.key == method_key).select("MDMT")
+    if prefix == "m4_cpt":
+        next(widget for widget in app.checkbox if widget.key == "m4_cpt_soil_confirm").check()
+    if prefix == "m4_pmt":
+        next(widget for widget in app.number_input if widget.key == "m4_pmt_pne").set_value(2000.0)
+        next(widget for widget in app.number_input if widget.key == "m4_pmt_py").set_value(1000.0)
+        next(widget for widget in app.checkbox if widget.key == "m4_pmt_deep_confirm").check()
+        next(widget for widget in app.checkbox if widget.key == "m4_pmt_lambda_confirm").check()
+    next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
+    assert any(expected in item.value for item in app.markdown)
