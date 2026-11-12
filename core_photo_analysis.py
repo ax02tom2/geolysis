@@ -5,6 +5,8 @@ RQD 必須使用可追溯的實際岩芯段長度，且需排除機械斷裂。
 """
 from __future__ import annotations
 
+import math
+
 from io import BytesIO
 from typing import Iterable
 
@@ -79,9 +81,11 @@ def inspect_image(data: bytes) -> tuple[Image.Image, ImageInfo]:
 
 
 def pixel_scale_mm_per_px(reference_length_mm: float, reference_length_px: float) -> float:
-    if reference_length_mm <= 0 or reference_length_px <= 0:
-        raise ValueError("比例尺的實際長度與像素長度都必須大於 0。")
-    return reference_length_mm / reference_length_px
+    actual = float(reference_length_mm)
+    pixels = float(reference_length_px)
+    if not math.isfinite(actual) or not math.isfinite(pixels) or actual <= 0 or pixels <= 0:
+        raise ValueError("比例尺的實際長度與像素長度都必須是有限且大於 0 的數值。")
+    return actual / pixels
 
 
 def parse_piece_lengths(raw: str) -> list[float]:
@@ -93,8 +97,8 @@ def parse_piece_lengths(raw: str) -> list[float]:
             value = float(token)
         except ValueError as exc:
             raise ValueError(f"無法辨識岩芯段長度：{token}") from exc
-        if value <= 0:
-            raise ValueError("岩芯段長度必須全部大於 0。")
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("岩芯段長度必須全部是有限且大於 0 的數值。")
         values.append(value)
     return values
 
@@ -111,18 +115,25 @@ def calculate_core_indices(
     broken mechanically. RQD uses only lengths bounded by natural
     discontinuities after mechanical breaks have been fitted together.
     """
-    if drilled_interval_m <= 0:
-        raise ValueError("鑽進深度區間必須大於 0。")
+    drilled_interval_m = float(drilled_interval_m)
+    rqd_threshold_mm = float(rqd_threshold_mm)
+    if not math.isfinite(drilled_interval_m) or drilled_interval_m <= 0:
+        raise ValueError("鑽進深度區間必須是有限且大於 0 的數值。")
+    if not math.isfinite(rqd_threshold_mm) or rqd_threshold_mm <= 0:
+        raise ValueError("RQD 最小岩心段門檻必須是有限且大於 0 的數值。")
     recovered_lengths = [float(x) for x in recovered_lengths_mm]
-    if any(x <= 0 for x in recovered_lengths):
-        raise ValueError("回收岩心長度必須全部大於 0。")
+    if any(not math.isfinite(x) or x <= 0 for x in recovered_lengths):
+        raise ValueError("回收岩心長度必須全部是有限且大於 0 的數值。")
     rqd_lengths = ([float(x) for x in rqd_piece_lengths_mm]
                    if rqd_piece_lengths_mm is not None else list(recovered_lengths))
-    if any(x <= 0 for x in rqd_lengths):
-        raise ValueError("RQD 岩心段長度必須全部大於 0。")
+    if any(not math.isfinite(x) or x <= 0 for x in rqd_lengths):
+        raise ValueError("RQD 岩心段長度必須全部是有限且大於 0 的數值。")
 
     drilled_mm = drilled_interval_m * 1000.0
     recovered_mm = sum(recovered_lengths)
+    # Over-recovery and RQD-piece totals exceeding recovered length are
+    # retained as explicit diagnostic flags in the result, rather than
+    # silently clamped or discarded; field measurements may need reconciliation.
     rqd_mm = sum(x for x in rqd_lengths if x >= rqd_threshold_mm)
 
     return {
