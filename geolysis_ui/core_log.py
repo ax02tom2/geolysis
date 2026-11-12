@@ -158,8 +158,12 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
 
         # PDF 可由頁首可讀深度範圍推定起始深度；DOCX 或掃描頁若無法推定，
         # 才要求使用者輸入一次起始深度，不要求逐列輸入深度。
-        if all(record.depth_start_m is None for record in records) and any(record.row_number is not None for record in records):
-            st.warning("檔案未提供可讀的起始深度；請輸入本段第一列起始深度，結束深度會依列序自動推算。")
+        if all(record.depth_start_m is None for record in records):
+            has_row_numbers = any(record.row_number is not None for record in records)
+            if has_row_numbers:
+                st.warning("檔案有列號但沒有可讀的深度起點；可輸入一次第一列起始深度，系統依列號推算各列深度。")
+            else:
+                st.warning("檔案沒有可讀的列號或列尾深度；若確認所有 1 m 列均依序存在，可輸入第一列起始深度，系統暫按檔案列序推算。")
             start_depth = st.number_input(
                 "第一列起始深度（m）",
                 min_value=0.0,
@@ -182,7 +186,6 @@ def render_core_log_analysis(expanded: bool = False, engine_fingerprint: str = "
                     logger.exception("Applying core-log start depth failed")
                     st.error(f"深度套用失敗：{exc}")
                     return
-            return
         if all(record.depth_start_m is None for record in records):
             st.warning("未能從檔案讀取列號；仍可檢視原始影像與逐列初估，但深度索引需依原始編錄人工核對。")
 

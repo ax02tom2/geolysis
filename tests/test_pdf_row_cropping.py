@@ -118,3 +118,42 @@ def test_pdf_parser_uses_decimal_row_end_depths_without_manual_start_depth():
         (0.0, 1.0), (1.0, 2.0), (2.0, 3.0), (3.0, 4.0)
     ]
     assert parsed["depth_source"] == "PDF 列尾深度標籤"
+
+
+def test_attach_depths_uses_file_order_only_when_all_labels_are_absent():
+    from core_log_parser import CoreRowRecord, _attach_depths
+
+    records = [
+        CoreRowRecord(
+            page=1, box_index=1, row_in_box=i + 1, row_number=None,
+            depth_start_m=None, depth_end_m=None, width_px=1000, height_px=100,
+            image=Image.new("RGB", (1000, 100)), source="test", warnings=[],
+        )
+        for i in range(3)
+    ]
+    _attach_depths(records, start_depth_m=12.0, row_length_m=1.0)
+    assert [(r.depth_start_m, r.depth_end_m) for r in records] == [
+        (12.0, 13.0), (13.0, 14.0), (14.0, 15.0)
+    ]
+
+
+def test_attach_depths_does_not_apply_sequence_fallback_to_partially_labelled_rows():
+    from core_log_parser import CoreRowRecord, _attach_depths
+
+    records = [
+        CoreRowRecord(
+            page=1, box_index=1, row_in_box=1, row_number=None,
+            depth_start_m=None, depth_end_m=None, width_px=1000, height_px=100,
+            image=Image.new("RGB", (1000, 100)), source="test", warnings=[],
+            depth_end_label_m=1.0,
+        ),
+        CoreRowRecord(
+            page=1, box_index=1, row_in_box=2, row_number=None,
+            depth_start_m=None, depth_end_m=None, width_px=1000, height_px=100,
+            image=Image.new("RGB", (1000, 100)), source="test", warnings=[],
+        ),
+    ]
+    _attach_depths(records, start_depth_m=0.0, row_length_m=1.0)
+    assert (records[0].depth_start_m, records[0].depth_end_m) == (0.0, 1.0)
+    assert records[1].depth_start_m is None
+    assert records[1].depth_end_m is None
