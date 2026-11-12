@@ -72,7 +72,6 @@ def render_module_4(expanded=False):
                 q4=st.number_input("目前基礎底 gross 壓力 q；偏心時輸入 qeq [kPa]",1.0,5000.0,150.0,5.0,key='m4_bb_q')
                 target_bb4=st.number_input("容許總沉陷量 [mm]",1.0,200.0,25.0,1.0,key='m4_bb_target')
                 fs_bb4=st.number_input("承載力安全係數 FS",1.1,10.0,3.0,0.1,key='m4_bb_fs')
-                if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 sig04=st.number_input("影響深度內平均初始有效應力 [kPa]",0.0,3000.0,100.0,5.0,key='m4_bb_sig0')
                 sigp4=st.number_input("先期固結壓力 σ′p [kPa]（正常固結時採 σ′0）",1.0,5000.0,100.0,5.0,key='m4_bb_sigp')
             with c:
@@ -80,6 +79,7 @@ def render_module_4(expanded=False):
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 transfer_qult4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4)
                 qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
+                if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
                 years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
             profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
