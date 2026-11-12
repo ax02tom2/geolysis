@@ -93,10 +93,19 @@ def spt_profile(rows, *, energy_ratio_pct, borehole_factor, sampler_factor, rod_
 
     Optional CSV columns: Soil_Behavior (cohesionless/cohesive),
     Apply_Dilatancy (true/false), Energy_Ratio_pct, Borehole_Factor,
-    Sampler_Factor and Rod_Length_m. Global settings remain the fallback.
+    Sampler_Factor and Rod_Length_m. Global settings remain the fallback;
+    if global dilatancy is enabled, every profile row must explicitly declare
+    Apply_Dilatancy to avoid blanket correction of non-eligible soil layers.
     """
     out=[]
     if not rows: raise ValueError('逐深度資料不可為空')
+    if apply_dilatancy and any(
+        _profile_value(row, "Apply_Dilatancy", None) is None for row in rows
+    ):
+        raise ValueError(
+            "逐深度剖面若要套用膨脹修正，必須在 Apply_Dilatancy 欄逐列明確填 true／false；"
+            "不可將單筆試驗的膨脹修正條件直接套用到整孔所有非凝聚性土層。"
+        )
     seen=set()
     for row in rows:
         missing={'Depth_m','N'}-set(row)
