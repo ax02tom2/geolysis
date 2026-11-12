@@ -26,6 +26,16 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
             f"請統一基礎尺寸／埋深／型式，或改用手動輸入。"
         )
         return None, None
+    # USACE 2025 §5-2a requires effective footing dimensions for eccentric settlement.
+    try:
+        effective_b=float(transfer["B_effective_m"])
+        effective_l=float(transfer["L_effective_m"])
+    except (KeyError,TypeError,ValueError):
+        st.warning("Module 5 跨模組資料缺少偏心荷載有效尺寸 B′、L′；請重新執行 Module 5 承載力計算後再帶入。")
+        return None, None
+    if effective_b<=0 or effective_l<=0:
+        st.warning("Module 5 有效基礎尺寸 B′、L′ 不合理；已停止跨模組帶入。")
+        return None, None
     transfer_id=str(transfer["transfer_id"])
     use_value=st.checkbox(
         f"使用 Module 5 目前有效的 {label}（{float(transfer[field]):.1f} kPa）",
@@ -52,6 +62,14 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
             f"同時採用 Module 5 的 gross 等效壓力 qeq（{float(transfer['qeq_gross_kpa']):.1f} kPa）",
             value=False,key=f"{key_prefix}_use_m5_qeq_{transfer_id}")
     return float(transfer[field]), (float(transfer["qeq_gross_kpa"]) if use_qeq else None)
+
+
+def _module5_settlement_dimensions(width_m, length_m, transfer_selected):
+    """Use Module 5 effective B'/L' for a confirmed transfer; else physical B/L."""
+    if not transfer_selected:
+        return float(width_m), float(length_m)
+    transfer=st.session_state.get("m5_bearing_transfer") or {}
+    return float(transfer["B_effective_m"]), float(transfer["L_effective_m"])
 
 
 def _pmt_transfer_footing_type(width_m, length_m, round_footing=False):
