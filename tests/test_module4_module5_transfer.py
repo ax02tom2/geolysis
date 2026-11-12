@@ -1,5 +1,7 @@
 """Regression tests for Module 4 ↔ Module 5 result transfer."""
 
+import pytest
+
 from geolysis_ui import module4
 
 
@@ -139,4 +141,54 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
     )
 
     assert qa_net == 300.0
+    assert qeq is None
+
+
+@pytest.mark.parametrize(
+    ("key_prefix", "footing_type"),
+    [
+        ("m4_bb", "isolated"),
+        ("m4_dmt", "isolated"),
+        ("m4_cpt", "isolated"),
+        ("m4_pmt", "isolated"),
+    ],
+)
+def test_all_gross_settlement_methods_can_select_module5_qeq(
+    monkeypatch, key_prefix, footing_type
+):
+    transfer = _transfer_fixture()
+    _patch_transfer_ui(
+        monkeypatch,
+        transfer,
+        {
+            f"{key_prefix}_use_m5_transfer123": True,
+            f"{key_prefix}_conditions_transfer123_2.00_3.00_0.00_{footing_type}": True,
+            f"{key_prefix}_use_m5_qeq_transfer123": True,
+        },
+    )
+
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix=key_prefix,
+        label="gross 極限承載力 qult",
+        field="qult_gross_kpa",
+        width_m=2.0,
+        length_m=3.0,
+        footing_type=footing_type,
+    )
+
+    assert qult == 900.0
+    assert qeq == 240.0
+
+
+def test_module4_pmt_round_footing_cannot_reuse_rectangular_module5_capacity(monkeypatch):
+    _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_pmt",
+        label="gross 極限承載力 qult",
+        field="qult_gross_kpa",
+        width_m=2.0,
+        length_m=2.0,
+        footing_type="round",
+    )
+    assert qult is None
     assert qeq is None
