@@ -311,7 +311,7 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
         'seismic_weight_kN':W,
         'load_case':'seismic',
         'method':'USACE EM 1110-1-1905 (2025), Table 2-1 Note 2 and Eqs. 5-28/5-29; pseudo-static H+khW, V±kvW',
-        'limitations':'水平地震作用採與靜力 H 同向的不利包絡 H+khW；垂直方向逐一評估 V±kvW，控制值取兩者較小 FS。U 在兩個垂直組合中保持不變。Pa/Pp 及 uplift 由使用者提供或由既有 developed Rankine 模型估算；若結構／回填幾何不對稱，應先分別建立正反向水平作用的 Pa/Pp，並輸入較不利組合。本方法未納入土體慣性、孔壓累積、液化強度損失、基礎接觸區因傾覆而變化及任意水平方位角。FS≥1.1 是 USACE Table 2-1 Note 2 對含地震荷載滑動的最低要求，不適用於承載力或傾覆檢核。'
+        'limitations':'水平地震作用採與靜力 H 同向的不利包絡 H+khW；垂直方向逐一評估 V±kvW，控制值取兩者較小 FS。U 在兩個垂直組合中保持不變。地震模式的 Pa/Pp 必須由使用者提供地震作用下正反向控制值，並確認已納入專案需要的地震土壓增量；若無回填土壓作用可輸入 0。developed_rankine_sliding_earth_pressures 僅計算靜態 Rankine 土壓，即使 load_case=seismic 也不代表已計算地震動態土壓。若結構／回填幾何不對稱，應分別建立正反向水平作用的 Pa/Pp，並輸入較不利組合。本方法未納入土體慣性、孔壓累積、液化強度損失、基礎接觸區因傾覆而變化及任意水平方位角。FS≥1.1 是 USACE Table 2-1 Note 2 對含地震荷載滑動的最低要求，不適用於承載力或傾覆檢核。'
     }
 
 def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_weight_kN,
@@ -400,4 +400,4 @@ def developed_rankine_sliding_earth_pressures(*, effective_unit_weight_kn_m3,
         'active_force_kN':Pa,'passive_force_kN':Pp,
         'load_case':load_case,'FS_minimum_required':minimum_fs,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-31 to 5-35; Rankine',
-        'limitations':'假設均質回填土、垂直牆背／水平地表且可採 Rankine 壓力係數；側摩擦、斜坡地表、分層土、施工擾動及水壓需另行處理。被動抗力在 FS 計算中仍會受 driving force cap 限制。'}
+        'limitations':'本函數只依 USACE 2025 式 5-31 至 5-35 計算靜態 developed-strength Rankine Pa/Pp。即使 load_case=seismic，此參數也只用於選取滑動 FS 最低門檻，不會計算地震動態土壓增量；不可將此結果直接當成完整地震 Pa/Pp。地震滑動應另輸入地震作用下正反向控制的 Pa/Pp。另假設均質回填土、垂直牆背／水平地表且可採 Rankine 壓力係數；側摩擦、斜坡地表、分層土、施工擾動及水壓需另行處理。被動抗力在 FS 計算中仍會受 driving force cap 限制。'}
