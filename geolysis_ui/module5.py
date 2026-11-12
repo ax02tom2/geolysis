@@ -809,6 +809,7 @@ def render_module_5(expanded=False):
                 st.caption(uplift["limitations"])
 
         with st.expander("⑥ 整體穩定：Bishop 簡化法（使用者提供圓弧切片）",expanded=False):
+            st.warning("本 Bishop 計算目前僅為靜態圓弧滑動分析，不含 kh／kv 偽靜力、地震孔壓累積、液化後殘餘強度或側向擴展；不可將此 FS 當作地震整體穩定結果。USACE EM 1110-1-1905（2025）§1-7(f) 未提供靜態／地震邊坡穩定方法，應另依 EM 1110-2-1902 及場址地震設計要求分析。")
             st.caption("輸入同一圓弧滑動面的切片資料。底角正值代表朝滑動方向下降；各片 c′、φ′及孔隙水壓應使用該片底面平均值。")
             bishop_csv=st.text_area("切片 CSV：width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa",
                 value="",placeholder="width_m,weight_kN,base_angle_deg,cohesion_kpa,friction_angle_deg,pore_pressure_kpa\n1,100,10,10,25,0\n…請填入本工程同一圓弧滑動面的各片資料",
@@ -833,6 +834,7 @@ def render_module_5(expanded=False):
     
     
         with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
+            st.warning("本自動搜尋同樣僅計算靜態 Bishop FS，不含 kh／kv、地震孔壓累積、液化後殘餘強度或側向擴展；不可用來宣稱地震整體穩定通過。地震邊坡穩定須另依 EM 1110-2-1902 與適用的場址地震設計程序辦理。")
             st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
             profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
                 value="",placeholder="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0\n…請改填本工程實際地表剖面",
