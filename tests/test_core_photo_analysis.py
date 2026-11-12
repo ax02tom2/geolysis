@@ -460,3 +460,66 @@ def test_rqd_remains_pending_until_every_detected_break_is_reviewed():
     assert result["recovery_percent"] == 100.0
     assert result["rqd_percent"] is None
     assert result["ready"] is False
+
+
+def test_core_gap_review_candidates_identify_adjacent_segments_and_physical_interval():
+    from core_photo_analysis import build_core_gap_review_candidates
+
+    analysis = {
+        "success": True,
+        "segments": [
+            {"x_start_px": 0, "x_end_px": 25},
+            {"x_start_px": 30, "x_end_px": 500},
+        ],
+        "gaps": [{"x_start_px": 25, "x_end_px": 30, "length_mm": 10.0}],
+    }
+    candidates = build_core_gap_review_candidates(analysis, mm_per_px=2.0)
+    assert len(candidates) == 1
+    assert candidates[0]["candidate_type"] == "core_gap"
+    assert candidates[0]["left_segment_index"] == 0
+    assert candidates[0]["right_segment_index"] == 1
+    assert candidates[0]["gap_start_mm"] == 50.0
+    assert candidates[0]["gap_end_mm"] == 60.0
+
+
+def test_rqd_merges_mechanical_core_gap_but_not_natural_joint_or_core_loss():
+    from core_photo_analysis import estimate_rqd_from_image_segments
+
+    segments = [
+        {"x_start_px": 0, "x_end_px": 25},
+        {"x_start_px": 30, "x_end_px": 500},
+    ]
+    gap = {
+        "candidate_type": "core_gap",
+        "left_segment_index": 0,
+        "right_segment_index": 1,
+        "gap_start_mm": 50.0,
+        "gap_end_mm": 60.0,
+        "distance_mm": 55.0,
+    }
+    mechanical = estimate_rqd_from_image_segments(
+        segments, [{**gap, "review_class": "機械破損"}],
+        mm_per_px=2.0, row_length_mm=1000.0,
+    )
+    natural = estimate_rqd_from_image_segments(
+        segments, [{**gap, "review_class": "天然節理"}],
+        mm_per_px=2.0, row_length_mm=1000.0,
+    )
+    core_loss = estimate_rqd_from_image_segments(
+        segments, [{**gap, "review_class": "岩心缺失／採取損失"}],
+        mm_per_px=2.0, row_length_mm=1000.0,
+    )
+    false_gap = estimate_rqd_from_image_segments(
+        segments, [{**gap, "review_class": "非斷裂／誤判"}],
+        mm_per_px=2.0, row_length_mm=1000.0,
+    )
+
+    assert mechanical["recovery_percent"] == 99.0
+    assert mechanical["piece_lengths_mm"] == [990.0]
+    assert mechanical["rqd_percent"] == 99.0
+    assert natural["piece_lengths_mm"] == [50.0, 940.0]
+    assert natural["rqd_percent"] == 94.0
+    assert core_loss["piece_lengths_mm"] == [50.0, 940.0]
+    assert core_loss["rqd_percent"] == 94.0
+    assert false_gap["piece_lengths_mm"] == [990.0]
+    assert false_gap["rqd_percent"] == 99.0
