@@ -567,6 +567,8 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
+    next(widget for widget in app.selectbox if widget.key == "m5_theory").select("Meyerhof")
+    app.run()
     next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
     app.run()
     next(widget for widget in app.button if widget.key == "m5_run").click()
