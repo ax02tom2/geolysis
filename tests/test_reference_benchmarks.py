@@ -1855,8 +1855,9 @@ def test_usace_2025_appendix_c5_menard_pmt_clay_soft_layer_settlement():
 
 def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
     # Appendix C-6b, Table C-6a/C-6b (printed pp. 368-373).
-    # The 46 listed layer settlements sum to about 0.81 in; the printed
-    # total is 0.081 in, a factor-of-ten discrepancy.
+    # The 46 displayed layer settlements sum to 0.812 in after table rounding.
+    # Recalculation from unrounded inputs gives 0.8266 in; the printed
+    # total of 0.081 in is therefore a factor-of-ten transcription error.
     ft = 0.3048
     tsf = 95.7605
     data = [
@@ -1883,7 +1884,16 @@ def test_usace_2025_appendix_c6b_dmt_mixed_soil_profile():
         gross_pressure_kpa=2.53*tsf,base_effective_stress_kpa=.15*tsf,
     )
     expected_in = sum((2.53-.15)*Iz*H/M*12 for z,H,M,Iz in data)
-    assert len(result["layer_results"]) == 46
+    displayed_layer_settlements_in = [
+        .026,.032,.020,.104,.018,.014,.011,.010,.003,.004,
+        .004,.004,.005,.005,.005,.004,.008,.007,.003,.005,
+        .035,.040,.063,.050,.026,.035,.030,.021,.016,.010,
+        .007,.007,.014,.005,.007,.004,.005,.004,.007,.005,
+        .021,.020,.006,.011,.018,.015,.020,.016,.018,
+    ]
+    assert len(result["layer_results"]) == len(data) == len(displayed_layer_settlements_in) == 46
+    assert sum(displayed_layer_settlements_in) == pytest.approx(0.812, abs=1e-9)
+    assert expected_in / 0.081 > 10.0
     assert result["layer_results"][0]["Stress_factor_I_sigma"] == pytest.approx(.998)
     assert result["profile_depth_used_m"] > 30*ft
     assert result["settlement_mm"]/25.4 == pytest.approx(expected_in,abs=1e-6)
