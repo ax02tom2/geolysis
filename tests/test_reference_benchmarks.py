@@ -4066,3 +4066,40 @@ def test_seismic_sliding_earth_pressure_readiness_requires_explicit_manual_confi
     assert _slide_seismic_earth_pressure_ready("static", False) is True
     assert _slide_seismic_earth_pressure_ready("seismic", False) is False
     assert _slide_seismic_earth_pressure_ready("seismic", True) is True
+
+
+def test_bishop_manual_slice_csv_uses_canonical_per_metre_weight_header():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({
+        "width_m": [1.0],
+        "weight_kN_per_m": [100.0],
+        "base_angle_deg": [10.0],
+        "cohesion_kpa": [10.0],
+        "friction_angle_deg": [25.0],
+        "pore_pressure_kpa": [0.0],
+    })
+    normalized, legacy = _normalize_bishop_weight_column(frame)
+    assert legacy is False
+    assert normalized["weight_kN"].tolist() == [100.0]
+    assert "weight_kN_per_m" not in normalized.columns
+
+
+def test_bishop_manual_slice_csv_accepts_legacy_weight_header_as_per_metre():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({"weight_kN": [100.0]})
+    normalized, legacy = _normalize_bishop_weight_column(frame)
+    assert legacy is True
+    assert normalized["weight_kN"].tolist() == [100.0]
+
+
+def test_bishop_manual_slice_csv_rejects_ambiguous_dual_weight_headers():
+    import pandas as pd
+    from geolysis_ui.module5 import _normalize_bishop_weight_column
+
+    frame = pd.DataFrame({"weight_kN": [100.0], "weight_kN_per_m": [100.0]})
+    with pytest.raises(ValueError, match="不可同時提供"):
+        _normalize_bishop_weight_column(frame)
