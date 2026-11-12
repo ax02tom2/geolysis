@@ -301,7 +301,7 @@ def render_module_4(expanded=False):
                 logging.exception("Schmertmann CPT settlement calculation failed")
                 st.error(f"CPT 沉陷估算失敗：{exc}")
         elif method4.startswith('PMT：'):
-            st.caption("依 USACE EM 1110-1-1905（2025）式 7-11／7-12、表 7-5／7-6 及圖 7-11／7-12。可計算深層均質沉陷，並可另外輸入 2B（條形基礎 6B）範圍內的軟弱／鬆散層修正。")
+            st.caption("依 USACE EM 1110-1-1905（2025）式 7-11／7-12、表 7-5／7-6 及圖 7-11／7-12。可計算深層均質沉陷；軟弱／鬆散層至少檢核 2B（L/B>10 條形基礎 6B），若更深處 Δσz 仍達 0.1q，須延伸納入至應力增量可忽略處。")
             a,b,c=st.columns(3)
             with a:
                 pmtB=st.number_input("基礎寬度／圓形基礎等效直徑 B [m]",0.3,30.0,2.0,0.1,key="m4_pmt_b")
@@ -345,7 +345,7 @@ def render_module_4(expanded=False):
                 value="",height=90,key="m4_pmt_soft_layers",
                 placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n1.0,0.5,5000,600,0.129")
             st.caption("PMT 軟弱層的 depth_center_m 是層中心點距基礎底的深度；若資料表給層底深度，請用 z_bottom−thickness/2 換算。各層厚度區間不可重疊，系統會檢查重疊。")
-            pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方 2B（條形基礎 6B）範圍內所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
+            pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方至少 2B（條形基礎 6B），並延伸至 Δσz < 0.1q 的所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
             pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
                 value="",height=130,key="m4_pmt_layers",
                 placeholder="group,E0_kpa\nE1,12000\nE2,15000\nE345,18000\nE678,22000\nE916,25000\n…（每組可有多筆試驗值）")
