@@ -61,3 +61,11 @@ def test_module5_seismic_guidance_matches_implemented_base_pressure_and_uplift_c
     assert "獨立 §9-10(f) 地震抗浮 FS≥1.5 檢核" in module5
     assert "全基底總揚壓合力 U 仍須由使用者依孔壓分布積分輸入" in module5
     assert "目前仍未包含土體慣性力" in module5
+
+
+def test_module5_layered_insitu_csv_does_not_prefill_example_measurements():
+    module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
+    assert 'value="thickness_m,test_type,drainage,measurements"' in module5
+    assert '1.5,SPT,drained,20;22;18' not in module5
+    assert '2.0,SPT,undrained,4;5;4' not in module5
+    assert "系統不預填示範數值" in module5
