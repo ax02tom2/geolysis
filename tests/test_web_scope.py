@@ -3,38 +3,45 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP = (ROOT / "app.py").read_text(encoding="utf-8")
 UI_FILES = sorted((ROOT / "geolysis_ui").glob("module*.py"))
-UI_SOURCE = "\n".join(path.read_text(encoding="utf-8") for path in UI_FILES)
-CORE_UI = (ROOT / "geolysis_ui" / "core_log.py").read_text(encoding="utf-8")
-APP_AND_UI = APP + "\n" + UI_SOURCE + "\n" + CORE_UI
+UI_SOURCE = "\\n".join(path.read_text(encoding="utf-8") for path in UI_FILES)
+MODULE1 = (ROOT / "geolysis_ui" / "module1.py").read_text(encoding="utf-8")
+APP_AND_UI = APP + "\\n" + UI_SOURCE
 
 
 def test_five_engineering_modules_remain():
-    for label in ("模組一：岩體參數與岩心分析", "模組二：土壤分類", "模組三：SPT", "模組四：容許承載力", "模組五：極限承載力"):
+    for label in ("模組一：岩體參數分析", "模組二：土壤分類", "模組三：SPT", "模組四：容許承載力", "模組五：極限承載力"):
         assert label in APP_AND_UI
-
-
-def test_docx_pdf_core_log_and_rqd_workflow_is_available_in_web_app():
-    assert "岩心柱狀圖解析與 RQD 初估" in CORE_UI
-    assert "上傳整孔岩心柱狀圖" in CORE_UI
-    assert "天然節理" in CORE_UI
-    assert "機械破損" in CORE_UI
-    assert "旋轉／托盤邊緣校正" in CORE_UI
-    assert "裁除托盤邊框" in CORE_UI
-    assert "自動偵測藍色托盤四角" in CORE_UI
-    assert "確認自動四角正確，套用透視校正" in CORE_UI
-    assert "手動微調托盤四角" in CORE_UI
-    assert "黃色控制點" in CORE_UI
-    for forbidden in ("qwen3-vl", "ollama_status", "core_local_vlm"):
-        assert forbidden not in APP_AND_UI
-
-
-def test_web_package_keeps_parser_and_analysis_engines_without_local_vlm():
-    for filename in ("core_log_parser.py", "core_photo_analysis.py"):
-        assert (ROOT / filename).exists()
-    assert not (ROOT / "core_local_vlm.py").exists()
-
-
-def test_each_engineering_ui_module_has_a_render_function():
     assert len(UI_FILES) == 5
     for index, path in enumerate(UI_FILES, start=1):
         assert f"def render_module_{index}(" in path.read_text(encoding="utf-8")
+
+
+def test_core_log_upload_and_image_rqd_estimation_are_removed():
+    forbidden = (
+        "render_core_log_analysis",
+        "core_log_parser",
+        "core_photo_analysis",
+        "岩心柱狀圖解析",
+        "上傳整孔岩心柱狀圖",
+        "RQD 影像初估",
+        "逐列 RQD 初估",
+    )
+    for token in forbidden:
+        assert token not in APP_AND_UI
+    for path in (
+        ROOT / "geolysis_ui" / "core_log.py",
+        ROOT / "core_log_parser.py",
+        ROOT / "core_photo_analysis.py",
+    ):
+        assert not path.exists()
+
+
+def test_manual_rqd_input_for_gsi_calculation_is_preserved():
+    assert '鑽孔 RQD (%)' in MODULE1
+    assert "FHWA-NHI-16-072 Eq. 9.19" in MODULE1
+
+
+def test_image_and_document_parsing_dependencies_are_removed():
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    for dependency in ("opencv-python", "PyMuPDF", "python-docx"):
+        assert dependency not in requirements
