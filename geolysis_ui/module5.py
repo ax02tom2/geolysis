@@ -447,8 +447,9 @@ def render_module_5(expanded=False):
             profile_c5=0.0 if use_hb5 else float(c5)
             profile_phi5=0.0 if use_hb5 else float(phi5)
             multi_layer_csv5=st.text_area("多層土壤 CSV：thickness_m,c_kpa,phi_deg,gamma_below_kn_m3",
-                value=f"thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\\n1.0,{c_top5},{phi_top5},{gamma_below5}\\n2.0,{c_low5},{phi_low5},{gamma_below5}\\n3.0,{profile_c5},{profile_phi5},{gamma_below5}",
+                value="thickness_m,c_kpa,phi_deg,gamma_below_kn_m3",
                 height=110,key=f"m5x_multi_layer_csv_{hb_layer_suffix5}")
+            st.caption("請依本案各層地勘／試驗資料逐層填寫；系統不會將主分析土壤參數複製成假設地層。至少需要兩層有效資料。")
             if use_hb5:
                 st.caption("Module 1 Hoek–Brown 參數不會自動複製至多層 CSV；請依每一層的地勘／試驗資料填入，僅在確認該層符合 §1-7(b) 時才可使用岩體等效參數。")
             if st.button("計算多層地盤穿刺／承載力",key="m5x_multi_layer_run",disabled=(use_hb5 and not hb_bearing_source_valid5)):
