@@ -1,3 +1,12 @@
+Module 5 simplified two-layer punching input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #217 merged to main as b56f1891792d7b597a910cac2916ea626152c9bd.
+- The simplified two-layer punching calculation now requires an unchecked-by-default confirmation that both layer strengths and upper-layer thickness are based on project-specific investigation/test data. The confirmation is included in both result signatures and invalidates stored results when changed.
+- Clarified that upper-layer values copied from the primary bearing inputs and lower-layer zero defaults are editing defaults, not measured layer strengths.
+- Added a regression test for the confirmation gate and signature invalidation.
+- Full suite: 602 passed; Python 3.11 active-module compilation passed (Actions run 43374230786).
+- Targeted Module/Web suite: 578 passed; Python 3.11 active-module compilation passed (Actions run 43374230754).
+- No engineering calculation formulas changed.
+
 Module 5 multilayer soil-profile input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #215 merged to main as 6c3ddbe253995f7ba2584dedb4f1724e9942802e.
 - Removed three synthesized default soil-layer rows that copied primary/top/lower soil parameters into a profile without independent layer evidence. The editor now starts with the CSV header only and requires project-specific layer data.
