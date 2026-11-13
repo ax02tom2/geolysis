@@ -47,3 +47,8 @@ def test_image_and_document_parsing_dependencies_are_removed():
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     for dependency in ("opencv-python", "PyMuPDF", "python-docx"):
         assert dependency not in requirements
+
+
+def test_sidebar_module_selection_matches_expander_labels():
+    assert 'exp_1 = display_mode in ["全部展開", "模組一：岩體參數分析"]' in APP
+    assert "模組一：岩體參數與岩心分析" not in APP
