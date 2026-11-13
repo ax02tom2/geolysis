@@ -200,7 +200,7 @@ def render_module_1(expanded=False):
                 rqd_text = st.text_input(
                     "鑽孔 RQD (%)",
                     value="",
-                    placeholder="輸入 0–100 的實測或影像覆核 RQD",
+                    placeholder="輸入 0–100 的鑽探編錄或試驗資料 RQD",
                     key="gsi_quant_rqd_text",
                 )
                 persistence_options = {
