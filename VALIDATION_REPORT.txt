@@ -1,4 +1,14 @@
 Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #211 merged to main as 1d3722e8bd438cfbdcf6edf01e50f3d5d2707956.
+- Final tested PR head: c25b017dda6650bcb89616ad934fa7369161d3d8.
+- Full GitHub Actions suite: 599 passed; Python 3.11 active-module compilation passed (run 43372951357).
+- Targeted Module/Web regression workflow: 575 passed; Python 3.11 active-module compilation passed (run 43372951314).
+- Corrected stale Module 5 seismic guidance: confirmed residual base excess pore pressure is included in qeq; the separate §9-10(f) uplift FS≥1.5 check exists, but the user must still integrate and supply total uplift resultant U over the full footing base. The app does not generate a site-specific pore-pressure distribution or soil inertia forces.
+- Clarified that the residual-pore-pressure seismic bearing branch evaluates both horizontal earthquake directions (±khW), together with V±kvW.
+- Added a regression test to prevent the obsolete “base residual uplift not implemented” statement from returning.
+- No engineering calculation formulas were changed by PR #211.
+
+Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #209 merged to main as e4686d3a91d4ac6589a78ffc1b3395ae78caf5eb.
 - Final tested PR head: db34fda9d11903fda555d99d8cea67c4bf909944.
 - Full GitHub Actions suite: 598 passed; Python 3.11 active-module compilation passed (run 43359178763).
