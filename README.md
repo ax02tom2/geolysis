@@ -65,7 +65,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 
 CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
-GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-12 最新主線完整測試為 **675 passed、1 skipped**；指定模組與 Web App 回歸測試為 **572 passed**；Python 編譯檢查通過。對應 GitHub Actions Full test suite run #43193933755 與 Geolysis automated tests run #43193933777（測試提交 `c36f5783eb3742f09773fdb3f345061ebea6a488`）。後續提交仍以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 的最新結果為準。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
+GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-13 PR #204 最終測試提交 `dc007738d69d0acc4686ca8108909339490dc3df`：完整測試 **684 passed、1 skipped**；指定模組與 Web 回歸測試 **573 passed**；Python 3.11 編譯檢查通過。PR 已合併至 main（`2832ac9500650577b41a1f56fc83d7d5346ca7d7`）；合併後主線 CI 仍須以 [GitHub Actions](https://github.com/ax02tom2/geolysis/actions) 最新結果確認。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 
 ## 工程使用限制
 
