@@ -1,3 +1,11 @@
+Build: geolysis Web — Module 5 two-layer input provenance confirmation
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+PR #217 merged: b56f1891792d7b597a910cac2916ea626152c9bd.
+Simplified two-layer punching calculation now requires explicit confirmation that layer strengths and upper-layer thickness are sourced from project investigation/test data. Confirmation state participates in result freshness signatures. Copied primary parameters and zero defaults are identified as editing defaults, not measured values.
+Full suite: 602 passed; Python 3.11 compilation passed (Actions run 43374230786).
+Targeted Module/Web suite: 578 passed; Python 3.11 compilation passed (Actions run 43374230754).
+No calculation formulas changed.
+
 Build: geolysis Web — Module 5 multilayer profile provenance guard
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 PR #215 merged: 6c3ddbe253995f7ba2584dedb4f1724e9942802e.
