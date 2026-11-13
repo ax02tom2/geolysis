@@ -36,11 +36,10 @@ def test_core_log_upload_and_image_rqd_estimation_are_removed():
         assert not path.exists()
 
 
-def test_manual_rqd_input_for_gsi_calculation_is_preserved():
-    assert '鑽孔 RQD (%)' in MODULE1
-    assert '鑽探編錄或試驗資料 RQD' in MODULE1
-    assert '影像覆核 RQD' not in MODULE1
-    assert "FHWA-NHI-16-072 Eq. 9.19" in MODULE1
+def test_module1_has_no_rqd_input_or_fhwa_quantitative_gsi():
+    assert "RQD" not in MODULE1.upper()
+    assert "gsi_quant_rqd_text" not in MODULE1
+    assert "FHWA Eq. 9.19" not in MODULE1
 
 
 def test_image_and_document_parsing_dependencies_are_removed():
