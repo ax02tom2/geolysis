@@ -77,3 +77,11 @@ def test_module5_multilayer_soil_profile_does_not_synthesize_default_layers():
     assert '1.0,{c_top5},{phi_top5},{gamma_below5}' not in module5
     assert '2.0,{c_low5},{phi_low5},{gamma_below5}' not in module5
     assert "不會將主分析土壤參數複製成假設地層" in module5
+
+
+def test_module5_two_layer_punching_requires_project_data_confirmation():
+    module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
+    assert 'key="m5x_layer_data_confirmed"' in module5
+    assert "or not layer_data_confirmed5" in module5
+    assert "主分析參數或預設 0 值誤當成實測資料" in module5
+    assert module5.count("bool(layer_data_confirmed5)") >= 2

@@ -396,7 +396,10 @@ def render_module_5(expanded=False):
             with lb:
                 c_low5=st.number_input("下層 c／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_c_low_{hb_layer_suffix5}")
                 phi_low5=st.number_input("下層 φ [°]",0.0,50.0,0.0,1.0,key=f"m5x_phi_low_{hb_layer_suffix5}")
-            st.caption("多層穿刺分析各層 c／Su、φ 必須依該層試驗或地勘資料分別輸入；系統不再以固定 0.5c 或 0.7φ 推定下層強度。選用 Module 1 Hoek–Brown 來源時，各層欄位另行輸入，避免把單一岩體等效參數複製到不同地層。")
+            st.caption("多層穿刺分析各層 c／Su、φ 必須依該層試驗或地勘資料分別輸入；上層欄位初值僅沿用主分析參數作為編輯起點，下層 0 值也不是系統推定的土壤強度。系統不再以固定 0.5c 或 0.7φ 推定下層強度。選用 Module 1 Hoek–Brown 來源時，各層欄位另行輸入，避免把單一岩體等效參數複製到不同地層。")
+            layer_data_confirmed5=st.checkbox("我已確認上、下層 c／Su、φ 及上層厚度均依本案各層地勘／試驗資料輸入",value=False,key="m5x_layer_data_confirmed")
+            if not layer_data_confirmed5:
+                st.warning("尚未確認分層強度資料來源；為避免將主分析參數或預設 0 值誤當成實測資料，暫不允許計算。")
             with lc:
                 strong_h5=st.number_input("強上層厚度 Hs [m]",0.05,20.0,1.0,0.05,key="m5x_hs")
                 footing_kind5=main_footing_type5
@@ -408,7 +411,7 @@ def render_module_5(expanded=False):
             layer_hb_unsupported5=(use_hb5 and not hb_bearing_source_valid5)
             if layer_hb_unsupported5:
                 st.warning("Module 1 等效參數尚未通過淺基礎適用性確認；多層穿刺計算已停用。")
-            if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=(layer_check_unsupported or layer_hb_unsupported5)):
+            if st.button("計算多層穿刺承載力",key="m5x_layer_run",disabled=(layer_check_unsupported or layer_hb_unsupported5 or not layer_data_confirmed5)):
                 try:
                     top=bearing_capacity(theory="Meyerhof",c_kpa=c_top5,phi_deg=phi_top5,footing_type=footing_kind5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
@@ -420,11 +423,11 @@ def render_module_5(expanded=False):
                         q_ult_strong_kpa=top["qu_gross"],q_ult_weak_kpa=low["qu_gross"],
                         strong_layer_thickness_m=strong_h5,footing_width_m=B5,
                         footing_length_m=L5,footing_type=footing_kind5)
-                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
+                    store_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layered, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(layer_data_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(layer_data_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
