@@ -1,3 +1,15 @@
+Build: geolysis Web — Module 1 RQD removal verified
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+Validated main commit: e4686d3a91d4ac6589a78ffc1b3395ae78caf5eb
+PR #209: removed all remaining RQD inputs and FHWA RQD-based quantitative GSI controls from Module 1; retained qualitative GSI selection and Hoek–Brown workflow.
+Final tested PR head: db34fda9d11903fda555d99d8cea67c4bf909944.
+Full suite: 598 passed; active-module compilation passed (Actions run 43359178763).
+Targeted Module/Web suite: 574 passed; active-module compilation passed (Actions run 43359178720).
+Post-merge source check: geolysis_ui/module1.py contains no RQD references. Tests assert no RQD controls; README and START_HERE describe the updated scope.
+PR #207 already removed core-log PDF/DOCX upload, parsing, image-based recovery/RQD estimation and manual image review. PR #209 completes the remaining manual RQD/GSI UI removal.
+PR #209 did not change engineering calculation formulas in Modules 2–5.
+Open pull requests: none. Open issues: none (checked 2026-11-13).
+
 Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 Validated main commit: 2832ac9500650577b41a1f56fc83d7d5346ca7d7
