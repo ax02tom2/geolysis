@@ -7,7 +7,7 @@ geolysis 大地工程分析系統｜Web 版
 4. 沉陷與容許壓力
 5. Terzaghi／Meyerhof／Hansen／Vesic 極限承載力
 
-岩心照片、AI 判釋、採取率影像初估及 RQD 影像估算不在本 Web 專案內，請使用獨立 Windows 單機工具。
+本 Web 專案包含整孔 DOCX／PDF 岩心柱狀圖解析、每列採取率與 RQD 影像初估、疑似斷裂候選標示，以及自動／手動托盤四角透視校正。影像初估仍須由工程人員逐列覆核，不取代現場編錄與實驗室試驗。
 
 已驗證環境：Python 3.11
 
@@ -17,5 +17,5 @@ geolysis 大地工程分析系統｜Web 版
 3. streamlit run app.py
 
 Streamlit Cloud 部署時，選擇專案根目錄的 app.py。
-最近一次自動化驗證：141 passed（2026-11-10）。
+最近一次 PR #204 完整測試：684 passed、1 skipped；指定模組與 Web 回歸測試：573 passed（2026-11-13，Python 3.11）。合併後以 main 分支最新 CI 為準。
 GitHub Actions 通過不代表 Streamlit Cloud 已完成線上操作驗收。
