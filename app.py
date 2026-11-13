@@ -1,7 +1,5 @@
 import streamlit as st
 import logging
-import hashlib
-from pathlib import Path
 from geolysis_ui import (
     render_module_1,
     render_module_2,
@@ -9,14 +7,6 @@ from geolysis_ui import (
     render_module_4,
     render_module_5,
 )
-from geolysis_ui.core_log import render_core_log_analysis
-
-# Cache fingerprint changes whenever either core-image or core-log parser source changes.
-CORE_ANALYSIS_SOURCE_SHA256 = hashlib.sha256(
-    Path(__file__).with_name("core_photo_analysis.py").read_bytes()
-    + Path(__file__).with_name("core_log_parser.py").read_bytes()
-).hexdigest()
-
 logging.basicConfig(level=logging.ERROR)
 
 st.set_page_config(page_title="geolysis 大地工程分析系統", page_icon="🧱", layout="wide")
@@ -56,7 +46,7 @@ display_mode = st.sidebar.radio(
     [
         "全部收合",
         "全部展開",
-        "模組一：岩體參數與岩心分析",
+        "模組一：岩體參數分析",
         "模組二：土壤分類",
         "模組三：SPT 全修正",
         "模組四：容許承載力",
@@ -74,7 +64,6 @@ exp_5 = display_mode in ["全部展開", "模組五：極限承載力"]
 
 # 模組 UI 已分離至 geolysis_ui；保留原本單頁與側邊欄收合行為。
 render_module_1(expanded=exp_1)
-render_core_log_analysis(expanded=exp_1, engine_fingerprint=CORE_ANALYSIS_SOURCE_SHA256)
 render_module_2(expanded=exp_2)
 render_module_3(expanded=exp_3)
 render_module_4(expanded=exp_4)
