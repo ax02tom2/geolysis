@@ -1,3 +1,11 @@
+Module 5 multilayer soil-profile input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #215 merged to main as 6c3ddbe253995f7ba2584dedb4f1724e9942802e.
+- Removed three synthesized default soil-layer rows that copied primary/top/lower soil parameters into a profile without independent layer evidence. The editor now starts with the CSV header only and requires project-specific layer data.
+- Added a regression test against synthesized profile defaults.
+- Full suite: 601 passed; Python 3.11 active-module compilation passed (Actions run 43373903938).
+- Targeted Module/Web suite: 577 passed; Python 3.11 active-module compilation passed (Actions run 43373903974).
+- No engineering calculation formulas changed.
+
 Module 5 in-situ input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #213 merged to main as 24494edeab846e4dfdafb53980ab7e3a1ea37321.
 - Removed the pre-populated two-layer SPT example from the layered in-situ bearing CSV editor. The default now contains only the required header; users must provide actual project measurements.
