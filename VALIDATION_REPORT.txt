@@ -5,7 +5,7 @@ Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
 - Targeted module/Web regression workflow on final PR head: passed (573 tests); compile passed.
 - Added manual draggable four-corner tray editor, mapping preview coordinates back to original-resolution image; quadrilateral geometry validation; confirmation gate; session-key isolation by image/rotation/engine fingerprint; original source files remain unchanged.
 - Preserved current supplemental low-confidence discontinuity-review implementation during rebase.
-- Main-branch post-merge CI run 43339672263 was initiated and must be checked before declaring final main validation complete.
+- Post-merge and documentation-synchronized main commit 12740134c03133867f06fd68fc5b2083d5ee2e37 passed full CI: run 43339736147, 684 passed and 1 skipped; Python 3.11 compile passed. Targeted module/Web regression run 43339736107 passed 573 tests; compile passed. This confirms post-merge main validation, not only PR-head validation.
 
 Additional validation update — 2026-11-12 Asia/Taipei (UTC+08:00)
 - Validated main application commit: 0bcc4429872fe4a7ad1207183878eb43fac5d5c2 (PR #160 merged).
