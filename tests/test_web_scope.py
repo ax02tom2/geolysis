@@ -51,3 +51,13 @@ def test_image_and_document_parsing_dependencies_are_removed():
 def test_sidebar_module_selection_matches_expander_labels():
     assert 'exp_1 = display_mode in ["全部展開", "模組一：岩體參數分析"]' in APP
     assert "模組一：岩體參數與岩心分析" not in APP
+
+
+
+def test_module5_seismic_guidance_matches_implemented_base_pressure_and_uplift_checks():
+    module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
+    assert "仍未納入基底殘餘超額孔壓上拔" not in module5
+    assert "基底殘餘超額孔壓可由使用者確認輸入並納入 qeq" in module5
+    assert "獨立 §9-10(f) 地震抗浮 FS≥1.5 檢核" in module5
+    assert "全基底總揚壓合力 U 仍須由使用者依孔壓分布積分輸入" in module5
+    assert "目前仍未包含土體慣性力" in module5
