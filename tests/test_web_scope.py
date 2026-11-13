@@ -69,3 +69,11 @@ def test_module5_layered_insitu_csv_does_not_prefill_example_measurements():
     assert '1.5,SPT,drained,20;22;18' not in module5
     assert '2.0,SPT,undrained,4;5;4' not in module5
     assert "系統不預填示範數值" in module5
+
+
+def test_module5_multilayer_soil_profile_does_not_synthesize_default_layers():
+    module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
+    assert 'value="thickness_m,c_kpa,phi_deg,gamma_below_kn_m3"' in module5
+    assert '1.0,{c_top5},{phi_top5},{gamma_below5}' not in module5
+    assert '2.0,{c_low5},{phi_low5},{gamma_below5}' not in module5
+    assert "不會將主分析土壤參數複製成假設地層" in module5
