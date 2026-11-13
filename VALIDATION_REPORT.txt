@@ -1,3 +1,13 @@
+Module 5 primary soil-parameter provenance and Module 4 transfer gate — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #219 tested head: 117e11158852037015471d63635faf26bd53ef46.
+- Added an unchecked-by-default, input-signature-keyed confirmation that the primary bearing c′/cu, ϕ′, moist/submerged unit weights and drainage interpretation are based on project-specific investigation/test data.
+- Exploratory Module 5 bearing calculations remain available; however, the primary bearing result is not published to Module 4 until both the design vertical load and the soil-parameter provenance are confirmed, in addition to the existing load-model, contact, middle-third and geometry checks.
+- The confirmation signature/state participates in the primary result freshness signature, so changed parameters or confirmation state invalidate the stored result.
+- Updated Streamlit AppTests to explicitly confirm soil-data provenance before exercising successful Module 4 transfer, and retain the existing slope/eccentricity rejection checks.
+- Full GitHub Actions suite: 603 passed; Python 3.11 active-module compilation passed (run 43378088867).
+- Targeted Module/Web regression workflow: 579 passed; Python 3.11 active-module compilation passed (run 43378089045).
+- No engineering calculation formulas changed.
+
 Module 5 simplified two-layer punching input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #217 merged to main as b56f1891792d7b597a910cac2916ea626152c9bd.
 - The simplified two-layer punching calculation now requires an unchecked-by-default confirmation that both layer strengths and upper-layer thickness are based on project-specific investigation/test data. The confirmation is included in both result signatures and invalidates stored results when changed.
