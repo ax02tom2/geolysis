@@ -427,7 +427,7 @@ def render_module_5(expanded=False):
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"多層承載力計算失敗：{exc}")
-            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
+            layer_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(layer_data_confirmed5),c_top5,phi_top5,c_low5,phi_low5,strong_h5,footing_kind5,B5,L5,gamma5,gsub5,gamma_below5,df5,dw5,H5,beta5,eB5,eL5,base_ang5,ground_ang5)
             layered, layer_is_current = read_result_state(st.session_state, "m5x_layer_result", "m5x_layer_signature", layer_sig)
             if layered and layer_is_current:
 
