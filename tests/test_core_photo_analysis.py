@@ -701,3 +701,20 @@ def test_core_log_does_not_use_gradient_candidates_when_primary_image_quality_fa
     result = _merge_core_break_candidates(primary, supplemental)
     assert result["success"] is False
     assert result["candidates"] == []
+
+def test_manual_corner_editor_payload_scales_preview_and_points_without_mutating_source():
+    from geolysis_ui.core_log import _corner_editor_image_payload
+
+    source = Image.new("RGB", (4000, 2000), (120, 130, 140))
+    original_size = source.size
+    data_url, preview_width, preview_height, scale, points = _corner_editor_image_payload(
+        source, [[0, 0], [3999, 0], [3999, 1999], [0, 1999]]
+    )
+    assert data_url.startswith("data:image/jpeg;base64,")
+    assert (preview_width, preview_height) == (1600, 800)
+    assert scale == 0.4
+    expected = [[0.0, 0.0], [1599.6, 0.0], [1599.6, 799.6], [0.0, 799.6]]
+    assert all(abs(actual - target) < 1e-8
+               for actual_point, target_point in zip(points, expected)
+               for actual, target in zip(actual_point, target_point))
+    assert source.size == original_size
