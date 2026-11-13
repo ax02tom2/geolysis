@@ -1,4 +1,14 @@
 Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #209 merged to main as e4686d3a91d4ac6589a78ffc1b3395ae78caf5eb.
+- Final tested PR head: db34fda9d11903fda555d99d8cea67c4bf909944.
+- Full GitHub Actions suite: 598 passed; Python 3.11 active-module compilation passed (run 43359178763).
+- Targeted Module/Web regression workflow: 574 passed; Python 3.11 active-module compilation passed (run 43359178720).
+- Module 1 now contains no RQD UI or RQD-based quantitative GSI workflow: removed manual RQD input and FHWA Eq. 9.19 controls. Qualitative GSI selection and Hoek–Brown analysis remain.
+- Main-branch source verification: geolysis_ui/module1.py contains no RQD references; regression tests assert absence of RQD controls. README and START_HERE document the reduced scope.
+- PR #207's core-log PDF/DOCX parser, image-RQD estimation and review UI removal remains in place; PR #209 completes the removal of the remaining manual RQD/GSI path.
+- No engineering calculation formulas in Modules 2–5 were changed by PR #209.
+
+Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #204 merged to main as 2832ac9500650577b41a1f56fc83d7d5346ca7d7.
 - Final tested PR head: dc007738d69d0acc4686ca8108909339490dc3df.
 - Full GitHub Actions suite on final PR head: 684 passed, 1 skipped; compile passed.
