@@ -224,7 +224,18 @@ def render_module_5(expanded=False):
         st.caption("本頁 Hansen／Vesic 採 USACE 1992 經典表 4-5／4-6，水平力修正使用基底界面黏著 ca；ca/c 應依基礎底面粗糙度或試驗決定，0.6 僅為可調預設值。φ′=0 不排水分析採總應力覆土，φ′>0 排水分析採有效應力覆土。")
         hb_source_signature=(float(gsi),float(sig3_max),float(d_factor),float(sig_ci),float(mi),hb_application,
             str(hb_metadata.get("structure_code",""))) if use_hb5 and hb_current is not None else ()
-        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(loads_confirmed5))
+        soil_parameter_confirmation_signature=hashlib.sha256(repr((
+            src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),
+            bool(same_gamma_below5),float(gsub5),
+            hb_source_signature,bool(hb_bearing_material_confirmed5),
+            bool(hb_stress_range_confirmed5),
+        )).encode("utf-8")).hexdigest()[:12]
+        soil_parameters_confirmed5=st.checkbox(
+            "已確認主分析 c′／cu、ϕ′、γ_D、γ_H、γ′_H 均來自本工程地勘／試驗資料，且參數來源與排水條件相符",
+            value=False,key=f"m5_soil_data_confirmed_{soil_parameter_confirmation_signature}")
+        if not soil_parameters_confirmed5:
+            st.info("目前可進行承載力探索性試算；但未確認土壤強度與單位重的工址來源前，不會將主分析結果帶入模組四作為沉陷承載力上限。")
+        m5_input_signature=(theory5,main_footing_type5,src5,float(c5),float(phi5),float(gamma5),float(gamma_below5),bool(same_gamma_below5),float(gsub5),float(B5),float(L5),float(df5),float(dw5),float(fs5),float(beta5),float(H5),float(V5),float(eB5),float(eL5),failure_mode5,load_dir5,float(adhesion5),hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),bool(loads_confirmed5),soil_parameter_confirmation_signature,bool(soil_parameters_confirmed5))
         if st.button("計算極限承載力",key='m5_run'):
             clear_result_state(st.session_state, 'm5_result', 'm5_result_signature')
             if use_hb5 and not hb_bearing_source_valid5:
@@ -284,7 +295,7 @@ def render_module_5(expanded=False):
                 abs(float(H5))<=1e-6 and abs(float(eB5))<=1e-6 and abs(float(eL5))<=1e-6
                 and abs(transfer_base_angle5)<=1e-6 and abs(transfer_ground_angle5)<=1e-6
             )
-            if (loads_confirmed5 and main_load_complete
+            if (loads_confirmed5 and soil_parameters_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
                     and float(result5.get("qu_net",0.0))>0.0
@@ -308,7 +319,7 @@ def render_module_5(expanded=False):
                     "passes_bearing":bool(bearing_check5["passes_bearing"]),
                     "load_confirmed":True,"complete_capacity_model":True,
                 }
-            elif (loads_confirmed5 and main_load_complete
+            elif (loads_confirmed5 and soil_parameters_confirmed5 and main_load_complete
                     and bearing_check5.get("passes_middle_third")
                     and bearing_check5.get("FS_bearing") is not None
                     and not settlement_transfer_geometry_supported5):

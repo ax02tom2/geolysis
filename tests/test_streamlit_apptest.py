@@ -11,6 +11,17 @@ from geolysis_ui.module4 import _module5_transfer_value, _pmt_transfer_footing_t
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _confirm_module5_soil_data(app):
+    """Confirm the primary bearing soil inputs when a test exercises Module 4 transfer."""
+    confirmation = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認主分析 c′／cu")
+    )
+    if not confirmation.value:
+        confirmation.check()
+        app.run()
+
+
 def test_pmt_capacity_transfer_maps_strip_and_rectangular_footings_to_module5_types():
     assert _pmt_transfer_footing_type(2.0, 3.0, False) == "isolated"
     assert _pmt_transfer_footing_type(2.0, 20.0, False) == "isolated"
@@ -124,6 +135,7 @@ def test_module5_confirmed_bearing_result_is_published_to_module4():
     loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
     loads_confirmed.check()
     app.run()
+    _confirm_module5_soil_data(app)
     calculate = next(widget for widget in app.button if widget.key == "m5_run")
     calculate.click()
     app.run()
@@ -344,6 +356,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
     loads_confirmed.check()
     app.run()
+    _confirm_module5_soil_data(app)
     calculate = next(widget for widget in app.button if widget.key == "m5_run")
     calculate.click()
     app.run()
@@ -447,6 +460,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
 
     next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
     app.run()
+    _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -529,6 +543,7 @@ def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle
 
     next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
     app.run()
+    _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
     app.run()
     assert app.session_state.get("m5_bearing_transfer") is not None
@@ -553,6 +568,7 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
     app.run()
     next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
     app.run()
+    _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
     app.run()
     assert app.session_state.get("m5_bearing_transfer") is not None

@@ -79,6 +79,15 @@ def test_module5_multilayer_soil_profile_does_not_synthesize_default_layers():
     assert "不會將主分析土壤參數複製成假設地層" in module5
 
 
+def test_module5_primary_soil_parameters_require_confirmation_before_module4_transfer():
+    module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
+    assert 'key=f"m5_soil_data_confirmed_{soil_parameter_confirmation_signature}"' in module5
+    assert "bool(soil_parameters_confirmed5)" in module5
+    assert "if (loads_confirmed5 and soil_parameters_confirmed5 and main_load_complete" in module5
+    assert "elif (loads_confirmed5 and soil_parameters_confirmed5 and main_load_complete" in module5
+    assert "不會將主分析結果帶入模組四" in module5
+
+
 def test_module5_two_layer_punching_requires_project_data_confirmation():
     module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
     assert 'key="m5x_layer_data_confirmed"' in module5
