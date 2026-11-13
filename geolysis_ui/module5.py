@@ -1061,8 +1061,9 @@ def render_module_5(expanded=False):
             st.caption("原位試驗分層承載力沿用主基礎幾何分類。")
             insitu_layer_csv5=st.text_area(
                 "各層原位試驗資料（CSV）",
-                value="thickness_m,test_type,drainage,measurements\n1.5,SPT,drained,20;22;18\n2.0,SPT,undrained,4;5;4",
+                value="thickness_m,test_type,drainage,measurements",
                 height=125,key="m5x_insitu_layer_csv")
+            st.caption("欄位標題不代表已有工址資料；請貼上本案各層實際試驗值。系統不預填示範數值，至少需要兩層有效資料才能計算。")
             insitu_layer_unsupported5=(H5>0 or beta5>0 or eB5>0 or eL5>0 or base_ang5>0 or ground_ang5>0)
             if insitu_layer_unsupported5:
                 st.warning("此原位試驗分層穿刺路徑目前僅支援置中垂直載重、水平基底及水平地表；請先將水平力、偏心、傾斜基底及坡角設為 0，否則不會執行。")
