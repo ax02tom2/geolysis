@@ -1,3 +1,12 @@
+Build: geolysis Web — Module 5 seismic guidance corrected
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+Validated main commit: 1d3722e8bd438cfbdcf6edf01e50f3d5d2707956
+PR #211: corrected stale Module 5 seismic guidance to match implemented residual base-pressure input, seismic qeq deduction, separate §9-10(f) uplift FS≥1.5 check, and bidirectional horizontal seismic envelope. Clarified that total full-base uplift resultant U remains project-supplied and soil inertia/site-specific pore-pressure distributions are not automatically generated.
+Final tested PR head: c25b017dda6650bcb89616ad934fa7369161d3d8.
+Full suite: 599 passed; Python 3.11 compilation passed (Actions run 43372951357).
+Targeted Module/Web suite: 575 passed; Python 3.11 compilation passed (Actions run 43372951314).
+Regression guard added against stale seismic guidance. No calculation formulas changed.
+
 Build: geolysis Web — Module 1 RQD removal verified
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 Validated main commit: e4686d3a91d4ac6589a78ffc1b3395ae78caf5eb
