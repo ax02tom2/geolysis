@@ -1,3 +1,11 @@
+Build: geolysis Web — Module 5 multilayer profile provenance guard
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+PR #215 merged: 6c3ddbe253995f7ba2584dedb4f1724e9942802e.
+The multilayer soil-profile CSV now defaults to the header only. It no longer synthesizes three strata by copying the primary/top/lower material parameters; users must enter project-specific layer data. Regression test added.
+Full suite: 601 passed; Python 3.11 compilation passed (Actions run 43373903938).
+Targeted Module/Web suite: 577 passed; Python 3.11 compilation passed (Actions run 43373903974).
+No calculation formulas changed.
+
 Build: geolysis Web — Module 5 in-situ input provenance guard
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 PR #213 merged: 24494edeab846e4dfdafb53980ab7e3a1ea37321.
