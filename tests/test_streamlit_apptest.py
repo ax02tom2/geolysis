@@ -203,31 +203,13 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
     assert result["bearing_pressure_check_complete"] is True
 
 
-def test_module1_fhwa_quantitative_gsi_mode_renders_and_calculates():
+def test_module1_has_no_rqd_or_fhwa_quantitative_gsi_controls():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not any("RQD" in widget.label.upper() for widget in app.text_input)
+    method = next(widget for widget in app.selectbox if widget.key == "gsi_surface_class")
+    assert method.value is not None
 
-    method = next(widget for widget in app.radio if widget.key == "gsi_method")
-    method.set_value("鑽孔定量估算（FHWA Eq. 9-19）")
-    app.run()
-    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
-
-    rqd = next(widget for widget in app.text_input if widget.key == "gsi_quant_rqd_text")
-    rqd.set_value("80")
-    choices = {
-        "gsi_jcond_persistence": "小於 1 m（6）",
-        "gsi_jcond_separation": "小於 0.1 mm（5）",
-        "gsi_jcond_roughness": "粗糙（5）",
-        "gsi_jcond_infilling": "硬質充填小於 5 mm（4）",
-        "gsi_jcond_weathering": "微風化（5）",
-    }
-    for key, value in choices.items():
-        widget = next(item for item in app.selectbox if item.key == key)
-        widget.select(value)
-    app.run()
-    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
-    gsi_input = next(item for item in app.number_input if item.label == "GSI 代表值（可直接調整）")
-    assert gsi_input.value == 77.5
 
 
 def test_module5_defaults_uplift_force_from_base_pressure_and_full_footing_area():
