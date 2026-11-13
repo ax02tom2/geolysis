@@ -1,3 +1,11 @@
+Module 5 in-situ input provenance — 2026-11-13 Asia/Taipei (UTC+08:00)
+- PR #213 merged to main as 24494edeab846e4dfdafb53980ab7e3a1ea37321.
+- Removed the pre-populated two-layer SPT example from the layered in-situ bearing CSV editor. The default now contains only the required header; users must provide actual project measurements.
+- Added a regression test preventing the example rows from returning.
+- Full suite: 600 passed; Python 3.11 active-module compilation passed (Actions run 43373659053).
+- Targeted Module/Web suite: 576 passed; Python 3.11 active-module compilation passed (Actions run 43373659060).
+- No engineering calculation formulas changed.
+
 Validation report update — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #211 merged to main as 1d3722e8bd438cfbdcf6edf01e50f3d5d2707956.
 - Final tested PR head: c25b017dda6650bcb89616ad934fa7369161d3d8.
