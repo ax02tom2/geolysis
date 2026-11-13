@@ -3,9 +3,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP = (ROOT / "app.py").read_text(encoding="utf-8")
 UI_FILES = sorted((ROOT / "geolysis_ui").glob("module*.py"))
-UI_SOURCE = "\\n".join(path.read_text(encoding="utf-8") for path in UI_FILES)
+UI_SOURCE = "\n".join(path.read_text(encoding="utf-8") for path in UI_FILES)
 MODULE1 = (ROOT / "geolysis_ui" / "module1.py").read_text(encoding="utf-8")
-APP_AND_UI = APP + "\\n" + UI_SOURCE
+APP_AND_UI = APP + "\n" + UI_SOURCE
 
 
 def test_five_engineering_modules_remain():
