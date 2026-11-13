@@ -688,8 +688,6 @@ def render_module_1(expanded=False):
                 st.caption(rf"**Hoek-Brown 準則常數**：$m_b = {mb:.3f}$ ｜ $s = {s_hb:.5f}$ ｜ $a = {a_hb:.3f}$ ｜ $\sigma_{{3,max}}={sig3_max:.3f}$ MPa")
                 if gsi_method == "定性圖表初判":
                     st.caption(f"現場判讀選項：{gsi_struct.split(':')[0]} × {gsi_cond.split(':')[0]}。")
-                elif gsi_quant_result is not None:
-                    st.caption(f"定量依據：RQD={gsi_quant_result['RQD_percent']:.1f}%、JCond₈₉={gsi_quant_result['JCond89']}、GSI={gsi_quant_result['GSI']:.1f}。")
                 if gsi_lower <= gsi_upper:
                     try:
                         _gsi_values = _gsi_sensitivity_values(_struct_code, gsi_lower, gsi_upper)
