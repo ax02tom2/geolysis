@@ -1,4 +1,11 @@
 Build: geolysis Web — engineering review and C4 modularization
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+Validated main commit: 2832ac9500650577b41a1f56fc83d7d5346ca7d7
+PR #204: manual core-tray four-corner editor rebased onto current main; preserves supplemental low-confidence discontinuity review; source-resolution perspective rectification; geometry validation; source-image immutability and preview-coordinate regression coverage.
+PR #204 pre-merge CI on final tested head dc007738d69d0acc4686ca8108909339490dc3df: full suite 684 passed, 1 skipped; targeted module/Web regression passed (573 tests); Python 3.11 compilation passed. Main-branch post-merge CI is running; do not treat pre-merge validation as post-merge validation.
+Open pull requests: none at merge time. Open issues: none at merge time.
+
+Build: geolysis Web — engineering review and C4 modularization
 Date: 2026-11-12 Asia/Taipei (UTC+08:00)
 Validated main code commit: bb5172ac58db8fcadca441501ea0465f97af7889
 Python CI: 3.11
