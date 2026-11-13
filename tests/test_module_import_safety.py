@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-import importlib
-import sys
 from pathlib import Path
 
 
-def test_core_modules_import_without_dataclass_reload_path():
-    import core_log_parser
-    import core_photo_analysis
-
-    assert sys.modules.get("core_log_parser") is core_log_parser
-    assert sys.modules.get("core_photo_analysis") is core_photo_analysis
-    assert not hasattr(core_log_parser.CoreRowRecord, "__dataclass_fields__")
-    assert not hasattr(core_photo_analysis.ImageInfo, "__dataclass_fields__")
-    assert "from dataclasses import" not in Path(core_log_parser.__file__).read_text(encoding="utf-8")
-    assert "from dataclasses import" not in Path(core_photo_analysis.__file__).read_text(encoding="utf-8")
-
-
-def test_app_does_not_force_reload_core_module():
+def test_app_does_not_import_removed_core_log_or_image_analysis():
     app = Path(__file__).resolve().parents[1] / "app.py"
     source = app.read_text(encoding="utf-8")
+    for removed in ("core_log_parser", "core_photo_analysis", "render_core_log_analysis"):
+        assert removed not in source
     assert "importlib.reload(" not in source
-    assert "CORE_ANALYSIS_SOURCE_SHA256" in source
-    assert "render_core_log_analysis" in source
+
+
+def test_all_five_module_renderers_remain_importable():
+    from geolysis_ui import (
+        render_module_1,
+        render_module_2,
+        render_module_3,
+        render_module_4,
+        render_module_5,
+    )
+
+    assert all(callable(fn) for fn in (
+        render_module_1,
+        render_module_2,
+        render_module_3,
+        render_module_4,
+        render_module_5,
+    ))

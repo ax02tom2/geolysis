@@ -1,10 +1,10 @@
 # geolysis 大地工程分析系統｜Web 版
 
-本專案為 Streamlit 網頁版，包含五個大地工程分析模組，以及模組一的整孔岩心柱狀圖 DOCX／PDF 解析與逐列 RQD 影像初估。影像分析採本機 OpenCV 演算法，不依賴付費 AI 服務；所有 RQD 候選仍須由使用者覆核。
+本專案為 Streamlit 網頁版，包含五個大地工程分析模組。模組一提供 Hoek–Brown 岩體參數分析與 GSI 判讀；RQD 僅作為使用者依鑽探／試驗資料直接輸入的參數，不提供岩心柱狀圖上傳、影像辨識或 RQD 自動初估。
 
 ## 五個分析模組
 
-1. **岩體參數與岩心分析**：Hoek–Brown 的 GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；另支援整孔 DOCX／PDF 岩心柱狀圖匯入、每列 1 m 採取率與 RQD 影像初估、疑似斷裂標示及人工覆核。Hoek–Brown 輸出受圍壓範圍與適用模式限制。
+1. **岩體參數分析**：Hoek–Brown 的 GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；RQD 由使用者依現地鑽探／試驗資料輸入。Hoek–Brown 輸出受圍壓範圍與適用模式限制。
 2. **土壤分類**：USCS 與 AASHTO 分類、級配與塑性指標檢核。
 3. **SPT 全修正**：能量、鑽孔、取樣器、桿長、上覆壓力與逐深度剖面修正。
 4. **沉陷與容許壓力**：Burland–Burbidge、DMT（MDMT 與原始讀值修正）、CPT Schmertmann、PMT Ménard–Rousseau；另含單層／多層主固結、時間率、立即沉陷、次壓縮、差異沉陷與開挖回彈。各方法依適用性限制檢核分層深度與承載力壓力上限。
@@ -46,7 +46,7 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件包含 Streamlit、Pandas、Plotly，以及岩心影像與文件解析所需的 OpenCV headless、PyMuPDF、python-docx；工程計算由專案內的 `geolysis_engine/` 套件執行。
+Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。依賴套件包含 Streamlit、Pandas 與 Plotly；工程計算由專案內的 `geolysis_engine/` 套件執行。
 
 ## 審查修正與公式追溯
 
@@ -91,9 +91,6 @@ GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目�
 
 - `app.py`：頁面設定、系統標題、側邊欄與五個模組的協調入口。
 - `geolysis_ui/module1.py` 至 `module5.py`：各工程模組的輸入欄位、互動與結果呈現。
-- `geolysis_ui/core_log.py`：整孔 DOCX／PDF 岩心柱狀圖、原始頁面疊圖、逐列 RQD 初估及人工覆核。
-- `core_log_parser.py`：PDF／DOCX 內嵌岩心影像擷取與列深度解析。
-- `core_photo_analysis.py`：岩心本體分段、空隙／不確定區與斷裂候選分析。
 - `geolysis_ui/__init__.py`：集中匯出各模組的 render 函式。
 
 目前保留原本的單頁呈現、側邊欄模組選擇與 expander 收合方式；此階段只分離程式責任，不改成 Streamlit 多頁導覽，以免改變既有操作習慣。
