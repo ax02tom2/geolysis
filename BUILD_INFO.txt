@@ -1,3 +1,11 @@
+Build: geolysis Web — Module 5 primary soil-parameter provenance gate
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+PR #219 tested head: 117e11158852037015471d63635faf26bd53ef46.
+The primary Module 5 bearing workflow now requires an unchecked-by-default, input-signature-keyed confirmation that c′/cu, ϕ′, γ_D, γ_H and γ′_H come from project investigation/test data and match the selected parameter/drainage interpretation. Exploratory capacity calculations remain available, but the primary result cannot be transferred to Module 4 until both the total vertical load and soil-parameter provenance are confirmed. Confirmation state is included in the result freshness signature.
+Full suite: 603 passed; Python 3.11 compilation passed (Actions run 43378088867).
+Targeted Module/Web suite: 579 passed; Python 3.11 compilation passed (Actions run 43378089045).
+No engineering calculation formulas changed.
+
 Build: geolysis Web — Module 5 two-layer input provenance confirmation
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 PR #217 merged: b56f1891792d7b597a910cac2916ea626152c9bd.
