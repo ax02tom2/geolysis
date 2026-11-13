@@ -7,7 +7,7 @@ geolysis 大地工程分析系統｜Web 版
 4. 沉陷與容許壓力
 5. Terzaghi／Meyerhof／Hansen／Vesic 極限承載力
 
-模組一的 RQD 僅保留人工輸入，供 FHWA GSI 定量計算使用；不提供岩心柱狀圖 PDF／DOCX 上傳、岩心影像辨識、採取率或 RQD 自動初估、斷裂候選標示及人工影像覆核。
+模組一不提供 RQD 輸入、RQD 推估、岩心柱狀圖 PDF／DOCX 上傳、岩心影像辨識、採取率、斷裂候選標示或人工影像覆核。
 
 已驗證環境：Python 3.11
 
