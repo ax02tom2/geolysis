@@ -261,3 +261,7 @@ Module 4 Appendix C-1 row-wise benchmark verification — PR #112
 - PR #112 merged to main at 45356cda8c76d67800031abe9c27501cd05e582c.
 - GitHub Actions run 43144643012: success; Python 3.11 compile passed; 448 passed in 3.18 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-1, Steps 7–9, Eqs. 6-6, 6-9 and 7-8.
+
+Build: remove core-log upload and image-based RQD estimation
+Date: 2026-11-13 Asia/Taipei (UTC+08:00)
+Scope: removed the complete DOCX/PDF core-column parsing UI, core-image analysis, per-row recovery/RQD estimation, fracture/gap review, related parser/analysis source files, workflow documentation, tests and image/document parsing dependencies. Preserved the five engineering modules and Module 1's direct user-entered RQD input for FHWA GSI calculation. No engineering calculation modules or their formulas were intentionally changed. Validation pending on this change branch; prior CI counts do not apply to this revision.
