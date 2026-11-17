@@ -691,9 +691,9 @@ def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
 
     profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
     profile.set_value(
-        "Depth_m,N,Effective_Stress_KPa\\n"
-        "1.0,10,100\\n"
-        "2.0,15,150\\n"
+        "Depth_m,N,Effective_Stress_KPa\n"
+        "1.0,10,100\n"
+        "2.0,15,150\n"
         "3.0,20,200"
     )
     next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
