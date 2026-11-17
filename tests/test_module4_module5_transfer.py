@@ -244,6 +244,16 @@ def test_module5_centered_transfer_is_rejected_for_eccentric_settlement(monkeypa
     assert qult is None
     assert qeq is None
 
+def test_module4_transfer_rejects_depth_mismatch(monkeypatch):
+    _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=2.0,
+    )
+    assert qult is None
+    assert qeq is None
+
+
 def test_module4_transfer_rejects_missing_depth_reference(monkeypatch):
     _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
     qult, qeq = module4._module5_transfer_value(
