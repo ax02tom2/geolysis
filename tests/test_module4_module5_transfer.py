@@ -58,8 +58,6 @@ def test_module4_transfer_can_use_module5_qult_and_equivalent_gross_pressure(mon
         footing_type="isolated",
         depth_m=1.5,
         water_depth_m=2.0,
-        water_depth_m=2.0,
-        water_depth_m=2.0,
     )
 
     assert qult == 900.0
@@ -260,6 +258,7 @@ def test_module4_transfer_rejects_depth_mismatch(monkeypatch):
     qult, qeq = module4._module5_transfer_value(
         key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
         width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=2.0,
+        water_depth_m=2.0,
     )
     assert qult is None
     assert qeq is None
