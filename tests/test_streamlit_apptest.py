@@ -132,7 +132,7 @@ def test_module5_confirmed_bearing_result_is_published_to_module4():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_"))
     loads_confirmed.check()
     app.run()
     _confirm_module5_soil_data(app)
@@ -353,7 +353,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Produce a genuine transfer by running Module 5 through its public UI.
-    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_"))
     loads_confirmed.check()
     app.run()
     _confirm_module5_soil_data(app)
@@ -458,7 +458,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
@@ -541,7 +541,7 @@ def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
@@ -566,7 +566,7 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
 
     next(widget for widget in app.selectbox if widget.key == "m5_theory").select("Meyerhof")
     app.run()
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
@@ -611,3 +611,41 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     assert not any(item.label == "FS 滑動" for item in app.metric)
+
+
+def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    load_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認 V 為本次設計總垂直力")
+    )
+    assert load_confirm.value is False
+    assert load_confirm.key.startswith("m5_loads_confirmed_")
+
+    soil_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認主分析 c′／cu")
+    )
+    soil_confirm.check()
+    load_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
+    assert slope_button.disabled is False
+
+    # Changing V invalidates the previous confirmation instead of carrying it
+    # over to a different design load.
+    next(widget for widget in app.number_input if widget.key == "m5_v").set_value(1250.0)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    refreshed_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認 V 為本次設計總垂直力")
+    )
+    assert refreshed_confirm.value is False
+    assert refreshed_confirm.key != load_confirm.key
+    slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
+    assert slope_button.disabled is True

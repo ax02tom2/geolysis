@@ -186,7 +186,12 @@ def render_module_5(expanded=False):
         with hcol: H5=st.number_input("水平載重 H [kN；連續基礎請用 kN/m]",0.0,1000000.0,0.0,10.0,key='m5_h')
         with vcol: V5=st.number_input("垂直載重 V [kN；連續基礎請用 kN/m]（Q+Wf）",0.1,1000000.0,1000.0,10.0,key='m5_v')
         st.caption("H、V 為基礎底面作用力；V 應採傳遞至地盤的總垂直力 Q+Wf，包含結構荷載、基礎自重及基礎上覆土重。連續條形基礎的 V、H 應採每延米線荷載（kN/m）。請勿直接以任意預設值作設計輸入。")
-        loads_confirmed5=st.checkbox("已確認 V 為本次設計總垂直力 Q+Wf（含基礎自重及覆土）",value=False,key="m5_loads_confirmed")
+        load_confirmation_signature5=hashlib.sha256(repr((
+            float(V5),float(B5),float(L5),main_footing_type5,
+        )).encode("utf-8")).hexdigest()[:12]
+        loads_confirmed5=st.checkbox(
+            "已確認 V 為本次設計總垂直力 Q+Wf（含基礎自重及覆土）",
+            value=False,key=f"m5_loads_confirmed_{load_confirmation_signature5}")
         if theory5=='Terzaghi':
             st.session_state['m5_eL']=0.0
             st.session_state['m5_eB']=0.0
@@ -355,7 +360,11 @@ def render_module_5(expanded=False):
             st.caption("USACE 2025 表 5-3 註 b：鄰接坡體地表坡角修正係數以坡體整體穩定 FS > 1.3 為前提。請先完成獨立整體穩定檢核；未達或未提供 FS 時，系統會停止坡角修正。")
             if use_hb5 and not hb_bearing_source_valid5:
                 st.warning("Module 1 等效參數未通過淺基礎適用性與圍壓確認；斜坡／傾斜基底承載力亦不會使用未確認的岩體參數。")
-            if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run",disabled=(use_hb5 and not hb_bearing_source_valid5)):
+            slope_inputs_confirmed5=(loads_confirmed5 and soil_parameters_confirmed5)
+            if not slope_inputs_confirmed5:
+                st.info("斜坡／傾斜基底承載力使用的土壤強度、單位重及總垂直力尚未完成工址資料確認；請先確認本案資料來源，才可計算。")
+            if st.button("計算斜坡／傾斜基底承載力",key="m5x_slope_run",
+                    disabled=((use_hb5 and not hb_bearing_source_valid5) or not slope_inputs_confirmed5)):
                 try:
                     base_for_slope=bearing_capacity(theory="Meyerhof",c_kpa=c5,phi_deg=phi5,
                         gamma_moist=gamma5,gamma_sub=gsub5,gamma_below=gamma_below5,
@@ -367,11 +376,11 @@ def render_module_5(expanded=False):
                         slope_distance_m=slope_dist5,
                         adjacent_slope_fs=(slope_fs5 if ground_ang5>0 else None),
                         horizontal_load=H5,vertical_load=V5)
-                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5))
+                    store_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_result, (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5,bool(loads_confirmed5),bool(soil_parameters_confirmed5)))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"斜坡／基底傾斜計算失敗：{exc}")
-            slope_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5)
+            slope_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,fs5,beta5,eB5,eL5,main_footing_type5,base_ang5,ground_ang5,slope_dist5,slope_fs5,H5,V5,bool(loads_confirmed5),bool(soil_parameters_confirmed5))
             slope_result, slope_is_current = read_result_state(st.session_state, "m5x_slope_result", "m5x_slope_signature", slope_sig)
             if slope_result and slope_is_current:
 
