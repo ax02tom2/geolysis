@@ -1,3 +1,8 @@
+Build: geolysis Web — Module 3 to Module 4 SPT profile revocation guard
+Date: 2026-11-17 Asia/Taipei (UTC+08:00)
+PR #226 merged: 0679fabf426591c0eba8966d03e572976a2b5ff3.
+Module 4 now requires a currently available confirmed Module 3 SPT profile before honoring the saved "use Module 3 profile" checkbox. If Module 3 confirmation is withdrawn and its profile is cleared, a retained disabled-checkbox True value is ignored and the manual N60 input remains the fallback. Full suite: 606 passed; Python 3.11 active-module compilation passed (Actions run 43992561135). Targeted Module/Web suite: 582 passed; Python 3.11 active-module compilation passed (Actions run 43992561117). No SPT correction or settlement equations changed.
+
 Build: geolysis Web — Module 5 seismic bearing soil/load provenance gate
 Date: 2026-11-17 Asia/Taipei (UTC+08:00)
 PR #224 merged: 0f4f9d04acf96a6e94a6ce5678295f6f10e8e922.
