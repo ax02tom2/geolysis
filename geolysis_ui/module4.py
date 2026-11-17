@@ -11,7 +11,11 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         footing_type=None, depth_m=None, include_qeq=True,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
-    """Return the selected Module 5 capacity value and optional equivalent gross pressure."""
+    """Return a Module 5 capacity only after dimensions, including Df, match.
+
+    A missing Module 4 embedment depth is not treated as a match. The caller's
+    depth value is used only for cross-module geometry validation.
+    """
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
         return None, None
