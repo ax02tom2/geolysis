@@ -1087,3 +1087,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #112 merged to main at 45356cda8c76d67800031abe9c27501cd05e582c.
 - GitHub Actions run 43144643012: success; compileall and Streamlit AppTest passed; 448 tests passed in 3.18 s.
 - Reference: USACE EM 1110-1-1905 (31 Jul 2025), Appendix C, Table C-1, Steps 7–9, Eqs. 6-6, 6-9 and 7-8.
+
+
+## Module 5 — sliding-result freshness for automatic Rankine earth pressure (PR #228)
+
+- The automatic developed-strength Rankine earth-pressure branch uses foundation embedment depth Df and footing length. Both values are now included in the sliding-result signature, so editing either input invalidates the prior sliding FS.
+- Added regression tests confirming that changes to Df and footing length change the signature.
+- No sliding resistance, earth-pressure, or safety-factor equation was changed.
+- PR #228 merged to main at e9de79b4463ceb2e145e9eed54b41143054eda44.
+- GitHub Actions run 44012948145: full test suite 608 passed in 13.08 s; Python 3.11 compileall passed.
+- GitHub Actions run 44012948188: targeted module/Web suite 582 passed in 13.63 s; Python 3.11 compileall passed.
