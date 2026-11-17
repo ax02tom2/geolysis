@@ -1,3 +1,13 @@
+Module 5 load-confirmation freshness and advanced slope provenance — 2026-11-17 Asia/Taipei (UTC+08:00)
+- PR #222 merged to main as 54ed593a710678724ca66bd0d2aefed2501028a6.
+- Replaced the fixed primary-load confirmation key with a signature derived from V, foundation B/L and footing type. Changing any of these inputs invalidates the prior confirmation and requires renewed review.
+- Advanced slope/base-inclination bearing calculation now requires both the primary project soil-parameter provenance confirmation and the design-load confirmation. Both states are included in the stored-result freshness signature; revoking either confirmation invalidates the old advanced result.
+- Added a Streamlit AppTest that verifies the advanced calculation is disabled before confirmation, becomes available after confirmation, and is disabled again when V changes.
+- The first CI attempt exposed five existing AppTest selectors that still expected the old fixed widget key; updated those selectors to match the signature-based key. No production calculation issue was involved.
+- Final full GitHub Actions suite: 604 passed; Python 3.11 active-module compilation passed (run 43990220385).
+- Final targeted Module/Web regression workflow: 580 passed; Python 3.11 active-module compilation passed (run 43990220358).
+- No engineering calculation formulas changed.
+
 Module 5 primary soil-parameter provenance and Module 4 transfer gate — 2026-11-13 Asia/Taipei (UTC+08:00)
 - PR #219 tested head: 117e11158852037015471d63635faf26bd53ef46.
 - Added an unchecked-by-default, input-signature-keyed confirmation that the primary bearing c′/cu, ϕ′, moist/submerged unit weights and drainage interpretation are based on project-specific investigation/test data.
