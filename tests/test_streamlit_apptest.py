@@ -189,7 +189,7 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
     qallow.set_value(100.0)
     app.run()
     pressure = next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u")
-    confirmation = next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm")
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_"))
     assert confirmation.value is False
 
     calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
@@ -203,10 +203,10 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
     pressure.set_value(12.0)
     app.run()
     assert app.session_state["m5x_residual_base_u"] == 12.0
-    confirmation = next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm")
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_"))
     confirmation.check()
     app.run()
-    assert app.session_state["m5x_residual_base_u_confirm"] is True
+    assert app.session_state[confirmation.key] is True
     calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
     calculate.click()
     app.run()
@@ -247,7 +247,7 @@ def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seis
 
     next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
     next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(12.0)
-    next(widget for widget in app.checkbox if widget.key == "m5x_residual_base_u_confirm").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
@@ -269,7 +269,7 @@ def test_module5_seismic_uplift_exposes_dead_load_interpretation_caveat():
     assert any("§5-7(b)" in value and "§9-10(f)" in value and "Wf、Wc" in value
                for value in warnings)
     weight_confirmation = next(
-        widget for widget in app.checkbox if widget.key == "m5x_uplift_weights_confirm"
+        widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_weights_confirm_")
     )
     assert "依本案適用規範確認地震抗浮可採 Wf+Ws+Wc" in weight_confirmation.label
 
@@ -306,14 +306,14 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     assert not any(widget.key == "m5x_slide_auto_earth" for widget in app.checkbox)
-    assert any(widget.key == "m5x_slide_seismic_earth_pressure_confirm" for widget in app.checkbox)
+    assert any(widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_") for widget in app.checkbox)
     assert not any(widget.key == "m5x_slide_gamma" for widget in app.number_input)
     assert not any(str(widget.key).startswith("m5x_slide_backfill_phi_") for widget in app.number_input)
     assert not any(str(widget.key).startswith("m5x_slide_backfill_c_") for widget in app.number_input)
 
     uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
     uplift.set_value(1.0)
-    pressure_confirm = next(widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm")
+    pressure_confirm = next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_"))
     pressure_confirm.check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -321,7 +321,7 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
     assert slide_button.disabled is True
 
     earth_pressure_confirm = next(
-        widget for widget in app.checkbox if widget.key == "m5x_slide_seismic_earth_pressure_confirm"
+        widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")
     )
     earth_pressure_confirm.check()
     app.run()
@@ -591,7 +591,7 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
     app.run()
     confirmation = next(
-        widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm"
+        widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")
     )
     confirmation.check()
     app.run()
@@ -606,7 +606,7 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
 
     # Revoking the pressure confirmation must invalidate and hide the prior FS.
     confirmation = next(
-        widget for widget in app.checkbox if widget.key == "m5x_uplift_pressure_confirm"
+        widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")
     )
     confirmation.uncheck()
     app.run()
