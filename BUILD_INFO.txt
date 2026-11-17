@@ -390,3 +390,14 @@ Module 5 context-bound engineering confirmations — PR #238
 - PR #238 merged to main at 6ed3494d6ed8c60a15d2a86ae1a0cdd9ac7d1a73.
 - GitHub Actions run 44043519579: full suite 614 passed in 14.88 s; Python 3.11 compileall passed.
 - GitHub Actions run 44043519893: targeted module/Web suite 584 passed in 14.79 s; Python 3.11 compileall passed.
+
+
+Module 4 context-bound CPT / PMT confirmations — PR #240
+- Schmertmann CPT soil-applicability confirmation is keyed to the current CPT profile, effective footing geometry, footing type, service duration, Df and Dw.
+- PMT Figure 7-11 λd/λc confirmation is keyed to effective footing dimensions, round/rectangular selection and both lambda values.
+- PMT deep-uniform-deposit confirmation is keyed to the current PMT profile, soft-layer CSV, geometry, soil state and applied-pressure inputs.
+- PMT soft-layer coverage confirmation is keyed to the actual soft-layer CSV, geometry, applied pressure and related review inputs.
+- Editing a reviewed input resets its relevant confirmation. No DMT/CPT/PMT settlement equations changed.
+- PR #240 merged to main at 9048ca3b930cc95b238a95d740fbadf0f772913b.
+- GitHub Actions run 44044757231: full suite 615 passed in 19.12 s; Python 3.11 compileall passed.
+- GitHub Actions run 44044757274: targeted module/Web suite 585 passed in 14.99 s; Python 3.11 compileall passed.
