@@ -784,8 +784,8 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
 
     next(widget for widget in app.text_area if widget.key == "m5x_insitu_layer_csv").set_value(
         "thickness_m,test_type,drainage,measurements\n"
-        "2,SPT,drained,12;15\n"
-        "3,SPT,drained,8;10"
+        "2,SPT,undrained,12;15\n"
+        "3,SPT,undrained,8;10"
     )
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_insitu_layer_run").click()
