@@ -352,3 +352,13 @@ Module 4 ↔ Module 5 embedment-depth transfer validation — PR #230
 - PR #230 merged to main at ae7f9cee21a86ebb94e7555b8e0477d4ce93cd73.
 - GitHub Actions run 44039243437: full suite 610 passed in 16.11 s; Python 3.11 compileall passed.
 - GitHub Actions run 44039243520: targeted module/Web suite 582 passed in 13.22 s; Python 3.11 compileall passed.
+
+
+Module 4 ↔ Module 5 groundwater-depth transfer validation — PR #232
+- Module 5 capacity transfer now requires an explicit Module 4 groundwater depth Dw and compares it against the transfer payload Dw_m (tolerance 0.01 m), in addition to the Df check introduced by PR #230.
+- Added comparison-only Dw inputs to Burland–Burbidge, DMT, CPT, PMT and one-dimensional consolidation branches. These values do not enter the settlement formulas; method-specific effective-stress / pore-pressure inputs remain unchanged.
+- The condition-confirmation key now includes Dw. Missing or mismatched groundwater depth, including legacy transfer payloads without Dw_m, blocks transfer.
+- Added regression tests for matching, mismatched and missing groundwater depth; updated AppTest flows.
+- PR #232 merged to main at 0b864b2d46c17bbeef476f9b599f3351b0014861.
+- GitHub Actions run 44040118927: full suite 612 passed in 18.54 s; Python 3.11 compileall passed.
+- GitHub Actions run 44040118813: targeted module/Web suite 582 passed in 13.28 s; Python 3.11 compileall passed.

@@ -1108,3 +1108,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #230 merged to main at ae7f9cee21a86ebb94e7555b8e0477d4ce93cd73.
 - GitHub Actions run 44039243437: full test suite 610 passed in 16.11 s; Python 3.11 compileall passed.
 - GitHub Actions run 44039243520: targeted module/Web suite 582 passed in 13.22 s; Python 3.11 compileall passed.
+
+
+## Module 4 ↔ Module 5 — groundwater-depth validation (PR #232)
+
+- Capacity transfer now requires Module 4 groundwater depth Dw and verifies it against Module 5 Dw_m within 0.01 m. The previous Df comparison remains in force.
+- Added comparison-only Dw fields to Burland–Burbidge, DMT, CPT, PMT and one-dimensional consolidation. These fields are not inserted into settlement equations; the methods' existing effective-stress and pore-pressure inputs remain the calculation basis.
+- The condition-confirmation key includes Dw, so changing the water table requires fresh confirmation. Missing Dw or legacy transfer payloads without Dw_m are rejected.
+- Added tests for matching, mismatched and missing groundwater depth; AppTest transfer flows updated.
+- PR #232 merged to main at 0b864b2d46c17bbeef476f9b599f3351b0014861.
+- GitHub Actions run 44040118927: full suite 612 passed in 18.54 s; Python 3.11 compileall passed.
+- GitHub Actions run 44040118813: targeted module/Web suite 582 passed in 13.28 s; Python 3.11 compileall passed.
