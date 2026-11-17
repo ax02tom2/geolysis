@@ -132,7 +132,7 @@ def test_module5_confirmed_bearing_result_is_published_to_module4():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_"))
     loads_confirmed.check()
     app.run()
     _confirm_module5_soil_data(app)
@@ -353,7 +353,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Produce a genuine transfer by running Module 5 through its public UI.
-    loads_confirmed = next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed")
+    loads_confirmed = next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_"))
     loads_confirmed.check()
     app.run()
     _confirm_module5_soil_data(app)
@@ -458,7 +458,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
@@ -541,7 +541,7 @@ def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
@@ -566,7 +566,7 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
 
     next(widget for widget in app.selectbox if widget.key == "m5_theory").select("Meyerhof")
     app.run()
-    next(widget for widget in app.checkbox if widget.key == "m5_loads_confirmed").check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
     _confirm_module5_soil_data(app)
     next(widget for widget in app.button if widget.key == "m5_run").click()
