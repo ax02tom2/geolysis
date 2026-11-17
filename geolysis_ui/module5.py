@@ -455,12 +455,19 @@ def render_module_5(expanded=False):
 
                 if layered["applicability_warning"]:
                     st.warning(layered["applicability_warning"])
+                layer_safety_incomplete5=[]
+                if layer_check_unsupported:
+                    layer_safety_incomplete5.append("兩層穿刺路徑尚未整合水平力、偏心及斜坡／傾斜基底修正。")
+                if not layered["within_usace_shear_zone_range"]:
+                    layer_safety_incomplete5.append(layered["applicability_warning"] or "分層資料超出目前剪力區適用範圍。")
+                if not soil_parameters_confirmed5:
+                    layer_safety_incomplete5.append("主分析單位重 γ_D、γ_H、γ′_H 尚未確認本工程來源；目前僅供探索性試算。")
                 _render_bearing_safety_check(
                     qult_kpa=layered["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     footing_type=footing_kind5,
-                    complete_capacity_model=(not layer_check_unsupported and layered["within_usace_shear_zone_range"]),
-                    incomplete_reason=(layered["applicability_warning"] or "兩層穿刺承載力尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。"),load_confirmed=loads_confirmed5)
+                    complete_capacity_model=(not layer_safety_incomplete5),
+                    incomplete_reason=("；".join(layer_safety_incomplete5) or None),load_confirmed=loads_confirmed5)
                 st.metric("控制總極限承載力",f"{layered['qult_kpa']:.1f} kPa")
                 st.write(f"上層承載力 {layered['qult_strong_kpa']:.1f} kPa；下層穿刺換算 {layered['punching_capacity_kpa']:.1f} kPa；控制模式：{layered['controlling_mode']}")
                 st.caption(layered["limitations"])
@@ -500,12 +507,17 @@ def render_module_5(expanded=False):
             if mr and mr_is_current:
 
                 profile_check_unsupported=(H5>0 or beta5>0 or base_ang5>0 or ground_ang5>0)
+                profile_safety_incomplete5=[]
+                if profile_check_unsupported:
+                    profile_safety_incomplete5.append("多層剖面計算尚未整合水平力及斜坡／傾斜基底修正。")
+                if not soil_parameters_confirmed5:
+                    profile_safety_incomplete5.append("主分析單位重 γ_D、γ′_H 尚未確認本工程來源；目前僅供探索性試算。")
                 _render_bearing_safety_check(
                     qult_kpa=mr["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
                     eccentricity_B_m=eB5,eccentricity_L_m=eL5,
-                    footing_type=footing_kind5,complete_capacity_model=not profile_check_unsupported,
-                    incomplete_reason="多層剖面計算尚未整合水平力及斜坡／傾斜基底修正。",load_confirmed=loads_confirmed5)
+                    footing_type=footing_kind5,complete_capacity_model=(not profile_safety_incomplete5),
+                    incomplete_reason=("；".join(profile_safety_incomplete5) or None),load_confirmed=loads_confirmed5)
                 st.metric("多層地盤控制總極限承載力",f"{mr['qult_kpa']:.1f} kPa")
                 st.write(f"控制模式：{mr['controlling_mode']}；控制層：第 {mr['controlling_layer']} 層")
                 st.dataframe(pd.DataFrame(mr["layers"]),hide_index=True,use_container_width=True)
@@ -1077,7 +1089,9 @@ def render_module_5(expanded=False):
                 _render_bearing_safety_check(
                     qult_kpa=insitu_result["qu_gross"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
-                    footing_type=insitu_footing5,complete_capacity_model=True,load_confirmed=loads_confirmed5)
+                    footing_type=insitu_footing5,complete_capacity_model=soil_parameters_confirmed5,
+                    incomplete_reason=("主分析單位重 γ_D、γ′_H 尚未確認本工程來源；目前僅供探索性試算。"
+                        if not soil_parameters_confirmed5 else None),load_confirmed=loads_confirmed5)
                 st.write(f"剪力區幾何平均 = {insitu_result['geometric_mean']:.3f} {mean_unit5}；等效強度參數 s = {insitu_result['s_parameter_kpa']:.1f} kPa；k = {insitu_result['k']:.2f}")
                 r1,r2,r3=st.columns(3)
                 r1.metric("極限承載力 qult,gross",f"{insitu_result['qu_gross']:.1f} kPa")
@@ -1135,11 +1149,17 @@ def render_module_5(expanded=False):
             layered_insitu,insitu_layer_current=read_result_state(
                 st.session_state,"m5x_insitu_layer_result","m5x_insitu_layer_signature",insitu_layer_sig)
             if layered_insitu and insitu_layer_current:
+                insitu_layer_safety_complete5=(not insitu_layer_unsupported5 and soil_parameters_confirmed5)
+                insitu_layer_incomplete_reasons5=[]
+                if insitu_layer_unsupported5:
+                    insitu_layer_incomplete_reasons5.append("原位試驗分層穿刺尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。")
+                if not soil_parameters_confirmed5:
+                    insitu_layer_incomplete_reasons5.append("主分析單位重 γ_D、γ′_H 尚未確認本工程來源；目前僅供探索性試算。")
                 _render_bearing_safety_check(
                     qult_kpa=layered_insitu["qult_kpa"],vertical_load_kN=V5,
                     width_m=B5,length_m=L5,depth_m=df5,water_depth_m=dw5,
-                    footing_type=insitu_layer_footing5,complete_capacity_model=not insitu_layer_unsupported5,
-                    incomplete_reason="原位試驗分層穿刺尚未包含目前輸入的水平力、偏心或斜坡／傾斜基底修正。",
+                    footing_type=insitu_layer_footing5,complete_capacity_model=insitu_layer_safety_complete5,
+                    incomplete_reason=("；".join(insitu_layer_incomplete_reasons5) or None),
                     load_confirmed=loads_confirmed5)
                 st.write(f"控制模式：{layered_insitu['controlling_mode']}；控制層：第 {layered_insitu['controlling_layer']} 層")
                 punch_candidates=[x for x in layered_insitu["candidates"] if x.get("spread_factor",1.0)>1.0]
