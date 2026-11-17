@@ -247,6 +247,7 @@ def test_module5_residual_base_pressure_only_increases_uplift_reference_for_seis
 
     next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
     next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(12.0)
+    app.run()
     next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -313,6 +314,7 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
 
     uplift = next(widget for widget in app.number_input if widget.label.startswith("基底揚壓力合力 U"))
     uplift.set_value(1.0)
+    app.run()
     pressure_confirm = next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_"))
     pressure_confirm.check()
     app.run()
@@ -659,6 +661,7 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     # Satisfy the seismic pore-pressure applicability inputs first. These
     # confirmations alone must not authorize a design calculation.
     next(widget for widget in app.number_input if widget.key == "m5x_fs_liq").set_value(1.5)
+    app.run()
     next(widget for widget in app.checkbox
          if widget.label.startswith("已依場址評估確認不預期顯著側向擴展")).check()
     next(widget for widget in app.checkbox
