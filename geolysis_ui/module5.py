@@ -419,7 +419,9 @@ def render_module_5(expanded=False):
                 c_low5=st.number_input("下層 c／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_c_low_{hb_layer_suffix5}")
                 phi_low5=st.number_input("下層 φ [°]",0.0,50.0,0.0,1.0,key=f"m5x_phi_low_{hb_layer_suffix5}")
             st.caption("多層穿刺分析各層 c／Su、φ 必須依該層試驗或地勘資料分別輸入；上層欄位初值僅沿用主分析參數作為編輯起點，下層 0 值也不是系統推定的土壤強度。系統不再以固定 0.5c 或 0.7φ 推定下層強度。選用 Module 1 Hoek–Brown 來源時，各層欄位另行輸入，避免把單一岩體等效參數複製到不同地層。")
-            layer_data_confirmed5=st.checkbox("我已確認上、下層 c／Su、φ 及上層厚度均依本案各層地勘／試驗資料輸入",value=False,key="m5x_layer_data_confirmed")
+            layer_data_context5=(float(c_top5),float(phi_top5),float(c_low5),float(phi_low5),float(strong_h5))
+            layer_data_context_id5=hashlib.sha256(repr(layer_data_context5).encode("utf-8")).hexdigest()[:12]
+            layer_data_confirmed5=st.checkbox("我已確認上、下層 c／Su、φ 及上層厚度均依本案各層地勘／試驗資料輸入",value=False,key=f"m5x_layer_data_confirmed_{layer_data_context_id5}")
             if not layer_data_confirmed5:
                 st.warning("尚未確認分層強度資料來源；為避免將主分析參數或預設 0 值誤當成實測資料，暫不允許計算。")
             with lc:
