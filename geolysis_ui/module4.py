@@ -22,7 +22,9 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     width_match=abs(float(width_m)-float(transfer["B_m"]))<=0.01
     length_match=abs(float(length_m)-float(transfer["L_m"]))<=0.01
     depth_match=(depth_m is not None and abs(float(depth_m)-float(transfer["Df_m"]))<=0.01)
-    water_depth_match=(water_depth_m is not None and abs(float(water_depth_m)-float(transfer["Dw_m"]))<=0.01)
+    transfer_water_depth=transfer.get("Dw_m")
+    water_depth_match=(water_depth_m is not None and transfer_water_depth is not None
+        and abs(float(water_depth_m)-float(transfer_water_depth))<=0.01)
     type_match=(footing_type is None or str(footing_type)==str(transfer["footing_type"]))
     transfer_eB=float(transfer.get("eB_m",0.0))
     transfer_eL=float(transfer.get("eL_m",0.0))
