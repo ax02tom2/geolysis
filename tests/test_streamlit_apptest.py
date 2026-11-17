@@ -906,14 +906,14 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
 
 def test_module4_pmt_soft_layer_review_confirmation_resets_when_profile_changes():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     next(widget for widget in app.selectbox if widget.key == "m4_method").select(
         "PMT：Ménard–Rousseau 法（USACE 2025）"
     )
     app.run()
     soft_csv = next(widget for widget in app.text_area if widget.key == "m4_pmt_soft_layers")
     soft_csv.set_value(
-        "depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\\n"
+        "depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n"
         "1.0,0.5,5000,600,0.129"
     )
     app.run()
