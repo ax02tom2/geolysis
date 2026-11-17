@@ -26,16 +26,18 @@ def _normalize_bishop_weight_column(frame):
     raise ValueError("Bishop CSV 必須提供 weight_kN_per_m（每延米重量）欄位")
 
 
-def _sliding_result_signature(base_signature, *, base_pressure_reference_kN,
-        uplift_pressure_confirmed, uplift_pressure_ready,
+def _sliding_result_signature(base_signature, *, footing_depth_m, footing_length_m,
+        base_pressure_reference_kN, uplift_pressure_confirmed, uplift_pressure_ready,
         footing_area_matches_base, footing_units_match,
         seismic_earth_pressure_ready):
-    """Include every readiness gate in the sliding result's freshness signature.
+    """Include all calculation geometry and readiness gates in the sliding signature.
 
-    The numerical inputs alone are insufficient: changing a reviewer confirmation
-    or the hydrostatic/residual-pore-pressure reference must invalidate an old FS.
+    The developed Rankine earth-pressure branch depends on Df and footing length;
+    changing either must invalidate a previously calculated sliding FS.
     """
     return tuple(base_signature) + (
+        float(footing_depth_m),
+        float(footing_length_m),
         float(base_pressure_reference_kN),
         bool(uplift_pressure_confirmed),
         bool(uplift_pressure_ready),
@@ -845,6 +847,8 @@ def render_module_5(expanded=False):
                  slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
                  seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
                  slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
+                footing_depth_m=df5,
+                footing_length_m=(1.0 if slide_is_line5 else L5),
                 base_pressure_reference_kN=base_pressure_U_ref5,
                 uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
                 uplift_pressure_ready=slide_uplift_pressure_ready5,
