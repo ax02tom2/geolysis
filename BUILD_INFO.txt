@@ -1,3 +1,8 @@
+Build: geolysis Web — Module 5 seismic bearing soil/load provenance gate
+Date: 2026-11-17 Asia/Taipei (UTC+08:00)
+PR #224 merged: 0f4f9d04acf96a6e94a6ce5678295f6f10e8e922.
+The seismic residual-pore-pressure bearing-capacity branch now requires both signature-keyed primary design-load (Q+Wf) and project soil-strength/unit-weight provenance confirmations, in addition to its existing liquefaction, ru-source, lateral-spreading and shear-zone applicability checks. Both confirmations are included in the seismic result freshness signature. Full suite: 605 passed; Python 3.11 active-module compilation passed (Actions run 43991608633). Targeted Module/Web suite: 581 passed; Python 3.11 active-module compilation passed (Actions run 43991608553). No engineering calculation formulas changed.
+
 Build: geolysis Web — Module 5 load-confirmation freshness and advanced slope provenance
 Date: 2026-11-17 Asia/Taipei (UTC+08:00)
 PR #222 merged: 54ed593a710678724ca66bd0d2aefed2501028a6.

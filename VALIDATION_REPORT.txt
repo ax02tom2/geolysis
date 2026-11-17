@@ -1,3 +1,13 @@
+Module 5 seismic bearing soil/load provenance — 2026-11-17 Asia/Taipei (UTC+08:00)
+- PR #224 merged to main as 0f4f9d04acf96a6e94a6ce5678295f6f10e8e922.
+- Added a required gate for both the signature-keyed primary design-load confirmation (V as Q+Wf) and the project soil-strength/unit-weight provenance confirmation before the seismic residual-pore-pressure bearing-capacity branch can calculate.
+- Retained the existing independent seismic applicability checks: FS_liq, no significant lateral spreading, ru source, and full/partial shear-zone input. The new gate complements rather than replaces those checks.
+- Added both confirmation states to the seismic bearing result signature, invalidating stored seismic resistance results if either confirmation is withdrawn or changes.
+- Added AppTest proving seismic-specific confirmations alone cannot enable the calculation; both primary project soil and load confirmations are also required.
+- Full GitHub Actions suite: 605 passed; Python 3.11 active-module compilation passed (run 43991608633).
+- Targeted Module/Web regression workflow: 581 passed; Python 3.11 active-module compilation passed (run 43991608553).
+- No engineering calculation formulas changed.
+
 Module 5 load-confirmation freshness and advanced slope provenance — 2026-11-17 Asia/Taipei (UTC+08:00)
 - PR #222 merged to main as 54ed593a710678724ca66bd0d2aefed2501028a6.
 - Replaced the fixed primary-load confirmation key with a signature derived from V, foundation B/L and footing type. Changing any of these inputs invalidates the prior confirmation and requires renewed review.
