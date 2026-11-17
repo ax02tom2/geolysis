@@ -499,15 +499,18 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
 
     if method_key:
         next(widget for widget in app.selectbox if widget.key == method_key).select(mode_value)
-    if prefix == "m4_cpt":
-        next(widget for widget in app.checkbox if widget.key == "m4_cpt_soil_confirm").check()
     if prefix == "m4_pmt":
         next(widget for widget in app.number_input if widget.key == "m4_pmt_pne").set_value(1500.0)
         next(widget for widget in app.number_input if widget.key == "m4_pmt_py").set_value(1000.0)
-        next(widget for widget in app.checkbox if widget.key == "m4_pmt_deep_confirm").check()
-        next(widget for widget in app.checkbox if widget.key == "m4_pmt_lambda_confirm").check()
     next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
     app.run()
+    if prefix == "m4_cpt":
+        next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_")).check()
+        app.run()
+    if prefix == "m4_pmt":
+        next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_")).check()
+        next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_")).check()
+        app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     calculation_errors = [
         item.value for item in app.error
@@ -515,7 +518,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     ]
     assert not calculation_errors, (
         f"{calculation_errors}; state="
-        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_dmt_mode','m4_dmt_layers','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_cpt_layers','m4_cpt_soil_confirm','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs','m4_pmt_layers','m4_pmt_pne','m4_pmt_py')]}; transfer={app.session_state.get('m5_bearing_transfer')}"
+        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_dmt_mode','m4_dmt_layers','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_cpt_layers','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs','m4_pmt_layers','m4_pmt_pne','m4_pmt_py')]}; transfer={app.session_state.get('m5_bearing_transfer')}"
     )
     expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
