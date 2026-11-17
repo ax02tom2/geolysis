@@ -81,6 +81,7 @@ def test_module4_transfer_keeps_manual_pressure_when_qeq_not_selected(monkeypatc
         width_m=2.0,
         length_m=3.0,
         footing_type="isolated",
+        depth_m=1.5,
     )
 
     assert qult == 900.0
@@ -140,6 +141,7 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
         field="qa_net_kpa",
         width_m=2.0,
         length_m=3.0,
+        depth_m=1.5,
         include_qeq=False,
     )
 
@@ -225,7 +227,7 @@ def test_module4_does_not_transfer_legacy_result_without_effective_dimensions(mo
     _patch_transfer_ui(monkeypatch, transfer, {})
     qult, qeq = module4._module5_transfer_value(
         key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
-        width_m=2.0, length_m=3.0, footing_type="isolated",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
     )
     assert qult is None
     assert qeq is None
