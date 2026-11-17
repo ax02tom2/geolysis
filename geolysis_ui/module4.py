@@ -163,10 +163,15 @@ def render_module_4(expanded=False):
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
             profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
             m3_profile_data4=st.session_state.get('m3_profile_result')
-            use_m3_spt4=st.checkbox("直接使用模組三已校正 SPT 剖面（N60）",
+            use_m3_spt_checkbox4=st.checkbox("直接使用模組三已校正 SPT 剖面（N60）",
                 value=False,disabled=(m3_profile_data4 is None),key='m4_bb_use_m3_spt')
+            # A disabled Streamlit checkbox can retain its previous session value.
+            # Never let that stale True select a profile after Module 3 revokes it.
+            use_m3_spt4=bool(use_m3_spt_checkbox4 and m3_profile_data4 is not None)
             if m3_profile_data4 is None:
                 st.caption("尚無模組三有效 SPT 剖面；先在模組三輸入／上傳逐深度資料並完成修正後，此處即可直接帶入。")
+                if use_m3_spt_checkbox4:
+                    st.warning("模組三剖面已撤銷或尚未確認；舊的連結選擇不會被採用。")
             d,e=st.columns(2)
             with d:
                 oc4=st.checkbox("超固結顆粒土（使用 σ′p 分段式）",key='m4_bb_oc')
