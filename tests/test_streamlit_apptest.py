@@ -683,3 +683,37 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     run_button = next(widget for widget in app.button if widget.key == "m5x_seismic_capacity_run")
     assert run_button.disabled is False
+
+
+def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
+    profile.set_value(
+        "Depth_m,N,Effective_Stress_KPa\\n"
+        "1.0,10,100\\n"
+        "2.0,15,150\\n"
+        "3.0,20,200"
+    )
+    next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert app.session_state["m3_profile_result"] is not None
+
+    module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
+    assert module4_link.disabled is False
+    module4_link.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Revoke the Module 3 profile confirmation while the Module 4 link was
+    # previously selected. The disabled widget may retain True in session
+    # state, but Module 4 must ignore it and fall back to its own N60 input.
+    next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").uncheck()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert "m3_profile_result" not in app.session_state
+    module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
+    assert module4_link.disabled is True
+    assert any("舊的連結選擇不會被採用" in item.value for item in app.info + app.warning)
