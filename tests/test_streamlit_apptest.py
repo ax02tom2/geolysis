@@ -499,15 +499,41 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
 
     if method_key:
         next(widget for widget in app.selectbox if widget.key == method_key).select(mode_value)
-    if prefix == "m4_cpt":
-        next(widget for widget in app.checkbox if widget.key == "m4_cpt_soil_confirm").check()
     if prefix == "m4_pmt":
         next(widget for widget in app.number_input if widget.key == "m4_pmt_pne").set_value(1500.0)
         next(widget for widget in app.number_input if widget.key == "m4_pmt_py").set_value(1000.0)
-        next(widget for widget in app.checkbox if widget.key == "m4_pmt_deep_confirm").check()
-        next(widget for widget in app.checkbox if widget.key == "m4_pmt_lambda_confirm").check()
     next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
     app.run()
+    if prefix == "m4_cpt":
+        cpt_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_"))
+        cpt_confirmation.check()
+        app.run()
+        cpt_text_widget = next(widget for widget in app.text_area if widget.key == "m4_cpt_layers")
+        cpt_text_widget.set_value(cpt_text_widget.value.replace("8000", "8100", 1))
+        app.run()
+        cpt_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_"))
+        assert cpt_confirmation.value is False
+        cpt_confirmation.check()
+        app.run()
+    if prefix == "m4_pmt":
+        pmt_deep_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_"))
+        pmt_lambda_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_"))
+        pmt_deep_confirmation.check()
+        pmt_lambda_confirmation.check()
+        app.run()
+        next(widget for widget in app.number_input if widget.key == "m4_pmt_ld").set_value(2.30)
+        app.run()
+        pmt_lambda_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_"))
+        assert pmt_lambda_confirmation.value is False
+        pmt_lambda_confirmation.check()
+        app.run()
+        pmt_text_widget = next(widget for widget in app.text_area if widget.key == "m4_pmt_layers")
+        pmt_text_widget.set_value(pmt_text_widget.value + "\nE1,13000")
+        app.run()
+        pmt_deep_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_"))
+        assert pmt_deep_confirmation.value is False
+        pmt_deep_confirmation.check()
+        app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     calculation_errors = [
         item.value for item in app.error
@@ -515,7 +541,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     ]
     assert not calculation_errors, (
         f"{calculation_errors}; state="
-        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_dmt_mode','m4_dmt_layers','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_cpt_layers','m4_cpt_soil_confirm','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs','m4_pmt_layers','m4_pmt_pne','m4_pmt_py')]}; transfer={app.session_state.get('m5_bearing_transfer')}"
+        f"{[(key, app.session_state.get(key)) for key in ('m4_dmt_b','m4_dmt_l','m4_dmt_q','m4_dmt_fs','m4_dmt_mode','m4_dmt_layers','m4_cpt_b','m4_cpt_l','m4_cpt_q','m4_cpt_fs','m4_cpt_layers','m4_pmt_b','m4_pmt_l','m4_pmt_q','m4_pmt_fs','m4_pmt_layers','m4_pmt_pne','m4_pmt_py')]}; transfer={app.session_state.get('m5_bearing_transfer')}"
     )
     expected = f"採用 gross 壓力 = {transfer['qeq_gross_kpa']:.1f} kPa"
     assert any(expected in item.value for item in app.markdown)
@@ -876,3 +902,26 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     next(widget for widget in app.number_input if widget.key == "m5x_slide_pa").set_value(120.0)
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).value is False
+
+
+def test_module4_pmt_soft_layer_review_confirmation_resets_when_profile_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    next(widget for widget in app.selectbox if widget.key == "m4_method").select(
+        "PMT：Ménard–Rousseau 法（USACE 2025）"
+    )
+    app.run()
+    soft_csv = next(widget for widget in app.text_area if widget.key == "m4_pmt_soft_layers")
+    soft_csv.set_value(
+        "depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n"
+        "1.0,0.5,5000,600,0.129"
+    )
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
+    confirmation.check()
+    app.run()
+    soft_csv = next(widget for widget in app.text_area if widget.key == "m4_pmt_soft_layers")
+    soft_csv.set_value(soft_csv.value.replace("1.0,0.5", "1.1,0.5"))
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
+    assert confirmation.value is False
