@@ -283,3 +283,16 @@ def test_module4_transfer_rejects_groundwater_depth_mismatch(monkeypatch):
     )
     assert qult is None
     assert qeq is None
+
+
+def test_module4_transfer_rejects_legacy_transfer_without_groundwater_depth(monkeypatch):
+    transfer = _transfer_fixture()
+    transfer.pop("Dw_m")
+    _patch_transfer_ui(monkeypatch, transfer, {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated",
+        depth_m=1.5, water_depth_m=2.0,
+    )
+    assert qult is None
+    assert qeq is None
