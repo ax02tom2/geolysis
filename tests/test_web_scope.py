@@ -90,7 +90,7 @@ def test_module5_primary_soil_parameters_require_confirmation_before_module4_tra
 
 def test_module5_two_layer_punching_requires_project_data_confirmation():
     module5 = (ROOT / "geolysis_ui" / "module5.py").read_text(encoding="utf-8")
-    assert 'key="m5x_layer_data_confirmed"' in module5
+    assert 'key=f"m5x_layer_data_confirmed_{layer_data_context_id5}"' in module5
     assert "or not layer_data_confirmed5" in module5
     assert "主分析參數或預設 0 值誤當成實測資料" in module5
     assert module5.count("bool(layer_data_confirmed5)") >= 2

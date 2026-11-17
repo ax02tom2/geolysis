@@ -717,3 +717,92 @@ def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
     module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
     assert module4_link.disabled is True
     assert any("舊的連結選擇不會被採用" in item.value for item in app.warning)
+
+
+def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+
+    # Confirm the design load but deliberately leave the main soil/unit-weight
+    # provenance confirmation unchecked.
+    next(widget for widget in app.checkbox
+         if widget.key.startswith("m5_loads_confirmed_")).check()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    soil_confirmation = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith("m5_soil_data_confirmed_")
+    )
+    assert soil_confirmation.value is False
+
+    # Two-layer punching: layer strengths are confirmed, but the main gamma
+    # values used by both layer calculations are not yet provenance-confirmed.
+    next(widget for widget in app.number_input if widget.key == "m5x_c_low_manual").set_value(5.0)
+    next(widget for widget in app.number_input if widget.key == "m5x_phi_low_manual").set_value(20.0)
+    layer_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_layer_data_confirmed_"))
+    layer_confirmation.check()
+    app.run()
+    # A changed layer strength must invalidate the prior data-source confirmation.
+    next(widget for widget in app.number_input if widget.key == "m5x_c_low_manual").set_value(6.0)
+    app.run()
+    layer_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_layer_data_confirmed_"))
+    assert layer_confirmation.value is False
+    layer_confirmation.check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5x_layer_run").click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5x_layer_result") is not None
+    assert any(item.label == "實際承載力 FS" and item.value == "未計算"
+               for item in app.metric)
+
+    # Multi-layer profile uses the main moist/submerged unit weights for its
+    # first layer, so it must obey the same provenance gate.
+    next(widget for widget in app.text_area if widget.key == "m5x_multi_layer_csv_manual").set_value(
+        "thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\n"
+        "2,20,30,9.5\n"
+        "3,5,20,9.5"
+    )
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5x_multi_layer_run").click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5x_multi_layer_result") is not None
+    assert any(item.label == "實際承載力 FS" and item.value == "未計算"
+               for item in app.metric)
+
+    # Single and layered in-situ methods also use the main unit weights for
+    # surcharge / groundwater calculations even though strength comes from tests.
+    next(widget for widget in app.text_input if widget.key == "m5x_insitu_values").set_value("12,15,18")
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5x_insitu_run").click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5x_insitu_result") is not None
+    assert any(item.label == "實際承載力 FS" and item.value == "未計算"
+               for item in app.metric)
+
+    next(widget for widget in app.text_area if widget.key == "m5x_insitu_layer_csv").set_value(
+        "thickness_m,test_type,drainage,measurements\n"
+        "2,SPT,undrained,12;15\n"
+        "3,SPT,undrained,8;10"
+    )
+    app.run()
+    next(widget for widget in app.button if widget.key == "m5x_insitu_layer_run").click()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert app.session_state.get("m5x_insitu_layer_result") is not None
+    assert any(item.label == "實際承載力 FS" and item.value == "未計算"
+               for item in app.metric)
+
+    # Confirming the shared project unit weights should release the FS display
+    # without requiring the capacity calculations to be rerun.
+    soil_confirmation = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith("m5_soil_data_confirmed_")
+    )
+    soil_confirmation.check()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    assert any(item.label == "實際承載力 FS" and item.value != "未計算"
+               for item in app.metric)
