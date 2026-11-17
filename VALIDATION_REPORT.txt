@@ -1097,3 +1097,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #228 merged to main at e9de79b4463ceb2e145e9eed54b41143054eda44.
 - GitHub Actions run 44012948145: full test suite 608 passed in 13.08 s; Python 3.11 compileall passed.
 - GitHub Actions run 44012948188: targeted module/Web suite 582 passed in 13.63 s; Python 3.11 compileall passed.
+
+
+## Module 4 ↔ Module 5 — explicit embedment-depth validation (PR #230)
+
+- Cross-module capacity transfer now requires a numeric Module 4 Df and verifies it against Module 5 Df within 0.01 m. Missing or mismatched values block transfer.
+- DMT, CPT, PMT and one-dimensional consolidation now expose Df solely for geometry matching; no settlement formula uses this additional comparison field. Burland–Burbidge retains its existing Df input.
+- Confirmation widget identity includes the Df value, so changing depth does not carry forward a previous condition confirmation.
+- Regression coverage includes missing/matching/mismatched Df and the DMT/CPT/PMT AppTest transfer flow.
+- PR #230 merged to main at ae7f9cee21a86ebb94e7555b8e0477d4ce93cd73.
+- GitHub Actions run 44039243437: full test suite 610 passed in 16.11 s; Python 3.11 compileall passed.
+- GitHub Actions run 44039243520: targeted module/Web suite 582 passed in 13.22 s; Python 3.11 compileall passed.
