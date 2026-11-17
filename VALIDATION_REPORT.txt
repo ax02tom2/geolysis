@@ -1139,3 +1139,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #236 merged to main at 588c679ddb6a5fa4334bb312bdd67c9189d81329.
 - GitHub Actions run 44042415837: full test suite 613 passed in 14.84 s; Python 3.11 compileall passed.
 - GitHub Actions run 44042415931: targeted module/Web suite 583 passed in 12.70 s; Python 3.11 compileall passed.
+
+
+## Module 5 — context-bound seismic confirmations (PR #238)
+
+- Confirmation state for base residual pore pressure, ru source, no significant lateral spreading, partial shear-zone weighting, seismic uplift weights, total uplift force and seismic Pa/Pp is now keyed to the values and geometry it certifies.
+- Changing a certified input resets the relevant checkbox and requires renewed confirmation; old True state cannot carry over to new pressure, weight, ru, FS_liq, shear-zone or Pa/Pp values.
+- No engineering equations changed. Regression AppTests cover the context changes.
+- PR #238 merged to main at 6ed3494d6ed8c60a15d2a86ae1a0cdd9ac7d1a73.
+- GitHub Actions run 44043519579: full test suite 614 passed in 14.88 s; Python 3.11 compileall passed.
+- GitHub Actions run 44043519893: targeted module/Web suite 584 passed in 14.79 s; Python 3.11 compileall passed.
