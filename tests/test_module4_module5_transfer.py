@@ -43,7 +43,7 @@ def test_module4_transfer_can_use_module5_qult_and_equivalent_gross_pressure(mon
         transfer,
         {
             "m4_dmt_use_m5_transfer123": True,
-            "m4_dmt_conditions_transfer123_2.00_3.00_0.00_isolated": True,
+            "m4_dmt_conditions_transfer123_2.00_3.00_1.50_isolated": True,
             "m4_dmt_use_m5_qeq_transfer123": True,
         },
     )
@@ -55,6 +55,7 @@ def test_module4_transfer_can_use_module5_qult_and_equivalent_gross_pressure(mon
         width_m=2.0,
         length_m=3.0,
         footing_type="isolated",
+        depth_m=1.5,
     )
 
     assert qult == 900.0
@@ -68,7 +69,7 @@ def test_module4_transfer_keeps_manual_pressure_when_qeq_not_selected(monkeypatc
         transfer,
         {
             "m4_cpt_use_m5_transfer123": True,
-            "m4_cpt_conditions_transfer123_2.00_3.00_0.00_isolated": True,
+            "m4_cpt_conditions_transfer123_2.00_3.00_1.50_isolated": True,
             "m4_cpt_use_m5_qeq_transfer123": False,
         },
     )
@@ -80,6 +81,7 @@ def test_module4_transfer_keeps_manual_pressure_when_qeq_not_selected(monkeypatc
         width_m=2.0,
         length_m=3.0,
         footing_type="isolated",
+        depth_m=1.5,
     )
 
     assert qult == 900.0
@@ -128,7 +130,7 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
         transfer,
         {
             "m4_clay_use_m5_transfer123": True,
-            "m4_clay_conditions_transfer123_2.00_3.00_0.00_any": True,
+            "m4_clay_conditions_transfer123_2.00_3.00_1.50_any": True,
             "m4_clay_use_m5_qeq_transfer123": True,
         },
     )
@@ -139,6 +141,7 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
         field="qa_net_kpa",
         width_m=2.0,
         length_m=3.0,
+        depth_m=1.5,
         include_qeq=False,
     )
 
@@ -164,7 +167,7 @@ def test_all_gross_settlement_methods_can_select_module5_qeq(
         transfer,
         {
             f"{key_prefix}_use_m5_transfer123": True,
-            f"{key_prefix}_conditions_transfer123_2.00_3.00_0.00_{footing_type}": True,
+            f"{key_prefix}_conditions_transfer123_2.00_3.00_1.50_{footing_type}": True,
             f"{key_prefix}_use_m5_qeq_transfer123": True,
         },
     )
@@ -176,6 +179,7 @@ def test_all_gross_settlement_methods_can_select_module5_qeq(
         width_m=2.0,
         length_m=3.0,
         footing_type=footing_type,
+        depth_m=1.5,
     )
 
     assert qult == 900.0
@@ -203,13 +207,13 @@ def test_module5_effective_dimensions_are_used_for_confirmed_settlement_transfer
         transfer,
         {
             "m4_dmt_use_m5_transfer123": True,
-            "m4_dmt_conditions_transfer123_2.00_3.00_0.00_isolated": True,
+            "m4_dmt_conditions_transfer123_2.00_3.00_1.50_isolated": True,
             "m4_dmt_use_m5_qeq_transfer123": True,
         },
     )
     qult, qeq = module4._module5_transfer_value(
         key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
-        width_m=2.0, length_m=3.0, footing_type="isolated",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
     )
     b_eff, l_eff = module4._module5_settlement_dimensions(2.0, 3.0, qult is not None)
     assert (qult, qeq) == (900.0, 240.0)
@@ -223,7 +227,7 @@ def test_module4_does_not_transfer_legacy_result_without_effective_dimensions(mo
     _patch_transfer_ui(monkeypatch, transfer, {})
     qult, qeq = module4._module5_transfer_value(
         key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
-        width_m=2.0, length_m=3.0, footing_type="isolated",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
     )
     assert qult is None
     assert qeq is None
@@ -234,8 +238,27 @@ def test_module5_centered_transfer_is_rejected_for_eccentric_settlement(monkeypa
     _patch_transfer_ui(monkeypatch, transfer, {})
     qult, qeq = module4._module5_transfer_value(
         key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
-        width_m=2.0, length_m=3.0, footing_type="isolated",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
         eccentricity_B_m=0.10, eccentricity_L_m=0.0,
+    )
+    assert qult is None
+    assert qeq is None
+
+def test_module4_transfer_rejects_depth_mismatch(monkeypatch):
+    _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=2.0,
+    )
+    assert qult is None
+    assert qeq is None
+
+
+def test_module4_transfer_rejects_missing_depth_reference(monkeypatch):
+    _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated",
     )
     assert qult is None
     assert qeq is None
