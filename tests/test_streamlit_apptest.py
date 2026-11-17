@@ -101,6 +101,7 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
         value = _module5_transfer_value(
             key_prefix="test", label="gross qult", field="qult_gross_kpa",
             width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
+            water_depth_m=2.0,
         )
     assert value == (1200.0, 180.0)
 
