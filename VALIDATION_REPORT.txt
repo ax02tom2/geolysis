@@ -1,3 +1,12 @@
+Module 3 → Module 4 SPT profile revocation and stale-selection guard — 2026-11-17 Asia/Taipei (UTC+08:00)
+- PR #226 merged to main as 0679fabf426591c0eba8966d03e572976a2b5ff3.
+- Module 3 correctly clears m3_profile_result when its project-data confirmation is withdrawn. Module 4 previously could retain a True value in its disabled SPT-profile checkbox and still enter the profile-use branch with no valid profile.
+- Module 4 now computes the effective profile-link selection as true only when both the checkbox is selected and a current Module 3 profile exists. If the old checkbox value remains selected after profile revocation, the application warns that it is ignored and falls back to the manual N60 input.
+- Added AppTest: create and confirm a real multiline Module 3 SPT profile, select the Module 4 link, withdraw Module 3 confirmation, and verify Module 4 does not throw and ignores the stale selection.
+- Full GitHub Actions suite: 606 passed; Python 3.11 active-module compilation passed (run 43992561135).
+- Targeted Module/Web regression workflow: 582 passed; Python 3.11 active-module compilation passed (run 43992561117).
+- No SPT correction or settlement equations changed.
+
 Module 5 seismic bearing soil/load provenance — 2026-11-17 Asia/Taipei (UTC+08:00)
 - PR #224 merged to main as 0f4f9d04acf96a6e94a6ce5678295f6f10e8e922.
 - Added a required gate for both the signature-keyed primary design-load confirmation (V as Q+Wf) and the project soil-strength/unit-weight provenance confirmation before the seismic residual-pore-pressure bearing-capacity branch can calculate.
