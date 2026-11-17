@@ -380,3 +380,13 @@ Module 5 advanced bearing safety-factor provenance — PR #236
 - PR #236 merged to main at 588c679ddb6a5fa4334bb312bdd67c9189d81329.
 - GitHub Actions run 44042415837: full suite 613 passed in 14.84 s; Python 3.11 compileall passed.
 - GitHub Actions run 44042415931: targeted module/Web suite 583 passed in 12.70 s; Python 3.11 compileall passed.
+
+
+Module 5 context-bound engineering confirmations — PR #238
+- Re-keyed confirmations for base residual excess pore pressure, liquefaction / ru source, lateral spreading, partial shear-zone inputs, seismic uplift weights, total uplift force and seismic Pa/Pp to the numerical values and geometry they certify.
+- Changing any certified input now produces a new unchecked confirmation instead of retaining a previous True session state. This prevents stale provenance approvals from authorizing a calculation after the underlying values change.
+- No bearing, seismic, sliding or uplift equations changed.
+- Added AppTest coverage across all confirmation families.
+- PR #238 merged to main at 6ed3494d6ed8c60a15d2a86ae1a0cdd9ac7d1a73.
+- GitHub Actions run 44043519579: full suite 614 passed in 14.88 s; Python 3.11 compileall passed.
+- GitHub Actions run 44043519893: targeted module/Web suite 584 passed in 14.79 s; Python 3.11 compileall passed.
