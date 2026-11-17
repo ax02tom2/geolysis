@@ -505,11 +505,34 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     next(widget for widget in app.text_area if widget.key == csv_key).set_value(csv_text)
     app.run()
     if prefix == "m4_cpt":
-        next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_")).check()
+        cpt_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_"))
+        cpt_confirmation.check()
+        app.run()
+        cpt_text_widget = next(widget for widget in app.text_area if widget.key == "m4_cpt_layers")
+        cpt_text_widget.set_value(cpt_text_widget.value.replace("8000", "8100", 1))
+        app.run()
+        cpt_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_cpt_soil_confirm_"))
+        assert cpt_confirmation.value is False
+        cpt_confirmation.check()
         app.run()
     if prefix == "m4_pmt":
-        next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_")).check()
-        next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_")).check()
+        pmt_deep_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_"))
+        pmt_lambda_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_"))
+        pmt_deep_confirmation.check()
+        pmt_lambda_confirmation.check()
+        app.run()
+        next(widget for widget in app.number_input if widget.key == "m4_pmt_ld").set_value(2.30)
+        app.run()
+        pmt_lambda_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_lambda_confirm_"))
+        assert pmt_lambda_confirmation.value is False
+        pmt_lambda_confirmation.check()
+        app.run()
+        pmt_text_widget = next(widget for widget in app.text_area if widget.key == "m4_pmt_layers")
+        pmt_text_widget.set_value(pmt_text_widget.value + "\\nE1,13000")
+        app.run()
+        pmt_deep_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_"))
+        assert pmt_deep_confirmation.value is False
+        pmt_deep_confirmation.check()
         app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     calculation_errors = [
