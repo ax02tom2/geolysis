@@ -721,14 +721,14 @@ def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
 
 def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Confirm the design load but deliberately leave the main soil/unit-weight
     # provenance confirmation unchecked.
     next(widget for widget in app.checkbox
          if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     soil_confirmation = next(
         widget for widget in app.checkbox
         if widget.key.startswith("m5_soil_data_confirmed_")
@@ -743,7 +743,7 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_layer_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5x_layer_result") is not None
     assert any(item.label == "實際承載力 FS" and item.value == "未計算"
                for item in app.metric)
@@ -751,14 +751,14 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     # Multi-layer profile uses the main moist/submerged unit weights for its
     # first layer, so it must obey the same provenance gate.
     next(widget for widget in app.text_area if widget.key == "m5x_multi_layer_csv_manual").set_value(
-        "thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\\n"
-        "2,20,30,9.5\\n"
+        "thickness_m,c_kpa,phi_deg,gamma_below_kn_m3\n"
+        "2,20,30,9.5\n"
         "3,5,20,9.5"
     )
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_multi_layer_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5x_multi_layer_result") is not None
     assert any(item.label == "實際承載力 FS" and item.value == "未計算"
                for item in app.metric)
@@ -769,20 +769,20 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_insitu_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5x_insitu_result") is not None
     assert any(item.label == "實際承載力 FS" and item.value == "未計算"
                for item in app.metric)
 
     next(widget for widget in app.text_area if widget.key == "m5x_insitu_layer_csv").set_value(
-        "thickness_m,test_type,drainage,measurements\\n"
-        "2,SPT,drained,12;15\\n"
+        "thickness_m,test_type,drainage,measurements\n"
+        "2,SPT,drained,12;15\n"
         "3,SPT,drained,8;10"
     )
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_insitu_layer_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5x_insitu_layer_result") is not None
     assert any(item.label == "實際承載力 FS" and item.value == "未計算"
                for item in app.metric)
@@ -795,6 +795,6 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     )
     soil_confirmation.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert any(item.label == "實際承載力 FS" and item.value != "未計算"
                for item in app.metric)
