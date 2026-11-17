@@ -528,7 +528,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
         pmt_lambda_confirmation.check()
         app.run()
         pmt_text_widget = next(widget for widget in app.text_area if widget.key == "m4_pmt_layers")
-        pmt_text_widget.set_value(pmt_text_widget.value + "\\nE1,13000")
+        pmt_text_widget.set_value(pmt_text_widget.value + "\nE1,13000")
         app.run()
         pmt_deep_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_deep_confirm_"))
         assert pmt_deep_confirmation.value is False
