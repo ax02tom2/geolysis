@@ -1128,3 +1128,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #234 merged to main at c96f3e930a90c70096c2e8fadfff151e75a6c998.
 - GitHub Actions run 44040574442: full test suite 612 passed in 18.78 s; Python 3.11 compileall passed.
 - GitHub Actions run 44040574336: targeted module/Web suite 582 passed in 11.75 s; Python 3.11 compileall passed.
+
+
+## Module 5 — advanced bearing provenance and layered in-situ import (PR #236)
+
+- Advanced two-layer punching, multi-layer profile, single in-situ and layered in-situ methods retain exploratory capacity outputs, but their complete bearing FS is not displayed until main unit-weight data are confirmed as project data. These paths use main unit weights in their calculations.
+- Incomplete safety-check messaging now identifies missing unit-weight provenance; no engineering equations changed.
+- The two-layer material confirmation is now keyed to the confirmed layer strengths and strong-layer thickness. Changing those values resets the confirmation.
+- Fixed the missing import for layered_bearing_capacity_in_situ_profile, which caused a NameError when the layered in-situ calculation was executed.
+- PR #236 merged to main at 588c679ddb6a5fa4334bb312bdd67c9189d81329.
+- GitHub Actions run 44042415837: full test suite 613 passed in 14.84 s; Python 3.11 compileall passed.
+- GitHub Actions run 44042415931: targeted module/Web suite 583 passed in 12.70 s; Python 3.11 compileall passed.
