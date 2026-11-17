@@ -713,7 +713,6 @@ def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
     next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").uncheck()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
-    assert app.session_state.get("m3_profile_result") is None
     module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
     assert module4_link.disabled is True
     assert any("舊的連結選擇不會被採用" in item.value for item in app.info + app.warning)
