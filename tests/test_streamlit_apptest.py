@@ -611,3 +611,41 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
     assert not any(item.label == "FS 滑動" for item in app.metric)
+
+
+def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    load_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認 V 為本次設計總垂直力")
+    )
+    assert load_confirm.value is False
+    assert load_confirm.key.startswith("m5_loads_confirmed_")
+
+    soil_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認主分析 c′／cu")
+    )
+    soil_confirm.check()
+    load_confirm.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
+    assert slope_button.disabled is False
+
+    # Changing V invalidates the previous confirmation instead of carrying it
+    # over to a different design load.
+    next(widget for widget in app.number_input if widget.key == "m5_v").set_value(1250.0)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    refreshed_confirm = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認 V 為本次設計總垂直力")
+    )
+    assert refreshed_confirm.value is False
+    assert refreshed_confirm.key != load_confirm.key
+    slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
+    assert slope_button.disabled is True
