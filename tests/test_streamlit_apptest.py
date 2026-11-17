@@ -649,3 +649,37 @@ def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
     assert refreshed_confirm.key != load_confirm.key
     slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
     assert slope_button.disabled is True
+
+
+def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # Satisfy the seismic pore-pressure applicability inputs first. These
+    # confirmations alone must not authorize a design calculation.
+    next(widget for widget in app.number_input if widget.key == "m5x_fs_liq").set_value(1.5)
+    next(widget for widget in app.checkbox
+         if widget.label.startswith("已依場址評估確認不預期顯著側向擴展")).check()
+    next(widget for widget in app.checkbox
+         if widget.label.startswith("ru 已由 USACE Figure 9-1")).check()
+    next(widget for widget in app.selectbox
+         if widget.key == "m5x_shear_zone_mode").select("full")
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    run_button = next(widget for widget in app.button if widget.key == "m5x_seismic_capacity_run")
+    assert run_button.disabled, "seismic bearing must remain blocked without primary soil/load provenance"
+
+    load_confirmation = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認 V 為本次設計總垂直力")
+    )
+    soil_confirmation = next(
+        widget for widget in app.checkbox
+        if widget.label.startswith("已確認主分析 c′／cu")
+    )
+    load_confirmation.check()
+    soil_confirmation.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    run_button = next(widget for widget in app.button if widget.key == "m5x_seismic_capacity_run")
+    assert run_button.disabled is False

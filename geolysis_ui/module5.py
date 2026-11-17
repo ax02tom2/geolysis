@@ -664,6 +664,9 @@ def render_module_5(expanded=False):
                 (shear_zone_mode5=="partial" and partial_zone_inputs_confirmed5
                  and partial_shear_zone_affected_fraction5 is not None
                  and gamma_effective_susceptible5 is not None and gamma_effective_unaffected5 is not None))
+            seismic_soil_load_provenance_ready5=(loads_confirmed5 and soil_parameters_confirmed5)
+            if not seismic_soil_load_provenance_ready5:
+                st.warning("地震孔壓折減承載力尚未確認本案總垂直力 Q+Wf 及土壤強度／單位重來源；完成主分析荷載與土壤資料確認後，才可執行此承載力計算。")
             if not (seismic_pore_pressure_applicability_ready5 and shear_zone_ready5):
                 st.warning("請先輸入 FS_liq>1.0、確認不預期顯著側向擴展、確認 ru 來源，並選擇完整或部分剪力區影響範圍；部分區須填妥 f 與兩種有效單位重。")
             seismic_geometry_unsupported5 = (abs(base_ang5) > 1e-9 or abs(ground_ang5) > 1e-9)
@@ -671,7 +674,9 @@ def render_module_5(expanded=False):
                 st.warning("目前輸入含非零基底或地表傾角。由於地震水平力正反向相對於坡面／基底的方向性尚未建模，已停用地震孔壓折減承載力；請勿將靜力斜坡修正直接視為地震修正。")
             if use_hb5:
                 st.warning("USACE §9-10(c)(3) 式 9-3／9-4 僅適用砂狀、近似無凝聚力的土壤；Module 1 Hoek–Brown 岩體等效參數不可用於此孔壓折減分支。請切回手動輸入並提供砂土 c′≈0、φ′>0 參數。")
-            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(use_hb5 or not (seismic_pore_pressure_applicability_ready5 and shear_zone_ready5) or seismic_geometry_unsupported5)):
+            if st.button("計算地震孔壓折減承載力",key="m5x_seismic_capacity_run",disabled=(use_hb5 or not seismic_soil_load_provenance_ready5
+                        or not (seismic_pore_pressure_applicability_ready5 and shear_zone_ready5)
+                        or seismic_geometry_unsupported5)):
                 try:
                     sr=seismic_bearing_capacity_residual_pore_pressure_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,kh=kh5,kv=kv5,
@@ -700,12 +705,14 @@ def render_module_5(expanded=False):
                         base_uplift_pressure_kpa=base_uplift_pressure_kpa5)
                     store_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr,
                         (src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5,
-                        base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5))
+                        base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5,
+                         bool(loads_confirmed5),bool(soil_parameters_confirmed5)))
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
                     st.error(f"地震孔壓折減承載力計算失敗：{exc}")
             sr_sig=(src5,hb_source_signature,hb_confirmation_signature,bool(hb_bearing_material_confirmed5),bool(hb_stress_range_confirmed5),V5,H5,kh5,kv5,seismic_weight5,seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,ru5,seismic_footing5,c5,phi5,gamma5,gsub5,gamma_below5,B5,L5,df5,dw5,eB5,eL5,base_ang5,ground_ang5,slope_dist5,slope_fs5,shear_zone_mode5,partial_shear_zone_affected_fraction5,gamma_effective_susceptible5,gamma_effective_unaffected5,partial_zone_inputs_confirmed5,fsliq5,no_significant_lateral_spreading_confirmed5,ru_source_confirmed5,
-                base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
+                base_uplift_pressure_kpa5,residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5,
+                 bool(loads_confirmed5),bool(soil_parameters_confirmed5))
             sr, sr_is_current = read_result_state(st.session_state, "m5x_seismic_capacity_result", "m5x_seismic_capacity_signature", sr_sig)
             if sr and sr_is_current:
                 if sr["qu_seismic_governing_kpa"] is None:
