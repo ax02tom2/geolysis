@@ -1,3 +1,8 @@
+Build: geolysis Web — Module 5 load-confirmation freshness and advanced slope provenance
+Date: 2026-11-17 Asia/Taipei (UTC+08:00)
+PR #222 merged: 54ed593a710678724ca66bd0d2aefed2501028a6.
+The primary design-load confirmation is now keyed to V, foundation B/L and footing type; changing any of these values requires a new confirmation. The advanced slope/base-inclination bearing calculation now requires both project soil-parameter provenance and design-load confirmation. Both confirmation states are included in the advanced slope result freshness signature. Full suite: 604 passed; Python 3.11 active-module compilation passed (Actions run 43990220385). Targeted Module/Web suite: 580 passed; Python 3.11 active-module compilation passed (Actions run 43990220358). No engineering calculation formulas changed.
+
 Build: geolysis Web — Module 5 primary soil-parameter provenance gate
 Date: 2026-11-13 Asia/Taipei (UTC+08:00)
 PR #219 tested head: 117e11158852037015471d63635faf26bd53ef46.
