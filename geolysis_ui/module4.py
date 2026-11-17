@@ -1,11 +1,18 @@
 """Streamlit UI for engineering module 4."""
 import streamlit as st
 import logging
+import hashlib
 import pandas as pd
 from io import StringIO
 from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
 
 
+
+
+def _context_confirmation_key4(prefix, *context):
+    """Bind a Module 4 applicability confirmation to the values reviewed."""
+    token=hashlib.sha256(repr(tuple(context)).encode("utf-8")).hexdigest()[:12]
+    return f"{prefix}_{token}"
 
 
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
@@ -383,7 +390,8 @@ def render_module_4(expanded=False):
                 value="",height=120,key="m4_cpt_layers",
                 placeholder="Layer,thickness_m,qc_kpa\n1,0.25,8000\n2,0.25,9500\n…（需涵蓋完整影響深度）")
             st.caption("σ′zp 應取自有效應力剖面在峰值 Iz 深度的位置；矩形基礎峰值深度依 L/B 由 B/2 至 B 內插，連續基礎取 B。CPT qc 不可將 qc−σv0 的淨值誤填為 qc。")
-            cptSoilConfirmed=st.checkbox("已確認影響範圍為年輕（<100 年）、正常固結、潔淨矽砂；非黏土、有機土或膠結土",value=False,key="m4_cpt_soil_confirm")
+            cpt_soil_context4=(cptText,float(cptB_calc),float(cptL_calc),cptType,float(cptYears),float(cptDf),float(cptDw))
+            cptSoilConfirmed=st.checkbox("已確認影響範圍為年輕（<100 年）、正常固結、潔淨矽砂；非黏土、有機土或膠結土",value=False,key=_context_confirmation_key4("m4_cpt_soil_confirm",*cpt_soil_context4))
             if not cptSoilConfirmed:
                 st.warning("Schmertmann CPT 經驗式的 qc–Es 關係有明確土類與地質年齡適用限制；未確認前不執行計算。若為其他土類，請改用適用的 DMT／PMT／固結分析或另有依據的方法。")
             try:
@@ -460,17 +468,20 @@ def render_module_4(expanded=False):
                 with y:
                     pmtLc=st.number_input("λc（依 Figure 7-11 讀值）",1.0,1.5,1.44,0.01,key="m4_pmt_lc")
                 st.caption("Figure 7-11 圖示約 λd=1.1–2.35、λc=1.08–1.44（L/B 約 1–10）；輸入範圍限制在圖表座標內，且 λd 不可小於 λc。預設採圖表高端值作保守起始值，請依實際 L/B 讀圖後調整；若 L/B>10，不可外插，請採圖表 L/B=10 端點並註明。")
-                pmtLambdaConfirmed=st.checkbox("已依本次採用的 L/B（偏心時為 L′/B′）從 USACE Figure 7-11 核對 λd、λc",value=False,key="m4_pmt_lambda_confirm")
-            pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key="m4_pmt_deep_confirm")
+                pmt_lambda_context4=(float(pmtB_calc),float(pmtL_calc),bool(pmtRound),float(pmtLd),float(pmtLc))
+                pmtLambdaConfirmed=st.checkbox("已依本次採用的 L/B（偏心時為 L′/B′）從 USACE Figure 7-11 核對 λd、λc",value=False,key=_context_confirmation_key4("m4_pmt_lambda_confirm",*pmt_lambda_context4))
             pmtSoftText=st.text_area("選填：PMT 軟弱／鬆散夾層 CSV（E_L 為該層 E0 調和平均，單位 kPa）",
                 value="",height=90,key="m4_pmt_soft_layers",
                 placeholder="depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\n1.0,0.5,5000,600,0.129")
             st.caption("PMT 軟弱層的 depth_center_m 是層中心點距基礎底的深度；若資料表給層底深度，請用 z_bottom−thickness/2 換算。各層厚度區間不可重疊，系統會檢查重疊。")
-            pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方至少 2B（條形基礎 6B），並延伸至 Δσz < 0.1q 的所有軟弱／鬆散層",value=False,key="m4_pmt_soft_confirm")
             pmtText=st.text_area("PMT 分組模數 CSV（E0 單位 kPa；依 Figure 7-12 分組）",
                 value="",height=130,key="m4_pmt_layers",
                 placeholder="group,E0_kpa\nE1,12000\nE2,15000\nE345,18000\nE678,22000\nE916,25000\n…（每組可有多筆試驗值）")
             st.caption("五組代表深度：E1=0–0.5B；E2=0.5–1B；E345=1–2.5B；E678=2.5–4B；E916=4–8B。每組以調和平均計算。pne 請採模組五／PMT 剪力區的等效淨極限壓力；設計壓力不可超過 PMT 屈服壓力 Py。")
+            pmt_deep_context4=(float(pmtB_calc),float(pmtL_calc),pmt_type_transfer,float(pmtDf),float(pmtDw),pmtSoftText,pmtText,pmtSoil,pmtState,float(pmtq_input),float(pmtSigD),float(pmtPne),float(pmtPy))
+            pmtDeepConfirmed=st.checkbox("若沒有軟弱層資料：已確認為深層且相對均質土層",value=False,key=_context_confirmation_key4("m4_pmt_deep_confirm",*pmt_deep_context4))
+            pmt_soft_context4=(pmtSoftText,float(pmtB_calc),float(pmtL_calc),pmt_type_transfer,float(pmtDf),float(pmtDw),float(pmtq_input),float(pmtSigD),float(pmtQu),float(pmtFs),float(pmtPy))
+            pmtSoftConfirmed=st.checkbox("已辨識並列出基礎下方至少 2B（條形基礎 6B），並延伸至 Δσz < 0.1q 的所有軟弱／鬆散層",value=False,key=_context_confirmation_key4("m4_pmt_soft_confirm",*pmt_soft_context4))
             try:
                 if not pmtText.strip():
                     st.info("請貼上五組 PMT E0 試驗值後計算。")
