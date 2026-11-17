@@ -1119,3 +1119,12 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #232 merged to main at 0b864b2d46c17bbeef476f9b599f3351b0014861.
 - GitHub Actions run 44040118927: full suite 612 passed in 18.54 s; Python 3.11 compileall passed.
 - GitHub Actions run 44040118813: targeted module/Web suite 582 passed in 13.28 s; Python 3.11 compileall passed.
+
+
+## Module 4 transfer summary — source groundwater depth visibility (PR #234)
+
+- Module 4 now displays the source Module 5 Df and Dw values alongside the transferred capacity and footing dimensions, making the cross-module comparison fields auditable from the same summary.
+- No calculation logic or engineering equations changed.
+- PR #234 merged to main at c96f3e930a90c70096c2e8fadfff151e75a6c998.
+- GitHub Actions run 44040574442: full test suite 612 passed in 18.78 s; Python 3.11 compileall passed.
+- GitHub Actions run 44040574336: targeted module/Web suite 582 passed in 11.75 s; Python 3.11 compileall passed.
