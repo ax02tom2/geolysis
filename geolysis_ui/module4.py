@@ -11,10 +11,10 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         footing_type=None, depth_m=None, water_depth_m=None, include_qeq=True,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
-    """Return a Module 5 capacity only after dimensions, including Df, match.
+    """Return a Module 5 capacity only after footing and groundwater geometry match.
 
-    A missing Module 4 embedment depth is not treated as a match. The caller's
-    depth value is used only for cross-module geometry validation.
+    Missing Module 4 Df or Dw values, or legacy transfer data without Dw, are
+    not treated as matches. Both caller values are comparison-only inputs.
     """
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
@@ -35,8 +35,8 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         st.warning(
             f"Module 4 幾何與 Module 5 結果不一致，不能自動帶入 {label}。"
             f"Module 5：B={transfer['B_m']:.2f} m、L={transfer['L_m']:.2f} m、"
-            f"Df={transfer['Df_m']:.2f} m、型式={transfer['footing_type']}；"
-            f"請統一基礎尺寸／埋深／型式，或改用手動輸入。"
+            f"Df={transfer['Df_m']:.2f} m、Dw={transfer.get('Dw_m', '未提供')} m、型式={transfer['footing_type']}；"
+            f"請統一基礎尺寸／埋深／地下水位／型式，或改用手動輸入。"
         )
         return None, None
     # USACE 2025 §5-2a requires effective footing dimensions for eccentric settlement.
