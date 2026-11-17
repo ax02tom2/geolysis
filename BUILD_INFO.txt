@@ -342,3 +342,13 @@ Module 5 sliding-result freshness — PR #228
 - PR #228 merged to main at e9de79b4463ceb2e145e9eed54b41143054eda44.
 - GitHub Actions run 44012948145: full suite 608 passed in 13.08 s; Python 3.11 compileall passed.
 - GitHub Actions run 44012948188: targeted module/Web suite 582 passed in 13.63 s; Python 3.11 compileall passed.
+
+
+Module 4 ↔ Module 5 embedment-depth transfer validation — PR #230
+- Module 5 bearing-capacity transfer now requires an explicit Module 4 foundation embedment depth and checks it against the source transfer Df (tolerance 0.01 m).
+- Added Df comparison inputs to DMT, CPT, PMT and one-dimensional consolidation methods. These values are used only for cross-module geometry validation and are not added to settlement equations.
+- Burland–Burbidge continues to use its existing Df input. Missing or mismatched Df blocks transfer.
+- Added regression tests for missing, matching and mismatched depth, plus AppTest coverage for DMT/CPT/PMT transfer.
+- PR #230 merged to main at ae7f9cee21a86ebb94e7555b8e0477d4ce93cd73.
+- GitHub Actions run 44039243437: full suite 610 passed in 16.11 s; Python 3.11 compileall passed.
+- GitHub Actions run 44039243520: targeted module/Web suite 582 passed in 13.22 s; Python 3.11 compileall passed.
