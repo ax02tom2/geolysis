@@ -1149,3 +1149,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #238 merged to main at 6ed3494d6ed8c60a15d2a86ae1a0cdd9ac7d1a73.
 - GitHub Actions run 44043519579: full test suite 614 passed in 14.88 s; Python 3.11 compileall passed.
 - GitHub Actions run 44043519893: targeted module/Web suite 584 passed in 14.79 s; Python 3.11 compileall passed.
+
+
+## Module 4 — context-bound CPT / PMT confirmations (PR #240)
+
+- CPT soil-applicability confirmation now resets when the CPT profile, footing geometry/type, service duration, Df or Dw changes.
+- PMT Figure 7-11 lambda confirmation resets when effective dimensions or λd/λc change.
+- PMT deep-uniform-deposit and soft-layer coverage confirmations reset when the corresponding profile, geometry, pressure or soft-layer CSV changes.
+- These are applicability / review-state changes only; no settlement equations changed.
+- PR #240 merged to main at 9048ca3b930cc95b238a95d740fbadf0f772913b.
+- GitHub Actions run 44044757231: full test suite 615 passed in 19.12 s; Python 3.11 compileall passed.
+- GitHub Actions run 44044757274: targeted module/Web suite 585 passed in 14.99 s; Python 3.11 compileall passed.
