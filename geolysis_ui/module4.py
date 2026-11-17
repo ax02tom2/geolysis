@@ -9,12 +9,12 @@ from geolysis_engine import consolidation_time_rate, consolidation_time_rate_lay
 
 
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
-        footing_type=None, depth_m=None, include_qeq=True,
+        footing_type=None, depth_m=None, water_depth_m=None, include_qeq=True,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
-    """Return a Module 5 capacity only after dimensions, including Df, match.
+    """Return a Module 5 capacity only after footing and groundwater geometry match.
 
-    A missing Module 4 embedment depth is not treated as a match. The caller's
-    depth value is used only for cross-module geometry validation.
+    Missing Module 4 Df or Dw values, or legacy transfer data without Dw, are
+    not treated as matches. Both caller values are comparison-only inputs.
     """
     transfer=st.session_state.get("m5_bearing_transfer")
     if not transfer:
@@ -22,18 +22,21 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     width_match=abs(float(width_m)-float(transfer["B_m"]))<=0.01
     length_match=abs(float(length_m)-float(transfer["L_m"]))<=0.01
     depth_match=(depth_m is not None and abs(float(depth_m)-float(transfer["Df_m"]))<=0.01)
+    transfer_water_depth=transfer.get("Dw_m")
+    water_depth_match=(water_depth_m is not None and transfer_water_depth is not None
+        and abs(float(water_depth_m)-float(transfer_water_depth))<=0.01)
     type_match=(footing_type is None or str(footing_type)==str(transfer["footing_type"]))
     transfer_eB=float(transfer.get("eB_m",0.0))
     transfer_eL=float(transfer.get("eL_m",0.0))
     eccentricity_match=(abs(transfer_eB-float(eccentricity_B_m))<=0.01
         and abs(transfer_eL-float(eccentricity_L_m))<=0.01
         and abs(float(transfer.get("H_kN",0.0)))<=1e-6)
-    if not (width_match and length_match and depth_match and type_match and eccentricity_match):
+    if not (width_match and length_match and depth_match and water_depth_match and type_match and eccentricity_match):
         st.warning(
             f"Module 4 幾何與 Module 5 結果不一致，不能自動帶入 {label}。"
             f"Module 5：B={transfer['B_m']:.2f} m、L={transfer['L_m']:.2f} m、"
-            f"Df={transfer['Df_m']:.2f} m、型式={transfer['footing_type']}；"
-            f"請統一基礎尺寸／埋深／型式，或改用手動輸入。"
+            f"Df={transfer['Df_m']:.2f} m、Dw={transfer.get('Dw_m', '未提供')} m、型式={transfer['footing_type']}；"
+            f"請統一基礎尺寸／埋深／地下水位／型式，或改用手動輸入。"
         )
         return None, None
     # USACE 2025 §5-2a requires effective footing dimensions for eccentric settlement.
@@ -59,7 +62,7 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     )
     if not transfer.get("passes_bearing",False):
         st.warning("Module 5 實際承載力 FS 未達 3.0；此數值僅供沉陷壓力上限比較，不代表承載力設計合格。")
-    context_key=f"{key_prefix}_conditions_{transfer_id}_{float(width_m):.2f}_{float(length_m):.2f}_{float(depth_m or 0.0):.2f}_{footing_type or 'any'}"
+    context_key=f"{key_prefix}_conditions_{transfer_id}_{float(width_m):.2f}_{float(length_m):.2f}_{float(depth_m or 0.0):.2f}_{float(water_depth_m or 0.0):.2f}_{footing_type or 'any'}"
     same_conditions=st.checkbox(
         "已確認基礎埋深、地下水位、地層剖面及載重條件與 Module 5 相同，且本沉陷方法適用於水平基底／地表與中央垂直荷載",
         value=False,key=context_key)
@@ -154,8 +157,9 @@ def render_module_4(expanded=False):
             with c:
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
+                dw_bb4=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key='m4_bb_dw')
                 width4_calc,length4_calc,eB_bb4,eL_bb4=_settlement_eccentricity_inputs("m4_bb",width4,length4,usace_footing_type(footing_width_m=width4,footing_length_m=length4))
-                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4,eccentricity_B_m=eB_bb4,eccentricity_L_m=eL_bb4)
+                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4,water_depth_m=dw_bb4,eccentricity_B_m=eB_bb4,eccentricity_L_m=eL_bb4)
                 if transfer_qult4 is not None:
                     width4_calc,length4_calc=_module5_settlement_dimensions(width4,length4,True)
                 if transfer_qult4 is not None and (abs(width4_calc-width4)>1e-6 or abs(length4_calc-length4)>1e-6):
@@ -284,13 +288,14 @@ def render_module_4(expanded=False):
                 dmtB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_dmt_b")
                 dmtL=st.number_input("基礎長邊 L [m]",min_value=float(dmtB),max_value=100.0,value=float(max(dmtB,2.0)),step=0.1,key="m4_dmt_l")
                 dmtDf=st.number_input("基礎埋深 Df [m]（僅供 Module 5 幾何比對，不參與本法沉陷公式）",0.0,30.0,1.5,0.1,key="m4_dmt_df")
+                dmtDw=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key="m4_dmt_dw")
                 dmt_type=usace_footing_type(footing_width_m=dmtB,footing_length_m=dmtL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={dmtL/dmtB:.2f} 自動判定：{'連續條形基礎' if dmt_type=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
                 dmtq=st.number_input("基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]",1.0,5000.0,150.0,5.0,key="m4_dmt_q")
                 dmtsig=st.number_input("基礎底初始有效應力 σ′zD [kPa]",0.0,3000.0,100.0,5.0,key="m4_dmt_sig")
                 dmtB_calc,dmtL_calc,dmt_eB,dmt_eL=_settlement_eccentricity_inputs("m4_dmt",dmtB,dmtL,dmt_type)
-                dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type,depth_m=dmtDf,eccentricity_B_m=dmt_eB,eccentricity_L_m=dmt_eL)
+                dmt_transfer_qult,dmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_dmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=dmtB,length_m=dmtL,footing_type=dmt_type,depth_m=dmtDf,water_depth_m=dmtDw,eccentricity_B_m=dmt_eB,eccentricity_L_m=dmt_eL)
                 if dmt_transfer_qult is not None:
                     dmtB_calc,dmtL_calc=_module5_settlement_dimensions(dmtB,dmtL,True)
                 if dmt_transfer_qult is not None and (abs(dmtB_calc-dmtB)>1e-6 or abs(dmtL_calc-dmtL)>1e-6):
@@ -355,6 +360,7 @@ def render_module_4(expanded=False):
                 cptB=st.number_input("基礎短邊 B [m]",0.3,30.0,2.0,0.1,key="m4_cpt_b")
                 cptL=st.number_input("基礎長邊 L [m]",min_value=float(cptB),max_value=100.0,value=float(max(cptB,2.0)),step=0.1,key="m4_cpt_l")
                 cptDf=st.number_input("基礎埋深 Df [m]（僅供 Module 5 幾何比對，不參與本法沉陷公式）",0.0,30.0,1.5,0.1,key="m4_cpt_df")
+                cptDw=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key="m4_cpt_dw")
                 cptType=usace_footing_type(footing_width_m=cptB,footing_length_m=cptL)
                 st.caption(f"依 USACE 2025 長寬比 L/B={cptL/cptB:.2f} 自動判定：{'連續條形基礎' if cptType=='continuous' else '獨立／矩形基礎'}（L/B > 10 才屬連續基礎）。")
             with b:
@@ -363,7 +369,7 @@ def render_module_4(expanded=False):
                 cptSigP=st.number_input("Iz 峰值深度初始有效應力 σ′zp [kPa]",1.0,5000.0,150.0,5.0,key="m4_cpt_sigP")
             with c:
                 cptB_calc,cptL_calc,cpt_eB,cpt_eL=_settlement_eccentricity_inputs("m4_cpt",cptB,cptL,cptType)
-                cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType,depth_m=cptDf,eccentricity_B_m=cpt_eB,eccentricity_L_m=cpt_eL)
+                cpt_transfer_qult,cpt_transfer_qeq=_module5_transfer_value(key_prefix="m4_cpt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=cptB,length_m=cptL,footing_type=cptType,depth_m=cptDf,water_depth_m=cptDw,eccentricity_B_m=cpt_eB,eccentricity_L_m=cpt_eL)
                 if cpt_transfer_qult is not None:
                     cptB_calc,cptL_calc=_module5_settlement_dimensions(cptB,cptL,True)
                 if cpt_transfer_qult is not None and (abs(cptB_calc-cptB)>1e-6 or abs(cptL_calc-cptL)>1e-6):
@@ -412,6 +418,7 @@ def render_module_4(expanded=False):
                 pmtRound=st.checkbox("圓形基礎（λd = λc = 1；L 取等效直徑）",value=False,key="m4_pmt_round")
                 pmtL=pmtB if pmtRound else st.number_input("基礎長度 L [m]",min_value=float(pmtB),max_value=100.0,value=float(max(pmtB,2.0)),step=0.1,key="m4_pmt_l")
                 pmtDf=st.number_input("基礎埋深 Df [m]（僅供 Module 5 幾何比對，不參與本法沉陷公式）",0.0,30.0,1.5,0.1,key="m4_pmt_df")
+                pmtDw=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key="m4_pmt_dw")
             with b:
                 pmt_pressure_label=("圓形基礎 gross q [kPa]（目前不支援偏心橢圓有效面積，偏心時請勿直接輸入 qeq）"
                     if pmtRound else "基礎底 gross q；偏心時輸入 qeq，並勾選偏心荷載選項 [kPa]")
@@ -421,7 +428,7 @@ def render_module_4(expanded=False):
             with c:
                 pmt_type_transfer=_pmt_transfer_footing_type(pmtB,pmtL,pmtRound)
                 pmtB_calc,pmtL_calc,pmt_eB,pmt_eL=_settlement_eccentricity_inputs("m4_pmt",pmtB,pmtL,pmt_type_transfer)
-                pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=pmt_type_transfer,depth_m=pmtDf,eccentricity_B_m=pmt_eB,eccentricity_L_m=pmt_eL)
+                pmt_transfer_qult,pmt_transfer_qeq=_module5_transfer_value(key_prefix="m4_pmt",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=pmtB,length_m=pmtL,footing_type=pmt_type_transfer,depth_m=pmtDf,water_depth_m=pmtDw,eccentricity_B_m=pmt_eB,eccentricity_L_m=pmt_eL)
                 if pmt_transfer_qult is not None:
                     pmtB_calc,pmtL_calc=_module5_settlement_dimensions(pmtB,pmtL,True)
                 if abs(pmtB_calc-pmtB)>1e-6 or abs(pmtL_calc-pmtL)>1e-6:
@@ -529,6 +536,7 @@ def render_module_4(expanded=False):
                 qB=st.number_input("基礎寬度 B [m]",0.3,50.0,2.0,0.1,key='m4c_b')
                 qL=st.number_input("基礎長度 L [m]",min_value=float(qB),max_value=100.0,value=float(max(qB,3.0)),step=0.1,key='m4c_l')
                 clayDf=st.number_input("基礎埋深 Df [m]（僅供 Module 5 幾何比對，不參與本法沉陷公式）",0.0,30.0,1.5,0.1,key='m4c_df')
+                clayDw=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key='m4c_dw')
                 zc=st.number_input("單一壓縮層中點距基礎底 z [m]",0.0,100.0,3.0,0.1,key='m4c_z')
             with b:
                 Hc=st.number_input("單一壓縮層厚度 H [m]",0.1,100.0,5.0,0.1,key='m4c_h')
@@ -540,7 +548,7 @@ def render_module_4(expanded=False):
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
                 qB_calc,qL_calc,clay_eB,clay_eL=_settlement_eccentricity_inputs("m4_clay",qB,qL,usace_footing_type(footing_width_m=qB,footing_length_m=qL))
-                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,depth_m=clayDf,include_qeq=False,eccentricity_B_m=clay_eB,eccentricity_L_m=clay_eL)
+                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,depth_m=clayDf,water_depth_m=clayDw,include_qeq=False,eccentricity_B_m=clay_eB,eccentricity_L_m=clay_eL)
                 if clay_transfer_qa is not None:
                     qB_calc,qL_calc=_module5_settlement_dimensions(qB,qL,True)
                 if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):

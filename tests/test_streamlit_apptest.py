@@ -101,6 +101,7 @@ def test_module4_accepts_module5_qult_only_after_geometry_and_condition_confirma
         value = _module5_transfer_value(
             key_prefix="test", label="gross qult", field="qult_gross_kpa",
             width_m=2.0, length_m=3.0, footing_type="isolated", depth_m=1.5,
+            water_depth_m=2.0,
         )
     assert value == (1200.0, 180.0)
 
@@ -377,7 +378,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
 
     conditions_key = (
         f"m4_bb_conditions_{transfer_id}_"
-        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_any"
+        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_{transfer['Dw_m']:.2f}_any"
     )
     conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
@@ -489,7 +490,7 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     transfer_id = transfer["transfer_id"]
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_{transfer_id}").check()
     app.run()
-    condition_key = f"{prefix}_conditions_{transfer_id}_2.00_3.00_1.50_isolated"
+    condition_key = f"{prefix}_conditions_{transfer_id}_2.00_3.00_1.50_5.00_isolated"
     next(widget for widget in app.checkbox if widget.key == condition_key).check()
     app.run()
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_qeq_{transfer_id}").check()
