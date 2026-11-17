@@ -902,3 +902,26 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     next(widget for widget in app.number_input if widget.key == "m5x_slide_pa").set_value(120.0)
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).value is False
+
+
+def test_module4_pmt_soft_layer_review_confirmation_resets_when_profile_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    next(widget for widget in app.selectbox if widget.key == "m4_method").select(
+        "PMT：Ménard–Rousseau 法（USACE 2025）"
+    )
+    app.run()
+    soft_csv = next(widget for widget in app.text_area if widget.key == "m4_pmt_soft_layers")
+    soft_csv.set_value(
+        "depth_center_m,thickness_m,E_L_kpa,pne_kpa,I_sigma\\n"
+        "1.0,0.5,5000,600,0.129"
+    )
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
+    confirmation.check()
+    app.run()
+    soft_csv = next(widget for widget in app.text_area if widget.key == "m4_pmt_soft_layers")
+    soft_csv.set_value(soft_csv.value.replace("1.0,0.5", "1.1,0.5"))
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
+    assert confirmation.value is False
