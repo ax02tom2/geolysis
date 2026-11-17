@@ -739,7 +739,15 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
     # values used by both layer calculations are not yet provenance-confirmed.
     next(widget for widget in app.number_input if widget.key == "m5x_c_low_manual").set_value(5.0)
     next(widget for widget in app.number_input if widget.key == "m5x_phi_low_manual").set_value(20.0)
-    next(widget for widget in app.checkbox if widget.key == "m5x_layer_data_confirmed").check()
+    layer_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_layer_data_confirmed_"))
+    layer_confirmation.check()
+    app.run()
+    # A changed layer strength must invalidate the prior data-source confirmation.
+    next(widget for widget in app.number_input if widget.key == "m5x_c_low_manual").set_value(6.0)
+    app.run()
+    layer_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_layer_data_confirmed_"))
+    assert layer_confirmation.value is False
+    layer_confirmation.check()
     app.run()
     next(widget for widget in app.button if widget.key == "m5x_layer_run").click()
     app.run()
