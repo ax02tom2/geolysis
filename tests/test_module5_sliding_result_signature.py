@@ -9,6 +9,8 @@ BASE = ("static", 1000.0, 100.0, 50.0)
 
 def signature(**overrides):
     values = {
+        "footing_depth_m": 1.5,
+        "footing_length_m": 3.0,
         "base_pressure_reference_kN": 120.0,
         "uplift_pressure_confirmed": True,
         "uplift_pressure_ready": True,
@@ -23,6 +25,8 @@ def signature(**overrides):
 @pytest.mark.parametrize(
     "changed",
     [
+        {"footing_depth_m": 2.0},
+        {"footing_length_m": 4.0},
         {"base_pressure_reference_kN": 121.0},
         {"uplift_pressure_confirmed": False},
         {"uplift_pressure_ready": False},
