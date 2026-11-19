@@ -618,16 +618,24 @@ def render_module_1(expanded=False):
             
             app_type = st.radio("選擇圍壓上限 (σ3_max) 決定方式：", [
                 "邊坡穩定分析 (Slope Stability - 依邊坡高度 H)",
-                "隧道/深基礎分析 (Tunnels - 依深度 H)",
+                "隧道分析 (Tunnels - 依覆蓋深度 H)",
                 "一般淺層/自訂有效圍壓 (General σ3_max)"
             ])
             gamma_default = 23.0
             gamma_rock = st.number_input("岩體單位重 γ [kN/m³]", min_value=15.0, max_value=30.0, value=gamma_default, step=0.5, key="geolysis_gamma_general")
-            h_slope = st.number_input("分析邊坡高度或覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
+            h_slope = st.number_input("分析邊坡高度或隧道覆蓋深度 H [m]", min_value=1.0, max_value=500.0,
                 value=20.0, step=1.0, key="hb_analysis_height_m")
+            tunnel_span = None
+            if "隧道" in app_type:
+                tunnel_span = st.number_input(
+                    "隧道開挖跨度 [m]（GSI 尺度適用性檢查）",
+                    min_value=1.0, max_value=100.0, value=10.0, step=0.5,
+                    key="hb_tunnel_span_m",
+                )
             _gsi_scale_warning = gsi_scale_effect_warning(
                 application=("slope" if "邊坡" in app_type else ("tunnel" if "隧道" in app_type else "general")),
                 height_m=h_slope,
+                span_m=tunnel_span,
             )
             if _gsi_scale_warning:
                 st.warning(_gsi_scale_warning)
