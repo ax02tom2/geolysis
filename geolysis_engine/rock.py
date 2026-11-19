@@ -51,27 +51,43 @@ def gsi_quantitative_from_rqd_jcond(
     }
 
 
-def gsi_scale_effect_warning(*, application, height_m):
-    """Return a scale-effect warning when a slope exceeds FHWA Figure 9-24 scope.
+def gsi_scale_effect_warning(*, application, height_m=None, span_m=None):
+    """Warn when the FHWA Figure 9-24 GSI chart's reference scale is exceeded.
 
-    FHWA-NHI-16-072 Figure 9-24 describes applicability for slopes below
-    20 m and advises considering a GSI reduction for larger slopes. It does
-    not prescribe a universal numerical reduction, so this helper warns but
-    never changes GSI automatically.
+    FHWA-NHI-16-072 Figure 9-24 gives slopes below 20 m and tunnels of about
+    10 m span as reference scales. It advises reconsidering GSI for larger
+    excavations but does not prescribe a universal numerical reduction.
     """
     app = str(application).strip().lower()
-    height = _finite("邊坡高度／覆蓋深度", height_m)
-    if height <= 0:
-        raise ValueError("邊坡高度／覆蓋深度必須大於 0")
     if app not in {"slope", "tunnel", "general"}:
         raise ValueError("application 僅接受 slope、tunnel 或 general")
-    if app == "slope" and height > 20.0:
-        return (
-            f"目前邊坡高度 {height:.1f} m 超過 FHWA-NHI-16-072 Figure 9-24 "
-            "所述小於 20 m 的尺度參考；目前 GSI 未自動折減。"
-            "較大邊坡應依現地節理組數、塊體互鎖與尺度效應重新評估 GSI，"
-            "並以合理上下限進行敏感度分析。"
-        )
+    if app == "slope":
+        height = _finite("邊坡高度", height_m)
+        if height <= 0:
+            raise ValueError("邊坡高度必須大於 0")
+        if height > 20.0:
+            return (
+                f"目前邊坡高度 {height:.1f} m 超過 FHWA-NHI-16-072 Figure 9-24 "
+                "所述小於 20 m 的尺度參考；目前 GSI 未自動折減。"
+                "較大邊坡應依現地節理組數、塊體互鎖與尺度效應重新評估 GSI，"
+                "並以合理上下限進行敏感度分析。"
+            )
+    elif app == "tunnel":
+        if span_m is None:
+            return (
+                "尚未提供隧道開挖跨度，無法核對 FHWA-NHI-16-072 Figure 9-24 "
+                "約 10 m 的隧道尺度參考；請補入跨度後再判斷 GSI 適用性。"
+            )
+        span = _finite("隧道開挖跨度", span_m)
+        if span <= 0:
+            raise ValueError("隧道開挖跨度必須大於 0")
+        if span > 10.0:
+            return (
+                f"目前隧道跨度 {span:.1f} m 超過 FHWA-NHI-16-072 Figure 9-24 "
+                "約 10 m 的尺度參考；目前 GSI 未自動折減。"
+                "較大跨度應依現地節理組數、塊體互鎖與尺度效應重新評估 GSI，"
+                "並以合理上下限進行敏感度分析。"
+            )
     return None
 
 
