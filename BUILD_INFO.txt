@@ -421,3 +421,13 @@ Module 1 — Bishop circular-search boundary validation (PR #247)
 - PR #247 merged to main at 181e1d6435e048091a54f65ca08cf856a7029900.
 - GitHub Actions run 44491939091: full suite 620 passed in 20.95 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44491939196: targeted module/Web suite 586 passed in 14.81 s; Python 3.11 active-module compilation passed.
+
+
+Module 1 — Hoek–Brown disturbance-factor preset correction (PR #249)
+- Corrected the small-scale civil engineering slope controlled-/smooth-blasting preset from D=0.5 to D=0.7, matching Hoek, Carranza-Torres & Corkum (2002), Table 1.
+- Retained D=0.5 as a separate moderate-disturbance / stress-relaxation scenario requiring project-specific engineering judgment or back-analysis support.
+- Added explicit preset-label parsing and D range validation, with regression tests.
+- No Hoek–Brown strength equations or other calculation formulas changed.
+- PR #249 merged to main at 989328146e3540306555ab7e5aad7030d69ba885.
+- GitHub Actions run 44492464682: full suite 626 passed in 15.92 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44492464767: targeted module/Web suite 592 passed in 17.19 s; Python 3.11 active-module compilation passed.
