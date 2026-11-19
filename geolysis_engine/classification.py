@@ -103,9 +103,9 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
     else:
         organic_confirmed=False
         organic_note=''
-    # ASTM D2487 Fig. 3: A-line is horizontal at PI=4 through LL=25.5,
-    # then follows PI=0.73(LL-20).
-    aline = 4.0 if ll <= 25.5 else 0.73*(ll-20.0)
+    # ASTM D2487 plasticity-chart A-line: PI = 0.73(LL - 20).
+    # The separate PI=4 boundary is applied below for CL / CL-ML classification.
+    aline = 0.73*(ll-20.0)
     above_a = pi >= aline and pi > 0
     # U-line: vertical at LL=16 to PI=7, then PI=0.9(LL-8).
     uline = 7.0 if ll <= 16.0 else 0.9*(ll-8.0)
