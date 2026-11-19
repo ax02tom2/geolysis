@@ -44,13 +44,7 @@ def gsi_scale_effect_warning(*, application, height_m=None, span_m=None):
 
 
 def hoek_brown_structure_applicability(*, gsi, structure_code):
-    """Check the GSI chart's high-GSI applicability limits.
-
-    FHWA-NHI-16-072 Figure 9-24 cautions that for intact/massive rock with
-    GSI > 75, brittle spalling must be checked and the Hoek-Brown criterion
-    should not be used; sparsely jointed high-GSI rock is controlled by
-    structural blocks/wedges rather than an equivalent continuum.
-    """
+    """Check GSI/Hoek-Brown continuum assumptions and structure-specific caveats."""
     G = _finite("GSI", gsi)
     code = str(structure_code).strip().upper()
     if not 0.0 <= G <= 100.0:
@@ -68,30 +62,25 @@ def hoek_brown_structure_applicability(*, gsi, structure_code):
                 "請改以完整岩石試驗強度評估，並另作控制性結構面／楔形破壞分析。"
             ),
         }
+    warnings = []
     if code == "D":
-        return {
-            "applicable": True,
-            "warning": (
-                "此類岩體具有持續性層理／片理。請核對其方向與潛在滑動方向；"
-                "若破壞由不利方向的弱面或楔形塊體控制，基本 GSI／Hoek–Brown 連續體模型不適用，"
-                "應另作結構面強度與運動學分析。"
-            ),
-        }
+        warnings.append(
+            "此類岩體具有持續性層理／片理。請核對其方向與潛在滑動方向；"
+            "若破壞由不利方向的弱面或楔形塊體控制，基本 GSI／Hoek–Brown 連續體模型不適用，"
+            "應另作結構面強度與運動學分析。"
+        )
     if code == "F":
-        return {
-            "applicable": True,
-            "warning": (
-                "層狀／剪切狀岩體須確認是否屬構造預剪切、運移或高度異質岩體。"
-                "若是，基本 jointed-rock GSI 矩陣不宜直接套用，應評估 Flysch／異質岩體專用 GSI 圖"
-                "或場址專用參數；若弱片理／剪裂面控制破壞，另作結構面分析。"
-            ),
-        }
+        warnings.append(
+            "層狀／剪切狀岩體須確認是否屬構造預剪切、運移或高度異質岩體。"
+            "若是，基本 jointed-rock GSI 矩陣不宜直接套用，應評估 Flysch／異質岩體專用 GSI 圖"
+            "或場址專用參數；若弱片理／剪裂面控制破壞，另作結構面分析。"
+        )
     if G > 75.0:
-        return {
-            "applicable": True,
-            "warning": "GSI>75 屬高品質岩體，仍須檢查脆性剝落與少數控制性結構面；若破壞由少數節理控制，應改採結構面／楔形分析，不可僅依 Hoek–Brown 等效連續體。",
-        }
-    return {"applicable": True, "warning": None}
+        warnings.append(
+            "GSI>75 屬高品質岩體，仍須檢查脆性剝落與少數控制性結構面；"
+            "若破壞由少數節理控制，應改採結構面／楔形分析，不可僅依 Hoek–Brown 等效連續體。"
+        )
+    return {"applicable": True, "warning": " ".join(warnings) if warnings else None}
 
 
 def hoek_brown_parameters(*, gsi, mi, sigma_ci_mpa, disturbance, application='slope',
