@@ -459,3 +459,13 @@ Module 1 — remove residual RQD-based quantitative GSI API (PR #255)
 - PR #255 merged to main at 21336bd0ca7a1a3b1e0abf6b82b8eb7742c5eeb8.
 - GitHub Actions run 44495830564: full suite 632 passed in 18.30 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44495830579: targeted module/Web suite 598 passed in 13.52 s; Python 3.11 active-module compilation passed.
+
+
+Module 1 — GSI applicability for massive and structurally anisotropic rock (PR #257)
+- Removed GSI numeric recommendation cells for structure class A (intact/massive rock with few widely spaced discontinuities) and block Hoek–Brown continuum conversion for this class. The class does not meet the GSI/HB homogeneity/isotropy assumptions described by Hoek, Carter & Diederichs (2013), Figure 4.
+- Added explicit structural-control warning for class D (persistent bedding/schistosity) and specialized Flysch/heterogeneous-rock chart warning for class F (laminated/sheared).
+- High-GSI brittle-spalling warning is retained and now combines with D/F structure-specific warnings.
+- No Hoek–Brown strength equations or slope stability formulas changed.
+- PR #257 merged to main at 4f20e749e10b86afa773cd9c0a26cd5c542bacf6.
+- GitHub Actions run 44496239085: full suite 633 passed in 25.65 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44496238988: targeted module/Web suite 599 passed in 24.66 s; Python 3.11 active-module compilation passed.
