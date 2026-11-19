@@ -155,3 +155,35 @@ def test_module1_disturbance_preset_rejects_out_of_range_value():
 
     with pytest.raises(ValueError, match="擾動因子 D"):
         _hb_disturbance_preset_value("不合理設定 (D = 1.2)")
+
+
+@pytest.mark.parametrize(
+    ("application", "height_m", "span_m", "warning_fragment"),
+    [
+        ("slope", 25.0, None, "小於 20 m"),
+        ("slope", 15.0, None, None),
+        ("tunnel", 15.0, 12.0, "約 10 m"),
+        ("tunnel", 50.0, 8.0, None),
+        ("tunnel", 20.0, None, "尚未提供隧道開挖跨度"),
+        ("general", None, None, None),
+    ],
+)
+def test_gsi_scale_effect_uses_slope_height_and_tunnel_span_separately(
+    application, height_m, span_m, warning_fragment
+):
+    from geolysis_engine import gsi_scale_effect_warning
+
+    warning = gsi_scale_effect_warning(
+        application=application, height_m=height_m, span_m=span_m
+    )
+    if warning_fragment is None:
+        assert warning is None
+    else:
+        assert warning_fragment in warning
+
+
+def test_gsi_tunnel_scale_rejects_nonpositive_span():
+    from geolysis_engine import gsi_scale_effect_warning
+
+    with pytest.raises(ValueError, match="隧道開挖跨度"):
+        gsi_scale_effect_warning(application="tunnel", span_m=0.0)
