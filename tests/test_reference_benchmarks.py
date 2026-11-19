@@ -2344,13 +2344,13 @@ def test_burland_burbidge_cannot_apply_gravel_and_fine_sand_corrections_together
         (25.0, 7.1, "CL"),
     ],
 )
-def test_uscs_astm_a_line_horizontal_lower_segment(ll, pi, expected):
+def test_uscs_astm_a_line_and_pi_four_boundary_are_distinct(ll, pi, expected):
     result = classify_uscs_aashto(
         p4=95, p10=90, p40=80, p200=70,
         ll=ll, pl=ll-pi,
     )
     assert result["USCS"] == expected
-    assert result["A_line_PI"] == pytest.approx(4.0)
+    assert result["A_line_PI"] == pytest.approx(0.73 * (ll - 20.0))
 
 
 def test_uscs_astm_u_line_flags_points_above_or_left_for_retest():
