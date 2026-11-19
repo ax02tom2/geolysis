@@ -1142,6 +1142,19 @@ def test_bishop_circular_search_rejects_invalid_ground_profile():
             center_x_values=[1],center_y_values=[2],radius_values=[3])
 
 
+def test_bishop_circular_search_rejects_slip_circle_truncated_by_profile_bounds():
+    # The lower half-circle stays below the ground throughout the supplied
+    # profile, so neither entry nor exit is present.  The old search accepted
+    # the profile endpoints as if they were ground/surface intersections.
+    with pytest.raises(ValueError, match="未找到有效圓弧滑動面"):
+        bishop_circular_search(
+            ground_profile=[(0,10),(2.5,10),(5,10)],
+            cohesion_kpa=10, friction_angle_deg=25, unit_weight_kn_m3=18,
+            center_x_values=[0], center_y_values=[10], radius_values=[10],
+            slice_count=20,
+        )
+
+
 def test_usace_seismic_bearing_capacity_eq_9_3_and_9_4():
     strip=seismic_bearing_capacity_residual_pore_pressure(
         footing_type='strip',effective_unit_weight_kn_m3=10,
