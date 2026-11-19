@@ -1220,3 +1220,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #253 merged to main at 0b14977310db6330c7d6cb2142223d25730a886d.
 - GitHub Actions run 44493383176: full test suite 634 passed in 13.61 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44493383072: targeted module/Web suite 600 passed in 20.81 s; Python 3.11 active-module compilation passed.
+
+
+## Module 1 — remove residual RQD-based quantitative GSI API (PR #255)
+
+- Removed gsi_quantitative_from_rqd_jcond from geolysis_engine/rock.py and from the package public API, and deleted the two tests that exercised this retired feature.
+- Rationale: Module 1 had already removed RQD estimation and RQD-based quantitative GSI from its UI, but the helper remained directly importable from the engine package. This change closes the remaining exposed path.
+- No other GSI interpretation, Hoek–Brown equations or slope stability calculations changed.
+- PR #255 merged to main at 21336bd0ca7a1a3b1e0abf6b82b8eb7742c5eeb8.
+- GitHub Actions run 44495830564: full suite 632 passed in 18.30 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44495830579: targeted module/Web suite 598 passed in 13.52 s; Python 3.11 active-module compilation passed.
