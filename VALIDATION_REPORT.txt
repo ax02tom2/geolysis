@@ -1200,3 +1200,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #249 merged to main at 989328146e3540306555ab7e5aad7030d69ba885.
 - GitHub Actions run 44492464682: full test suite 626 passed in 15.92 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44492464767: targeted module/Web suite 592 passed in 17.19 s; Python 3.11 active-module compilation passed.
+
+
+## Module 1 — GSI tunnel scale applicability (PR #251)
+
+- FHWA-NHI-16-072 Figure 9-24 scale checks are now separated: slope height is compared with the <20 m reference; tunnel excavation span is compared with the approximately 10 m reference.
+- Tunnel cover depth is no longer used as a substitute for tunnel span. If no span is provided to the engine helper, it returns an explicit applicability warning; the UI now asks for tunnel span.
+- Removed “deep foundation” from the tunnel application label because Hoek et al. (2002) Eq. 18 is a tunnel relation, not a general deep-foundation relation. No replacement deep-foundation formula was introduced.
+- Engine helper change committed to main at 8e9fcd7ac1677b03fc2be28504c5899dcdd1f142; UI and regression tests merged via PR #251 at 98f35c1400761ca9f035d9bd29de273ad07de88a.
+- GitHub Actions run 44492993509: full test suite 633 passed in 27.28 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44492993604: targeted module/Web suite 599 passed in 16.10 s; Python 3.11 active-module compilation passed.
