@@ -411,3 +411,13 @@ Module 4 context-bound CPT / PMT confirmations — PR #240
 - PR #240 merged to main at 9048ca3b930cc95b238a95d740fbadf0f772913b.
 - GitHub Actions run 44044757231: full suite 615 passed in 19.12 s; Python 3.11 compileall passed.
 - GitHub Actions run 44044757274: targeted module/Web suite 585 passed in 14.99 s; Python 3.11 compileall passed.
+
+
+Module 1 — Bishop circular-search boundary validation (PR #247)
+- Bishop automatic circular search now rejects a candidate whose below-ground arc run is truncated at both ends by the supplied profile/search window; such a candidate has no verified ground intersection and must not be reported as a valid slip surface.
+- One profile-edge cut remains allowed for compatibility with explicitly bounded analysis profiles; users must ensure the modeled boundary is appropriate.
+- Added regression coverage for a circle that remains below the ground throughout the supplied profile.
+- No Bishop equations, Hoek–Brown equations, strength parameters or safety-factor criteria changed.
+- PR #247 merged to main at 181e1d6435e048091a54f65ca08cf856a7029900.
+- GitHub Actions run 44491939091: full suite 620 passed in 20.95 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44491939196: targeted module/Web suite 586 passed in 14.81 s; Python 3.11 active-module compilation passed.
