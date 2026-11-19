@@ -2269,13 +2269,11 @@ def test_uscs_organic_fines_requires_oven_dried_liquid_limit_confirmation():
 
 
 
-def test_hoek_brown_high_gsi_intact_massive_rock_is_not_applicable():
-    boundary = hoek_brown_structure_applicability(gsi=75.0, structure_code="A")
-    high = hoek_brown_structure_applicability(gsi=75.01, structure_code="A")
-    assert boundary["applicable"] is True
-    assert high["applicable"] is False
-    assert "脆性剝落" in high["warning"]
-    assert "不應使用 Hoek" in high["warning"]
+def test_hoek_brown_intact_massive_rock_is_not_applicable_at_any_gsi():
+    for gsi in (40.0, 70.0, 75.0, 75.01, 90.0):
+        result = hoek_brown_structure_applicability(gsi=gsi, structure_code="A")
+        assert result["applicable"] is False
+        assert "均質、近似等向" in result["warning"]
 
 
 def test_hoek_brown_high_gsi_blocky_rock_requires_brittle_failure_review():
