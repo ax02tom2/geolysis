@@ -16,9 +16,7 @@ def _gsi_sensitivity_values(structure_code, lower, upper):
     if lo > hi:
         raise ValueError("GSI 初判下限不可大於上限")
     if structure_code == "A":
-        hi = min(hi, 75)
-        if lo > hi:
-            return []
+        return []
     return sorted(set((lo, hi)))
 
 
@@ -152,7 +150,7 @@ def render_module_1(expanded=False):
     
         # GSI 定性矩陣是原圖趨勢的工程初判估讀，不是文獻提供的精確數值格點。
         gsi_struct_options = [
-            "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面",
+            "A. 巨塊狀／完整 (Intact or Massive)：完整岩塊或少量、間距很大的不連續面（不適用一般 GSI 連續體換算）",
             "B. 塊狀 (Blocky)：三組左右不連續面交切，塊體互鎖、近立方體",
             "C. 極塊狀 (Very Blocky)：四組以上節理，形成多面體塊體，仍具互鎖性",
             "D. 塊狀／擾動／層狀 (Blocky/Disturbed/Seamy)：多組交切、褶皺或層理／片理持續發育",
@@ -167,7 +165,7 @@ def render_module_1(expanded=False):
             "V. 極差 (Very Poor)：高度風化，具軟弱黏土塗層或填充物"
         ]
         gsi_range_matrix = {
-            "A": [(90,100),(80,90),(70,80),None,None],
+            "A": [None,None,None,None,None],
             "B": [(75,85),(65,75),(55,65),(45,55),(35,45)],
             "C": [(65,75),(55,65),(45,55),(35,45),(25,35)],
             "D": [(50,60),(40,50),(30,40),(20,30),(10,20)],
@@ -189,7 +187,10 @@ def render_module_1(expanded=False):
             _cond_code = {"I":0,"II":1,"III":2,"IV":3,"V":4}.get(gsi_cond.split(".")[0], 2)
             _gsi_recommended = gsi_range_matrix[_struct_code][_cond_code]
             if _gsi_recommended is None:
-                st.error("此組合在目前定性判讀矩陣中沒有可用的初判區間；請改採其他適用的岩體／結構面分析，不會自行補造數值。")
+                if _struct_code == "A":
+                    st.error("完整／巨塊狀且節理稀少的岩體不符合本系統 GSI／Hoek–Brown 連續體換算前提。請以完整岩石試驗強度及控制性結構面／楔形破壞分析處理。")
+                else:
+                    st.error("此組合在目前定性判讀矩陣中沒有可用的初判區間；請改採其他適用的岩體／結構面分析，不會自行補造數值。")
             else:
                 _rec_lo, _rec_hi = _gsi_recommended
                 _rec_mid = int(round((_rec_lo + _rec_hi) / 2))
