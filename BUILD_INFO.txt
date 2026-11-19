@@ -431,3 +431,14 @@ Module 1 — Hoek–Brown disturbance-factor preset correction (PR #249)
 - PR #249 merged to main at 989328146e3540306555ab7e5aad7030d69ba885.
 - GitHub Actions run 44492464682: full suite 626 passed in 15.92 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44492464767: targeted module/Web suite 592 passed in 17.19 s; Python 3.11 active-module compilation passed.
+
+
+Module 1 — GSI tunnel scale applicability (PR #251; engine helper commit 8e9fcd7)
+- GSI scale-effect review now distinguishes slope height (<20 m reference) from tunnel excavation span (about 10 m reference), following FHWA-NHI-16-072 Figure 9-24.
+- Tunnel mode requires a span input for the applicability check; tunnel cover depth is not used as a proxy for span.
+- Removed the combined “tunnel/deep foundation” label because the Hoek et al. (2002) tunnel σ3,max relation is not a general deep-foundation relation.
+- Added regression tests for slope threshold, tunnel threshold, missing/nonpositive span and existing reference benchmark behavior.
+- No Hoek–Brown strength or σ3,max equations changed.
+- Engine helper change committed to main at 8e9fcd7ac1677b03fc2be28504c5899dcdd1f142; UI and regression tests merged via PR #251 at 98f35c1400761ca9f035d9bd29de273ad07de88a.
+- GitHub Actions run 44492993509: full suite 633 passed in 27.28 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44492993604: targeted module/Web suite 599 passed in 16.10 s; Python 3.11 active-module compilation passed.
