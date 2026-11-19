@@ -132,3 +132,26 @@ def test_alishan_project_ucs_cannot_be_paired_with_generic_sandstone_mi():
     )
     assert warning is not None
     assert "阿里山42號隧道" in warning
+
+
+@pytest.mark.parametrize(
+    ("preset", "expected"),
+    [
+        ("自然坡面（無近期開挖或爆破）(D = 0.0)", 0.0),
+        ("小型土木邊坡控制爆破／光面爆破 (D = 0.7)", 0.7),
+        ("中度擾動／應力鬆弛 (D = 0.5)", 0.5),
+        ("未良好控制的生產爆破 (D = 1.0)", 1.0),
+        ("自訂擾動因子 D", 0.0),
+    ],
+)
+def test_module1_disturbance_preset_value(preset, expected):
+    from geolysis_ui.module1 import _hb_disturbance_preset_value
+
+    assert _hb_disturbance_preset_value(preset) == pytest.approx(expected)
+
+
+def test_module1_disturbance_preset_rejects_out_of_range_value():
+    from geolysis_ui.module1 import _hb_disturbance_preset_value
+
+    with pytest.raises(ValueError, match="擾動因子 D"):
+        _hb_disturbance_preset_value("不合理設定 (D = 1.2)")
