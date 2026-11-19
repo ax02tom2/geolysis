@@ -145,6 +145,7 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
         field="qa_net_kpa",
         width_m=2.0,
         length_m=3.0,
+        footing_type="isolated",
         depth_m=1.5,
         water_depth_m=2.0,
         include_qeq=False,
