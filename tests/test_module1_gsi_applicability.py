@@ -5,13 +5,12 @@ from geolysis_ui.module1 import _gsi_sensitivity_values
 from geolysis_engine import hoek_brown_structure_applicability
 
 
-def test_intact_massive_gsi_70_to_80_uses_only_applicable_sensitivity_endpoints():
-    assert _gsi_sensitivity_values("A", 70, 80) == [70, 75]
-    assert hoek_brown_structure_applicability(gsi=75, structure_code="A")["applicable"] is True
-
-
-def test_intact_massive_gsi_range_entirely_above_75_has_no_hoek_brown_sensitivity_range():
-    assert _gsi_sensitivity_values("A", 76, 80) == []
+def test_intact_massive_sparse_jointed_rock_has_no_standard_gsi_sensitivity_range():
+    assert _gsi_sensitivity_values("A", 40, 80) == []
+    for value in (40, 70, 75, 80):
+        result = hoek_brown_structure_applicability(gsi=value, structure_code="A")
+        assert result["applicable"] is False
+        assert "均質、近似等向" in result["warning"]
 
 
 def test_blocky_rock_sensitivity_range_is_not_capped_at_75():
@@ -187,3 +186,17 @@ def test_gsi_tunnel_scale_rejects_nonpositive_span():
 
     with pytest.raises(ValueError, match="隧道開挖跨度"):
         gsi_scale_effect_warning(application="tunnel", span_m=0.0)
+
+
+def test_persistent_bedding_or_schistosity_requires_structural_failure_review():
+    result = hoek_brown_structure_applicability(gsi=50.0, structure_code="D")
+    assert result["applicable"] is True
+    assert "持續性層理／片理" in result["warning"]
+    assert "結構面" in result["warning"]
+
+
+def test_laminated_sheared_rock_flags_specialized_gsi_chart_review():
+    result = hoek_brown_structure_applicability(gsi=20.0, structure_code="F")
+    assert result["applicable"] is True
+    assert "Flysch" in result["warning"]
+    assert "構造預剪切" in result["warning"]
