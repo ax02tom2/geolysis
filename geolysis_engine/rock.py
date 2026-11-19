@@ -3,54 +3,6 @@ from __future__ import annotations
 import math
 from ._common import _finite
 
-def gsi_quantitative_from_rqd_jcond(
-    *,
-    rqd_percent,
-    persistence_rating,
-    separation_rating,
-    roughness_rating,
-    infilling_rating,
-    weathering_rating,
-):
-    """Calculate GSI from RQD and JCond89 using FHWA-NHI-16-072 Eq. 9.19.
-
-    JCond89 is the sum of the five discontinuity-condition ratings in
-    FHWA Table 9-8. GSI = 1.5 * JCond89 + RQD / 2.
-    """
-    rqd = _finite("RQD", rqd_percent)
-    if not 0.0 <= rqd <= 100.0:
-        raise ValueError("RQD 必須介於 0–100%。")
-    rating_sets = {
-        "Persistence": {0, 1, 2, 4, 6},
-        "Separation": {0, 1, 4, 5, 6},
-        "Roughness": {0, 1, 3, 5, 6},
-        "Infilling": {0, 2, 4, 6},
-        "Weathering": {0, 1, 3, 5, 6},
-    }
-    supplied = {
-        "Persistence": persistence_rating,
-        "Separation": separation_rating,
-        "Roughness": roughness_rating,
-        "Infilling": infilling_rating,
-        "Weathering": weathering_rating,
-    }
-    ratings = {}
-    for name, value in supplied.items():
-        rating = _finite(f"{name} rating", value)
-        if rating not in rating_sets[name]:
-            raise ValueError(f"{name} rating 不符合 FHWA Table 9-8 的列示級距。")
-        ratings[name] = int(rating)
-    jcond89 = sum(ratings.values())
-    gsi = 1.5 * jcond89 + rqd / 2.0
-    return {
-        "RQD_percent": rqd,
-        "JCond89": jcond89,
-        "GSI": gsi,
-        "ratings": ratings,
-        "equation": "GSI = 1.5 * JCond89 + RQD / 2",
-    }
-
-
 def gsi_scale_effect_warning(*, application, height_m=None, span_m=None):
     """Warn when the FHWA Figure 9-24 GSI chart's reference scale is exceeded.
 
