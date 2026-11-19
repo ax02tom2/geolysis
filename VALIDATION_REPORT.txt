@@ -1,3 +1,12 @@
+Module 4 ↔ Module 5 — footing-type validation for all capacity-transfer branches (PR #243) — 2026-11-19 Asia/Taipei (UTC+08:00)
+- Corrected the Burland–Burbidge and clay-consolidation transfer call sites to pass the footing type derived from their actual B/L geometry into the shared Module 5 transfer guard.
+- The guard now checks footing type for all five supported settlement transfer methods (Burland–Burbidge, DMT, CPT, PMT and clay consolidation), in addition to the already-existing B, L, Df, Dw and eccentricity checks.
+- Added regression tests confirming that equal B/L dimensions do not permit transfer between continuous and isolated footing types. Updated the existing clay transfer test to provide the explicit isolated footing type required by the guard.
+- PR #243 merged to main as 53b4d8a331781e356bf53b850ec1565d655b93b3.
+- Full GitHub Actions suite: 617 passed; Python 3.11 active-module compilation passed (run 44449176266).
+- Targeted Module/Web regression workflow: 585 passed in 23.49 s; Python 3.11 active-module compilation passed (run 44449176290).
+- No settlement, bearing-capacity, or stress-distribution equations changed.
+
 Module 3 → Module 4 SPT profile revocation and stale-selection guard — 2026-11-17 Asia/Taipei (UTC+08:00)
 - PR #226 merged to main as 0679fabf426591c0eba8966d03e572976a2b5ff3.
 - Module 3 correctly clears m3_profile_result when its project-data confirmation is withdrawn. Module 4 previously could retain a True value in its disabled SPT-profile checkbox and still enter the profile-use branch with no valid profile.
