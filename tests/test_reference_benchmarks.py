@@ -4002,13 +4002,17 @@ def test_usace_dmt_typical_kd_range_does_not_warn_for_typical_values():
     assert any("尚未低於 0.10" in warning for warning in result["warnings"])
 
 
-def test_fhwa_gsi_scale_effect_warning_only_triggers_for_slopes_over_20m():
+def test_fhwa_gsi_scale_effect_warning_checks_slope_height_and_tunnel_span():
     from geolysis_engine import gsi_scale_effect_warning
 
     assert gsi_scale_effect_warning(application="slope", height_m=20.0) is None
     warning = gsi_scale_effect_warning(application="slope", height_m=25.0)
     assert "超過" in warning and "未自動折減" in warning
-    assert gsi_scale_effect_warning(application="tunnel", height_m=100.0) is None
+    missing_span = gsi_scale_effect_warning(application="tunnel", height_m=100.0)
+    assert "尚未提供隧道開挖跨度" in missing_span
+    assert gsi_scale_effect_warning(application="tunnel", span_m=10.0) is None
+    tunnel_warning = gsi_scale_effect_warning(application="tunnel", span_m=12.0)
+    assert "約 10 m" in tunnel_warning and "未自動折減" in tunnel_warning
     assert gsi_scale_effect_warning(application="general", height_m=100.0) is None
 
 
