@@ -380,7 +380,7 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
 
     conditions_key = (
         f"m4_bb_conditions_{transfer_id}_"
-        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_{transfer['Dw_m']:.2f}_any"
+        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_{transfer['Dw_m']:.2f}_{transfer['footing_type']}"
     )
     conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
