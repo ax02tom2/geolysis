@@ -1,3 +1,12 @@
+Module 4 ↔ Module 5 — mandatory footing-type validation (PR #245) — 2026-11-19 Asia/Taipei (UTC+08:00)
+- Hardened the shared capacity-transfer guard so footing-type comparison cannot be skipped when the Module 4 caller omits its footing type.
+- Rejects transfer when either the caller footing type or stored Module 5 footing type is absent; warning output safely identifies missing stored metadata.
+- Added regression tests for missing caller footing type and missing transferred footing type. Existing transfer paths continue to pass an explicit footing category.
+- PR #245 merged to main as e3d06f620db2e5f3f1664f02191cc3c180f88773.
+- Full GitHub Actions suite: 619 passed; Python 3.11 active-module compilation passed (run 44478319117).
+- Targeted Module/Web regression workflow: 585 passed in 24.89 s; Python 3.11 active-module compilation passed (run 44478319091).
+- No engineering calculation equations changed.
+
 Module 4 ↔ Module 5 — footing-type validation for all capacity-transfer branches (PR #243) — 2026-11-19 Asia/Taipei (UTC+08:00)
 - Corrected the Burland–Burbidge and clay-consolidation transfer call sites to pass the footing type derived from their actual B/L geometry into the shared Module 5 transfer guard.
 - The guard now checks footing type for all five supported settlement transfer methods (Burland–Burbidge, DMT, CPT, PMT and clay consolidation), in addition to the already-existing B, L, Df, Dw and eccentricity checks.
