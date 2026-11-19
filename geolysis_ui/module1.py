@@ -2,6 +2,7 @@
 import streamlit as st
 import logging
 import math
+import re
 import plotly.graph_objects as go
 from geolysis_engine import (
     hoek_brown_parameters, hoek_brown_structure_applicability,
@@ -19,6 +20,17 @@ def _gsi_sensitivity_values(structure_code, lower, upper):
         if lo > hi:
             return []
     return sorted(set((lo, hi)))
+
+
+def _hb_disturbance_preset_value(label):
+    """Extract and validate the explicit disturbance factor in a preset label."""
+    match = re.search(r"D\\s*=\\s*(\\d+(?:\\.\\d+)?)", str(label))
+    if match is None:
+        return 0.0
+    value = float(match.group(1))
+    if not 0.0 <= value <= 1.0:
+        raise ValueError("擾動因子 D 必須介於 0–1")
+    return value
 
 
 _HB_PAIRED_CASES = {
@@ -588,16 +600,13 @@ def render_module_1(expanded=False):
             st.markdown("##### 2. 擾動因子與工程應用尺度")
             d_preset = st.selectbox("開挖/自然擾動程度參考 (D)", [
                 "自然坡面（無近期開挖或爆破；仍須檢查長期卸荷）(D = 0.0)",
-                "控制預裂／光面爆破，損傷較小 (D = 0.5)",
+                "小型土木邊坡控制爆破／光面爆破（Hoek et al., 2002 建議）(D = 0.7)",
+                "中度擾動／應力鬆弛（須有工程判釋或回算依據）(D = 0.5)",
                 "弱岩機械開挖且有明顯應力鬆弛損傷 (D = 0.7)",
                 "未良好控制的生產爆破，近坡面嚴重損傷 (D = 1.0)",
                 "自訂擾動因子 D"
             ])
-            if "0.0" in d_preset: d_default = 0.0
-            elif "0.5" in d_preset: d_default = 0.5
-            elif "0.7" in d_preset: d_default = 0.7
-            elif "1.0" in d_preset: d_default = 1.0
-            else: d_default = 0.0
+            d_default = _hb_disturbance_preset_value(d_preset)
             d_range_low, d_range_high = d_default, d_default
             d_factor = d_default
             d_factor = st.slider("擾動因子 D（可直接調整）", min_value=0.0, max_value=1.0, value=d_default, step=0.05)
