@@ -210,8 +210,14 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                         end=i-1 if not ok else i
                         if end>start: runs.append((start,end))
                         start=None
-                if not runs: continue
-                i0,i1=max(runs,key=lambda z:scan[z[1]]-scan[z[0]])
+                # A candidate must intersect the ground within the supplied
+                # profile at least once.  One profile-edge truncation is allowed
+                # as an explicit model-boundary cut; a run truncated at both
+                # ends has no ground intersection and is not a slip surface.
+                complete_runs=[(i0,i1) for i0,i1 in runs
+                    if i0>0 or i1<len(scan)-1]
+                if not complete_runs: continue
+                i0,i1=max(complete_runs,key=lambda z:scan[z[1]]-scan[z[0]])
                 x0,x1=scan[i0],scan[i1]
                 if x1-x0<(profile[-1][0]-profile[0][0])*0.03: continue
                 width=(x1-x0)/int(slice_count)
