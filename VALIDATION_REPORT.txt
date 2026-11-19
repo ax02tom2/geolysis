@@ -1230,3 +1230,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #255 merged to main at 21336bd0ca7a1a3b1e0abf6b82b8eb7742c5eeb8.
 - GitHub Actions run 44495830564: full suite 632 passed in 18.30 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44495830579: targeted module/Web suite 598 passed in 13.52 s; Python 3.11 active-module compilation passed.
+
+
+## Module 1 — GSI applicability for massive and structurally anisotropic rock (PR #257)
+
+- The current A structure class explicitly describes intact/massive rock with few widely spaced discontinuities and offers high GSI values. It is now excluded from standard GSI/Hoek–Brown continuum conversion, and its numeric recommendation cells are removed. This is based on Hoek, Carter & Diederichs (2013), ARMA 13-672, Figure 4 and Sections 2–3, which state that intact/massive or very sparsely jointed rock does not satisfy the homogeneity/isotropy assumptions; use intact-rock testing and structural discontinuity analysis instead.
+- Class D now warns that persistent bedding/schistosity may control failure and requires orientation/kinematic review. Class F warns that tectonically pre-sheared, transported or highly heterogeneous rock may require a Flysch/heterogeneous-rock GSI chart or site-specific characterization.
+- High-GSI brittle-spalling and structural-control warnings are combined rather than suppressing one another.
+- No Hoek–Brown strength equations or slope stability formulas changed.
+- PR #257 merged to main at 4f20e749e10b86afa773cd9c0a26cd5c542bacf6.
+- GitHub Actions run 44496239085: full suite 633 passed in 25.65 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44496238988: targeted module/Web suite 599 passed in 24.66 s; Python 3.11 active-module compilation passed.
