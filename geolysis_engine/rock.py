@@ -57,10 +57,34 @@ def hoek_brown_structure_applicability(*, gsi, structure_code):
         raise ValueError("GSI 應介於 0–100")
     if code not in {"A", "B", "C", "D", "E", "F"}:
         raise ValueError("岩體結構代碼須為 A–F")
-    if G > 75.0 and code == "A":
+    if code == "A":
         return {
             "applicable": False,
-            "warning": "此組合為完整／巨塊狀岩體且 GSI>75。FHWA-NHI-16-072 Figure 9-24 指出須檢查脆性剝落，且此類完整／巨塊狀高 GSI 岩體不應使用 Hoek–Brown 準則；請改做完整岩石強度與結構面／楔形破壞分析。",
+            "warning": (
+                "目前選擇的是完整／巨塊狀岩體，且描述為節理稀少、間距很大。"
+                "Hoek, Carter & Diederichs (2013), Figure 4 指出完整／巨塊狀或極稀疏節理岩體"
+                "不符合 GSI／Hoek–Brown 所需的均質、近似等向連續體假設；"
+                "此矩陣的高 GSI 區間不得直接用於岩體強度換算。"
+                "請改以完整岩石試驗強度評估，並另作控制性結構面／楔形破壞分析。"
+            ),
+        }
+    if code == "D":
+        return {
+            "applicable": True,
+            "warning": (
+                "此類岩體具有持續性層理／片理。請核對其方向與潛在滑動方向；"
+                "若破壞由不利方向的弱面或楔形塊體控制，基本 GSI／Hoek–Brown 連續體模型不適用，"
+                "應另作結構面強度與運動學分析。"
+            ),
+        }
+    if code == "F":
+        return {
+            "applicable": True,
+            "warning": (
+                "層狀／剪切狀岩體須確認是否屬構造預剪切、運移或高度異質岩體。"
+                "若是，基本 jointed-rock GSI 矩陣不宜直接套用，應評估 Flysch／異質岩體專用 GSI 圖"
+                "或場址專用參數；若弱片理／剪裂面控制破壞，另作結構面分析。"
+            ),
         }
     if G > 75.0:
         return {
