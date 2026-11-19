@@ -354,6 +354,27 @@ def test_hoek_brown_2002_slope_parameters_and_gsi_sensitivity():
     assert low['Em_gpa']<mid['Em_gpa']<high['Em_gpa']
 
 
+def test_hoek_brown_2002_published_tunnel_and_slope_examples():
+    from geolysis_engine import hoek_brown_parameters
+
+    # Hoek, Carranza-Torres & Corkum (2002), Section 7 example:
+    # sigma_ci=50 MPa, mi=10, GSI=45. Tunnel: D=0, H=100 m.
+    tunnel = hoek_brown_parameters(
+        gsi=45, mi=10, sigma_ci_mpa=50, disturbance=0.0,
+        application="tunnel", gamma_rock_kn_m3=27.0, height_m=100.0,
+    )
+    assert tunnel["phi_equiv_deg"] == pytest.approx(47.16, abs=0.01)
+    assert tunnel["c_equiv_mpa"] == pytest.approx(0.58, abs=0.01)
+
+    # Same intact parameters for a highly disturbed 100 m slope: D=1.
+    slope = hoek_brown_parameters(
+        gsi=45, mi=10, sigma_ci_mpa=50, disturbance=1.0,
+        application="slope", gamma_rock_kn_m3=27.0, height_m=100.0,
+    )
+    assert slope["phi_equiv_deg"] == pytest.approx(27.61, abs=0.01)
+    assert slope["c_equiv_mpa"] == pytest.approx(0.35, abs=0.01)
+
+
 def test_hoek_brown_general_mode_requires_explicit_confinement():
     from geolysis_engine import hoek_brown_parameters
     args=dict(gsi=50,mi=17,sigma_ci_mpa=25,disturbance=0.0,
