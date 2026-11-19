@@ -1,3 +1,8 @@
+Build: geolysis Web — Module 4 ↔ Module 5 footing-type transfer validation
+Date: 2026-11-19 Asia/Taipei (UTC+08:00)
+PR #243 merged: 53b4d8a331781e356bf53b850ec1565d655b93b3.
+Module 4 Burland–Burbidge and clay-consolidation capacity-transfer branches now pass their derived footing category into the shared Module 5 transfer guard. Previously these two call sites omitted footing_type, allowing a same-dimension capacity transfer to bypass footing-type comparison. Added regression coverage for mismatched footing types and updated the existing clay-transfer fixture to explicitly identify its isolated footing. Full suite: 617 passed (Actions run 44449176266); Python 3.11 active-module compilation passed. Targeted Module/Web suite: 585 passed in 23.49 s (Actions run 44449176290); Python 3.11 active-module compilation passed. No settlement, bearing-capacity, or stress-distribution equations changed.
+
 Build: geolysis Web — Module 3 to Module 4 SPT profile revocation guard
 Date: 2026-11-17 Asia/Taipei (UTC+08:00)
 PR #226 merged: 0679fabf426591c0eba8966d03e572976a2b5ff3.
