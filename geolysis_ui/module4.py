@@ -165,8 +165,9 @@ def render_module_4(expanded=False):
                 hs4=st.number_input("基礎底下砂／礫層厚度 Hs [m]",0.1,100.0,10.0,0.5,key='m4_bb_hs')
                 df_bb4=st.number_input("基礎埋深 Df [m]（連結模組三深度用）",0.0,30.0,1.5,0.1,key='m4_bb_df')
                 dw_bb4=st.number_input("地下水位深度 Dw [m]（自地表；僅供 Module 5 條件比對）",0.0,100.0,5.0,0.1,key='m4_bb_dw')
-                width4_calc,length4_calc,eB_bb4,eL_bb4=_settlement_eccentricity_inputs("m4_bb",width4,length4,usace_footing_type(footing_width_m=width4,footing_length_m=length4))
-                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,depth_m=df_bb4,water_depth_m=dw_bb4,eccentricity_B_m=eB_bb4,eccentricity_L_m=eL_bb4)
+                bb_type4=usace_footing_type(footing_width_m=width4,footing_length_m=length4)
+                width4_calc,length4_calc,eB_bb4,eL_bb4=_settlement_eccentricity_inputs("m4_bb",width4,length4,bb_type4)
+                transfer_qult4,transfer_qeq4=_module5_transfer_value(key_prefix="m4_bb",label="gross 極限承載力 qult",field="qult_gross_kpa",width_m=width4,length_m=length4,footing_type=bb_type4,depth_m=df_bb4,water_depth_m=dw_bb4,eccentricity_B_m=eB_bb4,eccentricity_L_m=eL_bb4)
                 if transfer_qult4 is not None:
                     width4_calc,length4_calc=_module5_settlement_dimensions(width4,length4,True)
                 if transfer_qult4 is not None and (abs(width4_calc-width4)>1e-6 or abs(length4_calc-length4)>1e-6):
@@ -558,8 +559,9 @@ def render_module_4(expanded=False):
                 Cc=st.number_input("壓縮指數 Cc",0.001,2.0,0.30,0.01,key='m4c_cc')
                 Cr=st.number_input("再壓縮指數 Cr",0.0,1.0,0.05,0.01,key='m4c_cr')
                 target4=st.number_input("容許主固結沉陷 [mm]",1.0,200.0,25.0,1.0,key='m4c_target')
-                qB_calc,qL_calc,clay_eB,clay_eL=_settlement_eccentricity_inputs("m4_clay",qB,qL,usace_footing_type(footing_width_m=qB,footing_length_m=qL))
-                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,depth_m=clayDf,water_depth_m=clayDw,include_qeq=False,eccentricity_B_m=clay_eB,eccentricity_L_m=clay_eL)
+                clay_type4=usace_footing_type(footing_width_m=qB,footing_length_m=qL)
+                qB_calc,qL_calc,clay_eB,clay_eL=_settlement_eccentricity_inputs("m4_clay",qB,qL,clay_type4)
+                clay_transfer_qa,_=_module5_transfer_value(key_prefix="m4_clay",label="淨容許承載力 qa,net（FS=3.0）",field="qa_net_kpa",width_m=qB,length_m=qL,footing_type=clay_type4,depth_m=clayDf,water_depth_m=clayDw,include_qeq=False,eccentricity_B_m=clay_eB,eccentricity_L_m=clay_eL)
                 if clay_transfer_qa is not None:
                     qB_calc,qL_calc=_module5_settlement_dimensions(qB,qL,True)
                 if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):
