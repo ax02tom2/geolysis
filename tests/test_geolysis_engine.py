@@ -1420,3 +1420,22 @@ def test_developed_rankine_fs_uses_usace_static_and_seismic_minimums():
         **kwargs,fs_sliding=1.1,load_case='seismic')
     assert seismic['FS_minimum_required']==pytest.approx(1.1)
     assert seismic['load_case']=='seismic'
+
+
+@pytest.mark.parametrize(
+    ("ll", "pi", "expected", "expected_a_line"),
+    [
+        (25.0, 4.0, "CL-ML", 0.73 * (25.0 - 20.0)),
+        (25.5, 4.0, "ML", 0.73 * (25.5 - 20.0)),
+        (25.5, 4.1, "CL-ML", 0.73 * (25.5 - 20.0)),
+        (26.0, 4.0, "ML", 0.73 * (26.0 - 20.0)),
+    ],
+)
+def test_uscs_a_line_is_never_replaced_by_the_pi_four_clml_boundary(
+    ll, pi, expected, expected_a_line
+):
+    result = classify_uscs_aashto(
+        p4=100, p10=95, p40=90, p200=70, ll=ll, pl=ll - pi
+    )
+    assert result["USCS"] == expected
+    assert result["A_line_PI"] == pytest.approx(expected_a_line)
