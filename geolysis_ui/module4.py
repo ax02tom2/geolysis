@@ -32,7 +32,10 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     transfer_water_depth=transfer.get("Dw_m")
     water_depth_match=(water_depth_m is not None and transfer_water_depth is not None
         and abs(float(water_depth_m)-float(transfer_water_depth))<=0.01)
-    type_match=(footing_type is None or str(footing_type)==str(transfer["footing_type"]))
+    # Footing type is mandatory; missing values must never disable compatibility checks.
+    transfer_footing_type=transfer.get("footing_type")
+    type_match=(footing_type is not None and transfer_footing_type is not None
+        and str(footing_type)==str(transfer_footing_type))
     transfer_eB=float(transfer.get("eB_m",0.0))
     transfer_eL=float(transfer.get("eL_m",0.0))
     eccentricity_match=(abs(transfer_eB-float(eccentricity_B_m))<=0.01
@@ -42,7 +45,7 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         st.warning(
             f"Module 4 幾何與 Module 5 結果不一致，不能自動帶入 {label}。"
             f"Module 5：B={transfer['B_m']:.2f} m、L={transfer['L_m']:.2f} m、"
-            f"Df={transfer['Df_m']:.2f} m、Dw={transfer.get('Dw_m', '未提供')} m、型式={transfer['footing_type']}；"
+            f"Df={transfer['Df_m']:.2f} m、Dw={transfer.get('Dw_m', '未提供')} m、型式={transfer.get('footing_type', '未提供')}；"
             f"請統一基礎尺寸／埋深／地下水位／型式，或改用手動輸入。"
         )
         return None, None

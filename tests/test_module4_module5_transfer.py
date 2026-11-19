@@ -120,10 +120,42 @@ def test_module4_transfer_requires_explicit_matching_conditions(monkeypatch):
         field="qult_gross_kpa",
         width_m=2.0,
         length_m=3.0,
+        footing_type="isolated",
         depth_m=1.5,
         water_depth_m=2.0,
     )
 
+    assert qult is None
+    assert qeq is None
+
+
+def test_module4_transfer_rejects_missing_caller_footing_type(monkeypatch):
+    _patch_transfer_ui(
+        monkeypatch,
+        _transfer_fixture(),
+        {
+            "m4_bb_use_m5_transfer123": True,
+            "m4_bb_conditions_transfer123_2.00_3.00_1.50_2.00_any": True,
+            "m4_bb_use_m5_qeq_transfer123": True,
+        },
+    )
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_bb", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, depth_m=1.5, water_depth_m=2.0,
+    )
+    assert qult is None
+    assert qeq is None
+
+
+def test_module4_transfer_rejects_missing_transferred_footing_type(monkeypatch):
+    transfer = _transfer_fixture()
+    transfer.pop("footing_type")
+    _patch_transfer_ui(monkeypatch, transfer, {})
+    qult, qeq = module4._module5_transfer_value(
+        key_prefix="m4_dmt", label="gross qult", field="qult_gross_kpa",
+        width_m=2.0, length_m=3.0, footing_type="isolated",
+        depth_m=1.5, water_depth_m=2.0,
+    )
     assert qult is None
     assert qeq is None
 
