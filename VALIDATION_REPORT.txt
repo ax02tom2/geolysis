@@ -1210,3 +1210,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - Engine helper change committed to main at 8e9fcd7ac1677b03fc2be28504c5899dcdd1f142; UI and regression tests merged via PR #251 at 98f35c1400761ca9f035d9bd29de273ad07de88a.
 - GitHub Actions run 44492993509: full test suite 633 passed in 27.28 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44492993604: targeted module/Web suite 599 passed in 16.10 s; Python 3.11 active-module compilation passed.
+
+
+## Module 1 — Hoek–Brown published-example benchmark tests (PR #253)
+
+- Added numerical regression tests for Hoek, Carranza-Torres & Corkum (2002), Section 7 published example using σci=50 MPa, mi=10, GSI=45 and γ=27 kN/m³.
+- Tunnel case (D=0, H=100 m) reproduces φ′=47.16° and c′=0.58 MPa; disturbed slope case (D=1, H=100 m) reproduces φ′=27.61° and c′=0.35 MPa.
+- These are independent published-example checks of the existing implementation; no calculation code or equations changed.
+- PR #253 merged to main at 0b14977310db6330c7d6cb2142223d25730a886d.
+- GitHub Actions run 44493383176: full test suite 634 passed in 13.61 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44493383072: targeted module/Web suite 600 passed in 20.81 s; Python 3.11 active-module compilation passed.
