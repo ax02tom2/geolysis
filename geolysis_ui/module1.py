@@ -24,7 +24,7 @@ def _gsi_sensitivity_values(structure_code, lower, upper):
 
 def _hb_disturbance_preset_value(label):
     """Extract and validate the explicit disturbance factor in a preset label."""
-    match = re.search(r"D\\s*=\\s*(\\d+(?:\\.\\d+)?)", str(label))
+    match = re.search(r"D\s*=\s*(\d+(?:\.\d+)?)", str(label))
     if match is None:
         return 0.0
     value = float(match.group(1))
