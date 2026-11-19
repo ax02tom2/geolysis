@@ -134,7 +134,7 @@ def test_module4_consolidation_transfer_does_not_offer_gross_qeq(monkeypatch):
         transfer,
         {
             "m4_clay_use_m5_transfer123": True,
-            "m4_clay_conditions_transfer123_2.00_3.00_1.50_2.00_any": True,
+            "m4_clay_conditions_transfer123_2.00_3.00_1.50_2.00_isolated": True,
             "m4_clay_use_m5_qeq_transfer123": True,
         },
     )
@@ -295,4 +295,27 @@ def test_module4_transfer_rejects_legacy_transfer_without_groundwater_depth(monk
         depth_m=1.5, water_depth_m=2.0,
     )
     assert qult is None
+    assert qeq is None
+
+
+@pytest.mark.parametrize("key_prefix", ["m4_bb", "m4_clay"])
+def test_burland_and_clay_transfer_reject_mismatched_footing_type(
+    monkeypatch, key_prefix
+):
+    # Same B and L do not make a strip footing interchangeable with an
+    # isolated footing. These methods must pass their derived footing type
+    # into the shared transfer guard rather than skipping the type comparison.
+    _patch_transfer_ui(monkeypatch, _transfer_fixture(), {})
+    capacity, qeq = module4._module5_transfer_value(
+        key_prefix=key_prefix,
+        label="capacity",
+        field="qult_gross_kpa" if key_prefix == "m4_bb" else "qa_net_kpa",
+        width_m=2.0,
+        length_m=3.0,
+        footing_type="continuous",
+        depth_m=1.5,
+        water_depth_m=2.0,
+        include_qeq=(key_prefix == "m4_bb"),
+    )
+    assert capacity is None
     assert qeq is None
