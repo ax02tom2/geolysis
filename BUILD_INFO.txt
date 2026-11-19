@@ -1,3 +1,8 @@
+Build: geolysis Web — mandatory footing-type validation for Module 4 ↔ Module 5 transfers
+Date: 2026-11-19 Asia/Taipei (UTC+08:00)
+PR #245 merged: e3d06f620db2e5f3f1664f02191cc3c180f88773.
+The shared Module 4 capacity-transfer guard now rejects a transfer if either the calling settlement method or the stored Module 5 result lacks footing-type metadata. Previously, a missing caller footing_type silently disabled the type comparison. All current production call sites already provide a derived footing type; this change makes that requirement fail-closed and protects future call sites. Regression tests cover missing caller and missing transferred footing types. Full suite: 619 passed (Actions run 44478319117); targeted Module/Web suite: 585 passed in 24.89 s (Actions run 44478319091); Python 3.11 active-module compilation passed in both workflows. No engineering calculation equations changed.
+
 Build: geolysis Web — Module 4 ↔ Module 5 footing-type transfer validation
 Date: 2026-11-19 Asia/Taipei (UTC+08:00)
 PR #243 merged: 53b4d8a331781e356bf53b850ec1565d655b93b3.
