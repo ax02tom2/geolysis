@@ -43,6 +43,10 @@ def excavation_rebound_recompression_layers(*, layers):
                 f"第 {i} 層孔隙比方向不符：回彈階段應 e_exc ≥ e0，"
                 "再壓縮階段應 e_final ≤ e_exc"
             )
+        if hr == 0 and abs(ee - e0) > 1e-9:
+            raise ValueError(f"第 {i} 層回彈厚度為 0 時，e_exc 必須等於 e0")
+        if hc == 0 and abs(ef - ee) > 1e-9:
+            raise ValueError(f"第 {i} 層再壓縮厚度為 0 時，e_final 必須等於 e_exc")
         rebound = -hr * (ee - e0) / (1.0 + e0)
         recompression = hc * (ee - ef) / (1.0 + ee)
         results.append({
