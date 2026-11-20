@@ -1259,3 +1259,6 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - Regression coverage: t=0.1, 1.0, 2.99, 3.0 and 30 years for static and fluctuating loads.
 - References: Burland & Burbidge (1985), “Settlement of Foundations on Sand and Gravel,” paragraphs 18–20; FHWA-HRT-15-080, Chapter 4, Burland and Burbidge Method (time factor used if t >= 3 years).
 - No other settlement equations changed.
+- PR #261 merged to main at 4d9b5a124734935e899b9cc75cdc4cc267214f4b.
+- GitHub Actions run 44661715384: full suite 645 passed in 13.56 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44661715414: targeted module/Web suite 611 passed in 24.22 s; Python 3.11 active-module compilation passed.
