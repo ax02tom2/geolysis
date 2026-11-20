@@ -1293,3 +1293,12 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #267 merged to main at 13dd38dc5cedc5535b05920272560485d244f4d0.
 - GitHub Actions run 44697347905: full suite 649 passed in 23.88 s; active-module compilation passed.
 - GitHub Actions run 44697347901: targeted module/Web suite 615 passed in 25.48 s; active-module compilation passed.
+
+
+## Module 4 — Multi-load consolidation profile and secondary compression validation
+
+- PR #269: extended unmodeled-interval warnings to the user-supplied total Δσz / multi-load consolidation path and displayed them in the UI. Gaps are not assigned invented soil properties or settlement; the engineer must confirm omitted intervals are effectively non-compressible or add the missing strata. Merged at b2e0f0196725be2028fd02982c1e1efc7030b1b5.
+- PR #270: tightened USACE EM 1110-1-1905 (2025) Eq. 7-47 input validation. Void ratio at the end of primary consolidation must be nonnegative; negative values are physically impossible even when the formula denominator remains positive. Added an equation benchmark and negative-input tests. Merged at f2a25b1870d90815f20706fabfb9614b6e3af545.
+- PR #269 GitHub Actions: full suite 650 passed in 24.16 s; targeted module/Web suite 616 passed in 17.76 s; active-module compilation passed.
+- PR #270 GitHub Actions: full suite 652 passed in 15.69 s; targeted module/Web suite 615 passed in 12.28 s; active-module compilation passed.
+- References: USACE EM 1110-1-1905 (31 July 2025), §7-9/Table 7-3 (layered primary consolidation) and §7-19/Eq. 7-47 (secondary compression).

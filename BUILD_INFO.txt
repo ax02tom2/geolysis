@@ -512,3 +512,10 @@ Module 4 — Layered consolidation profile gap warnings (PR #267)
 - PR #267 merged to main at 13dd38dc5cedc5535b05920272560485d244f4d0.
 - GitHub Actions run 44697347905: full suite 649 passed in 23.88 s; active-module compilation passed.
 - GitHub Actions run 44697347901: targeted module/Web suite 615 passed in 25.48 s; active-module compilation passed.
+
+
+Module 4 — Multi-load consolidation profile gaps and secondary void-ratio validation (PRs #269–#270)
+- PR #269 extended omitted-interval warnings to the multi-load / user-supplied total Δσz consolidation path and surfaced warnings in the Module 4 UI. Merged at b2e0f0196725be2028fd02982c1e1efc7030b1b5.
+- PR #270 rejects negative void ratio at the end of primary consolidation in the USACE Eq. 7-47 secondary settlement function; added a numerical benchmark and negative-input regression tests. Merged at f2a25b1870d90815f20706fabfb9614b6e3af545.
+- PR #269 GitHub Actions: full suite 650 passed in 24.16 s; targeted module/Web suite 616 passed in 17.76 s; active-module compilation passed.
+- PR #270 GitHub Actions: full suite 652 passed in 15.69 s; targeted module/Web suite 615 passed in 12.28 s; active-module compilation passed.
