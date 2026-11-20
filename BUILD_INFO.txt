@@ -477,3 +477,9 @@ Module 2 — correct ASTM D2487 USCS A-line equation and display (PR #259)
 - PR #259 merged to main at 636e2df866b86f83a0b030516081a1d5ab21600f.
 - GitHub Actions run 44496895182: full suite 637 passed in 24.03 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44496895211: targeted module/Web suite 603 passed in 17.57 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Burland–Burbidge time-factor applicability before 3 years (PR pending)
+- Corrected C3 so the Burland & Burbidge time-dependent increment is applied only for t >= 3 years. For t < 3 years, C3 remains 1.0; at t=3 years, C3=1+R3; for later times, C3=1+R3+Rt·log10(t/3).
+- Added boundary regression cases at 0.1, 1.0, 2.99, 3.0 and 30 years for static and fluctuating loads.
+- Basis: Burland & Burbidge (1985), paragraph 18–20; FHWA-HRT-15-080 Chapter 4 explicitly states that the time factor is used if t >= 3 years.
