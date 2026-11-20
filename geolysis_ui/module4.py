@@ -640,7 +640,7 @@ def render_module_4(expanded=False):
                                 "逐層固結時間參數 CSV（Cv 必填；Drainage 填 single/double，或直接填 Hdr_m）",
                                 value=time_template4,height=170,
                                 key="m4c_multi_time_params_"+time_layer_key4,
-                                help="C_alpha、e_p 為選填次壓縮參數；C_alpha>0 時必須填 e_p。t1_days 可留白，系統會以 U=99.4%（Tv≈2.0）估算，但正式設計宜用固結試驗判讀值。")
+                                help="C_alpha 為無因次小數（例如 0.008=0.8%/log cycle；USACE 表 3-12 的百分比值須除以 100）。C_alpha、e_p 為選填次壓縮參數；C_alpha>0 時必須填 e_p。t1_days 可留白，系統會以 U=99.4%（Tv≈2.0）估算，但正式設計宜用固結試驗判讀值。")
                             rt_ma,rt_mb=st.columns(2)
                             with rt_ma:
                                 multi_u_target4=st.number_input("全層加權平均目標固結度 U [%]",min_value=1.0,max_value=99.9,value=90.0,step=1.0,key="m4c_multi_u")
@@ -689,7 +689,8 @@ def render_module_4(expanded=False):
                             elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
                         with rt_c:
                             calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
-                            ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
+                            ca4=st.number_input("次壓縮指數 Cα（無因次）",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4,help="輸入無因次小數；例如 0.008 代表 0.8%/log cycle。預設 0.01 僅為起始參考，不是通用設計值。")
+                        st.caption("USACE 2025 表 3-12（百分比／log cycle，輸入時須除以 100）：<0.002 極低、0.004 低、0.008 中、0.016 高、0.032 很高、>0.064 極高。Cα 會隨有效應力變化，優先採接近現地最終有效應力的固結試驗值；無試驗時，表 3-13 的 Cα/Cc 相關值可作初估（無機黏土／粉土約 0.025–0.06，有機土／泥炭約 0.04–0.10），不可視為場址實測值。")
                         try:
                             representative_H4=Hc
                             primary_at_final_pressure4=consolidation_settlement_1d(
