@@ -844,6 +844,25 @@ def test_differential_settlement_rejects_invalid_spacing_or_negative_values():
         differential_settlement(settlement_a_mm=-1,settlement_b_mm=10,spacing_m=5)
 
 
+@pytest.mark.parametrize("field", ["e0", "e_exc", "e_final"])
+def test_layered_excavation_rebound_recompression_rejects_negative_void_ratio(field):
+    from geolysis_engine import excavation_rebound_recompression_layers
+    layer = {
+        "Layer": 1,
+        "rebound_thickness_m": 2.0,
+        "recompression_thickness_m": 2.0,
+        "initial_effective_stress_kpa": 100.0,
+        "excavation_effective_stress_kpa": 50.0,
+        "final_effective_stress_kpa": 120.0,
+        "e0": 0.8,
+        "e_exc": 0.9,
+        "e_final": 0.85,
+    }
+    layer[field] = -0.5
+    with pytest.raises(ValueError, match="孔隙比不可為負值"):
+        excavation_rebound_recompression_layers(layers=[layer])
+
+
 def test_excavation_rebound_and_recompression_returns_zero_when_reloaded_to_original_stress():
     from geolysis_engine import excavation_rebound_recompression
     r=excavation_rebound_recompression(layer_thickness_m=5,initial_void_ratio=.8,
