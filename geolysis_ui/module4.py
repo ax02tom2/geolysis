@@ -4,7 +4,7 @@ import logging
 import hashlib
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
+from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, estimate_void_ratio_at_primary_end, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
 
 
 
@@ -690,7 +690,6 @@ def render_module_4(expanded=False):
                         with rt_c:
                             calc_secondary4=st.checkbox("另估次壓縮沉陷",value=False,key="m4c_secondary")
                             ca4=st.number_input("次壓縮指數 Cα",min_value=0.0,max_value=0.5,value=0.01,step=0.001,format="%.4f",key="m4c_ca",disabled=not calc_secondary4)
-                            ep4=st.number_input("主固結完成時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.05,key="m4c_ep",disabled=not calc_secondary4)
                         try:
                             representative_H4=Hc
                             primary_at_final_pressure4=consolidation_settlement_1d(
@@ -701,6 +700,19 @@ def render_module_4(expanded=False):
                                 stress_increase_kpa=qa_clay_final*stress_ratio_clay4)
                             primary_total4=float(primary_at_final_pressure4["settlement_mm"])
                             st.caption(f"時間速率與次壓縮採用最終控制淨壓力 qa,net={qa_clay_final:.2f} kPa 對應的主固結沉陷 {primary_total4:.2f} mm；若模組五承載力上限控制，已重新計算，不沿用容許沉陷目標值。")
+                            if calc_secondary4:
+                                ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
+                                ep_valid4=True
+                                if ep_source4=="依本次主固結沉陷反算（初估）":
+                                    try:
+                                        ep4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
+                                        st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
+                                    except ValueError as ep_error4:
+                                        st.error(f"{ep_error4}；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
+                                        ep_valid4=False
+                                        ep4=0.0
+                                else:
+                                    ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
                             time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
                                 layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
                                 target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
@@ -715,10 +727,11 @@ def render_module_4(expanded=False):
                                 st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
                                 t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
                                 t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
-                                sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
-                                    secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
-                                    time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
-                                st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+                                if ep_valid4:
+                                    sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
+                                        secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
+                                        time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
+                                    st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
