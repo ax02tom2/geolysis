@@ -842,8 +842,8 @@ def render_module_4(expanded=False):
         with st.expander("差異沉陷／角變量檢核（兩位置比較）",expanded=False):
             st.caption("將兩個位置各自計算得到的總沉陷量填入；本工具計算沉陷差與角變量，不擅自判定通過／不通過，容許值須依結構型式及適用規範選定。")
             da,db,ds=st.columns(3)
-            with da: settle_a4=st.number_input("位置 A 總沉陷 [mm]",0.0,1000.0,20.0,1.0,key="m4_diff_a")
-            with db: settle_b4=st.number_input("位置 B 總沉陷 [mm]",0.0,1000.0,10.0,1.0,key="m4_diff_b")
+            with da: settle_a4=st.number_input("位置 A 總垂直位移 [mm]（向下正、回彈／隆起負）",-1000.0,1000.0,20.0,1.0,key="m4_diff_a")
+            with db: settle_b4=st.number_input("位置 B 總垂直位移 [mm]（向下正、回彈／隆起負）",-1000.0,1000.0,10.0,1.0,key="m4_diff_b")
             with ds: spacing_diff4=st.number_input("兩位置距離 [m]",0.1,1000.0,5.0,0.1,key="m4_diff_spacing")
             try:
                 diff4=differential_settlement(settlement_a_mm=settle_a4,

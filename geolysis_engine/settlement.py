@@ -388,18 +388,23 @@ def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
             'limitations':'以 Cr/Cc 理想化 e-log-p 曲線估算；實際開挖回彈量可能小於理論值，需以卸載－再載重固結試驗曲線校核。'}
 
 def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
-    """Compute differential settlement and angular distortion between two points."""
+    """Compute differential settlement/angular distortion from signed vertical movements.
+
+    Positive movement is downward settlement; negative movement is rebound or heave.
+    """
     a=_finite('位置 A 總沉陷',settlement_a_mm)
     b=_finite('位置 B 總沉陷',settlement_b_mm)
     spacing=_finite('兩位置水平距離',spacing_m)
-    if a<0 or b<0 or spacing<=0:
-        raise ValueError('兩處沉陷量不可為負，兩位置距離須大於 0')
+    if spacing<=0:
+        raise ValueError('兩位置水平距離須大於 0')
+    # Signed vertical movements are accepted: positive is downward settlement,
+    # negative is rebound/heave. Differential movement is the absolute difference.
     delta=abs(a-b)
     return {'settlement_a_mm':a,'settlement_b_mm':b,
             'differential_settlement_mm':delta,
             'spacing_m':spacing,'angular_distortion':(delta/1000.0)/spacing,
             'angular_distortion_ratio':(delta/1000.0)/spacing,
-            'method':'兩點總沉陷差／水平距離；未自動套用建築物容許值'}
+            'method':'兩點帶正負號的垂直位移差／水平距離（向下為正、回彈／隆起為負）；未自動套用建築物容許值'}
 
 def estimate_void_ratio_at_primary_end(*, initial_void_ratio,
                                          layer_thickness_m,

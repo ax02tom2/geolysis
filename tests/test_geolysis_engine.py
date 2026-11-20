@@ -836,12 +836,17 @@ def test_differential_settlement_and_angular_distortion():
     assert r['angular_distortion']==pytest.approx(.002)
 
 
-def test_differential_settlement_rejects_invalid_spacing_or_negative_values():
+def test_differential_settlement_rejects_invalid_spacing():
     from geolysis_engine import differential_settlement
     with pytest.raises(ValueError):
         differential_settlement(settlement_a_mm=20,settlement_b_mm=10,spacing_m=0)
-    with pytest.raises(ValueError):
-        differential_settlement(settlement_a_mm=-1,settlement_b_mm=10,spacing_m=5)
+
+
+def test_differential_settlement_accepts_heave_and_settlement_together():
+    from geolysis_engine import differential_settlement
+    r=differential_settlement(settlement_a_mm=-5,settlement_b_mm=10,spacing_m=5)
+    assert r['differential_settlement_mm']==pytest.approx(15)
+    assert r['angular_distortion']==pytest.approx(.003)
 
 
 @pytest.mark.parametrize(("rebound_thickness", "recompression_thickness"), [(0.0, 2.0), (2.0, 0.0)])
