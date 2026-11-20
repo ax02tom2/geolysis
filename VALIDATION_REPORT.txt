@@ -1272,3 +1272,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #263 merged to main at c06f5d5ae6b466de81b350ef15fa7b4a00818255.
 - GitHub Actions run 44691254634: full suite 646 passed in 23.82 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44691254195: targeted module/Web suite 612 passed in 15.44 s; Python 3.11 active-module compilation passed.
+
+
+## Module 4 — PMT clay α boundary overlap
+
+- Extended the PMT clay automatic-classification guard through E/pne=9.0. USACE EM 1110-1-1905 Table 7-6 lists weathered/remolded clay at 7–9 and normally consolidated clay at 9–16, so exactly 9.0 is ambiguous and cannot be automatically assigned to either state.
+- Added a regression test where Ec/pne=9.0; automatic classification now fails closed and requires the engineer to explicitly confirm the soil state.
+- Reference: USACE EM 1110-1-1905 (31 July 2025), Table 7-6, page 170.
+- PR #265 merged to main at 51cf06f0a7380f03a68ea46ff1369d2bb980710f.
+- GitHub Actions run 44691610948: full suite 647 passed in 12.49 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44691611175: targeted module/Web suite 613 passed in 18.34 s; Python 3.11 active-module compilation passed.
