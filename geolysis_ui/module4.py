@@ -763,6 +763,7 @@ def render_module_4(expanded=False):
                             super_result4=consolidation_settlement_layers_from_stress_profile(layers=super_rows4)
                             st.dataframe(pd.DataFrame(super_result4["layer_results"]),hide_index=True,use_container_width=True)
                             st.metric("多重荷載下總主固結沉陷",f"{super_result4['settlement_mm']:.2f} mm")
+                            for _profile_warning in super_result4.get("warnings", []): st.warning(_profile_warning)
                             if super_result4["settlement_mm"]>super_target4:
                                 st.warning("計算沉陷高於目前設定的比較目標；這不是自動的承載力或整體安全判定。")
                             else:

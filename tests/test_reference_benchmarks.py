@@ -4254,6 +4254,21 @@ def test_consolidation_depth_review_accepts_deep_profile_with_negligible_stress(
     assert review["warnings"] == []
 
 
+def test_superimposed_load_consolidation_warns_when_profile_has_gap():
+    from geolysis_engine import consolidation_settlement_layers_from_stress_profile
+    layers = [
+        {"Layer": 1, "Depth_center_m": 0.5, "Thickness_m": 1.0,
+         "e0": 0.8, "Cc": 0.3, "Cr": 0.05, "Sigma0_kPa": 100.0,
+         "SigmaP_kPa": 150.0, "Delta_sigma_kPa": 25.0},
+        {"Layer": 3, "Depth_center_m": 2.0, "Thickness_m": 1.0,
+         "e0": 0.9, "Cc": 0.4, "Cr": 0.06, "Sigma0_kPa": 120.0,
+         "SigmaP_kPa": 180.0, "Delta_sigma_kPa": 18.0},
+    ]
+    result = consolidation_settlement_layers_from_stress_profile(layers=layers)
+    assert any("第 3 層" in warning and "0.500 m 未建模間隔" in warning
+               for warning in result["warnings"])
+
+
 def test_consolidation_layer_profile_warns_when_compressible_interval_is_omitted():
     layers = [
         {"Layer": 1, "Depth_center_m": 0.5, "Thickness_m": 1.0,
