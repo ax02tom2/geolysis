@@ -1344,7 +1344,7 @@ def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m
                 raise ValueError('分層厚度互相重疊；請檢查各層中心深度與厚度')
             if layer_top > previous_bottom+1e-9:
                 profile_gap_warnings.append(
-                    f"第 {i} 層與前一層之間有 {layer_top-previous_bottom:.3f} m 未建模間隔；"
+                    f"第 {row['Layer']} 層與前一層之間有 {layer_top-previous_bottom:.3f} m 未建模間隔；"
                     "該區間未計入主固結沉陷，請確認為可忽略壓縮的土層，否則補入分層資料。"
                 )
         elif layer_top > 1e-9:
