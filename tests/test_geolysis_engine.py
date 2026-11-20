@@ -844,6 +844,46 @@ def test_differential_settlement_rejects_invalid_spacing_or_negative_values():
         differential_settlement(settlement_a_mm=-1,settlement_b_mm=10,spacing_m=5)
 
 
+@pytest.mark.parametrize(("rebound_thickness", "recompression_thickness"), [(0.0, 2.0), (2.0, 0.0)])
+def test_layered_excavation_rebound_allows_one_zero_stage_thickness(
+    rebound_thickness, recompression_thickness
+):
+    from geolysis_engine import excavation_rebound_recompression_layers
+    layer = {
+        "Layer": 1,
+        "rebound_thickness_m": rebound_thickness,
+        "recompression_thickness_m": recompression_thickness,
+        "initial_effective_stress_kpa": 100.0,
+        "excavation_effective_stress_kpa": 50.0,
+        "final_effective_stress_kpa": 120.0,
+        "e0": 0.8,
+        "e_exc": 0.9,
+        "e_final": 0.85,
+    }
+    result = excavation_rebound_recompression_layers(layers=[layer])
+    if rebound_thickness == 0.0:
+        assert result["rebound_mm"] == pytest.approx(0.0)
+    if recompression_thickness == 0.0:
+        assert result["recompression_settlement_mm"] == pytest.approx(0.0)
+
+
+def test_layered_excavation_rebound_rejects_both_stage_thicknesses_zero():
+    from geolysis_engine import excavation_rebound_recompression_layers
+    layer = {
+        "Layer": 1,
+        "rebound_thickness_m": 0.0,
+        "recompression_thickness_m": 0.0,
+        "initial_effective_stress_kpa": 100.0,
+        "excavation_effective_stress_kpa": 50.0,
+        "final_effective_stress_kpa": 120.0,
+        "e0": 0.8,
+        "e_exc": 0.9,
+        "e_final": 0.85,
+    }
+    with pytest.raises(ValueError, match="至少一者須大於 0"):
+        excavation_rebound_recompression_layers(layers=[layer])
+
+
 @pytest.mark.parametrize("field", ["e0", "e_exc", "e_final"])
 def test_layered_excavation_rebound_recompression_rejects_negative_void_ratio(field):
     from geolysis_engine import excavation_rebound_recompression_layers
