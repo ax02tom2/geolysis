@@ -407,8 +407,8 @@ def secondary_compression_settlement(*, layer_thickness_m,
     ep=_finite('主固結完成時孔隙比 ep',void_ratio_at_primary_end)
     t1=_finite('次壓縮起算時間 t1',time_start_days)
     t2=_finite('計算終止時間 t2',time_end_days)
-    if H<=0 or Ca<0 or ep<=-1 or t1<=0 or t2<=t1:
-        raise ValueError('H 須大於 0、Cα 不可為負、ep 須大於 -1，且 t2 必須大於 t1>0')
+    if H<=0 or Ca<0 or ep<0 or t1<=0 or t2<=t1:
+        raise ValueError('H 須大於 0、Cα 不可為負、ep 不可為負值，且 t2 必須大於 t1>0')
     settlement=Ca*H/(1.0+ep)*math.log10(t2/t1)
     return {'secondary_settlement_m':settlement,
             'secondary_settlement_mm':settlement*1000.0,
