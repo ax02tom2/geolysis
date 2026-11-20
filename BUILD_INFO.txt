@@ -519,3 +519,10 @@ Module 4 — Multi-load consolidation profile gaps and secondary void-ratio vali
 - PR #270 rejects negative void ratio at the end of primary consolidation in the USACE Eq. 7-47 secondary settlement function; added a numerical benchmark and negative-input regression tests. Merged at f2a25b1870d90815f20706fabfb9614b6e3af545.
 - PR #269 GitHub Actions: full suite 650 passed in 24.16 s; targeted module/Web suite 616 passed in 17.76 s; active-module compilation passed.
 - PR #270 GitHub Actions: full suite 652 passed in 15.69 s; targeted module/Web suite 615 passed in 12.28 s; active-module compilation passed.
+
+Module 4 — Finite-time consolidation degree asymptote (PR #272)
+- Corrected the high-time-factor numerical tail so any finite elapsed time remains strictly below 100% average primary consolidation; the USACE Figure 7-16 limit U=100% corresponds to Tv=∞.
+- Added regression tests for single-layer and multi-layer calculations at Tv=10, 100 and 1,000,000. Updated the UI to label values that round to 100.0% as “趨近 100%（有限時間未達）” rather than claiming complete consolidation.
+- PR #272 merged to main at 4c17d08b700dce60b8c82136d4063a7d9fa7dc4f.
+- GitHub Actions run 44706274313: full suite 657 passed in 24.85 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44706274301: targeted module/Web suite 620 passed in 18.41 s; Python 3.11 active-module compilation passed.
