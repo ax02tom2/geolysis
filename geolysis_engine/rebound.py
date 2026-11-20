@@ -11,6 +11,7 @@ def excavation_rebound_recompression_layers(*, layers):
     final_effective_stress_kpa, e0, e_exc, e_final.
     Void ratios are read from the layer's oedometer e-log-p curve at the
     corresponding effective stresses, avoiding a single constant Cr/Cc.
+    A zero stage thickness is allowed only when that stage has no void-ratio change.
     """
     if not layers:
         raise ValueError("至少需要一個分層固結資料列")
