@@ -59,19 +59,32 @@ def consolidation_settlement_layers_from_stress_profile(*, layers):
             "Regime": result["regime"],
         })
     results.sort(key=lambda item: item["Depth_center_m"])
+    profile_gap_warnings = []
     for i, row in enumerate(results):
-        if row["Depth_center_m"] - row["Thickness_m"] / 2.0 < -1e-9:
+        layer_top = row["Depth_center_m"] - row["Thickness_m"] / 2.0
+        if layer_top < -1e-9:
             raise ValueError("壓縮層頂面不可位於基礎底以上")
         if i:
             previous_bottom = (
                 results[i - 1]["Depth_center_m"]
                 + results[i - 1]["Thickness_m"] / 2.0
             )
-            if row["Depth_center_m"] - row["Thickness_m"] / 2.0 < previous_bottom - 1e-9:
+            if layer_top < previous_bottom - 1e-9:
                 raise ValueError("分層厚度互相重疊；請檢查各層中心深度與厚度")
+            if layer_top > previous_bottom + 1e-9:
+                profile_gap_warnings.append(
+                    f"第 {row['Layer']} 層與前一層之間有 {layer_top - previous_bottom:.3f} m 未建模間隔；"
+                    "該區間未計入主固結沉陷，請確認為可忽略壓縮的土層，否則補入分層資料。"
+                )
+        elif layer_top > 1e-9:
+            profile_gap_warnings.append(
+                f"第一個壓縮層頂面位於所選剖面基準面下 {layer_top:.3f} m；"
+                "該區間未計入主固結沉陷，請確認可忽略壓縮，否則補入分層資料。"
+            )
     return {
         "settlement_mm": sum(row["Settlement_mm"] for row in results),
         "layer_results": results,
+        "warnings": profile_gap_warnings,
         "method": "逐層一維主固結；使用使用者輸入之總應力增量 Δσz（已完成荷載疊加）",
         "limitations": (
             "本方法只計算輸入之逐層總應力增量所造成的主固結沉陷；"
