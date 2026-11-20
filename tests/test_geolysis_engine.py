@@ -850,7 +850,7 @@ def test_layered_excavation_rebound_allows_one_zero_stage_thickness(
 ):
     from geolysis_engine import excavation_rebound_recompression_layers
     e_exc = 0.8 if rebound_thickness == 0.0 else 0.9
-    e_final = e_exc if recompression_thickness == 0.0 else 0.85
+    e_final = e_exc if recompression_thickness == 0.0 else (0.75 if rebound_thickness == 0.0 else 0.85)
     layer = {
         "Layer": 1,
         "rebound_thickness_m": rebound_thickness,
