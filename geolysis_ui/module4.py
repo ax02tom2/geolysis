@@ -4,7 +4,7 @@ import logging
 import hashlib
 import pandas as pd
 from io import StringIO
-from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
+from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers, consolidation_settlement_layers, consolidation_settlement_1d, secondary_compression_settlement, estimate_void_ratio_at_primary_end, immediate_elastic_settlement, excavation_rebound_recompression, excavation_rebound_recompression_layers, differential_settlement, usace_meyerhof_settlement_allowable, burland_burbidge_2025_settlement, burland_burbidge_2025_allowable_pressure, burland_burbidge_average_n60_from_profile, burland_burbidge_average_n60_from_ground_profile, consolidation_allowable_pressure, consolidation_allowable_pressure_layers, consolidation_influence_depth_review, consolidation_settlement_layers_from_stress_profile, boussinesq_rectangular_center_factor, usace_settlement_design_pressure, dmt_settlement_2025, dmt_modulus_settlement_2025, schmertmann_cpt_settlement_2025, menard_rousseau_pmt_settlement_2025, usace_footing_type
 
 
 
@@ -701,17 +701,12 @@ def render_module_4(expanded=False):
                             primary_total4=float(primary_at_final_pressure4["settlement_mm"])
                             st.caption(f"時間速率與次壓縮採用最終控制淨壓力 qa,net={qa_clay_final:.2f} kPa 對應的主固結沉陷 {primary_total4:.2f} mm；若模組五承載力上限控制，已重新計算，不沿用容許沉陷目標值。")
                             if calc_secondary4:
-                                ep_estimate4=e0-(primary_total4/(1000.0*representative_H4))*(1.0+e0)
+                                ep_estimate4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
                                 ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
                                 ep_valid4=True
                                 if ep_source4=="依本次主固結沉陷反算（初估）":
-                                    if ep_estimate4<0.0:
-                                        st.error("依目前主固結沉陷反算的 ep 小於 0，超出物理範圍；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
-                                        ep_valid4=False
-                                        ep4=0.0
-                                    else:
-                                        ep4=ep_estimate4
-                                        st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
+                                    ep4=ep_estimate4
+                                    st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
                                 else:
                                     ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
                             time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
