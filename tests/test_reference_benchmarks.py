@@ -4265,7 +4265,7 @@ def test_consolidation_layer_profile_warns_when_compressible_interval_is_omitted
         layers=layers, footing_width_m=2.0, footing_length_m=3.0,
         net_pressure_kpa=100.0, stress_method="Boussinesq",
     )
-    assert any("0.500 m 未建模間隔" in warning for warning in result["warnings"])
+    assert any("第 3 層" in warning and "0.500 m 未建模間隔" in warning for warning in result["warnings"])
     assert result["settlement_mm"] == pytest.approx(
         sum(row["Settlement_mm"] for row in result["layer_results"])
     )
