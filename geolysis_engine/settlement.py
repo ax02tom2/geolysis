@@ -106,13 +106,17 @@ def _terzaghi_degree_from_time_factor(tv):
         if tv <= tv1:
             return _linear_interpolate(tv, tv0, u0, tv1, u1)
     # Beyond Tv=2.0, continue with the classical series as a tail approximation.
+    # For finite Tv, U approaches but never equals 100%. Floating-point
+    # subtraction eventually rounds the remaining excess pore pressure to zero;
+    # cap at the largest representable float below 100 to preserve that limit.
+    maximum_finite_degree = math.nextafter(100.0, 0.0)
     if tv >= 10:
-        return 100.0
+        return maximum_finite_degree
     u = 1.0
     for m in range(100):
         odd = 2 * m + 1
         u -= 8.0 / (math.pi ** 2 * odd ** 2) * math.exp(-(odd ** 2 * math.pi ** 2 * tv) / 4.0)
-    return min(100.0, max(0.0, u * 100.0))
+    return min(maximum_finite_degree, max(0.0, u * 100.0))
 
 def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
                             cv_m2_per_day, target_degree_percent=90.0,

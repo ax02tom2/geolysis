@@ -669,7 +669,7 @@ def render_module_4(expanded=False):
                                     with mtc1:
                                         st.metric("全層加權平均達標時間",f"{multi_time4['time_to_target_years']:.2f} 年")
                                     with mtc2:
-                                        st.metric("目前全層平均固結度",f"{multi_time4['average_degree_at_elapsed_percent']:.1f}%")
+                                        st.metric("目前全層平均固結度",("趨近 100%（有限時間未達）" if multi_time4["average_degree_at_elapsed_percent"]>=99.95 else f"{multi_time4['average_degree_at_elapsed_percent']:.1f}%"))
                                     with mtc3:
                                         st.metric("目前主固結＋次壓縮沉陷",f"{multi_time4['total_settlement_at_elapsed_mm']:.2f} mm")
                                     st.caption(f"最終主固結沉陷 {multi_time4['ultimate_primary_settlement_mm']:.2f} mm；目前主固結 {multi_time4['primary_settlement_at_elapsed_mm']:.2f} mm；目前次壓縮 {multi_time4['secondary_settlement_at_elapsed_mm']:.2f} mm。")
@@ -705,7 +705,8 @@ def render_module_4(expanded=False):
                                 layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
                                 target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
                                 drainage=drainage4)
-                            st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{time4['degree_at_elapsed_percent']:.1f}%，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
+                            degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
+                            st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
                             st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
                             if calc_secondary4:
                                 t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,

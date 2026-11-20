@@ -48,6 +48,35 @@ def test_primary_settlement_is_recomputed_when_capacity_caps_net_pressure():
 
 
 
+@pytest.mark.parametrize("time_factor", [10.0, 100.0, 1.0e6])
+def test_single_layer_finite_elapsed_time_never_reports_exactly_100_percent(time_factor):
+    # USACE EM 1110-1-1905 (2025), Figure 7-16: U=100% requires Tv=infinity.
+    result = consolidation_time_rate(
+        primary_settlement_mm=25.0,
+        layer_thickness_m=2.0,
+        cv_m2_per_day=1.0,
+        target_degree_percent=90.0,
+        elapsed_days=time_factor,
+        drainage="double",
+    )
+    assert result["time_factor_elapsed"] == pytest.approx(time_factor)
+    assert result["degree_at_elapsed_percent"] < 100.0
+    assert result["primary_settlement_at_elapsed_mm"] < 25.0
+
+
+def test_multilayer_finite_elapsed_time_never_reports_exactly_100_percent():
+    result = consolidation_time_rate_layers(
+        layer_results=[{"Layer": 1, "Thickness_m": 2.0, "Settlement_mm": 25.0}],
+        layer_time_parameters=[{
+            "Layer": 1, "Cv_m2_per_day": 1.0, "Drainage": "double",
+        }],
+        target_degree_percent=90.0,
+        elapsed_days=10.0,
+    )
+    assert result["average_degree_at_elapsed_percent"] < 100.0
+    assert result["primary_settlement_at_elapsed_mm"] < 25.0
+
+
 def test_multilayer_time_rate_matches_single_layer_time_rate():
     layers = [{"Layer": "A", "Thickness_m": 4.0, "Settlement_mm": 25.0}]
     parameters = [{"Layer": "A", "Cv_m2_per_day": 0.02, "Drainage": "double", "C_alpha": 0.0}]
