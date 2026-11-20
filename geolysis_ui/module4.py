@@ -460,6 +460,7 @@ def render_module_4(expanded=False):
                 st.caption("岩石 α 依 USACE Table 7-6 岩體狀態直接選取，不使用土壤 E/pne 固結狀態判讀。")
             else:
                 pmtState=st.selectbox("土層狀態（表 7-6）",["auto","normally_consolidated","overconsolidated","weathered_remolded"],format_func=lambda x:{"auto":"依 Ed／Ec 各自 E/pne 比值自動選 α","normally_consolidated":"正常固結","overconsolidated":"過固結","weathered_remolded":"風化／重塑"}[x],key="m4_pmt_state")
+                st.caption("自動判讀僅依表 7-6 的 E/pne 區間選取過固結或正常固結 α；若判定為風化／重塑土，須有地質與試驗依據並明確選擇該狀態，不可只憑 E/pne 推定。")
             if pmtSoil=="peat" and pmtState=="auto":
                 st.warning("USACE Table 7-6 僅列正常固結泥炭 α=1；須先確認泥炭為正常固結，並明確選擇「正常固結」，不可由 E/pne 自動推定。")
             if pmtRound:
