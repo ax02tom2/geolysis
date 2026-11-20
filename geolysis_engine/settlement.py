@@ -788,13 +788,14 @@ def menard_rousseau_pmt_settlement_2025(*, pmt_moduli, footing_width_m,
                 raise ValueError("USACE Table 7-6 僅列正常固結泥炭 α=1；請先確認泥炭為正常固結後選擇 normally_consolidated，不可由 E/pne 自動推定")
             if soil_type == "clay":
                 if ratio > 16.0: return 1.0
-                if 9.0 <= ratio <= 16.0: return 2.0/3.0
-                if 7.0 <= ratio < 9.0:
+                if 7.0 <= ratio <= 9.0:
                     raise ValueError(
-                        "USACE Table 7-6：clay 的 E/pne=7–9 僅列於 weathered/remolded 狀態；"
-                        "E/pne 本身不能證明土層已風化或重塑，請先確認土層狀態並明確選擇 "
-                        "weathered_remolded，不可由 auto 自動指定 α=0.5"
+                        "USACE Table 7-6：clay 的 E/pne=7–9 列於 weathered/remolded 狀態，"
+                        "且 E/pne=9 同時位於 normally consolidated 的 9–16 邊界；"
+                        "E/pne 本身不能證明土層狀態，請先確認並明確選擇 "
+                        "normally_consolidated 或 weathered_remolded，不可由 auto 推定 α"
                     )
+                if 9.0 < ratio <= 16.0: return 2.0/3.0
             elif soil_type == "silt":
                 if ratio > 14.0: return 2.0/3.0
                 if 8.0 <= ratio <= 14.0: return 0.5
