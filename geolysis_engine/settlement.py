@@ -401,6 +401,25 @@ def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
             'angular_distortion_ratio':(delta/1000.0)/spacing,
             'method':'兩點總沉陷差／水平距離；未自動套用建築物容許值'}
 
+def estimate_void_ratio_at_primary_end(*, initial_void_ratio,
+                                         layer_thickness_m,
+                                         primary_settlement_mm):
+    """Estimate end-of-primary void ratio from 1-D vertical compression.
+
+    Uses settlement = H * (e0 - ep) / (1 + e0). A laboratory e value at
+    t100 remains preferable when available.
+    """
+    e0=_finite('初始孔隙比 e0',initial_void_ratio)
+    H=_finite('壓縮層厚度',layer_thickness_m)
+    settlement=_finite('主固結沉陷',primary_settlement_mm)
+    if e0<0 or H<=0 or settlement<0:
+        raise ValueError('初始孔隙比與主固結沉陷不可為負，壓縮層厚度須大於 0')
+    ep=e0-(settlement/(1000.0*H))*(1.0+e0)
+    if ep<0:
+        raise ValueError('由主固結沉陷反算的 ep 小於 0；請檢查厚度／沉陷資料或使用固結試驗 t100 孔隙比')
+    return ep
+
+
 def secondary_compression_settlement(*, layer_thickness_m,
                                       secondary_compression_index,
                                       void_ratio_at_primary_end,
