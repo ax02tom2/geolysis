@@ -1251,3 +1251,11 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #259 merged to main at 636e2df866b86f83a0b030516081a1d5ab21600f.
 - GitHub Actions run 44496895182: full suite 637 passed in 24.03 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44496895211: targeted module/Web suite 603 passed in 17.57 s; Python 3.11 active-module compilation passed.
+
+
+## Module 4 — Burland–Burbidge time-factor applicability before 3 years
+
+- Fixed the time correction factor C3. The previous implementation applied the complete R3 first-three-year settlement increment even when the selected loading duration was less than 3 years, overstating short-duration settlement. C3 is now 1.0 for t < 3 years; at t=3 years it becomes 1+R3; for t>3 years it follows 1+R3+Rt·log10(t/3).
+- Regression coverage: t=0.1, 1.0, 2.99, 3.0 and 30 years for static and fluctuating loads.
+- References: Burland & Burbidge (1985), “Settlement of Foundations on Sand and Gravel,” paragraphs 18–20; FHWA-HRT-15-080, Chapter 4, Burland and Burbidge Method (time factor used if t >= 3 years).
+- No other settlement equations changed.
