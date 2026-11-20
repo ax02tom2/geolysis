@@ -32,8 +32,8 @@ def excavation_rebound_recompression_layers(*, layers):
         e0 = _finite("開挖前孔隙比 e0", row["e0"])
         ee = _finite("開挖後孔隙比 e_exc", row["e_exc"])
         ef = _finite("載重後孔隙比 e_final", row["e_final"])
-        if hr <= 0 or hc <= 0:
-            raise ValueError(f"第 {i} 層回彈及再壓縮厚度均須大於 0")
+        if hr < 0 or hc < 0 or hr + hc <= 0:
+            raise ValueError(f"第 {i} 層回彈及再壓縮厚度不可為負，且至少一者須大於 0")
         if not (0 < se <= s0 and sf >= se):
             raise ValueError(f"第 {i} 層應符合 0 < σ'exc ≤ σ'0 且 σ'f ≥ σ'exc")
         if min(e0, ee, ef) < 0:
