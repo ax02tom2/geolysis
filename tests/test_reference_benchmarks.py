@@ -1695,7 +1695,7 @@ def test_usace_2025_menard_pmt_auto_does_not_infer_weathered_clay_from_ratio():
         {"group": group, "E0_kpa": 12000.0}
         for group in ("E1", "E2", "E345", "E678", "E916")
     ]
-    with pytest.raises(ValueError, match="不能證明土層已風化或重塑"):
+    with pytest.raises(ValueError, match="不能證明土層狀態"):
         menard_rousseau_pmt_settlement_2025(
             pmt_moduli=pmt, footing_width_m=2.0, footing_length_m=2.0,
             gross_pressure_kpa=200.0, base_effective_stress_kpa=100.0,
