@@ -1332,11 +1332,26 @@ def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m
     results.sort(key=lambda x:x['Depth_center_m'])
     if any(results[i]['Depth_center_m']>=results[i+1]['Depth_center_m'] for i in range(len(results)-1)):
         raise ValueError('分層中心深度必須由淺至深且不可重複')
+    profile_gap_warnings = []
     for i,row in enumerate(results):
-        if row['Depth_center_m']-row['Thickness_m']/2 < -1e-9:
+        layer_top = row['Depth_center_m']-row['Thickness_m']/2
+        layer_bottom = row['Depth_center_m']+row['Thickness_m']/2
+        if layer_top < -1e-9:
             raise ValueError('壓縮層頂面不可位於基礎底以上；請檢查 Depth_center_m 與 Thickness_m')
-        if i and row['Depth_center_m']-row['Thickness_m']/2 < results[i-1]['Depth_center_m']+results[i-1]['Thickness_m']/2-1e-9:
-            raise ValueError('分層厚度互相重疊；請檢查各層中心深度與厚度')
+        if i:
+            previous_bottom = results[i-1]['Depth_center_m']+results[i-1]['Thickness_m']/2
+            if layer_top < previous_bottom-1e-9:
+                raise ValueError('分層厚度互相重疊；請檢查各層中心深度與厚度')
+            if layer_top > previous_bottom+1e-9:
+                profile_gap_warnings.append(
+                    f"第 {row['Layer']} 層與前一層之間有 {layer_top-previous_bottom:.3f} m 未建模間隔；"
+                    "該區間未計入主固結沉陷，請確認為可忽略壓縮的土層，否則補入分層資料。"
+                )
+        elif layer_top > 1e-9:
+            profile_gap_warnings.append(
+                f"第一個壓縮層頂面位於基礎底下 {layer_top:.3f} m；"
+                "基礎底至該層頂面的區間未計入主固結沉陷，請確認該區間可忽略壓縮，否則補入分層資料。"
+            )
     profile_bottom = max(row["Depth_center_m"] + row["Thickness_m"] / 2.0 for row in results)
     depth_review = consolidation_influence_depth_review(
         footing_width_m=B, footing_length_m=L,
@@ -1344,7 +1359,8 @@ def consolidation_settlement_layers(*, layers, footing_width_m, footing_length_m
     )
     return {'settlement_mm':sum(x['Settlement_mm'] for x in results),
             'layer_results':results,'method':f'分層一維主固結；{stress_method} 應力分布',
-            **depth_review}
+            'warnings': depth_review['warnings'] + profile_gap_warnings,
+            **{k:v for k,v in depth_review.items() if k!='warnings'}}
 
 def consolidation_allowable_pressure_layers(*, layers, footing_width_m, footing_length_m,
                                             target_settlement_mm, stress_method='Boussinesq',
