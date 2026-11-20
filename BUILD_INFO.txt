@@ -548,3 +548,34 @@ Module 4 — Layered excavation rebound void-ratio validation (PR #277)
 - PR #277 merged to main at bc9355b8a70d2a6bd65a244a984e88688e6d22dd.
 - GitHub Actions run 44707543462: full suite 662 passed in 15.84 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44707543423: targeted module/Web suite 625 passed in 25.76 s; Python 3.11 active-module compilation passed.
+
+Module 4 — Layered rebound/recompression stage thicknesses (PR #279)
+- Allowed a layer to have zero rebound thickness or zero recompression thickness when that stage does not apply; negative thicknesses and rows with both stage thicknesses zero remain invalid.
+- Added regression tests for one-stage-only cases and the all-zero rejection.
+- PR #279 merged to main at 18d98c391969c8545f308970b061c8ad5fee9efb.
+- GitHub Actions run 44707927311: full suite 665 passed in 17.59 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44707927375: targeted module/Web suite 628 passed in 25.31 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Signed differential vertical movement (PR #280)
+- Differential settlement now accepts signed vertical movement at each point: downward settlement is positive; rebound/heave is negative. Differential movement remains the absolute difference divided by horizontal spacing.
+- Updated Module 4 labels and added a regression case comparing one heaving point with one settling point.
+- PR #280 merged to main at 50da5fa2ad682af9dfcef71511a6b8d3c5120e8a.
+- GitHub Actions run 44708272730: full suite 666 passed in 18.06 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44708272721: targeted module/Web suite 629 passed in 21.66 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Zero-stage rebound void-ratio continuity (PR #281)
+- When rebound thickness is zero, require e_exc=e0; when recompression thickness is zero, require e_final=e_exc. This prevents a void-ratio change being assigned to a stage with no modeled thickness.
+- Added regression tests for both inconsistent zero-stage cases and corrected the one-stage-only fixture paths.
+- PR #281 merged to main at 8968f2739dc21309439467c9be9ace52f58bc848.
+- GitHub Actions run 44708626113: full suite 668 passed in 24.77 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44708626157: targeted module/Web suite 631 passed in 16.55 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Combined immediate and primary settlement (PR #282)
+- The optional immediate/elastic settlement section now recomputes primary consolidation at the same user-entered qnet and displays the combined immediate + primary settlement for both single-layer and multi-layer profiles.
+- The subtotal explicitly excludes secondary compression and excavation rebound; the UI warns if qnet exceeds the settlement/bearing control value and states the homogeneous elastic half-space limitation for the immediate component.
+- PR #282 merged to main at 65f4a56aa12385d2f13e8025a2aebad2afea1512.
+- GitHub Actions run 44708949128: full suite 668 passed in 15.93 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44708949145: targeted module/Web suite 631 passed in 17.67 s; Python 3.11 active-module compilation passed.
