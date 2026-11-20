@@ -486,3 +486,12 @@ Module 4 — Burland–Burbidge time-factor applicability before 3 years (PR #26
 - PR #261 merged to main at 4d9b5a124734935e899b9cc75cdc4cc267214f4b.
 - GitHub Actions run 44661715384: full suite 645 passed in 13.56 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44661715414: targeted module/Web suite 611 passed in 24.22 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — PMT clay rheological-state classification (PR #263)
+- Prevented consolidation_state="auto" from assigning the weathered/remolded clay factor α=0.5 solely from E/pne=7–9. USACE Table 7-6 lists that interval specifically for weathered/remolded clay; E/pne alone does not establish weathering or remolding.
+- Added a clear Module 4 UI note requiring explicit soil-state confirmation before applying the weathered/remolded factor.
+- Added a regression test for the ambiguous auto-classification path.
+- PR #263 merged to main at c06f5d5ae6b466de81b350ef15fa7b4a00818255.
+- GitHub Actions run 44691254634: full suite 646 passed in 23.82 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44691254195: targeted module/Web suite 612 passed in 15.44 s; Python 3.11 active-module compilation passed.
