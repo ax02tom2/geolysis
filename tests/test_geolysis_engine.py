@@ -849,6 +849,8 @@ def test_layered_excavation_rebound_allows_one_zero_stage_thickness(
     rebound_thickness, recompression_thickness
 ):
     from geolysis_engine import excavation_rebound_recompression_layers
+    e_exc = 0.8 if rebound_thickness == 0.0 else 0.9
+    e_final = e_exc if recompression_thickness == 0.0 else 0.85
     layer = {
         "Layer": 1,
         "rebound_thickness_m": rebound_thickness,
@@ -857,14 +859,40 @@ def test_layered_excavation_rebound_allows_one_zero_stage_thickness(
         "excavation_effective_stress_kpa": 50.0,
         "final_effective_stress_kpa": 120.0,
         "e0": 0.8,
-        "e_exc": 0.9,
-        "e_final": 0.85,
+        "e_exc": e_exc,
+        "e_final": e_final,
     }
     result = excavation_rebound_recompression_layers(layers=[layer])
     if rebound_thickness == 0.0:
         assert result["rebound_mm"] == pytest.approx(0.0)
     if recompression_thickness == 0.0:
         assert result["recompression_settlement_mm"] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(
+    ("rebound_thickness", "recompression_thickness", "e_exc", "e_final", "message"),
+    [
+        (0.0, 2.0, 0.9, 0.85, "回彈厚度為 0"),
+        (2.0, 0.0, 0.9, 0.85, "再壓縮厚度為 0"),
+    ],
+)
+def test_layered_excavation_rebound_rejects_void_ratio_change_in_absent_stage(
+    rebound_thickness, recompression_thickness, e_exc, e_final, message
+):
+    from geolysis_engine import excavation_rebound_recompression_layers
+    layer = {
+        "Layer": 1,
+        "rebound_thickness_m": rebound_thickness,
+        "recompression_thickness_m": recompression_thickness,
+        "initial_effective_stress_kpa": 100.0,
+        "excavation_effective_stress_kpa": 50.0,
+        "final_effective_stress_kpa": 120.0,
+        "e0": 0.8,
+        "e_exc": e_exc,
+        "e_final": e_final,
+    }
+    with pytest.raises(ValueError, match=message):
+        excavation_rebound_recompression_layers(layers=[layer])
 
 
 def test_layered_excavation_rebound_rejects_both_stage_thicknesses_zero():
