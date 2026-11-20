@@ -1306,8 +1306,8 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 ## Module 4 — Finite-time consolidation degree asymptote
 
 - Corrected the high-time-factor Terzaghi response so finite elapsed time cannot return exactly 100% average primary consolidation. The code now caps floating-point saturation at the largest representable value below 100%; the Module 4 UI explicitly labels values that round to 100.0% as approaching, but not attaining, 100% in finite time.
-- Regression tests cover single-layer and multi-layer responses at (T_v=10), (100), and (1{,}000{,}000), including the corresponding primary settlement remaining below the ultimate primary settlement.
-- Reference: USACE EM 1110-1-1905 (31 July 2025), §7-18, Eq. 7-42 and Figure 7-16; the figure lists (U=100.0\%) at (T_v=\infty).
+- Regression tests cover single-layer and multi-layer responses at Tv=10, 100, and 1,000,000, including the corresponding primary settlement remaining below the ultimate primary settlement.
+- Reference: USACE EM 1110-1-1905 (31 July 2025), §7-18, Eq. 7-42 and Figure 7-16; the figure lists U=100.0% only at Tv=infinity.
 - PR #272 merged to main at 4c17d08b700dce60b8c82136d4063a7d9fa7dc4f.
 - GitHub Actions run 44706274313: full suite 657 passed in 24.85 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44706274301: targeted module/Web suite 620 passed in 18.41 s; Python 3.11 active-module compilation passed.
