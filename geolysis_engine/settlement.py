@@ -388,7 +388,10 @@ def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
             'limitations':'以 Cr/Cc 理想化 e-log-p 曲線估算；實際開挖回彈量可能小於理論值，需以卸載－再載重固結試驗曲線校核。'}
 
 def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
-    """Compute differential settlement and angular distortion between two points."""
+    """Compute differential settlement/angular distortion from signed vertical movements.
+
+    Positive movement is downward settlement; negative movement is rebound or heave.
+    """
     a=_finite('位置 A 總沉陷',settlement_a_mm)
     b=_finite('位置 B 總沉陷',settlement_b_mm)
     spacing=_finite('兩位置水平距離',spacing_m)
