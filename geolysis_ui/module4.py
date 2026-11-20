@@ -757,6 +757,27 @@ def render_module_4(expanded=False):
                             poisson_ratio=nu_im4,influence_factor=ip_im4[1])
                         st.metric("即時／彈性沉陷 δi",f"{immediate4['immediate_settlement_mm']:.2f} mm")
                         st.caption(immediate4['method']+"；"+immediate4['limitations'])
+                        if layers_text4.strip():
+                            primary_for_total4=consolidation_settlement_layers(
+                                layers=pd.read_csv(StringIO(layers_text4)).to_dict("records"),
+                                footing_width_m=qB_calc,footing_length_m=qL_calc,
+                                net_pressure_kpa=q_im4,stress_method=stress_method_clay4)
+                            primary_for_total_mm4=float(primary_for_total4["settlement_mm"])
+                            for _total_warning4 in primary_for_total4.get("warnings", []):
+                                st.warning(_total_warning4)
+                        else:
+                            primary_for_total4=consolidation_settlement_1d(
+                                layer_thickness_m=Hc,initial_void_ratio=e0,
+                                compression_index=Cc,recompression_index=Cr,
+                                initial_effective_stress_kpa=sig0,
+                                preconsolidation_stress_kpa=sigp,
+                                stress_increase_kpa=q_im4*stress_ratio_clay4)
+                            primary_for_total_mm4=float(primary_for_total4["settlement_mm"])
+                        st.metric("同一 qnet 下即時＋主固結沉陷",
+                                  f"{immediate4['immediate_settlement_mm']+primary_for_total_mm4:.2f} mm")
+                        st.caption(f"主固結 {primary_for_total_mm4:.2f} mm + 即時／彈性 {immediate4['immediate_settlement_mm']:.2f} mm；採相同 qnet={q_im4:.2f} kPa 重新計算；不含次壓縮與開挖回彈。")
+                        if q_im4>qa_clay_final+1e-6:
+                            st.warning(f"目前輸入 qnet={q_im4:.2f} kPa 高於前述沉陷／承載力控制值 {qa_clay_final:.2f} kPa；合計沉陷僅反映該輸入荷載，不代表符合容許值。")
                     except Exception as immediate_exc:
                         st.error(f"即時沉陷估算失敗：{immediate_exc}")
                 with st.expander("多重荷載疊加／大面積填土（逐層 Δσz）",expanded=False):
