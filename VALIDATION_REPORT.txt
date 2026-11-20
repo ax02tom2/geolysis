@@ -1262,3 +1262,13 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #261 merged to main at 4d9b5a124734935e899b9cc75cdc4cc267214f4b.
 - GitHub Actions run 44661715384: full suite 645 passed in 13.56 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44661715414: targeted module/Web suite 611 passed in 24.22 s; Python 3.11 active-module compilation passed.
+
+
+## Module 4 — PMT clay rheological-state classification
+
+- Corrected the automatic Table 7-6 α selection so clay with E/pne in the 7–9 interval is not silently treated as weathered/remolded. The interval and α=0.5 are specifically listed in the weathered/remolded row; this material state must be supported by site/geological evidence and explicitly selected by the engineer.
+- Added a regression test proving that consolidation_state="auto" fails closed for this ambiguous case. The Module 4 UI now explains that automatic selection only uses the tabulated over-consolidated and normally-consolidated ranges; weathered/remolded requires explicit confirmation.
+- Reference: USACE EM 1110-1-1905 (31 July 2025), Table 7-6, page 170.
+- PR #263 merged to main at c06f5d5ae6b466de81b350ef15fa7b4a00818255.
+- GitHub Actions run 44691254634: full suite 646 passed in 23.82 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44691254195: targeted module/Web suite 612 passed in 15.44 s; Python 3.11 active-module compilation passed.
