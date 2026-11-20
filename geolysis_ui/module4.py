@@ -775,7 +775,7 @@ def render_module_4(expanded=False):
                             primary_for_total_mm4=float(primary_for_total4["settlement_mm"])
                         st.metric("同一 qnet 下即時＋主固結沉陷",
                                   f"{immediate4['immediate_settlement_mm']+primary_for_total_mm4:.2f} mm")
-                        st.caption(f"主固結 {primary_for_total_mm4:.2f} mm + 即時／彈性 {immediate4['immediate_settlement_mm']:.2f} mm；採相同 qnet={q_im4:.2f} kPa 重新計算；不含次壓縮與開挖回彈。")
+                        st.caption(f"主固結 {primary_for_total_mm4:.2f} mm + 即時／彈性 {immediate4['immediate_settlement_mm']:.2f} mm；採相同 qnet={q_im4:.2f} kPa 重新計算；不含次壓縮與開挖回彈。即時項採均質彈性半空間近似，若分層剛度差異顯著，合計僅供初估。")
                         if q_im4>qa_clay_final+1e-6:
                             st.warning(f"目前輸入 qnet={q_im4:.2f} kPa 高於前述沉陷／承載力控制值 {qa_clay_final:.2f} kPa；合計沉陷僅反映該輸入荷載，不代表符合容許值。")
                     except Exception as immediate_exc:
