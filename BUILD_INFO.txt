@@ -533,3 +533,18 @@ Module 4 — Secondary-compression end-of-primary void ratio (PR #274)
 - PR #274 merged to main at c8dcdd5593d4e90f542ca18fd443d9dcc1131562.
 - GitHub Actions run 44706992741: full suite 659 passed in 25.19 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44706992791: targeted module/Web suite 622 passed in 24.46 s; Python 3.11 active-module compilation passed.
+
+Module 4 — Secondary compression index units and reference guidance (PR #276)
+- Clarified that C_alpha is entered as a dimensionless decimal (e.g. 0.008 = 0.8% per log cycle), and displayed the USACE Table 3-12 compressibility categories after percentage-to-decimal conversion.
+- Added preliminary Table 3-13 C_alpha/C_c reference ranges for inorganic clay/silt and organic soil/peat, with explicit reminders that C_alpha is stress-dependent and laboratory values at representative effective stress take precedence.
+- PR #276 merged to main at fdd5cc811fece4e05f8a7e4c2cd05b678d5cfb77.
+- GitHub Actions run 44707398916: full suite 659 passed in 14.30 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44707398868: targeted module/Web suite 622 passed in 18.85 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Layered excavation rebound void-ratio validation (PR #277)
+- Tightened the layered rebound/recompression input guard so e0, e_exc, and e_final cannot be negative; the prior check admitted physically impossible values between -1 and 0.
+- Added regression tests for each negative void-ratio field.
+- PR #277 merged to main at bc9355b8a70d2a6bd65a244a984e88688e6d22dd.
+- GitHub Actions run 44707543462: full suite 662 passed in 15.84 s; Python 3.11 active-module compilation passed.
+- GitHub Actions run 44707543423: targeted module/Web suite 625 passed in 25.76 s; Python 3.11 active-module compilation passed.
