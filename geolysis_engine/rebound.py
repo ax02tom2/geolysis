@@ -36,8 +36,8 @@ def excavation_rebound_recompression_layers(*, layers):
             raise ValueError(f"第 {i} 層回彈及再壓縮厚度均須大於 0")
         if not (0 < se <= s0 and sf >= se):
             raise ValueError(f"第 {i} 層應符合 0 < σ'exc ≤ σ'0 且 σ'f ≥ σ'exc")
-        if min(e0, ee, ef) <= -1:
-            raise ValueError(f"第 {i} 層孔隙比必須大於 -1")
+        if min(e0, ee, ef) < 0:
+            raise ValueError(f"第 {i} 層孔隙比不可為負值")
         if ee < e0 or ef > ee:
             raise ValueError(
                 f"第 {i} 層孔隙比方向不符：回彈階段應 e_exc ≥ e0，"
