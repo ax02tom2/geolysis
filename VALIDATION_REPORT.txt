@@ -1336,3 +1336,29 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #277 merged to main at bc9355b8a70d2a6bd65a244a984e88688e6d22dd.
 - GitHub Actions run 44707543462: full suite 662 passed in 15.84 s; active-module compilation passed. Targeted run 44707543423: 625 passed in 25.76 s.
 - Reference: USACE EM 1110-1-1905 (31 July 2025), §7-15, Table 7-10, Eqs. 7-38 and 7-40.
+
+## Module 4 — Layered rebound/recompression stage thicknesses
+
+- A modeled stratum may have zero rebound thickness or zero recompression thickness when the corresponding stage is absent. Negative stage thicknesses and rows where both are zero remain rejected.
+- Regression coverage includes both one-stage-only cases and the all-zero rejection.
+- PR #279 merged to main at 18d98c391969c8545f308970b061c8ad5fee9efb. Full suite: 665 passed; targeted suite: 628 passed; active-module compilation passed.
+- Reference: USACE EM 1110-1-1905 (31 July 2025), §7-15 and Table 7-10.
+
+## Module 4 — Signed differential vertical movement
+
+- Differential movement accepts signed vertical movement: downward settlement positive, rebound/heave negative. The differential is |sA−sB| and angular distortion is the absolute difference divided by spacing.
+- Updated UI sign convention and added regression coverage for simultaneous heave and settlement.
+- PR #280 merged to main at 50da5fa2ad682af9dfcef71511a6b8d3c5120e8a. Full suite: 666 passed; targeted suite: 629 passed; active-module compilation passed.
+
+## Module 4 — Zero-stage rebound void-ratio continuity
+
+- If rebound thickness is zero, e_exc must equal e0. If recompression thickness is zero, e_final must equal e_exc. A void-ratio change cannot be assigned to an absent stage.
+- Added regression coverage for both inconsistent cases.
+- PR #281 merged to main at 8968f2739dc21309439467c9be9ace52f58bc848. Full suite: 668 passed; targeted suite: 631 passed; active-module compilation passed.
+- Reference: USACE EM 1110-1-1905 (31 July 2025), §7-15, Table 7-10, Eqs. 7-38 and 7-40.
+
+## Module 4 — Combined immediate and primary settlement
+
+- The optional immediate/elastic section recomputes primary settlement at the same user-entered net contact pressure qnet and displays their sum for single-layer and multi-layer cases.
+- The combined subtotal excludes secondary compression and excavation rebound. The UI flags qnet above the settlement/bearing control value and identifies the immediate component's homogeneous elastic half-space limitation.
+- PR #282 merged to main at 65f4a56aa12385d2f13e8025a2aebad2afea1512. Full suite: 668 passed; targeted suite: 631 passed; active-module compilation passed.
