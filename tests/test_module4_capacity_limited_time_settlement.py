@@ -8,7 +8,26 @@ from geolysis_engine import (
     consolidation_settlement_1d,
     consolidation_time_rate,
     consolidation_time_rate_layers,
+    estimate_void_ratio_at_primary_end,
 )
+
+
+def test_end_of_primary_void_ratio_is_derived_from_primary_settlement():
+    ep = estimate_void_ratio_at_primary_end(
+        initial_void_ratio=0.8,
+        layer_thickness_m=2.0,
+        primary_settlement_mm=20.0,
+    )
+    assert ep == pytest.approx(0.782)
+
+
+def test_end_of_primary_void_ratio_rejects_physically_impossible_compression():
+    with pytest.raises(ValueError, match="ep 小於 0"):
+        estimate_void_ratio_at_primary_end(
+            initial_void_ratio=0.5,
+            layer_thickness_m=1.0,
+            primary_settlement_mm=1000.0,
+        )
 
 
 def test_primary_settlement_is_recomputed_when_capacity_caps_net_pressure():
