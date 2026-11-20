@@ -4254,6 +4254,35 @@ def test_consolidation_depth_review_accepts_deep_profile_with_negligible_stress(
     assert review["warnings"] == []
 
 
+def test_consolidation_layer_profile_warns_when_compressible_interval_is_omitted():
+    layers = [
+        {"Layer": 1, "Depth_center_m": 0.5, "Thickness_m": 1.0,
+         "e0": 0.8, "Cc": 0.3, "Cr": 0.05, "Sigma0_kPa": 100.0, "SigmaP_kPa": 150.0},
+        {"Layer": 3, "Depth_center_m": 2.0, "Thickness_m": 1.0,
+         "e0": 0.9, "Cc": 0.4, "Cr": 0.06, "Sigma0_kPa": 120.0, "SigmaP_kPa": 180.0},
+    ]
+    result = consolidation_settlement_layers(
+        layers=layers, footing_width_m=2.0, footing_length_m=3.0,
+        net_pressure_kpa=100.0, stress_method="Boussinesq",
+    )
+    assert any("0.500 m 未建模間隔" in warning for warning in result["warnings"])
+    assert result["settlement_mm"] == pytest.approx(
+        sum(row["Settlement_mm"] for row in result["layer_results"])
+    )
+
+
+def test_consolidation_layer_profile_warns_when_first_layer_starts_below_base():
+    layers = [{
+        "Layer": 2, "Depth_center_m": 1.0, "Thickness_m": 1.0,
+        "e0": 0.8, "Cc": 0.3, "Cr": 0.05, "Sigma0_kPa": 100.0, "SigmaP_kPa": 150.0,
+    }]
+    result = consolidation_settlement_layers(
+        layers=layers, footing_width_m=2.0, footing_length_m=3.0,
+        net_pressure_kpa=100.0, stress_method="Boussinesq",
+    )
+    assert any("基礎底下 0.500 m" in warning for warning in result["warnings"])
+
+
 def test_consolidation_layer_results_include_influence_depth_review():
     layers = [{
         "Depth_center_m": 0.5,
