@@ -1282,3 +1282,14 @@ Appendix C-1 row-wise settlement benchmark strengthening — PR #112
 - PR #265 merged to main at 51cf06f0a7380f03a68ea46ff1369d2bb980710f.
 - GitHub Actions run 44691610948: full suite 647 passed in 12.49 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44691611175: targeted module/Web suite 613 passed in 18.34 s; Python 3.11 active-module compilation passed.
+
+
+## Module 4 — Layered consolidation profile gap warnings
+
+- The multi-layer 1-D primary consolidation calculation now warns when the first modeled compressible layer starts below the footing base or when there are omitted intervals between successive modeled layers. These intervals are not assigned invented properties or settlement; the warning requires confirmation that the interval is effectively non-compressible or that missing strata be added.
+- Existing rejection of overlapping layers is preserved. The warning reports the actual supplied layer identifier.
+- Regression tests cover an internal 0.5 m gap and a 0.5 m unmodeled interval above the first layer.
+- Reference basis: USACE EM 1110-1-1905 (31 July 2025), §7-9 and Table 7-3; settlement is evaluated by the compressible soil strata and their stress history.
+- PR #267 merged to main at 13dd38dc5cedc5535b05920272560485d244f4d0.
+- GitHub Actions run 44697347905: full suite 649 passed in 23.88 s; active-module compilation passed.
+- GitHub Actions run 44697347901: targeted module/Web suite 615 passed in 25.48 s; active-module compilation passed.

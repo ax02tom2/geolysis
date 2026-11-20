@@ -503,3 +503,12 @@ Module 4 — PMT clay α boundary overlap (PR #265)
 - PR #265 merged to main at 51cf06f0a7380f03a68ea46ff1369d2bb980710f.
 - GitHub Actions run 44691610948: full suite 647 passed in 12.49 s; Python 3.11 active-module compilation passed.
 - GitHub Actions run 44691611175: targeted module/Web suite 613 passed in 18.34 s; Python 3.11 active-module compilation passed.
+
+
+Module 4 — Layered consolidation profile gap warnings (PR #267)
+- Added warnings when the first modeled compressible layer starts below the footing base or when gaps occur between modeled layers. Omitted intervals remain excluded from the numeric settlement sum; the engineer must confirm they are effectively non-compressible or add the missing strata.
+- Existing overlap rejection remains in place. Warning labels use the actual layer identifier.
+- Added regression tests for an internal 0.5 m gap and an omitted 0.5 m upper interval.
+- PR #267 merged to main at 13dd38dc5cedc5535b05920272560485d244f4d0.
+- GitHub Actions run 44697347905: full suite 649 passed in 23.88 s; active-module compilation passed.
+- GitHub Actions run 44697347901: targeted module/Web suite 615 passed in 25.48 s; active-module compilation passed.
