@@ -83,6 +83,20 @@ def test_single_layer_finite_elapsed_time_never_reports_exactly_100_percent(time
     assert result["primary_settlement_at_elapsed_mm"] < 25.0
 
 
+@pytest.mark.parametrize("target_degree", [99.9, 99.999999999, 99.99999999999999])
+def test_terzaghi_inverse_tail_round_trips_near_complete_consolidation(target_degree):
+    from geolysis_engine.settlement import (
+        _terzaghi_degree_from_time_factor,
+        _terzaghi_time_factor_from_degree,
+    )
+
+    tv = _terzaghi_time_factor_from_degree(target_degree)
+    assert tv > 2.0
+    assert _terzaghi_degree_from_time_factor(tv) == pytest.approx(
+        target_degree, abs=2e-12
+    )
+
+
 def test_single_layer_tv10_preserves_representable_remaining_pore_pressure():
     # At Tv=10 the series still resolves a small, non-zero residual pressure.
     # Do not replace it prematurely with the largest float below 100%.
