@@ -908,15 +908,27 @@ def render_module_4(expanded=False):
                                     immediate_settlement_mm=immediate_for_stage4,
                                     primary_settlement_mm=multi_time4["primary_settlement_at_elapsed_mm"],
                                     secondary_settlement_mm=multi_time4["secondary_settlement_at_elapsed_mm"])
-                                st.metric("目前經過時間的總沉陷（即時＋主固結＋次壓縮）",
+                                current_stage_label4=(
+                                    "目前即時＋主固結＋次壓縮總沉陷"
+                                    if immediate_for_stage4>0 else
+                                    "目前主固結＋次壓縮（未納入即時沉陷）")
+                                st.metric(current_stage_label4,
                                           f"{current_stage4['total_settlement_mm']:.2f} mm")
                             final_stage4=combine_settlement_stage_movements(
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_final_stage4,
                                 secondary_settlement_mm=secondary_stage4)
-                            st.metric("最終主固結＋目前次壓縮＋即時沉陷",
+                            final_stage_label4=(
+                                "最終主固結＋目前次壓縮＋即時沉陷"
+                                if immediate_for_stage4>0 else
+                                "最終主固結＋目前次壓縮（未納入即時沉陷）")
+                            st.metric(final_stage_label4,
                                       f"{final_stage4['total_settlement_mm']:.2f} mm")
-                            st.caption("多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；第二個數值將主固結改採最終值，次壓縮仍採所輸入經過時間。")
+                            st.caption(
+                                "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
+                                "第二個數值將主固結改採最終值，次壓縮仍採所輸入經過時間。"
+                                + ("已納入經確認的即時沉陷。" if immediate_for_stage4>0 else "未納入即時沉陷。")
+                            )
                         else:
                             if primary_total4 is None:
                                 primary_at_stage4=consolidation_settlement_1d(
@@ -931,14 +943,25 @@ def render_module_4(expanded=False):
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_total4,
                                 secondary_settlement_mm=secondary_stage4)
-                            st.metric("最終主固結＋次壓縮＋即時沉陷",
+                            final_stage_label4=(
+                                "最終主固結＋次壓縮＋即時沉陷"
+                                if immediate_for_stage4>0 else
+                                "最終主固結＋次壓縮（未納入即時沉陷）")
+                            st.metric(final_stage_label4,
                                       f"{final_stage4['total_settlement_mm']:.2f} mm")
-                            st.caption(
-                                f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm"
-                                f"＋最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
-                                f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm。"
-                                "次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
-                            )
+                            if immediate_for_stage4>0:
+                                st.caption(
+                                    f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm"
+                                    f"＋最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
+                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm。"
+                                    "次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
+                                )
+                            else:
+                                st.caption(
+                                    f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
+                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm；"
+                                    "即時／彈性沉陷未納入。次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
+                                )
                 except Exception as stage_exc4:
                     st.error(f"施工階段總沉陷組合失敗：{stage_exc4}")
                 st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
