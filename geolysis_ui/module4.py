@@ -873,16 +873,17 @@ def render_module_4(expanded=False):
                 try:
                     if rebound4 is not None:
                         stage_total4=combine_settlement_stage_movements(
-                            immediate_settlement_mm=immediate_for_stage4,
                             excavation_rebound_mm=rebound4["rebound_mm"],
                             post_excavation_recompression_mm=rebound4["recompression_settlement_mm"])
-                        st.metric("開挖回彈＋再壓縮＋即時沉陷",f"{stage_total4['total_settlement_mm']:.2f} mm")
+                        st.metric("開挖回彈＋開挖後再壓縮淨位移",
+                                  f"{stage_total4['total_settlement_mm']:.2f} mm")
                         st.caption(
-                            f"即時／彈性 {stage_total4['immediate_settlement_mm']:.2f} mm"
-                            f"＋開挖回彈 {stage_total4['excavation_rebound_mm']:.2f} mm"
+                            f"開挖回彈 {stage_total4['excavation_rebound_mm']:.2f} mm"
                             f"＋開挖後再壓縮 {stage_total4['post_excavation_recompression_mm']:.2f} mm"
-                            "。再壓縮已包含開挖後載重造成的主壓縮，不可再加上前述由開挖前狀態計算的主固結；此合計不含次壓縮。"
+                            "。再壓縮已包含開挖後載重造成的主壓縮，不可再加上前述由開挖前狀態計算的主固結；此合計不含即時沉陷與次壓縮。"
                         )
+                        if immediate4 is not None:
+                            st.info("即時／彈性沉陷另行顯示但未併入此合計：目前無法由 e-log-p 輸入確認其 qnet 與各層 σ′exc→σ′f 的載重增量一致，不將不同應力路徑混加。")
                         st.warning("目前時間速率／次壓縮區是未套用開挖卸載路徑的另一種分析；其主固結與次壓縮結果不可直接加到本開挖階段合計。")
                     else:
                         if layers_text4.strip():
