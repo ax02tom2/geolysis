@@ -83,6 +83,23 @@ def test_single_layer_finite_elapsed_time_never_reports_exactly_100_percent(time
     assert result["primary_settlement_at_elapsed_mm"] < 25.0
 
 
+def test_single_layer_tv10_preserves_representable_remaining_pore_pressure():
+    # At Tv=10 the series still resolves a small, non-zero residual pressure.
+    # Do not replace it prematurely with the largest float below 100%.
+    result = consolidation_time_rate(
+        primary_settlement_mm=25.0,
+        layer_thickness_m=2.0,
+        cv_m2_per_day=1.0,
+        target_degree_percent=90.0,
+        elapsed_days=10.0,
+        drainage="double",
+    )
+    assert result["degree_at_elapsed_percent"] == pytest.approx(
+        99.99999999844043, abs=1e-12
+    )
+    assert result["primary_settlement_at_elapsed_mm"] < 25.0
+
+
 def test_multilayer_finite_elapsed_time_never_reports_exactly_100_percent():
     result = consolidation_time_rate_layers(
         layer_results=[{"Layer": 1, "Thickness_m": 2.0, "Settlement_mm": 25.0}],
