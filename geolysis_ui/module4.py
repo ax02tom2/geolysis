@@ -614,6 +614,11 @@ def render_module_4(expanded=False):
                 else:
                     st.caption("Boussinesq 應力解假設均布矩形荷載作用於均質彈性半空間；仍需搭配正確分層參數與有效應力剖面。")
     
+                time4=None
+                multi_time4=None
+                primary_layers_time4=None
+                primary_total4=None
+                sec4=None
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
                     if layers_text4.strip():
                         st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。")
@@ -735,6 +740,8 @@ def render_module_4(expanded=False):
                                     st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
+                immediate4=None
+                q_im4=None
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
@@ -811,6 +818,7 @@ def render_module_4(expanded=False):
                             st.error(f"多重荷載逐層固結估算失敗：{super_exc}")
                     else:
                         st.info("請貼上逐層資料；每一列的 Delta_sigma_kPa 必須是所有荷載完成疊加後的總應力增量。")
+                rebound4=None
                 with st.expander("開挖回彈與基礎再壓縮（選填）",expanded=False):
                     st.caption("依 USACE 2025 第 7-15 節／表 7-10。若有各層 oedometer e-log-p 曲線，優先輸入逐層 e0、e_exc、e_final；單一 Cr/Cc 模式僅為理想化初估。")
                     rebound_mode4=st.radio("計算資料型式",["逐層 e-log-p 試驗孔隙比","單層 Cr/Cc 理想化"],horizontal=True,key="m4c_rebound_mode")
@@ -855,6 +863,76 @@ def render_module_4(expanded=False):
                                 st.warning("目前此模式仍以單層代表參數估算；多層地層應使用逐層 e-log-p 模式。")
                         except Exception as rebound_exc:
                             st.error(f"開挖回彈／再壓縮估算失敗：{rebound_exc}")
+                # Combine only compatible, non-overlapping construction-stage components.
+                st.markdown("**施工階段總沉陷組合**")
+                immediate_for_stage4=0.0
+                if immediate4 is not None and abs(float(q_im4)-float(qa_clay_final))<=1e-6:
+                    immediate_for_stage4=float(immediate4["immediate_settlement_mm"])
+                elif immediate4 is not None:
+                    st.warning("即時沉陷所用 qnet 與本模組控制 qa,net 不同；為避免不同荷載狀態混加，以下施工階段合計不納入即時沉陷。")
+                try:
+                    if rebound4 is not None:
+                        stage_total4=combine_settlement_stage_movements(
+                            immediate_settlement_mm=immediate_for_stage4,
+                            excavation_rebound_mm=rebound4["rebound_mm"],
+                            post_excavation_recompression_mm=rebound4["recompression_settlement_mm"])
+                        st.metric("開挖回彈＋再壓縮＋即時沉陷",f"{stage_total4['total_settlement_mm']:.2f} mm")
+                        st.caption(
+                            f"即時／彈性 {stage_total4['immediate_settlement_mm']:.2f} mm"
+                            f"＋開挖回彈 {stage_total4['excavation_rebound_mm']:.2f} mm"
+                            f"＋開挖後再壓縮 {stage_total4['post_excavation_recompression_mm']:.2f} mm"
+                            "。再壓縮已包含開挖後載重造成的主壓縮，不可再加上前述由開挖前狀態計算的主固結；此合計不含次壓縮。"
+                        )
+                        st.warning("目前時間速率／次壓縮區是未套用開挖卸載路徑的另一種分析；其主固結與次壓縮結果不可直接加到本開挖階段合計。")
+                    else:
+                        if layers_text4.strip():
+                            if primary_layers_time4 is None:
+                                primary_layers_time4=consolidation_settlement_layers(
+                                    layers=pd.read_csv(StringIO(layers_text4)).to_dict("records"),
+                                    footing_width_m=qB_calc,footing_length_m=qL_calc,
+                                    net_pressure_kpa=qa_clay_final,stress_method=stress_method_clay4)
+                            primary_final_stage4=float(sum(
+                                row["Settlement_mm"] for row in primary_layers_time4["layer_results"]))
+                            secondary_stage4=(float(multi_time4["secondary_settlement_at_elapsed_mm"])
+                                if multi_time4 is not None else 0.0)
+                            if multi_time4 is not None:
+                                current_stage4=combine_settlement_stage_movements(
+                                    immediate_settlement_mm=immediate_for_stage4,
+                                    primary_settlement_mm=multi_time4["primary_settlement_at_elapsed_mm"],
+                                    secondary_settlement_mm=multi_time4["secondary_settlement_at_elapsed_mm"])
+                                st.metric("目前經過時間的總沉陷（即時＋主固結＋次壓縮）",
+                                          f"{current_stage4['total_settlement_mm']:.2f} mm")
+                            final_stage4=combine_settlement_stage_movements(
+                                immediate_settlement_mm=immediate_for_stage4,
+                                primary_settlement_mm=primary_final_stage4,
+                                secondary_settlement_mm=secondary_stage4)
+                            st.metric("最終主固結＋目前次壓縮＋即時沉陷",
+                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
+                            st.caption("多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；第二個數值將主固結改採最終值，次壓縮仍採所輸入經過時間。")
+                        else:
+                            if primary_total4 is None:
+                                primary_at_stage4=consolidation_settlement_1d(
+                                    layer_thickness_m=Hc,initial_void_ratio=e0,
+                                    compression_index=Cc,recompression_index=Cr,
+                                    initial_effective_stress_kpa=sig0,
+                                    preconsolidation_stress_kpa=sigp,
+                                    stress_increase_kpa=qa_clay_final*stress_ratio_clay4)
+                                primary_total4=float(primary_at_stage4["settlement_mm"])
+                            secondary_stage4=float(sec4["secondary_settlement_mm"]) if sec4 is not None else 0.0
+                            final_stage4=combine_settlement_stage_movements(
+                                immediate_settlement_mm=immediate_for_stage4,
+                                primary_settlement_mm=primary_total4,
+                                secondary_settlement_mm=secondary_stage4)
+                            st.metric("最終主固結＋次壓縮＋即時沉陷",
+                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
+                            st.caption(
+                                f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm"
+                                f"＋最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
+                                f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm。"
+                                "次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
+                            )
+                except Exception as stage_exc4:
+                    st.error(f"施工階段總沉陷組合失敗：{stage_exc4}")
                 st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
             except Exception as exc:
                 logging.exception("Unhandled application calculation error")
