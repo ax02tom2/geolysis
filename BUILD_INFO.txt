@@ -588,3 +588,13 @@ Module 4 — Terzaghi finite-time and inverse-tail numerical stability (PR #284 
 - PR #284 merged to main as 2afb7fdeea55851a9160d82f266a2ffc33164a85; PR #285 merged as 5ae4a8b36fb29c9698f24989a2451e45dfff72f1.
 - Main-branch GitHub Actions, 2026-11-23 Asia/Taipei (UTC+08:00): full suite 672 passed (run 45144585950); Module/Web regression suite 635 passed (run 45144585947); Python 3.11 active-module compilation passed in both workflows.
 - Reference: USACE EM 1110-1-1905 (31 July 2025), §7-18, Eq. 7-42 and Figure 7-16; Figure 7-16 identifies U=100% at Tv=infinity.
+
+
+Module 4 — Construction-stage settlement aggregation and input-path safeguards (PR #287, #288 and #289)
+- Added a signed stage-movement aggregator: downward settlement is positive and excavation rebound/heave is negative. It rejects adding ordinary primary settlement and post-excavation recompression together, because the latter already represents the post-excavation loading compression.
+- The standard clay path displays combined primary + secondary settlement; immediate/elastic settlement is included only after explicit user confirmation and only when its qnet matches the controlling net pressure. The illustrative Es=10 MPa default is never silently included in the total.
+- The excavation path combines rebound and post-excavation recompression only. It deliberately does not add the standalone immediate estimate or the separate time-rate/secondary result because their stress histories are not verified to match the excavation e-log-p path; the UI states this limitation instead of mixing incompatible paths.
+- Updated component labels/captions so the displayed total identifies whether immediate settlement was actually included.
+- PR #287 merged as 053e77f855bb93fdbcad5378f0d6c158aed0a92f; PR #288 merged as 6ac2bd271188aa75378ee283415a52d41b582719; PR #289 merged as f9bf6c95ec144405b958c474af938fb148f83ca0.
+- Main-branch GitHub Actions, 2026-11-23 Asia/Taipei (UTC+08:00): full suite 680 passed (run 45145953193); Module/Web regression suite 635 passed (run 45145953239); Python 3.11 active-module compilation passed in both workflows.
+- References: USACE EM 1110-1-1905 (31 July 2025), §7-15, Table 7-10, Eqs. 7-38 and 7-40 for excavation rebound/recompression; §7-18, Eqs. 7-41 and 7-42 and Figure 7-16 for time-rate settlement. Multi-layer time-rate remains a sum of independent one-dimensional layer responses, not a fully coupled interlayer drainage model.
