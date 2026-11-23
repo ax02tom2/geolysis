@@ -409,6 +409,49 @@ def excavation_rebound_recompression(*, layer_thickness_m, initial_void_ratio,
             'method':'USACE EM 1110-1-1905 (2025) §7-15 / Table 7-10; idealized e-log-p path',
             'limitations':'以 Cr/Cc 理想化 e-log-p 曲線估算；實際開挖回彈量可能小於理論值，需以卸載－再載重固結試驗曲線校核。'}
 
+def combine_settlement_stage_movements(*, immediate_settlement_mm=0.0,
+                                         primary_settlement_mm=0.0,
+                                         secondary_settlement_mm=0.0,
+                                         excavation_rebound_mm=0.0,
+                                         post_excavation_recompression_mm=0.0):
+    """Combine non-overlapping vertical movements across construction stages.
+
+    Downward settlement is positive and excavation rebound/heave is negative.
+    The ordinary primary-settlement path and the post-excavation recompression
+    path are mutually exclusive: the latter already represents the loading
+    compression after excavation and must not be added to a separate primary
+    consolidation result from the pre-excavation state.
+    """
+    immediate = _finite("即時／彈性沉陷", immediate_settlement_mm)
+    primary = _finite("主固結沉陷", primary_settlement_mm)
+    secondary = _finite("次壓縮沉陷", secondary_settlement_mm)
+    rebound = _finite("開挖回彈位移", excavation_rebound_mm)
+    recompression = _finite("開挖後再壓縮沉陷", post_excavation_recompression_mm)
+    if immediate < 0 or primary < 0 or secondary < 0 or recompression < 0:
+        raise ValueError("即時、主固結、次壓縮及開挖後再壓縮沉陷不可為負")
+    if rebound > 0:
+        raise ValueError("開挖回彈須以負值表示隆起；向下位移為正")
+    if primary > 0 and recompression > 0:
+        raise ValueError(
+            "主固結與開挖後再壓縮為互斥計算路徑；再壓縮已包含開挖後載重壓縮，"
+            "不可再加上由開挖前狀態計算的主固結沉陷"
+        )
+    total = immediate + primary + secondary + rebound + recompression
+    components = {
+        "immediate_settlement_mm": immediate,
+        "primary_settlement_mm": primary,
+        "secondary_settlement_mm": secondary,
+        "excavation_rebound_mm": rebound,
+        "post_excavation_recompression_mm": recompression,
+    }
+    return {
+        **components,
+        "total_settlement_mm": total,
+        "movement_convention": "向下沉陷為正；開挖回彈／隆起為負",
+        "method": "施工階段非重複位移分量代數加總",
+    }
+
+
 def differential_settlement(*, settlement_a_mm, settlement_b_mm, spacing_m):
     """Compute differential settlement/angular distortion from signed vertical movements.
 
