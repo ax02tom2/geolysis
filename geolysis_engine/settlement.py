@@ -80,15 +80,31 @@ def _terzaghi_time_factor_from_degree(degree_percent):
     for (u0, tv0), (u1, tv1) in zip(_USACE_2025_U_TV, _USACE_2025_U_TV[1:]):
         if U <= u1:
             return _linear_interpolate(U, u0, tv0, u1, tv1)
-    # Tail beyond the last tabulated point (99.4%): classical 1-D series.
-    lo, hi = 2.0, 10.0
-    for _ in range(90):
-        mid = (lo + hi) / 2.0
-        u = 1.0
+    # Tail beyond the last tabulated point (99.4%): invert the remaining
+    # excess pore-pressure ratio directly. Subtracting the series from 1.0
+    # loses precision near complete consolidation, and a fixed Tv upper bound
+    # incorrectly truncates valid targets arbitrarily close to 100%.
+    target_remaining = 1.0 - U / 100.0
+
+    def remaining_ratio(tv):
+        remaining = 0.0
         for m in range(100):
             odd = 2 * m + 1
-            u -= 8.0 / (math.pi ** 2 * odd ** 2) * math.exp(-(odd ** 2 * math.pi ** 2 * mid) / 4.0)
-        if u < U / 100.0:
+            term = (8.0 / (math.pi ** 2 * odd ** 2)
+                    * math.exp(-(odd ** 2 * math.pi ** 2 * tv) / 4.0))
+            remaining += term
+            if term == 0.0:
+                break
+        return remaining
+
+    lo, hi = 2.0, 4.0
+    while remaining_ratio(hi) > target_remaining:
+        lo, hi = hi, hi * 2.0
+        if not math.isfinite(hi):
+            raise ValueError('目標固結度過於接近 100%，超出可表示的時間因子範圍')
+    for _ in range(100):
+        mid = (lo + hi) / 2.0
+        if remaining_ratio(mid) > target_remaining:
             lo = mid
         else:
             hi = mid
