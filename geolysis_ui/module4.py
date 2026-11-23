@@ -742,6 +742,7 @@ def render_module_4(expanded=False):
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
                 immediate4=None
                 q_im4=None
+                include_immediate_stage4=False
                 with st.expander("黏土即時／彈性沉陷（選填）",expanded=False):
                     st.caption("USACE 2025 指出飽和黏土即時沉陷通常相對主固結較小，常可忽略；若需估算，可用工作應變範圍的 Es 作簡化彈性半空間估算。")
                     im_a,im_b,im_c=st.columns(3)
@@ -758,6 +759,9 @@ def render_module_4(expanded=False):
                             format_func=lambda x:x[2]+"（"+str(x[1])+"）",key="m4c_ip_im")
                     with im_c:
                         st.warning("Es 預設 10 MPa 僅供示範運算，不是建議設計值。請以工作應變範圍的試驗或經場址校正的相關式取代；不可直接把 SPT N 值當成 Es。若無可靠 Es，請不要採用此即時沉陷數值。")
+                    include_immediate_stage4=st.checkbox(
+                        "將此即時／彈性沉陷納入施工階段總沉陷（已確認 Es 與載重條件適用）",
+                        value=False,key="m4c_include_immediate_stage")
                     try:
                         immediate4=immediate_elastic_settlement(net_pressure_kpa=q_im4,
                             footing_width_m=qB_calc,soil_modulus_mpa=es_im4,
@@ -866,10 +870,13 @@ def render_module_4(expanded=False):
                 # Combine only compatible, non-overlapping construction-stage components.
                 st.markdown("**施工階段總沉陷組合**")
                 immediate_for_stage4=0.0
-                if immediate4 is not None and abs(float(q_im4)-float(qa_clay_final))<=1e-6:
-                    immediate_for_stage4=float(immediate4["immediate_settlement_mm"])
+                if immediate4 is not None and include_immediate_stage4:
+                    if abs(float(q_im4)-float(qa_clay_final))<=1e-6:
+                        immediate_for_stage4=float(immediate4["immediate_settlement_mm"])
+                    else:
+                        st.warning("即時沉陷所用 qnet 與本模組控制 qa,net 不同；為避免不同荷載狀態混加，以下施工階段合計不納入即時沉陷。")
                 elif immediate4 is not None:
-                    st.warning("即時沉陷所用 qnet 與本模組控制 qa,net 不同；為避免不同荷載狀態混加，以下施工階段合計不納入即時沉陷。")
+                    st.info("即時／彈性沉陷尚未勾選納入施工階段總量；目前只顯示單項估算，不會自動把預設 Es=10 MPa 加進總沉陷。")
                 try:
                     if rebound4 is not None:
                         stage_total4=combine_settlement_stage_movements(
