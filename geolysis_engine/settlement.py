@@ -105,18 +105,24 @@ def _terzaghi_degree_from_time_factor(tv):
     for (u0, tv0), (u1, tv1) in zip(_USACE_2025_U_TV, _USACE_2025_U_TV[1:]):
         if tv <= tv1:
             return _linear_interpolate(tv, tv0, u0, tv1, u1)
-    # Beyond Tv=2.0, continue with the classical series as a tail approximation.
-    # For finite Tv, U approaches but never equals 100%. Floating-point
-    # subtraction eventually rounds the remaining excess pore pressure to zero;
-    # cap at the largest representable float below 100 to preserve that limit.
-    maximum_finite_degree = math.nextafter(100.0, 0.0)
-    if tv >= 10:
-        return maximum_finite_degree
-    u = 1.0
+    # Beyond Tv=2.0, evaluate the remaining excess pore-pressure ratio
+    # directly. Computing U as 1 - (series sum) loses precision through
+    # cancellation as U approaches 100%, and an early Tv threshold would
+    # discard still-representable residual pressure at finite time.
+    remaining = 0.0
     for m in range(100):
         odd = 2 * m + 1
-        u -= 8.0 / (math.pi ** 2 * odd ** 2) * math.exp(-(odd ** 2 * math.pi ** 2 * tv) / 4.0)
-    return min(maximum_finite_degree, max(0.0, u * 100.0))
+        term = (8.0 / (math.pi ** 2 * odd ** 2)
+                * math.exp(-(odd ** 2 * math.pi ** 2 * tv) / 4.0))
+        remaining += term
+        if term == 0.0:
+            break
+    degree = (1.0 - remaining) * 100.0
+    # At sufficiently large finite Tv, the residual underflows or the final
+    # subtraction rounds to 100. Preserve the mathematical asymptote in the
+    # returned floating-point value without clipping earlier representable data.
+    maximum_finite_degree = math.nextafter(100.0, 0.0)
+    return min(maximum_finite_degree, max(0.0, degree))
 
 def consolidation_time_rate(*, primary_settlement_mm, layer_thickness_m,
                             cv_m2_per_day, target_degree_percent=90.0,
