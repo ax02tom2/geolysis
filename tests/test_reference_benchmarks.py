@@ -326,6 +326,18 @@ def test_aashto_a7_subgroup_boundary_uses_pi_equal_to_ll_minus_thirty_as_a7_5():
     [(2.99, 0.75), (3.0, 0.80), (4.0, 0.85),
      (6.0, 0.95), (10.0, 1.00), (30.0, 1.00)],
 )
+
+
+def test_aashto_a7_subgroup_just_above_2026_errata_boundary_is_a7_6():
+    # AASHTO M 145 September 2026 Errata, Figure 2: PI = LL - 30.
+    # At LL=60, PI=31 is above the 30-point boundary and is A-7-6.
+    result = classify_uscs_aashto(
+        p4=90, p10=80, p40=70, p200=40,
+        ll=60, pl=29,
+    )
+    assert result["AASHTO"] == "A-7-6"
+
+
 def test_spt_rod_length_factor_boundaries_match_usace_2025_table_4_6(
     rod_length_m, expected_factor
 ):
