@@ -23,6 +23,41 @@ def _consolidation_degree_label4(degree_percent):
     return f"{value:.1f}%"
 
 
+_MODULE5_TRANSFER_REVIEW_KEYS4 = {
+    # Bind the user's declaration that Module 4 and Module 5 share the same
+    # ground profile / loading conditions to the actual method inputs.
+    "m4_bb": (
+        "m4_bb_profile", "m4_bb_use_m3_spt", "m3_profile_result",
+        "m4_bb_q", "m4_bb_target", "m4_bb_sig0", "m4_bb_sigp",
+        "m4_bb_hs", "m4_bb_years", "m4_bb_load",
+    ),
+    "m4_dmt": (
+        "m4_dmt_mode", "m4_dmt_layers", "m4_dmt_q", "m4_dmt_sig",
+        "m4_dmt_target",
+    ),
+    "m4_cpt": (
+        "m4_cpt_layers", "m4_cpt_q", "m4_cpt_sigD", "m4_cpt_sigP",
+        "m4_cpt_years",
+    ),
+    "m4_pmt": (
+        "m4_pmt_layers", "m4_pmt_soft_layers", "m4_pmt_q", "m4_pmt_sigD",
+        "m4_pmt_pne", "m4_pmt_py", "m4_pmt_soil", "m4_pmt_state",
+        "m4_pmt_rock_condition", "m4_pmt_ld", "m4_pmt_lc", "m4_pmt_round",
+        "m4_pmt_fs",
+    ),
+    "m4_clay": (
+        "m4c_layers", "m4c_z", "m4c_h", "m4c_sig0", "m4c_sigp",
+        "m4c_e0", "m4c_cc", "m4c_cr",
+    ),
+}
+
+
+def _module5_transfer_review_context4(key_prefix):
+    """Return method-specific Module 4 profile/load inputs reviewed against Module 5."""
+    keys = _MODULE5_TRANSFER_REVIEW_KEYS4.get(key_prefix, ())
+    return tuple((key, st.session_state.get(key)) for key in keys)
+
+
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         footing_type=None, depth_m=None, water_depth_m=None, include_qeq=True,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
@@ -80,10 +115,18 @@ def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
     )
     if not transfer.get("passes_bearing",False):
         st.warning("Module 5 實際承載力 FS 未達 3.0；此數值僅供沉陷壓力上限比較，不代表承載力設計合格。")
-    context_key=f"{key_prefix}_conditions_{transfer_id}_{float(width_m):.2f}_{float(length_m):.2f}_{float(depth_m or 0.0):.2f}_{float(water_depth_m or 0.0):.2f}_{footing_type or 'any'}"
+    review_context4=_module5_transfer_review_context4(key_prefix)
+    review_token4=hashlib.sha256(repr(review_context4).encode("utf-8")).hexdigest()[:12]
+    context_key=(
+        f"{key_prefix}_conditions_{transfer_id}_"
+        f"{float(width_m):.2f}_{float(length_m):.2f}_"
+        f"{float(depth_m or 0.0):.2f}_{float(water_depth_m or 0.0):.2f}_"
+        f"{footing_type or 'any'}_{review_token4}"
+    )
     same_conditions=st.checkbox(
         "已確認基礎埋深、地下水位、地層剖面及載重條件與 Module 5 相同，且本沉陷方法適用於水平基底／地表與中央垂直荷載",
-        value=False,key=context_key)
+        value=False,key=context_key,
+        help="修改本模組的分層／試驗剖面、土層模式或主要載重輸入後，必須重新確認與 Module 5 的地層及載重條件仍相同。")
     if not same_conditions:
         st.warning("尚未確認沉陷分析與 Module 5 的埋深、地下水位、地層及載重條件一致；目前不套用跨模組承載力。")
         return None, None
