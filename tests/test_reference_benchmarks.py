@@ -3061,6 +3061,28 @@ def test_sliding_adhesion_requires_full_contact_area_verification():
         )
 
 
+def test_sliding_adhesion_requires_earth_pressure_moment_confirmation():
+    base = dict(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+        earth_pressure_active=True,
+    )
+    unconfirmed = sliding_adhesion_contact_readiness(
+        **base, earth_pressure_moments_confirmed=False,
+    )
+    assert unconfirmed["ready"] is False
+    assert "Pa／Pp" in unconfirmed["reason"]
+
+    confirmed = sliding_adhesion_contact_readiness(
+        **base, earth_pressure_moments_confirmed=True,
+    )
+    assert confirmed["ready"] is True
+
+
 def test_static_sliding_adhesion_contact_readiness_uses_minimum_pressure():
     full = sliding_adhesion_contact_readiness(
         adhesion_active=True, load_case="static", footing_type="spread",
