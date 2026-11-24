@@ -1442,7 +1442,7 @@ def test_module4_transfer_condition_key_changes_when_method_profile_changes():
     session_state = {
         "m5_bearing_transfer": transfer,
         "m4_dmt_mode": "MDMT",
-        "m4_dmt_layers": "Layer,depth_center_m,thickness_m,MDMT_kpa\\n1,0.5,1.0,10000",
+        "m4_dmt_layers": "Layer,depth_center_m,thickness_m,MDMT_kpa\n1,0.5,1.0,10000",
         "m4_dmt_q": 150.0,
     }
 
@@ -1465,8 +1465,8 @@ def test_module4_transfer_condition_key_changes_when_method_profile_changes():
         first_context_key = checkbox.call_args_list[1].kwargs["key"]
 
         session_state["m4_dmt_layers"] = (
-            "Layer,depth_center_m,thickness_m,MDMT_kpa\\n"
-            "1,0.5,1.0,10000\\n2,1.5,1.0,5000"
+            "Layer,depth_center_m,thickness_m,MDMT_kpa\n"
+            "1,0.5,1.0,10000\n2,1.5,1.0,5000"
         )
         checkbox.reset_mock()
         checkbox.side_effect = [True, False]
@@ -1487,7 +1487,7 @@ def test_module4_transfer_condition_key_changes_when_method_profile_changes():
 
 def test_module4_burland_transfer_confirmation_resets_when_profile_changes():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
@@ -1512,10 +1512,10 @@ def test_module4_burland_transfer_confirmation_resets_when_profile_changes():
     )
 
     next(widget for widget in app.text_area if widget.key == "m4_bb_profile").set_value(
-        "Depth_below_base_m,N60\\n0.5,18\\n1.0,22"
+        "Depth_below_base_m,N60\n0.5,18\n1.0,22"
     )
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     refreshed = next(
         widget for widget in app.checkbox
         if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
