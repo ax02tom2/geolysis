@@ -841,8 +841,12 @@ def render_module_5(expanded=False):
             st.warning("規範解讀注意：USACE §5-7(b) 指出永久死重僅在風力揚壓評估時納入；§9-10(f) 又指示地震抗浮沿用 §5-7 方法並調整結構慣性力。此處目前依 Eq. 5-36 採 Wf+Ws+Wc，並只對 Ws 套用 ±kv；Wf、Wc 是否可計入地震抗浮，仍須依本案適用規範與結構耐震載重定義確認。")
             slide_uplift_weights_context5=(slide_load_case5,slide_footing5,seismic_footing5,float(slide_uplift_resisting_weight5),float(seismic_weight5),float(kv5),float(B5),float(L5),float(base_ang5))
             slide_uplift_weights_confirmed5=st.checkbox("已依本案適用規範確認地震抗浮可採 Wf+Ws+Wc，且上方 W 代表結構地震重量 Ws 並包含於此總重量",value=False,key=_context_confirmation_key("m5x_uplift_weights_confirm",*slide_uplift_weights_context5))
-            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),float(kv5),slide_footing5,seismic_footing5,float(base_ang5))
-            slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓",value=False,key=_context_confirmation_key("m5x_uplift_pressure_confirm",*slide_uplift_pressure_context5))
+            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),float(kv5),slide_footing5,seismic_footing5,float(base_ang5),float(slide_v5),float(slide_h5),float(V5),float(H5),float(eB5),float(eL5),float(seismic_moment_B5),float(seismic_moment_L5))
+            slide_uplift_pressure_confirmed5=st.checkbox(
+                "已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓；若分布不均，其作用點／偏心矩已納入 eB／eL 或 M_B／M_L",
+                value=False,
+                key=_context_confirmation_key("m5x_uplift_pressure_confirm",*slide_uplift_pressure_context5),
+                help="本滑動／抗浮簡化檢核將 U 視為作用於基底中心的總揚壓合力。若殘餘孔壓或滲流造成不均勻分布，必須將其合力作用點造成的力矩納入偏心距或地震基底彎矩；否則不能用完整基底面積計算黏著抗力。")
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             st.caption(f"目前 {slide_case5} 的揚壓參考值 u_D={slide_base_uD5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 本荷載組合採用殘餘超額孔壓 {slide_residual_u5:.2f}）；對應 U_ref≈{base_pressure_U_ref5:.2f} {slide_force_unit5}。")
             if abs(float(slide_area5)-uplift_base_area5)>max(0.01,0.01*uplift_base_area5):
