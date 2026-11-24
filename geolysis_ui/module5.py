@@ -587,8 +587,12 @@ def render_module_5(expanded=False):
             seismic_ecc_sig5=(V5,H5,seismic_weight5,kh5,kv5,seismic_footing5,B5,L5,eB5,eL5,
                 seismic_moment_B5,seismic_moment_L5,static_moment_B_sign5,static_moment_L_sign5,
                 seismic_qallow_for_base_pressure5,base_uplift_pressure_kpa5,
-                residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5)
-            if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run"):
+                residual_base_excess_pore_pressure_kpa5,base_residual_pressure_confirmed5,
+                float(base_ang5))
+            seismic_ecc_base_ready5=(abs(float(base_ang5))<=1e-9)
+            if not seismic_ecc_base_ready5:
+                st.error("地震傾覆幾何與 qeq 目前僅適用水平基底（αb=0°）。傾斜基底尚未完成 V、H、彎矩及揚壓的基底座標分解，因此停用此項 qeq／接觸檢核。")
+            if st.button("計算地震傾覆幾何與有效承載壓力",key="m5x_seismic_ecc_run",disabled=not seismic_ecc_base_ready5):
                 try:
                     seismic_ecc5=seismic_foundation_eccentricity_cases(
                         vertical_load_kN=V5,horizontal_load_kN=H5,
@@ -600,7 +604,8 @@ def render_module_5(expanded=False):
                         static_moment_B_sign=static_moment_B_sign5,
                         static_moment_L_sign=static_moment_L_sign5,
                         allowable_bearing_pressure_kpa=seismic_qallow_for_base_pressure5,
-                        base_uplift_pressure_kpa=base_uplift_pressure_kpa5)
+                        base_uplift_pressure_kpa=base_uplift_pressure_kpa5,
+                        base_inclination_deg=base_ang5)
                     store_result_state(st.session_state,"m5x_seismic_ecc_result","m5x_seismic_ecc_signature",seismic_ecc5,seismic_ecc_sig5)
                 except Exception as ecc_exc:
                     logging.exception("Unhandled application calculation error")
