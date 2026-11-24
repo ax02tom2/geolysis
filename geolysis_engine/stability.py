@@ -47,10 +47,96 @@ def base_uplift_pressure_readiness(*, uplift_force_kN,
     }
 
 
+def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
+        footing_type, slide_vertical_load_kN, main_vertical_load_kN,
+        slide_horizontal_load_kN, main_horizontal_load_kN,
+        slide_uplift_kN, footing_area_m2, footing_width_m, footing_length_m,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+        seismic_eccentricity_current=False, seismic_eccentricity_cases=None):
+    """Check that the full footing area used by the c_a*A sliding term remains in compression.
+
+    USACE Eq. 5-28 uses A, the base area in contact with soil. If adhesion is
+    active, the full-area implementation is valid only when the least-compressed
+    base edge/corner remains in contact for the applicable load combination.
+    """
+    if not bool(adhesion_active):
+        return {"ready": True, "reason": None, "minimum_contact_pressure_kpa": None}
+    if load_case not in ("static", "seismic"):
+        raise ValueError("滑動接觸面積檢核荷載組合須為 static 或 seismic")
+    if footing_type not in ("spread", "continuous", "strip"):
+        raise ValueError("滑動接觸面積檢核基礎型式須為 spread 或 continuous")
+    V=_finite("滑動垂直力 V",slide_vertical_load_kN)
+    Vmain=_finite("主分析垂直力 V",main_vertical_load_kN)
+    H=_finite("滑動水平力 H",slide_horizontal_load_kN)
+    Hmain=_finite("主分析水平力 H",main_horizontal_load_kN)
+    U=_finite("滑動揚壓力 U",slide_uplift_kN)
+    A=_finite("滑動基底面積 A",footing_area_m2)
+    B=_finite("基底寬度 B",footing_width_m)
+    L=_finite("基底長度 L",footing_length_m)
+    eB=_finite("基底 B 向偏心距",eccentricity_B_m)
+    eL=_finite("基底 L 向偏心距",eccentricity_L_m)
+    if min(V,Vmain,A,B,L)<=0 or min(H,Hmain,U,eB,eL)<0:
+        raise ValueError("滑動接觸面積檢核輸入不合理")
+    same_loads=(
+        math.isclose(V,Vmain,rel_tol=1e-7,abs_tol=1e-6)
+        and math.isclose(H,Hmain,rel_tol=1e-7,abs_tol=1e-6)
+    )
+    if not same_loads:
+        return {
+            "ready": False,
+            "reason": "滑動 V／H 與主分析 V／H 不一致，無法沿用主分析偏心距確認完整基底接觸；有黏著抗力時請先統一載重組合。",
+            "minimum_contact_pressure_kpa": None,
+        }
+    is_strip=footing_type in ("continuous","strip")
+    if load_case=="static":
+        Ve=V
+        eL_use=0.0 if is_strip else eL
+        pressure_factor=1.0-6.0*eB/B-(0.0 if is_strip else 6.0*eL_use/L)
+        qmin=(Ve/A)*pressure_factor-U/A
+        if qmin<=0.0:
+            return {
+                "ready":False,
+                "reason":f"偏心與揚壓後最小基底接觸壓力 q_min={qmin:.3f} kPa（≤0）；基底非全壓縮接觸，不能以完整 A 計算 c_a·A 黏著抗力。",
+                "minimum_contact_pressure_kpa":qmin,
+            }
+        return {"ready":True,"reason":None,"minimum_contact_pressure_kpa":qmin}
+    if not bool(seismic_eccentricity_current):
+        return {
+            "ready":False,
+            "reason":"含地震荷載且黏著抗力大於零時，須先完成目前輸入的地震偏心／接觸壓力檢核，確認所有 kh、kv 組合的基底接觸狀態。",
+            "minimum_contact_pressure_kpa":None,
+        }
+    cases=list(seismic_eccentricity_cases or [])
+    if not cases:
+        return {
+            "ready":False,
+            "reason":"目前地震偏心檢核沒有可用的正反向 kh、kv 組合結果；不可沿用完整基底面積計算黏著抗力。",
+            "minimum_contact_pressure_kpa":None,
+        }
+    qmins=[]
+    for case in cases:
+        Ve=_finite("地震組合垂直力",case.get("vertical_load_kN"))
+        ceB=_finite("地震組合 B 向偏心距",case.get("eccentricity_B_m"))
+        ceL=_finite("地震組合 L 向偏心距",case.get("eccentricity_L_m"))
+        factor=1.0-6.0*ceB/B-(0.0 if is_strip else 6.0*ceL/L)
+        qmin=(Ve/A)*factor-U/A
+        qmins.append((qmin,case))
+    minimum_qmin,controlling=min(qmins,key=lambda item:item[0])
+    if minimum_qmin<=0.0:
+        label=f"{controlling.get('horizontal_load_direction','地震組合')}／{controlling.get('vertical_sign','')}"
+        return {
+            "ready":False,
+            "reason":f"{label} 的最小基底接觸壓力 q_min={minimum_qmin:.3f} kPa（≤0）；基底非全壓縮接觸，不能以完整 A 計算 c_a·A 黏著抗力。",
+            "minimum_contact_pressure_kpa":minimum_qmin,
+        }
+    return {"ready":True,"reason":None,"minimum_contact_pressure_kpa":minimum_qmin}
+
+
 def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, area_m2, friction_angle_deg, cohesion_kpa=0.0,
         adhesion_ratio=0.0, active_force_kN=0.0, passive_force_kN=0.0,
-        fs_required=2.0, load_case='static', base_inclination_deg=0.0):
+        fs_required=2.0, load_case='static', base_inclination_deg=0.0,
+        contact_area_verified=False):
     """USACE EM 1110-1-1905 (2025) Eq. 5-28/5-29 drained interface sliding.
     Active/passive forces must be independently established using developed
     strengths; passive resistance is capped at the driving force.
@@ -66,6 +152,8 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         raise ValueError('滑動荷載組合須為 static 或 seismic')
     if abs(base_angle)>1e-9:
         raise ValueError('目前基底滑動公式僅適用水平基底（αb=0°）；傾斜基底須先依基底方向分解法向力 N 與切向力 T，並處理揚壓及主被動土壓方向，不可直接套用 V、H。')
+    if ar*c>1e-12 and not bool(contact_area_verified):
+        raise ValueError('黏著抗力 c_a·A 使用完整基底面積；須先確認偏心與揚壓後整個基底仍保持壓縮接觸，否則應計算實際接觸面積或停用黏著項。')
     if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<minimum_fs:
         raise ValueError(f'基底滑動輸入值不合理；{load_case} 荷載組合的 USACE 2025 要求 FS 不得低於 {minimum_fs:.1f}')
     drive=H+Pa
@@ -278,7 +366,7 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, seismic_weight_kN, kh, kv, area_m2,
         friction_angle_deg, cohesion_kpa=0.0, adhesion_ratio=0.0,
         active_force_kN=0.0, passive_force_kN=0.0, fs_required=1.1,
-        base_inclination_deg=0.0):
+        base_inclination_deg=0.0, contact_area_verified=False):
     """Evaluate USACE pseudo-static sliding FS for both vertical kv directions.
 
     The horizontal driving load is the adverse aligned envelope H + kh·W.
@@ -315,7 +403,8 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
             active_force_kN=active_force_kN,
             passive_force_kN=passive_force_kN,
             fs_required=fs_required,load_case='seismic',
-            base_inclination_deg=base_angle)
+            base_inclination_deg=base_angle,
+            contact_area_verified=contact_area_verified)
         cases.append({
             **result,'vertical_load_kN':Ve,'horizontal_load_kN':He,
             'seismic_weight_kN':W,
