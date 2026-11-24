@@ -1269,3 +1269,27 @@ def test_module4_pmt_soft_layer_review_confirmation_resets_when_profile_changes(
     app.run()
     confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
     assert confirmation.value is False
+
+def test_module3_cs_distinguishes_sampler_without_liner_design_from_omitted_liner():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    cs = next(widget for widget in app.selectbox if widget.key == "m3_cs_label")
+    assert cs.options[0] == "標準取樣器不設計使用內襯，或已使用正確尺寸內襯（1.00）"
+    assert all("美規取樣器原設計使用內襯，但現場省略" in option for option in cs.options[1:])
+
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    confirmation.check()
+    app.run()
+    assert app.session_state["m3_current_n60"] == pytest.approx(17.1)
+
+    cs = next(widget for widget in app.selectbox if widget.key == "m3_cs_label")
+    cs.select(cs.options[1])
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    assert confirmation.value is False
+    assert "m3_current_n60" not in app.session_state
+
+    confirmation.check()
+    app.run()
+    assert app.session_state["m3_current_n60"] == pytest.approx(18.81)
