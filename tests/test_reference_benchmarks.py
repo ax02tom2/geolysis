@@ -2405,9 +2405,11 @@ def test_uscs_astm_u_line_flags_points_above_or_left_for_retest():
 
 
 
-def test_uscs_peat_result_keeps_optional_plasticity_warning_fields():
+def test_uscs_peat_result_keeps_optional_fields_and_marks_group_index_not_applicable():
     result = classify_uscs_aashto(peat=True)
     assert result["USCS"] == "PT"
+    assert result["AASHTO"] == "A-8"
+    assert result["GI"] is None
     assert result["U_line_PI"] is None
     assert result["plasticity_warning"] == ""
 
