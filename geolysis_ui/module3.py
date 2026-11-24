@@ -9,7 +9,8 @@ from geolysis_engine import spt_correct, spt_profile
 
 
 _SPT_REFUSAL_LABELS = {
-    "true", "1", "1.0", "yes", "y", "refusal",
+    # Keep this set aligned with geolysis_engine.spt._profile_bool for Refusal.
+    "true", "1", "1.0", "yes", "y", "是", "套用", "refusal",
     "partial penetration", "partial_penetration",
     "拒錘", "拒打", "拒貫", "部分貫入",
 }
@@ -97,10 +98,35 @@ def render_module_3(expanded=False):
             cb_label=st.selectbox("鑽孔直徑（CB）",["65–115 mm（1.00）","150 mm（1.05）","200 mm（1.15）"],index=0,key="m3_cb_label")
             cb={"65–115 mm（1.00）":1.00,"150 mm（1.05）":1.05,"200 mm（1.15）":1.15}[cb_label]
         with b:
-            cs_label=st.selectbox("取樣器內襯修正 CS",["有內襯（1.00）","無內襯／一般（1.10）","無內襯／較高修正（1.20）","無內襯／最高修正（1.30）"],index=0,key="m3_cs_label")
-            cs={"有內襯（1.00）":1.00,"無內襯／一般（1.10）":1.10,"無內襯／較高修正（1.20）":1.20,"無內襯／最高修正（1.30）":1.30}[cs_label]
-            rod_len=st.number_input("鑽桿長度 [m]",0.5,60.0,8.0,0.5,key="m3_rod")
-            st.caption("CR 依鑽桿長度自動採建議值；仍須依設備型式與採用規範核對。")
+            cs_label=st.selectbox(
+                "取樣器型式／內襯狀態（CS）",
+                [
+                    "標準取樣器不設計使用內襯，或已使用正確尺寸內襯（1.00）",
+                    "美規取樣器原設計使用內襯，但現場省略（1.10）",
+                    "美規取樣器原設計使用內襯，但現場省略（1.20）",
+                    "美規取樣器原設計使用內襯，但現場省略（1.30）",
+                ],
+                index=0,
+                key="m3_cs_label",
+                help=(
+                    "依 USACE EM 1110-1-1905（2025）Table 4-6 Note 2："
+                    "取樣器本身不設計使用內襯，或實際裝有正確尺寸內襯，CS=1.00。"
+                    "只有原設計需使用內襯的美規取樣器在現場省略內襯時，才採 CS=1.1–1.3；"
+                    "此範圍應依實際取樣器型式、設備紀錄及專案採用程序選值，不可僅因現場「沒有內襯」就自動提高。"
+                ),
+            )
+            cs={
+                "標準取樣器不設計使用內襯，或已使用正確尺寸內襯（1.00）":1.00,
+                "美規取樣器原設計使用內襯，但現場省略（1.10）":1.10,
+                "美規取樣器原設計使用內襯，但現場省略（1.20）":1.20,
+                "美規取樣器原設計使用內襯，但現場省略（1.30）":1.30,
+            }[cs_label]
+            st.caption(
+                "取樣器若原本就不設計使用內襯，即使現場沒有內襯也應選 CS=1.00；"
+                "CS=1.10–1.30 僅適用於原設計需內襯、但現場省略內襯的美規取樣器。"
+            )
+            rod_len=st.number_input("鑽桿總長（錘擊器至取樣器，含地面突出段）[m]",0.5,60.0,8.0,0.5,key="m3_rod")
+            st.caption("CR 依錘擊器至取樣器的鑽桿總長自動採建議值；須包含地面突出段，不是單純地下鑽進深度。仍須依設備型式與採用規範核對。")
             if rod_len>30:
                 st.warning("鑽桿長度超過 30 m；USACE EM 1110-1-1905（2025）表 4-6 的 CR 參考範圍為 10–30 m。本工具目前仍以 CR=1.00 延用計算，但此範圍屬表列範圍外推，請依實際設備與採用規範確認。")
         with c:
@@ -162,7 +188,7 @@ def render_module_3(expanded=False):
             st.session_state.pop("m3_current_n160",None)
             st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
-        st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
+        st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m（錘擊器至取樣器的鑽桿總長，含地面突出段）、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_KPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
         profile_source_bytes=csv_file.getvalue() if csv_file is not None else csv_text.encode("utf-8")

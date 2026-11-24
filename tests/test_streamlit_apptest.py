@@ -1269,3 +1269,48 @@ def test_module4_pmt_soft_layer_review_confirmation_resets_when_profile_changes(
     app.run()
     confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4_pmt_soft_confirm_"))
     assert confirmation.value is False
+
+def test_module3_cs_distinguishes_sampler_without_liner_design_from_omitted_liner():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    cs = next(widget for widget in app.selectbox if widget.key == "m3_cs_label")
+    assert cs.options[0] == "標準取樣器不設計使用內襯，或已使用正確尺寸內襯（1.00）"
+    assert all("美規取樣器原設計使用內襯，但現場省略" in option for option in cs.options[1:])
+    rod_input = next(widget for widget in app.number_input if widget.key == "m3_rod")
+    assert rod_input.label.startswith("鑽桿總長（錘擊器至取樣器，含地面突出段）")
+
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    confirmation.check()
+    app.run()
+    assert app.session_state["m3_current_n60"] == pytest.approx(17.1)
+
+    cs = next(widget for widget in app.selectbox if widget.key == "m3_cs_label")
+    cs.select(cs.options[1])
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    assert confirmation.value is False
+    assert "m3_current_n60" not in app.session_state
+
+    confirmation.check()
+    app.run()
+    assert app.session_state["m3_current_n60"] == pytest.approx(18.81)
+
+def test_module3_chinese_refusal_marker_does_not_require_effective_stress():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # The engine treats 「是」 as Refusal=True. The UI pre-validation must
+    # use the same marker so a refusal row does not require CN effective stress.
+    profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
+    profile.set_value(chr(10).join(["Depth_m,N,Refusal", "5,50,是", ""]))
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
+    app.run()
+
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    result = app.session_state.get("m3_profile_result")
+    assert result is not None
+    assert result["N60"].isna().all()
+    assert result["N1_60_final"].isna().all()
+    assert "拒錘" in result.iloc[0]["Correction_status"]
