@@ -1,4 +1,10 @@
-from geolysis_ui.module3 import _spt_warning_messages
+import pandas as pd
+import pytest
+
+from geolysis_ui.module3 import (
+    _normalize_spt_profile_effective_stress,
+    _spt_warning_messages,
+)
 
 
 def test_spt_warning_messages_include_depth_for_profile_rows():
@@ -16,11 +22,6 @@ def test_spt_warning_messages_include_depth_for_profile_rows():
 def test_spt_warning_messages_support_single_point_and_string_warning():
     assert _spt_warning_messages([{"warnings": "請核對設備資料。"}]) == ["請核對設備資料。"]
     assert _spt_warning_messages([{"warnings": []}]) == []
-
-import pandas as pd
-import pytest
-
-from geolysis_ui.module3 import _normalize_spt_profile_effective_stress
 
 
 def test_spt_effective_stress_aliases_merge_when_values_agree_or_are_blank():
