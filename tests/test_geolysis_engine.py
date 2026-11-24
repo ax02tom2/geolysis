@@ -1641,3 +1641,33 @@ def test_bishop_circular_search_warns_when_other_candidates_are_profile_truncate
     assert result["evaluated_surfaces"] > 0
     assert result["rejected_profile_truncated_runs"] > 0
     assert "已排除" in result["profile_boundary_warning"]
+
+@pytest.mark.parametrize(
+    ("years", "load_type", "r3", "rt"),
+    [
+        (0.1, "static", 0.3, 0.2),
+        (1.0, "static", 0.3, 0.2),
+        (3.0, "static", 0.3, 0.2),
+        (30.0, "static", 0.3, 0.2),
+        (1.0, "fluctuating", 0.7, 0.8),
+        (30.0, "fluctuating", 0.7, 0.8),
+    ],
+)
+def test_burland_burbidge_time_factor_matches_usace_equation_7_34_for_all_elapsed_times(
+    years, load_type, r3, rt
+):
+    from geolysis_engine import burland_burbidge_2025_settlement
+
+    result = burland_burbidge_2025_settlement(
+        n60_average=20.0,
+        width_m=2.0,
+        length_m=2.0,
+        gross_pressure_kpa=100.0,
+        initial_effective_stress_kpa=100.0,
+        preconsolidation_stress_kpa=100.0,
+        granular_layer_thickness_m=10.0,
+        years=years,
+        load_type=load_type,
+    )
+    expected_c3 = 1.0 + r3 + rt * math.log10(years / 3.0)
+    assert result["C3_time"] == pytest.approx(expected_c3, abs=1e-12)
