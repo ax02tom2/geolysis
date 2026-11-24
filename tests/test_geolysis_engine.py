@@ -1561,3 +1561,44 @@ def test_uscs_a_line_is_never_replaced_by_the_pi_four_clml_boundary(
     )
     assert result["USCS"] == expected
     assert result["A_line_PI"] == pytest.approx(expected_a_line)
+
+def test_finite_time_consolidation_degree_never_reports_exactly_100_percent():
+    from geolysis_engine import consolidation_time_rate, consolidation_time_rate_layers
+    from geolysis_engine.settlement import _terzaghi_degree_from_time_factor
+
+    # Beyond the tabulated USACE range, evaluate the remaining pore-pressure
+    # ratio directly. Even when it underflows, finite Tv must not equal 100%.
+    for tv in (2.0, 5.0, 20.0, 1000.0):
+        assert 0.0 < _terzaghi_degree_from_time_factor(tv) < 100.0
+
+    single = consolidation_time_rate(
+        primary_settlement_mm=40.0,
+        layer_thickness_m=4.0,
+        cv_m2_per_day=0.01,
+        target_degree_percent=90.0,
+        elapsed_days=1.0e8,
+        drainage="double",
+    )
+    assert single["degree_at_elapsed_percent"] < 100.0
+
+    multi = consolidation_time_rate_layers(
+        layer_results=[
+            {"Layer": 1, "Thickness_m": 2.0, "Settlement_mm": 20.0},
+            {"Layer": 2, "Thickness_m": 4.0, "Settlement_mm": 10.0},
+        ],
+        layer_time_parameters=[
+            {"Layer": 1, "Cv_m2_per_day": 0.01, "Drainage": "double"},
+            {"Layer": 2, "Cv_m2_per_day": 0.002, "Drainage": "single"},
+        ],
+        target_degree_percent=90.0,
+        elapsed_days=1.0e8,
+    )
+    assert multi["average_degree_at_elapsed_percent"] < 100.0
+    assert all(row["degree_at_elapsed_percent"] < 100.0 for row in multi["layer_results"])
+
+
+def test_module4_finite_consolidation_degree_label_does_not_display_100_percent():
+    from geolysis_ui.module4 import _consolidation_degree_label4
+
+    assert _consolidation_degree_label4(99.99999999999999) == "趨近 100%（有限時間未達）"
+    assert _consolidation_degree_label4(99.94) == "99.9%"
