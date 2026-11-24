@@ -1496,4 +1496,5 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 - The seismic uplift FS routine also assumed a horizontal base while comparing vertical W/U. It now rejects non-zero base inclination; the UI disables the action, includes base angle in the weight/pressure confirmation contexts and result signature, and explains the required normal-force resolution.
 - Regression coverage includes direct engine rejection and AppTest button-gating checks for both seismic qeq and uplift.
 - PR-head validation on a9038fabfa65a60319b5e98872dc69cf9bbef6f7: full suite 702 passed (Actions run 45335585659); Module/Web suite 652 passed (run 45335585724); Python 3.11 active-module compileall passed in both workflows.
-- Post-merge main validation: pending independent Actions confirmation.
+- PR #308 merged to main as 2a15bed6c43f967a53d3ff1973d510d964ea451a.
+- Post-merge main validation on 2a15bed6c43f967a53d3ff1973d510d964ea451a: full suite 702 passed (Actions run 45335910120); Module/Web suite 652 passed (run 45335910089); Python 3.11 active-module compileall passed in both workflows.

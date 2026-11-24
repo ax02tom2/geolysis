@@ -102,4 +102,4 @@ GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目�
 
 `geolysis_ui/state.py` 集中處理計算結果快取與輸入簽章：重新計算前清除舊結果、儲存結果及其輸入簽章，並在顯示前確認目前輸入仍與結果相符。這可避免不同模組各自實作時出現舊結果未更新的差異。
 
-2026-11-24 PR #308（地震 qeq／抗浮傾斜基底防護）PR-head：完整測試 **702 passed**；指定 Module/Web 測試 **652 passed**；Python 3.11 active-module compileall 通過（Actions runs 45335585659／45335585724）。合併後 main 驗證待執行。
+2026-11-24 PR #308（地震 qeq／抗浮傾斜基底防護）PR-head 與 post-merge main：完整測試 **702 passed**；指定 Module/Web 測試 **652 passed**；Python 3.11 active-module compileall 通過。PR-head runs 45335585659／45335585724；main runs 45335910120／45335910089。PR #308 已合併至 main：2a15bed6c43f967a53d3ff1973d510d964ea451a。
