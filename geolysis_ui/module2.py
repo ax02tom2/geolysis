@@ -45,7 +45,10 @@ def render_module_2(expanded=False):
             None if d10 is None else float(d10),None if d30 is None else float(d30),
             None if d60 is None else float(d60),bool(organic),
             bool(organic_test_done),float(ll_od),bool(peat))
-        data_confirm=st.checkbox("已確認上方為本次試驗數據（非預設示範值）",value=False,key="m2_data_confirm")
+        if st.session_state.get("m2_data_confirm_signature") != m2_input_signature:
+            st.session_state["m2_data_confirm"] = False
+            st.session_state["m2_data_confirm_signature"] = m2_input_signature
+        data_confirm=st.checkbox("已確認上方為本次試驗數據（非預設示範值）",key="m2_data_confirm")
         if st.button("執行土壤分類",key="m2_run",disabled=not data_confirm):
             clear_result_state(st.session_state, 'm2_result', 'm2_result_signature')
             try:
