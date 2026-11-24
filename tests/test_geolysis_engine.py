@@ -5,7 +5,8 @@ from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
-    seismic_bearing_capacity_residual_pore_pressure)
+    seismic_bearing_capacity_residual_pore_pressure,
+    seismic_bearing_capacity_residual_pore_pressure_cases)
 
 
 def test_uscs_clean_well_graded_gravel():
@@ -1671,3 +1672,101 @@ def test_burland_burbidge_time_factor_matches_usace_equation_7_34_for_all_elapse
     )
     expected_c3 = 1.0 + r3 + rt * math.log10(years / 3.0)
     assert result["C3_time"] == pytest.approx(expected_c3, abs=1e-12)
+
+def test_seismic_residual_pore_pressure_partial_shear_zone_weighting_matches_usace_equation():
+    result = seismic_bearing_capacity_residual_pore_pressure(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=10.0,
+        effective_width_m=2.0,
+        bearing_factor_ngamma=20.0,
+        residual_excess_pore_pressure_ratio=0.4,
+        full_shear_zone_confirmed=False,
+        partial_shear_zone_affected_fraction=0.25,
+        effective_unit_weight_unaffected_kn_m3=18.0,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+    )
+    expected_gamma_b = 0.25 * (1.0 - 0.4) * 10.0 + 0.75 * 18.0
+    expected_gamma_unweighted = 0.25 * 10.0 + 0.75 * 18.0
+    assert result["gamma_effective_weighted_kn_m3"] == pytest.approx(expected_gamma_b)
+    assert result["qu_seismic_kpa"] == pytest.approx(0.4 * expected_gamma_b * 2.0 * 20.0)
+    assert result["pore_pressure_resistance_factor"] == pytest.approx(
+        expected_gamma_b / expected_gamma_unweighted
+    )
+    assert result["pore_pressure_affected_fraction"] == pytest.approx(0.25)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"factor_of_safety_liquefaction": 1.0,
+          "no_significant_lateral_spreading_confirmed": True,
+          "ru_source_confirmed": True}, "FS_liq≤1.0"),
+        ({"factor_of_safety_liquefaction": 1.2,
+          "no_significant_lateral_spreading_confirmed": False,
+          "ru_source_confirmed": True}, "側向擴展"),
+        ({"factor_of_safety_liquefaction": 1.2,
+          "no_significant_lateral_spreading_confirmed": True,
+          "ru_source_confirmed": False}, "ru 必須"),
+    ],
+)
+def test_seismic_residual_pore_pressure_rejects_out_of_scope_liquefaction_conditions(kwargs, message):
+    args = dict(
+        footing_type="spread",
+        effective_unit_weight_kn_m3=10.0,
+        effective_width_m=2.0,
+        bearing_factor_ngamma=20.0,
+        residual_excess_pore_pressure_ratio=0.2,
+        full_shear_zone_confirmed=True,
+    )
+    args.update(kwargs)
+    with pytest.raises(ValueError, match=message):
+        seismic_bearing_capacity_residual_pore_pressure(**args)
+
+
+def test_seismic_residual_pore_pressure_cases_evaluate_four_direction_combinations():
+    result = seismic_bearing_capacity_residual_pore_pressure_cases(
+        vertical_load_kN=1000.0,
+        horizontal_load_kN=50.0,
+        kh=0.1,
+        kv=0.05,
+        footing_type="spread",
+        residual_excess_pore_pressure_ratio=0.2,
+        c_kpa=0.0,
+        phi_deg=30.0,
+        gamma_moist=18.0,
+        gamma_sub=9.0,
+        gamma_below=18.0,
+        B=2.0,
+        L=4.0,
+        Df=1.0,
+        water_depth=5.0,
+        seismic_weight_kN=800.0,
+        base_uplift_pressure_kpa=10.0,
+        full_shear_zone_confirmed=True,
+        factor_of_safety_liquefaction=1.2,
+        no_significant_lateral_spreading_confirmed=True,
+        ru_source_confirmed=True,
+    )
+    assert len(result["cases"]) == 4
+    assert {case["horizontal_earthquake_sign"] for case in result["cases"]} == {-1, 1}
+    assert {case["vertical_sign"] for case in result["cases"]} == {"向下減少", "向下增加"}
+    by_sign = {
+        (case["horizontal_earthquake_sign"], case["vertical_sign"]): case
+        for case in result["cases"]
+    }
+    for (horizontal_sign, vertical_sign), case in by_sign.items():
+        assert case["horizontal_load_kN"] == pytest.approx(
+            abs(50.0 + horizontal_sign * 0.1 * 800.0)
+        )
+        expected_v = 1000.0 + (-1 if vertical_sign == "向下減少" else 1) * 0.05 * 800.0
+        assert case["vertical_load_kN"] == pytest.approx(expected_v)
+        expected_qeq = expected_v / 8.0 - 10.0
+        assert case["average_contact_pressure_kpa"] == pytest.approx(expected_qeq)
+        assert case["uplift_contact_pass"] is True
+        assert case["qu_seismic_kpa"] > 0.0
+    assert result["qu_seismic_governing_kpa"] == pytest.approx(
+        min(case["qu_seismic_kpa"] for case in result["cases"])
+    )
+    assert result["uplift_stability_check_complete"] is False
