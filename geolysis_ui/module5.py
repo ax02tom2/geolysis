@@ -824,11 +824,11 @@ def render_module_5(expanded=False):
                 float(slide_phi5),float(slide_c5),float(slide_ar5),
                 slide_footing5,slide_load_case5,float(base_ang5))
             slide_interface_confirmed5=st.checkbox(
-                "已確認 δ′ 為基底界面摩擦角（非直接沿用土壤 φ′），並已確認界面 c′／Su 與 ca/c′（或 ca/Su）",
+                "已確認 δ′ 為基底界面摩擦角（非直接沿用土壤 φ′），並已確認剪力區土層 c′／Su 與界面黏著比 ca/c′（或 ca/Su）",
                 value=False,
                 key=_context_confirmation_key("m5x_slide_interface_confirm",*slide_interface_context5))
             if not slide_interface_confirmed5:
-                st.warning("基底界面強度尚未確認；滑動 FS 暫不計算。請依界面材料、粗糙度／試驗資料確認 δ′、c′／Su 與黏著比。")
+                st.warning("基底界面強度尚未確認；滑動 FS 暫不計算。請依界面材料、粗糙度／試驗資料確認 δ′，並依剪力區土層及界面條件確認 c′／Su 與黏著比。")
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             slide_uplift_resisting_weight5=st.number_input(f"抗浮永久向下重量 Wf+Ws+Wc [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_uplift_resisting_weight",
