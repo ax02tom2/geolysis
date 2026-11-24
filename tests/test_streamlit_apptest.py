@@ -181,6 +181,30 @@ def test_module5_bishop_methods_require_project_specific_inputs_and_confirmation
                for value in static_scope_warnings)
 
 
+def test_module5_rankine_moment_confirmation_resets_when_backfill_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.selectbox if widget.key == "m5_theory").set_value("Meyerhof")
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_c_manual").set_value(10.0)
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_ar").set_value(0.5)
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == "m5x_slide_auto_earth").check()
+    app.run()
+
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_contact_moment_confirm_"))
+    old_key = confirmation.key
+    confirmation.check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_gamma").set_value(19.0)
+    app.run()
+
+    refreshed = next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_contact_moment_confirm_"))
+    assert refreshed.key != old_key
+    assert refreshed.value is False
+
+
 def test_module5_sliding_adhesion_is_blocked_when_base_loses_contact():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
