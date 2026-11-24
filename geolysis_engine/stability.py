@@ -118,7 +118,7 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
         Ve=_finite("地震組合垂直力",case.get("vertical_load_kN"))
         ceB=_finite("地震組合 B 向偏心距",case.get("eccentricity_B_m"))
         ceL=_finite("地震組合 L 向偏心距",case.get("eccentricity_L_m"))
-        factor=1.0-6.0*ceB/B-(0.0 if is_strip else 6.0*ceL/L)
+        factor=1.0-6.0*abs(ceB)/B-(0.0 if is_strip else 6.0*abs(ceL)/L)
         qmin=(Ve/A)*factor-U/A
         qmins.append((qmin,case))
     minimum_qmin,controlling=min(qmins,key=lambda item:item[0])
