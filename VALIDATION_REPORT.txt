@@ -1487,3 +1487,13 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 - PR #307 merged to main as 1126926327de1b1742d9e55e720f3e697278c0e4.
 - PR-head validation on 43ea18c364d2ccfd7d9f90f87876647fa898cc23: full suite 698 passed (Actions run 45335078682); Module/Web suite 648 passed (run 45335078680); Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation on 1126926327de1b1742d9e55e720f3e697278c0e4: full suite 698 passed (Actions run 45335219389); Module/Web suite 648 passed (run 45335219491); Python 3.11 active-module compileall passed in both workflows.
+
+
+Module 5 — Seismic qeq and uplift horizontal-base applicability guard (PR #308)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+- The general seismic overturning/effective-contact-pressure routine computes qeq using vertical V/A′ and M/V eccentricity. It now rejects non-zero base inclination until V, H, moments, and uplift are resolved in base-normal/tangential coordinates.
+- Module 5 disables the seismic qeq/contact action for non-zero base inclination and includes base angle in the result signature so prior results cannot remain current after geometry changes.
+- The seismic uplift FS routine also assumed a horizontal base while comparing vertical W/U. It now rejects non-zero base inclination; the UI disables the action, includes base angle in the weight/pressure confirmation contexts and result signature, and explains the required normal-force resolution.
+- Regression coverage includes direct engine rejection and AppTest button-gating checks for both seismic qeq and uplift.
+- PR-head validation on a9038fabfa65a60319b5e98872dc69cf9bbef6f7: full suite 702 passed (Actions run 45335585659); Module/Web suite 652 passed (run 45335585724); Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation: pending independent Actions confirmation.
