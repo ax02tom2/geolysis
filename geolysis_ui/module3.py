@@ -9,7 +9,8 @@ from geolysis_engine import spt_correct, spt_profile
 
 
 _SPT_REFUSAL_LABELS = {
-    "true", "1", "1.0", "yes", "y", "refusal",
+    # Keep this set aligned with geolysis_engine.spt._profile_bool for Refusal.
+    "true", "1", "1.0", "yes", "y", "是", "套用", "refusal",
     "partial penetration", "partial_penetration",
     "拒錘", "拒打", "拒貫", "部分貫入",
 }
