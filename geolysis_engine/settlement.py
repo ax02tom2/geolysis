@@ -601,9 +601,13 @@ def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
     if load_type=='static': r3,rt=0.3,0.2
     elif load_type=='fluctuating': r3,rt=0.7,0.8
     else: raise ValueError('載重型態須為 static 或 fluctuating')
-    # Burland & Burbidge (1985) time correction is specified for t >= 3 years.
-    # Before that threshold, do not apply the complete first-three-year increment.
-    c3=1.0+(r3+rt*math.log10(t/3.0) if t>=3.0 else 0.0)
+    # USACE EM 1110-1-1905 (2025), Eq. 7-34 applies at all positive
+    # elapsed times: R3 represents the first-three-year component and Rt
+    # represents the slower logarithmic component. Do not switch C3 to 1.0
+    # for t < 3 years; that omits the first-years time correction.
+    c3=1.0+r3+rt*math.log10(t/3.0)
+    if c3<=0:
+        raise ValueError('Burland–Burbidge 時間係數 C3 不可為零或負值；請檢查載重作用時間與適用範圍')
     # Convert stresses to tsf; USACE equations 7-29 to 7-31 return ft.
     q_tsf=q/95.7605; s0_tsf=s0/95.7605; sp_tsf=(sp if overconsolidated else s0)/95.7605
     total=q_tsf+s0_tsf
