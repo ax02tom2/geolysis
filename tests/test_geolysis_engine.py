@@ -1267,13 +1267,13 @@ def test_bishop_simplified_rejects_insufficient_slices_and_bad_pore_pressure():
 
 
 def test_bishop_circular_search_finds_a_valid_critical_surface():
-    # Extend the ground profile beyond the slope so both ends of each accepted
-    # trial arc intersect the ground inside the supplied model domain.
+    # Both entry and exit intersections lie inside the profile. The geometry
+    # also keeps the first/last slice base angles within the method's ±45° limit.
     profile=[(-20,10),(0,10),(5,8),(10,0),(20,0),(40,0)]
     r=bishop_circular_search(ground_profile=profile,cohesion_kpa=10,
         friction_angle_deg=25,unit_weight_kn_m3=18,
-        center_x_values=[3,5],center_y_values=[8,10,12],
-        radius_values=[8,10,12,15],slice_count=20)
+        center_x_values=[10],center_y_values=[30,32],
+        radius_values=[25,30],slice_count=20)
     assert r['converged']
     assert r['evaluated_surfaces']>0
     assert r['radius_m']>0
@@ -1635,8 +1635,8 @@ def test_bishop_circular_search_warns_when_other_candidates_are_profile_truncate
     profile=[(-20,10),(0,10),(5,8),(10,0),(20,0),(40,0)]
     result=bishop_circular_search(
         ground_profile=profile, cohesion_kpa=10, friction_angle_deg=25,
-        unit_weight_kn_m3=18, center_x_values=[3], center_y_values=[10],
-        radius_values=[10,30], slice_count=20,
+        unit_weight_kn_m3=18, center_x_values=[10], center_y_values=[32],
+        radius_values=[30,40], slice_count=20,
     )
     assert result["evaluated_surfaces"] > 0
     assert result["rejected_profile_truncated_runs"] > 0
