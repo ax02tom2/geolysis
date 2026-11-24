@@ -653,3 +653,12 @@ Module 3 — SPT confirmation freshness (PR #297)
 - PR #297 merged to main as 32f4aa2566c0d27b285aae1858af6a5f6399beb6.
 - PR-head validation: full suite 688 passed; Module/Web suite 640 passed; Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation including PR #298 on 9df3f4dc4db8e0b70a352b13be93254d3f0a1f8a passed: full suite 689 (run 45315989164) and Module/Web suite 641 (run 45315989205), compileall passed.
+
+
+Build: geolysis Web — Module 2 AASHTO M 145 September 2026 errata alignment
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+- Rechecked the A-7-5 / A-7-6 subgroup boundary against the official AASHTO September 2026 errata for M 145. The errata corrects Figure 2 from PI = LL − 40 to PI = LL − 30.
+- The engine already applies A-7-5 when PI ≤ LL − 30 and A-7-6 when PI > LL − 30; no classification formula change was required.
+- Module 2 now explicitly states the corrected boundary and links the official AASHTO errata. Added a regression benchmark for a point just above the corrected boundary.
+- Official source: https://store.transportation.org/Common/DownloadContentFiles?id=2754 (September 2026 Errata, page M 145-8 / Figure 2).
+- Base main before this documentation/coverage PR: d3b7cafacc3c82451983310609f13190a3788b34.
