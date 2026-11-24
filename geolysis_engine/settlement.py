@@ -199,7 +199,9 @@ def consolidation_time_rate_layers(*, layer_results, layer_time_parameters,
             return ''
         try:
             number=float(value)
-            if math.isfinite(number) and number.is_integer():
+            if not math.isfinite(number):
+                return ''
+            if number.is_integer():
                 return str(int(number))
         except (TypeError, ValueError):
             pass

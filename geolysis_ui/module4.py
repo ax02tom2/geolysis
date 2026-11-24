@@ -571,6 +571,7 @@ def render_module_4(expanded=False):
                 if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):
                     st.info(f"一維固結沉陷採 Module 5 有效尺寸 B′×L′={qB_calc:.3f}×{qL_calc:.3f} m（USACE 2025 §5-2a）。")
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
+            st.caption("多層固結 CSV 的 Depth_center_m 是各層中心距「基礎底面」向下的深度，供 Boussinesq／2:1 基礎荷載應力影響係數使用；不可直接填自地表的絕對深度，若資料自地表量測，須先扣除基礎埋深。")
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
@@ -621,7 +622,7 @@ def render_module_4(expanded=False):
                 sec4=None
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
                     if layers_text4.strip():
-                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。")
+                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。各層 Cv 應依該層最終有效垂直應力 σ′zf 選取。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。Drainage=double 僅能用於該層頂、底兩面均有實際有效排水邊界的情況；相鄰黏土層界面不可自動視為排水面。連續黏土層且無砂層排水界面時，本模式不能完整描述層間孔隙水壓與流量連續，結果只可作初步估算。")
                         try:
                             layer_rows_time4=pd.read_csv(StringIO(layers_text4)).to_dict("records")
                             primary_layers_time4=consolidation_settlement_layers(
@@ -684,11 +685,12 @@ def render_module_4(expanded=False):
                         except Exception as multi_time_exc:
                             st.error(f"多層固結時間／次壓縮估算失敗：{multi_time_exc}")
                     else:
-                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得；此處以單一均質壓縮層作一維估算。")
+                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得，並依最終有效垂直應力 σ′zf 選用；預設 0.005 m²/day 僅為示範值，未確認前不會計算時間預測。此處以單一均質壓縮層作一維估算。")
                         rt_a,rt_b,rt_c=st.columns(3)
                         with rt_a:
                             cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
                             drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
+                            cv_confirmed4=st.checkbox("已依最終有效應力及固結／現地試驗確認 Cv",value=False,key="m4c_cv_confirmed")
                         with rt_b:
                             u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.4,value=90.0,step=1.0,key="m4c_u")
                             elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
@@ -706,38 +708,42 @@ def render_module_4(expanded=False):
                                 stress_increase_kpa=qa_clay_final*stress_ratio_clay4)
                             primary_total4=float(primary_at_final_pressure4["settlement_mm"])
                             st.caption(f"時間速率與次壓縮採用最終控制淨壓力 qa,net={qa_clay_final:.2f} kPa 對應的主固結沉陷 {primary_total4:.2f} mm；若模組五承載力上限控制，已重新計算，不沿用容許沉陷目標值。")
-                            if calc_secondary4:
-                                ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
-                                ep_valid4=True
-                                if ep_source4=="依本次主固結沉陷反算（初估）":
-                                    try:
-                                        ep4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
-                                        st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
-                                    except ValueError as ep_error4:
-                                        st.error(f"{ep_error4}；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
-                                        ep_valid4=False
-                                        ep4=0.0
-                                else:
-                                    ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
-                            time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
-                                layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                                target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
-                                drainage=drainage4)
-                            degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
-                            st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
-                            st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
-                            if calc_secondary4:
-                                t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                            if cv_confirmed4:
+                                if calc_secondary4:
+                                    ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
+                                    ep_valid4=True
+                                    if ep_source4=="依本次主固結沉陷反算（初估）":
+                                        try:
+                                            ep4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
+                                            st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
+                                        except ValueError as ep_error4:
+                                            st.error(f"{ep_error4}；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
+                                            ep_valid4=False
+                                            ep4=0.0
+                                    else:
+                                        ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
+                                time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
                                     layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                                    target_degree_percent=99.4,drainage=drainage4)
-                                st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
-                                t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
-                                t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
-                                if ep_valid4:
-                                    sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
-                                        secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
-                                        time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
-                                    st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+                                    target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
+                                    drainage=drainage4)
+                                degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
+                                st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
+                                st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
+                                if calc_secondary4:
+                                    t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                                        layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
+                                        target_degree_percent=99.4,drainage=drainage4)
+                                    st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
+                                    t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
+                                    t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
+                                    if ep_valid4:
+                                        sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
+                                            secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
+                                            time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
+                                        st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+    
+                            else:
+                                st.warning("Cv 目前仍是示範預設值 0.005 m²/day，尚未確認其對應最終有效應力與試驗資料；因此不計算固結時間速率或次壓縮。請先確認 Cv 後再啟用預測。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
                 immediate4=None
@@ -870,9 +876,11 @@ def render_module_4(expanded=False):
                 # Combine only compatible, non-overlapping construction-stage components.
                 st.markdown("**施工階段總沉陷組合**")
                 immediate_for_stage4=0.0
+                immediate_included_stage4=False
                 if immediate4 is not None and include_immediate_stage4:
                     if abs(float(q_im4)-float(qa_clay_final))<=1e-6:
                         immediate_for_stage4=float(immediate4["immediate_settlement_mm"])
+                        immediate_included_stage4=True
                     else:
                         st.warning("即時沉陷所用 qnet 與本模組控制 qa,net 不同；為避免不同荷載狀態混加，以下施工階段合計不納入即時沉陷。")
                 elif immediate4 is not None:
@@ -910,7 +918,7 @@ def render_module_4(expanded=False):
                                     secondary_settlement_mm=multi_time4["secondary_settlement_at_elapsed_mm"])
                                 current_stage_label4=(
                                     "目前即時＋主固結＋次壓縮總沉陷"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "目前主固結＋次壓縮（未納入即時沉陷）")
                                 st.metric(current_stage_label4,
                                           f"{current_stage4['total_settlement_mm']:.2f} mm")
@@ -918,16 +926,29 @@ def render_module_4(expanded=False):
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_final_stage4,
                                 secondary_settlement_mm=secondary_stage4)
-                            final_stage_label4=(
-                                "最終主固結＋目前次壓縮＋即時沉陷"
-                                if immediate_for_stage4>0 else
-                                "最終主固結＋目前次壓縮（未納入即時沉陷）")
+                            if multi_time4 is not None:
+                                final_stage_label4=(
+                                    "最終主固結＋目前次壓縮＋即時沉陷"
+                                    if immediate_included_stage4 else
+                                    "最終主固結＋目前次壓縮（未納入即時沉陷）")
+                                stage_time_caption4=(
+                                    "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
+                                    "此數值將主固結改採最終值，次壓縮仍採所輸入經過時間。"
+                                )
+                            else:
+                                final_stage_label4=(
+                                    "最終主固結＋即時沉陷（未計次壓縮）"
+                                    if immediate_included_stage4 else
+                                    "最終主固結（未計次壓縮與時間效應）")
+                                stage_time_caption4=(
+                                    "尚未提供完整逐層 Cv／排水邊界參數，因此此處只顯示最終主固結；"
+                                    "未計入次壓縮或時間效應。"
+                                )
                             st.metric(final_stage_label4,
                                       f"{final_stage4['total_settlement_mm']:.2f} mm")
                             st.caption(
-                                "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
-                                "第二個數值將主固結改採最終值，次壓縮仍採所輸入經過時間。"
-                                + ("已納入經確認的即時沉陷。" if immediate_for_stage4>0 else "未納入即時沉陷。")
+                                stage_time_caption4
+                                + ("已納入經確認的即時沉陷。" if immediate_included_stage4 else "未納入即時沉陷。")
                             )
                         else:
                             if primary_total4 is None:
@@ -943,25 +964,29 @@ def render_module_4(expanded=False):
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_total4,
                                 secondary_settlement_mm=secondary_stage4)
-                            final_stage_label4=(
-                                "最終主固結＋次壓縮＋即時沉陷"
-                                if immediate_for_stage4>0 else
-                                "最終主固結＋次壓縮（未納入即時沉陷）")
-                            st.metric(final_stage_label4,
-                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
-                            if immediate_for_stage4>0:
-                                st.caption(
-                                    f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm"
-                                    f"＋最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
-                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm。"
-                                    "次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
+                            if sec4 is not None:
+                                final_stage_label4=(
+                                    "最終主固結＋次壓縮至 t2＋即時沉陷"
+                                    if immediate_included_stage4 else
+                                    "最終主固結＋次壓縮至 t2（未納入即時沉陷）")
+                                secondary_caption4=(
+                                    f"次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm，"
+                                    "計算期間為輸入的 t1 至 t2。"
                                 )
                             else:
-                                st.caption(
-                                    f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
-                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm；"
-                                    "即時／彈性沉陷未納入。次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
-                                )
+                                final_stage_label4=(
+                                    "最終主固結＋即時沉陷（未計次壓縮）"
+                                    if immediate_included_stage4 else
+                                    "最終主固結（未計次壓縮）")
+                                secondary_caption4="未啟用或未完成有效次壓縮參數，未計入次壓縮。"
+                            st.metric(final_stage_label4,
+                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
+                            st.caption(
+                                f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm；"
+                                + (f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm；"
+                                   if immediate_included_stage4 else "即時／彈性沉陷未納入；")
+                                + secondary_caption4
+                            )
                 except Exception as stage_exc4:
                     st.error(f"施工階段總沉陷組合失敗：{stage_exc4}")
                 st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
