@@ -70,7 +70,7 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
         }
     if load_case not in ("static", "seismic"):
         raise ValueError("滑動接觸面積檢核荷載組合須為 static 或 seismic")
-    if footing_type not in ("spread", "continuous", "strip"):
+    if footing_type not in ("spread", "isolated", "continuous", "strip"):
         raise ValueError("滑動接觸面積檢核基礎型式須為 spread 或 continuous")
     V=_finite("滑動垂直力 V",slide_vertical_load_kN)
     Vmain=_finite("主分析垂直力 V",main_vertical_load_kN)
