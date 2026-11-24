@@ -4055,7 +4055,7 @@ def test_module3_normalizes_legacy_effective_stress_csv_column_case():
     assert "Effective_Stress_kPa" not in normalized.columns
 
 
-def test_module3_merges_legacy_and_canonical_effective_stress_columns():
+def test_module3_rejects_conflicting_legacy_and_canonical_effective_stress_columns():
     import pandas as pd
     from geolysis_ui.module3 import _normalize_spt_profile_effective_stress
 
@@ -4063,9 +4063,8 @@ def test_module3_merges_legacy_and_canonical_effective_stress_columns():
         "Effective_Stress_KPa": [None, 150.0],
         "Effective_Stress_kPa": [90.0, 120.0],
     })
-    normalized = _normalize_spt_profile_effective_stress(profile)
-    assert normalized["Effective_Stress_KPa"].tolist() == [90.0, 150.0]
-    assert "Effective_Stress_kPa" not in normalized.columns
+    with pytest.raises(ValueError, match="數值不一致"):
+        _normalize_spt_profile_effective_stress(profile)
 
 
 def test_developed_rankine_helper_explicitly_disclaims_seismic_dynamic_pressure():
