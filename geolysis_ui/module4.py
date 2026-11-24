@@ -515,6 +515,7 @@ def render_module_4(expanded=False):
                             equivalent_net_limit_pressure_kpa=pmtPne,
                             yield_pressure_kpa=pmtPy,
                             soil_type=pmtSoil,consolidation_state=pmtState,
+                            rock_condition=pmtRockCondition,
                             lambda_d=pmtLd,lambda_c=pmtLc,round_footing=pmtRound,
                             ultimate_bearing_kpa=(pmtQu if pmtQu>0 else None),
                             factor_of_safety=pmtFs,

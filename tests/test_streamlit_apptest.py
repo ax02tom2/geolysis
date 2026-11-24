@@ -1338,3 +1338,51 @@ def test_module4_burland_time_input_enforces_original_three_year_applicability()
     # that attempts below 3 years are rejected at the calculation boundary.
     assert "t≥3 年" in years.label
     assert years.value >= 3.0
+
+def test_module4_pmt_rock_condition_is_forwarded_to_settlement_engine():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.selectbox if widget.key == "m4_method").select(
+        "PMT：Ménard–Rousseau 法（USACE 2025）"
+    )
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == "m4_pmt_round").check()
+    app.run()
+    next(widget for widget in app.selectbox if widget.key == "m4_pmt_soil").select("rock")
+    app.run()
+
+    for key, value in (
+        ("m4_pmt_q", 100.0),
+        ("m4_pmt_sigD", 20.0),
+        ("m4_pmt_pne", 300.0),
+        ("m4_pmt_py", 150.0),
+        ("m4_pmt_fs", 3.0),
+    ):
+        next(widget for widget in app.number_input if widget.key == key).set_value(value)
+
+    next(widget for widget in app.text_area if widget.key == "m4_pmt_layers").set_value(
+        "group,E0_kpa\n"
+        "E1,10000\nE2,12000\nE345,15000\nE678,18000\nE916,22000"
+    )
+    app.run()
+    deep_confirmation = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith("m4_pmt_deep_confirm_")
+    )
+    deep_confirmation.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert any(metric.label == "PMT 估算總沉陷" for metric in app.metric)
+    assert not any("rock_condition" in str(item.value) for item in app.error)
+
+    rock_options = [
+        "extremely_fractured",
+        "other",
+        "slightly_fractured_or_extremely_weathered",
+    ]
+    for option in rock_options:
+        next(widget for widget in app.selectbox if widget.key == "m4_pmt_rock_condition").select(option)
+        app.run()
+        assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+        assert any(metric.label == "PMT 估算總沉陷" for metric in app.metric)
