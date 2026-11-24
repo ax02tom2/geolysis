@@ -357,21 +357,21 @@ def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base(
 
 def test_module4_multilayer_cv_confirmation_resets_when_time_or_stress_profile_changes():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     next(widget for widget in app.selectbox if widget.key == "m4_method").set_value("黏土：一維主固結沉陷控制法")
     app.run()
 
     layers = (
-        "Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\\n"
-        "1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\\n"
+        "Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n"
+        "1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n"
         "2,5.0,4.0,0.9,0.40,0.06,100,150,0.42"
     )
     next(widget for widget in app.text_area if widget.key == "m4c_layers").set_value(layers)
     app.run()
     time_params = next(widget for widget in app.text_area if widget.key.startswith("m4c_multi_time_params_"))
     time_params.set_value(
-        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\\n"
-        "1,0.005,double,,,,\\n"
+        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\n"
+        "1,0.005,double,,,,\n"
         "2,0.003,single,,,,"
     )
     app.run()
@@ -384,8 +384,8 @@ def test_module4_multilayer_cv_confirmation_resets_when_time_or_stress_profile_c
 
     time_params = next(widget for widget in app.text_area if widget.key.startswith("m4c_multi_time_params_"))
     time_params.set_value(
-        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\\n"
-        "1,0.006,double,,,,\\n"
+        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\n"
+        "1,0.006,double,,,,\n"
         "2,0.003,single,,,,"
     )
     app.run()
