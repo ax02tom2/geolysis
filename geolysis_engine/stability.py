@@ -340,7 +340,7 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
     }
 
 def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_weight_kN,
-        uplift_force_kN, kv, fs_required=1.5):
+        uplift_force_kN, kv, fs_required=1.5, base_inclination_deg=0.0):
     """USACE EM 1110-1-1905 (2025), §9-10(f) and §5-7 Eq. 5-36.
 
     resisting_weight_kN is Wf + Ws + Wc. structure_seismic_weight_kN is Ws,
@@ -353,6 +353,9 @@ def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_wei
     U=_finite('基礎底面總揚壓力合力 U',uplift_force_kN)
     kvv=_finite('垂直地震係數 kv',kv)
     fs=_finite('抗浮最低安全係數',fs_required)
+    base_angle=_finite('基底傾角',base_inclination_deg)
+    if abs(base_angle)>1e-9:
+        raise ValueError('目前地震抗浮 FS 僅適用水平基底（αb=0°）；傾斜基底的揚壓合力與向下重量須先投影至基底法向座標，不可直接以垂直 W/U 比值計算。')
     if Wres<=0 or Ws<0 or Wres+1e-9<Ws or U<0:
         raise ValueError('抗浮重量輸入不合理：Wf+Ws+Wc須為正且不得小於Ws；U不可為負')
     if not 0<=kvv<=0.5:
