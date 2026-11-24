@@ -1277,6 +1277,8 @@ def test_module3_cs_distinguishes_sampler_without_liner_design_from_omitted_line
     cs = next(widget for widget in app.selectbox if widget.key == "m3_cs_label")
     assert cs.options[0] == "標準取樣器不設計使用內襯，或已使用正確尺寸內襯（1.00）"
     assert all("美規取樣器原設計使用內襯，但現場省略" in option for option in cs.options[1:])
+    rod_input = next(widget for widget in app.number_input if widget.key == "m3_rod")
+    assert rod_input.label.startswith("鑽桿總長（錘擊器至取樣器，含地面突出段）")
 
     confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
     confirmation.check()
