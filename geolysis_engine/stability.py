@@ -346,7 +346,9 @@ def seismic_uplift_stability_cases(*, resisting_weight_kN, structure_seismic_wei
     resisting_weight_kN is Wf + Ws + Wc. structure_seismic_weight_kN is Ws,
     the structure component subject to vertical seismic inertia. uplift_force_kN
     is the total resultant U acting on the full foundation base, including
-    hydrostatic and residual excess pore-water pressures.
+    hydrostatic and residual excess pore-water pressures. The current W/U check
+    is restricted to a horizontal base; an inclined base requires normal-component
+    resolution of both the resisting weights and the uplift resultant.
     """
     Wres=_finite('抗浮永久向下重量 Wf+Ws+Wc',resisting_weight_kN)
     Ws=_finite('結構地震重量 Ws',structure_seismic_weight_kN)
