@@ -69,11 +69,11 @@ def render_module_2(expanded=False):
             r1,r2,r3=st.columns(3)
             r1.success(f"USCS：{result['USCS']}")
             r2.success(f"AASHTO：{result['AASHTO']}")
-            r3.metric("群指數 GI",result['GI'])
+            r3.metric("群指數 GI", "不適用" if result['GI'] is None else result['GI'])
             st.caption(f"USCS 組別意義：{result['USCS_description']}")
             st.caption(f"AASHTO 組別意義：{result['AASHTO_description']}")
             if result['peat']:
-                st.caption("泥炭／高度有機土：PI、Cu、Cc 與篩分析比例不適用。")
+                st.caption("泥炭／高度有機土：AASHTO A-8 依 AASHTO M 145 Note 3 以外觀辨識；該標準未將 A-8 納入一般 GI 計算，因此 GI 顯示不適用（不是 0）。PI、Cu、Cc 與篩分析比例亦不適用。")
             else:
                 st.write(f"PI = {result['PI']:.1f}% ｜ Cu = {result['Cu'] if result['Cu'] is not None else '未計算'} ｜ Cc = {result['Cc'] if result['Cc'] is not None else '未計算'}")
                 st.dataframe(pd.DataFrame([{'礫粒(%)':result['gravel_pct'],'砂粒(%)':result['sand_pct'],'細料(%)':result['fines_pct'],'A-line PI':result['A_line_PI'],'U-line PI':result['U_line_PI']}]),hide_index=True,use_container_width=True)
