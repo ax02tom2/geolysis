@@ -52,7 +52,8 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
         slide_horizontal_load_kN, main_horizontal_load_kN,
         slide_uplift_kN, footing_area_m2, footing_width_m, footing_length_m,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0,
-        seismic_eccentricity_current=False, seismic_eccentricity_cases=None):
+        seismic_eccentricity_current=False, seismic_eccentricity_cases=None,
+        earth_pressure_active=False, earth_pressure_moments_confirmed=False):
     """Check that the full footing area used by the c_a*A sliding term remains in compression.
 
     USACE Eq. 5-28 uses A, the base area in contact with soil. If adhesion is
@@ -61,6 +62,12 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
     """
     if not bool(adhesion_active):
         return {"ready": True, "reason": None, "minimum_contact_pressure_kpa": None}
+    if bool(earth_pressure_active) and not bool(earth_pressure_moments_confirmed):
+        return {
+            "ready":False,
+            "reason":"有 Pa／Pp 或自動回填土壓時，須先確認其作用點／力臂造成的傾覆彎矩已納入靜力 eB／eL 或地震 M_B／M_L；目前滑動模組不自行推算土壓力矩。",
+            "minimum_contact_pressure_kpa":None,
+        }
     if load_case not in ("static", "seismic"):
         raise ValueError("滑動接觸面積檢核荷載組合須為 static 或 seismic")
     if footing_type not in ("spread", "continuous", "strip"):
