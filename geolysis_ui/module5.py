@@ -899,6 +899,9 @@ def render_module_5(expanded=False):
             if slide_adhesion_active5 and slide_earth_pressure_active5:
                 slide_contact_moment_context5=(
                     slide_load_case5,bool(auto_earth5),float(slide_pa5),float(slide_pp5),
+                    float(slide_gamma5 or 0.0),float(slide_backfill_phi5 or 0.0),
+                    float(slide_backfill_c5 or 0.0),float(df5),float(L5),float(slide_req5),
+                    float(slide_area5),float(B5),
                     float(slide_v5),float(slide_h5),float(V5),float(H5),
                     float(eB5),float(eL5),float(seismic_moment_B5),float(seismic_moment_L5),
                     slide_footing5,float(base_ang5))
