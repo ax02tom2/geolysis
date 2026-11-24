@@ -125,8 +125,8 @@ def render_module_3(expanded=False):
                 "取樣器若原本就不設計使用內襯，即使現場沒有內襯也應選 CS=1.00；"
                 "CS=1.10–1.30 僅適用於原設計需內襯、但現場省略內襯的美規取樣器。"
             )
-            rod_len=st.number_input("鑽桿長度 [m]",0.5,60.0,8.0,0.5,key="m3_rod")
-            st.caption("CR 依鑽桿長度自動採建議值；仍須依設備型式與採用規範核對。")
+            rod_len=st.number_input("鑽桿總長（錘擊器至取樣器，含地面突出段）[m]",0.5,60.0,8.0,0.5,key="m3_rod")
+            st.caption("CR 依錘擊器至取樣器的鑽桿總長自動採建議值；須包含地面突出段，不是單純地下鑽進深度。仍須依設備型式與採用規範核對。")
             if rod_len>30:
                 st.warning("鑽桿長度超過 30 m；USACE EM 1110-1-1905（2025）表 4-6 的 CR 參考範圍為 10–30 m。本工具目前仍以 CR=1.00 延用計算，但此範圍屬表列範圍外推，請依實際設備與採用規範確認。")
         with c:
@@ -188,7 +188,7 @@ def render_module_3(expanded=False):
             st.session_state.pop("m3_current_n160",None)
             st.info("單筆 SPT 尚未確認為本次實測／採用資料；不會產生可供模組四沿用的 N60。")
         st.markdown("**鑽孔逐深度資料（CSV）**")
-        st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
+        st.caption("必要欄位：Depth_m、N。Effective_Stress_KPa 僅在該列為非凝聚性土壤且套用 CN 時必填；黏土、拒錘列或選擇不修正 CN 時可留空。選填 Soil_Behavior（cohesionless／cohesive，逐層土壤行為）、Apply_Dilatancy（true／false，逐點液化評估用膨脹修正）、Burland_Material（standard／fine_sand_silt_saturated／gravel_sandy_gravel，供模組四 Burland–Burbidge 逐點 N60 修正）、Rod_Length_m（錘擊器至取樣器的鑽桿總長，含地面突出段）、Energy_Ratio_pct、Borehole_Factor、Sampler_Factor、Refusal。逐列有填值時優先採用該列資料，空白才沿用上方共用值；黏土列自動不套用 CN，只有明確標記的砂土／粉土列才套用液化評估膨脹修正；Burland_Material 則供模組四獨立採用其砂礫沉陷法修正，不會混用 (N1)60。")
         csv_file=st.file_uploader("上傳逐深度 SPT CSV（UTF-8）",type=['csv'],key='m3_csv_upload')
         csv_text=st.text_area("或貼上 CSV 內容",value="",height=100,key="m3_profile",placeholder="Depth_m,N,Effective_Stress_KPa,Soil_Behavior,Apply_Dilatancy,Burland_Material,Rod_Length_m")
         profile_source_bytes=csv_file.getvalue() if csv_file is not None else csv_text.encode("utf-8")
