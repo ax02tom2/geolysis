@@ -900,6 +900,35 @@ def test_layered_excavation_rebound_rejects_void_ratio_change_in_absent_stage(
         excavation_rebound_recompression_layers(layers=[layer])
 
 
+
+
+@pytest.mark.parametrize(
+    ("initial_stress", "excavation_stress", "final_stress", "e0", "e_exc", "e_final", "message"),
+    [
+        (100.0, 100.0, 120.0, 0.80, 0.90, 0.85, "e_exc 必須等於 e0"),
+        (100.0, 50.0, 50.0, 0.80, 0.90, 0.85, "e_final 必須等於 e_exc"),
+    ],
+)
+def test_layered_excavation_rebound_rejects_void_ratio_change_at_unchanged_stress(
+    initial_stress, excavation_stress, final_stress, e0, e_exc, e_final, message
+):
+    from geolysis_engine import excavation_rebound_recompression_layers
+
+    layer = {
+        "Layer": 1,
+        "rebound_thickness_m": 2.0,
+        "recompression_thickness_m": 2.0,
+        "initial_effective_stress_kpa": initial_stress,
+        "excavation_effective_stress_kpa": excavation_stress,
+        "final_effective_stress_kpa": final_stress,
+        "e0": e0,
+        "e_exc": e_exc,
+        "e_final": e_final,
+    }
+    with pytest.raises(ValueError, match=message):
+        excavation_rebound_recompression_layers(layers=[layer])
+
+
 def test_layered_excavation_rebound_rejects_both_stage_thicknesses_zero():
     from geolysis_engine import excavation_rebound_recompression_layers
     layer = {
