@@ -700,4 +700,4 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 - Regression tests cover static rejection, pseudo-static rejection, and result-signature invalidation.
 - PR #306 merged to main as f11cc4dfa64c32972d1a04fcf249d64854f06f6e.
 - PR-head validation on 3e58f732c5304126c4665ee8a57c0d6d51cd993e: full suite 696 passed (Actions run 45334619047); Module/Web suite 647 passed (run 45334618985); Python 3.11 active-module compileall passed in both workflows.
-- Post-merge main validation: pending independent Actions confirmation.
+- Post-merge main validation on f11cc4dfa64c32972d1a04fcf249d64854f06f6e: full suite 696 passed (Actions run 45334801861); Module/Web suite 647 passed (run 45334801758); Python 3.11 active-module compileall passed in both workflows.
