@@ -11,6 +11,7 @@ def signature(**overrides):
     values = {
         "footing_depth_m": 1.5,
         "footing_length_m": 3.0,
+        "base_inclination_deg": 0.0,
         "base_pressure_reference_kN": 120.0,
         "uplift_pressure_confirmed": True,
         "uplift_pressure_ready": True,
@@ -28,6 +29,7 @@ def signature(**overrides):
         {"footing_depth_m": 2.0},
         {"footing_length_m": 4.0},
         {"base_pressure_reference_kN": 121.0},
+        {"base_inclination_deg": 10.0},
         {"uplift_pressure_confirmed": False},
         {"uplift_pressure_ready": False},
         {"footing_area_matches_base": False},
