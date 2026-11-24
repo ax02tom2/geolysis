@@ -181,6 +181,20 @@ def test_module5_bishop_methods_require_project_specific_inputs_and_confirmation
                for value in static_scope_warnings)
 
 
+def test_module5_seismic_eccentricity_is_disabled_for_inclined_base():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
+    assert calculate.disabled is False
+    next(widget for widget in app.number_input if widget.key == "m5x_base_angle").set_value(5.0)
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    calculate = next(widget for widget in app.button if widget.key == "m5x_seismic_ecc_run")
+    assert calculate.disabled is True
+    assert any("僅適用水平基底" in item.value for item in app.error)
+
+
 def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
