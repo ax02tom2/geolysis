@@ -702,11 +702,11 @@ def test_uscs_rejects_nonpositive_or_nonmonotonic_particle_diameters():
             classify_uscs_aashto(**base,**curve)
 
 
-def test_peat_returns_pt_a8_without_lab_values():
+def test_peat_returns_pt_a8_without_lab_values_and_no_group_index():
     r=classify_uscs_aashto(peat=True)
     assert r["USCS"]=="PT"
     assert r["AASHTO"]=="A-8"
-    assert r["GI"]==0
+    assert r["GI"] is None
     assert r["PI"] is None
     assert r["gravel_pct"] is None
 
