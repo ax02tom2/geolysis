@@ -719,6 +719,26 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
 
 
 
+
+
+def test_module2_data_confirmation_resets_when_classification_inputs_change():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m2_data_confirm")
+    confirmation.check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m2_run").click()
+    app.run()
+    assert app.session_state.get("m2_result") is not None
+
+    next(widget for widget in app.number_input if widget.key == "m2_p200").set_value(13.0)
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m2_data_confirm")
+    assert confirmation.value is False
+    assert "m2_result" not in app.session_state
+    assert next(widget for widget in app.button if widget.key == "m2_run").disabled is True
+
+
 def test_module2_a8_peat_displays_group_index_as_not_applicable():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
