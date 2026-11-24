@@ -1381,3 +1381,14 @@ Module 4 — Construction-stage settlement aggregation and input-path safeguards
 - PR #287 merged as 053e77f855bb93fdbcad5378f0d6c158aed0a92f; PR #288 merged as 6ac2bd271188aa75378ee283415a52d41b582719; PR #289 merged as f9bf6c95ec144405b958c474af938fb148f83ca0.
 - Main-branch GitHub Actions, 2026-11-23 Asia/Taipei (UTC+08:00): full suite 680 passed (run 45145953193); Module/Web regression suite 635 passed (run 45145953239); Python 3.11 active-module compilation passed in both workflows.
 - References: USACE EM 1110-1-1905 (31 July 2025), §7-15, Table 7-10, Eqs. 7-38 and 7-40 for excavation rebound/recompression; §7-18, Eqs. 7-41 and 7-42 and Figure 7-16 for time-rate settlement. Multi-layer time-rate remains a sum of independent one-dimensional layer responses, not a fully coupled interlayer drainage model.
+
+
+Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate safeguards (PR #291)
+- Layered excavation e-log-p input now rejects different void ratios at unchanged effective stress (σ′0=σ′exc requires e0=e_exc; σ′exc=σ′f requires e_exc=e_final), preventing a spurious stage strain.
+- Multi-layer primary-settlement CSV explicitly defines Depth_center_m below the footing base; non-finite/blank layer IDs are rejected in the multi-layer time-rate input.
+- Layered time-rate UI now states that double drainage requires real drainage boundaries at both layer faces; a clay-clay interface is not automatically a drained boundary. The independent 1-D layer sum is not a coupled multilayer solution.
+- Single-layer Cv default 0.005 m²/day no longer silently produces time predictions. User confirmation is required that Cv was selected from laboratory/field data for the final effective stress, consistent with USACE EM 1110-1-1905 (2025) Table 7-11 Step 2.
+- Stage summary labels now reflect only components actually calculated; immediate settlement inclusion is tracked by explicit confirmation, not by whether the numerical value is nonzero.
+- PR #291 merged to main as b8978bfd5068e24a1f16f06fb4a5407b24240496.
+- PR head validation (2026-11-24 Asia/Taipei UTC+08:00): full suite 683 passed; Module/Web regression suite 638 passed; Python 3.11 active-module compileall passed in both workflows. Post-merge main-branch workflows are checked separately before declaring deployment validation complete.
+- References: USACE EM 1110-1-1905 (31 July 2025), Table 7-10 / Eqs. 7-38 and 7-40; §7-18 / Table 7-11 / Eq. 7-42 / Figure 7-16. Layered consolidation coupling limitations are documented in the UI.
