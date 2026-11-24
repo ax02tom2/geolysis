@@ -1327,3 +1327,11 @@ def test_module1_unconfirmed_ucs_is_incomplete_state_not_calculation_error():
         for item in app.error
     )
     assert app.session_state.get("geolysis_hb_current") is None
+
+def test_module4_burland_time_input_enforces_original_three_year_applicability():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    years = next(widget for widget in app.number_input if widget.key == "m4_bb_years")
+    assert years.min_value == 3.0
+    assert years.value >= 3.0
