@@ -622,7 +622,7 @@ def render_module_4(expanded=False):
                 sec4=None
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
                     if layers_text4.strip():
-                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。Drainage=double 僅能用於該層頂、底兩面均有實際有效排水邊界的情況；相鄰黏土層界面不可自動視為排水面。連續黏土層且無砂層排水界面時，本模式不能完整描述層間孔隙水壓與流量連續，結果只可作初步估算。")
+                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。各層 Cv 應依該層最終有效垂直應力 σ′zf 選取。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。Drainage=double 僅能用於該層頂、底兩面均有實際有效排水邊界的情況；相鄰黏土層界面不可自動視為排水面。連續黏土層且無砂層排水界面時，本模式不能完整描述層間孔隙水壓與流量連續，結果只可作初步估算。")
                         try:
                             layer_rows_time4=pd.read_csv(StringIO(layers_text4)).to_dict("records")
                             primary_layers_time4=consolidation_settlement_layers(
@@ -685,7 +685,7 @@ def render_module_4(expanded=False):
                         except Exception as multi_time_exc:
                             st.error(f"多層固結時間／次壓縮估算失敗：{multi_time_exc}")
                     else:
-                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得；此處以單一均質壓縮層作一維估算。")
+                        st.caption("依 USACE EM 1110-1-1905（2025）第 7-18、7-19 節；U–Tv 採圖 7-16 表列點線性內插。Cv 應由固結試驗或現地試驗取得，並依最終有效垂直應力 σ′zf 選用；預設 0.005 m²/day 僅為示範值，未確認前不會計算時間預測。此處以單一均質壓縮層作一維估算。")
                         rt_a,rt_b,rt_c=st.columns(3)
                         with rt_a:
                             cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
