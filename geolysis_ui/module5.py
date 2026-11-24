@@ -33,9 +33,9 @@ def _normalize_bishop_weight_column(frame):
 
 
 def _sliding_result_signature(base_signature, *, footing_depth_m, footing_length_m,
-        base_inclination_deg, base_pressure_reference_kN, uplift_pressure_confirmed,
-        uplift_pressure_ready, footing_area_matches_base, footing_units_match,
-        seismic_earth_pressure_ready):
+        base_inclination_deg, interface_parameters_confirmed,
+        base_pressure_reference_kN, uplift_pressure_confirmed, uplift_pressure_ready,
+        footing_area_matches_base, footing_units_match, seismic_earth_pressure_ready):
     """Include all calculation geometry and readiness gates in the sliding signature.
 
     The developed Rankine earth-pressure branch depends on Df and footing length;
@@ -45,6 +45,7 @@ def _sliding_result_signature(base_signature, *, footing_depth_m, footing_length
         float(footing_depth_m),
         float(footing_length_m),
         float(base_inclination_deg),
+        bool(interface_parameters_confirmed),
         float(base_pressure_reference_kN),
         bool(uplift_pressure_confirmed),
         bool(uplift_pressure_ready),
@@ -808,7 +809,10 @@ def render_module_5(expanded=False):
                 slide_h5=st.number_input(f"靜力水平力 H [{slide_force_unit5}]（不含 khW）",0.0,1000000.0,float(H5),10.0,key="m5x_slide_h")
             with sb:
                 slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
-                slide_phi5=st.number_input("基底界面摩擦角 δ′ [°]",0.0,50.0,(0.0 if use_hb5 else float(phi5)),1.0,key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}")
+                slide_phi5=st.number_input(
+                    "基底界面摩擦角 δ′ [°]",0.0,50.0,0.0,1.0,
+                    key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}_v2",
+                    help="請依基礎底面與接觸土層的界面試驗、表面粗糙度或適用設計依據選取；δ′ 是界面摩擦角，不應未經判斷直接等同土壤內摩擦角 φ′。")
                 slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_slide_c_{'hb' if use_hb5 else 'manual'}")
             with sc:
                 slide_ar5=st.number_input("基底黏著比 ca/c′（或 ca/Su）",0.0,1.0,0.0,0.05,key="m5x_slide_ar")
@@ -816,6 +820,15 @@ def render_module_5(expanded=False):
                 slide_pp_label5=("地震作用下不利被動抗力 Pp" if slide_load_case5=="seismic" else "已折減被動抗力 Pp")
                 slide_pa5=st.number_input(f"{slide_pa_label5} [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pa")
                 slide_pp5=st.number_input(f"{slide_pp_label5} [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_slide_pp")
+            slide_interface_context5=(
+                float(slide_phi5),float(slide_c5),float(slide_ar5),
+                slide_footing5,slide_load_case5,float(base_ang5))
+            slide_interface_confirmed5=st.checkbox(
+                "已確認 δ′ 為基底界面摩擦角（非直接沿用土壤 φ′），並已確認界面 c′／Su 與 ca/c′（或 ca/Su）",
+                value=False,
+                key=_context_confirmation_key("m5x_slide_interface_confirm",*slide_interface_context5))
+            if not slide_interface_confirmed5:
+                st.warning("基底界面強度尚未確認；滑動 FS 暫不計算。請依界面材料、粗糙度／試驗資料確認 δ′、c′／Su 與黏著比。")
             slide_req5=st.number_input("要求滑動安全係數",1.1,5.0,2.0,0.1,key="m5x_slide_req")
             slide_min_fs5=1.1 if slide_load_case5=="seismic" else 2.0
             slide_uplift_resisting_weight5=st.number_input(f"抗浮永久向下重量 Wf+Ws+Wc [{slide_force_unit5}]",0.0,1000000.0,0.0,10.0,key="m5x_uplift_resisting_weight",
@@ -870,17 +883,19 @@ def render_module_5(expanded=False):
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
             slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5
-                and abs(float(base_ang5))<=1e-9)
+                and slide_interface_confirmed5 and abs(float(base_ang5))<=1e-9)
             if abs(float(base_ang5))>1e-9:
                 st.error("目前基底滑動公式僅適用水平基底（αb=0°）。已設定傾斜基底，因尚未完成 N/T 力分解及揚壓／土壓方向處理，系統停用滑動 FS，避免輸出不適用的安全係數。")
             slide_sig=_sliding_result_signature(
                 (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,
                  slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
                  seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
-                 slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
+                 slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5,
+                 slide_interface_confirmed5),
                 footing_depth_m=df5,
                 footing_length_m=(1.0 if slide_is_line5 else L5),
                 base_inclination_deg=base_ang5,
+                interface_parameters_confirmed=slide_interface_confirmed5,
                 base_pressure_reference_kN=base_pressure_U_ref5,
                 uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
                 uplift_pressure_ready=slide_uplift_pressure_ready5,
