@@ -3079,6 +3079,16 @@ def test_usace_pseudostatic_sliding_rejects_uplift_at_least_minimum_vertical_loa
         )
 
 
+def test_seismic_uplift_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        seismic_uplift_stability_cases(
+            resisting_weight_kN=1500.0,
+            structure_seismic_weight_kN=1000.0,
+            uplift_force_kN=500.0, kv=0.1,
+            base_inclination_deg=5.0,
+        )
+
+
 def test_usace_pseudostatic_sliding_rejects_inclined_base():
     with pytest.raises(ValueError, match="僅適用水平基底"):
         foundation_sliding_pseudostatic_cases(
