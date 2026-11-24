@@ -669,3 +669,24 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 PR #301 merged to main as c0da20131880f7d0950bd431beef9b1070efc327.
 PR-head validation on 7dc54c877625e557a314cf4811dc4db653c058db: full suite 691 passed; Module/Web suite 643 passed; Python 3.11 active-module compileall passed in both workflows.
 Post-merge main validation on c0da20131880f7d0950bd431beef9b1070efc327: full suite 691 passed (Actions run 45316993455); Module/Web suite 643 passed (Actions run 45316993657); Python 3.11 active-module compileall passed in both workflows.
+
+
+Build: geolysis Web — Module 4 consolidation Cv confirmation integrity
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+
+Module 4 — Single-layer Cv confirmation context (PR #303)
+- The single-layer time-rate / secondary-compression Cv confirmation key now binds to both the entered Cv and the final effective vertical stress at the compression-layer midpoint (σ′zf = σ′0 + Δσz).
+- The UI displays the final effective stress used for the Cv confirmation. Changing Cv or σ′zf creates a new unconfirmed state and suppresses the previous time-rate / secondary-compression output.
+- Regression AppTest covers invalidation after Cv changes and after changing the settlement target so the final stress changes.
+- PR #303 merged to main as 99dc0ff46dd78e271304dae49d33d40d6794f7ab.
+- PR-head validation: full suite 692 passed; Module/Web suite 644 passed; Python 3.11 active-module compileall passed in both workflows.
+
+Module 4 — Multi-layer Cv and drainage-boundary confirmation (PR #304)
+- Multi-layer time-rate / secondary-compression prediction now requires explicit confirmation that each layer's Cv was selected at that layer's final effective stress and that Drainage/Hdr matches actual drainage boundaries.
+- The confirmation key binds to the raw layer stress profile, final net pressure, footing geometry, stress method, per-layer Δσ/settlement, and each layer's Cv / Drainage / Hdr. Editing the time-parameter CSV or stress profile invalidates the confirmation and suppresses the old time prediction.
+- This preserves the independent 1-D layer-summation model and its documented limitation; it does not implement a fully coupled multilayer consolidation model.
+- Regression AppTest covers invalidation after Cv CSV edits and layer initial-stress edits.
+- PR #304 merged to main as ab35902f575f025250f1f003070a0666cce8ff30.
+- PR-head validation: full suite 693 passed; Module/Web suite 645 passed; Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation on ab35902f575f025250f1f003070a0666cce8ff30: full suite 693 passed (Actions run 45318144757); Module/Web suite 645 passed (run 45318144695); Python 3.11 active-module compileall passed in both workflows.
+- Engineering basis: USACE EM 1110-1-1905 (2025), §7-18 / Table 7-11 Step 2 (select Cv based on final vertical effective stress at the layer midpoint); drainage length must reflect actual drainage boundaries.
