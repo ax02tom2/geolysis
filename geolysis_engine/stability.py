@@ -50,7 +50,7 @@ def base_uplift_pressure_readiness(*, uplift_force_kN,
 def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, area_m2, friction_angle_deg, cohesion_kpa=0.0,
         adhesion_ratio=0.0, active_force_kN=0.0, passive_force_kN=0.0,
-        fs_required=2.0, load_case='static'):
+        fs_required=2.0, load_case='static', base_inclination_deg=0.0):
     """USACE EM 1110-1-1905 (2025) Eq. 5-28/5-29 drained interface sliding.
     Active/passive forces must be independently established using developed
     strengths; passive resistance is capped at the driving force.
@@ -60,9 +60,12 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
     phi=_finite('基底摩擦角',friction_angle_deg); c=_finite('基底黏著強度',cohesion_kpa)
     ar=_finite('黏著折減比',adhesion_ratio); Pa=_finite('主動土壓力',active_force_kN)
     Pp=_finite('被動土壓力',passive_force_kN); req=_finite('要求安全係數',fs_required)
+    base_angle=_finite('基底傾角',base_inclination_deg)
     minimum_fs = 2.0 if load_case == 'static' else 1.1 if load_case == 'seismic' else None
     if minimum_fs is None:
         raise ValueError('滑動荷載組合須為 static 或 seismic')
+    if abs(base_angle)>1e-9:
+        raise ValueError('目前基底滑動公式僅適用水平基底（αb=0°）；傾斜基底須先依基底方向分解法向力 N 與切向力 T，並處理揚壓及主被動土壓方向，不可直接套用 V、H。')
     if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<minimum_fs:
         raise ValueError(f'基底滑動輸入值不合理；{load_case} 荷載組合的 USACE 2025 要求 FS 不得低於 {minimum_fs:.1f}')
     drive=H+Pa
@@ -77,7 +80,7 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         'FS_sliding':fs,'FS_required':req,'FS_minimum_required':minimum_fs,
         'load_case':load_case,'passes':fs>=req,
         'method':'USACE EM 1110-1-1905 (2025), Eqs. 5-28/5-29',
-        'limitations':'被動土壓與主動土壓須以 developed strength（φd、cd）另行計算後輸入；被動抗力不可大於 H+Pa。此函式未自行估算側向土壓、差異水壓、地震載重或結構接觸面破壞。'}
+        'limitations':'本函式僅適用水平基底（αb=0°），以 V−U 作法向有效力、H+Pa−Pp 作切向驅動力；傾斜基底須先依 USACE 式 5-28 分解 N、T，並處理揚壓與土壓方向，本函式會拒絕非零基底傾角。被動土壓與主動土壓須以 developed strength（φd、cd）另行計算後輸入；被動抗力不可大於 H+Pa。此函式未自行估算側向土壓、差異水壓、地震載重或結構接觸面破壞。'}
 
 def bishop_simplified_factor_of_safety(*, slices, tolerance=1e-7, max_iterations=500):
     """Bishop simplified circular limit-equilibrium method.
@@ -274,7 +277,8 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
 def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
         horizontal_load_kN, seismic_weight_kN, kh, kv, area_m2,
         friction_angle_deg, cohesion_kpa=0.0, adhesion_ratio=0.0,
-        active_force_kN=0.0, passive_force_kN=0.0, fs_required=1.1):
+        active_force_kN=0.0, passive_force_kN=0.0, fs_required=1.1,
+        base_inclination_deg=0.0):
     """Evaluate USACE pseudo-static sliding FS for both vertical kv directions.
 
     The horizontal driving load is the adverse aligned envelope H + kh·W.
@@ -289,6 +293,9 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
     W=_finite('有效地震重量 W',seismic_weight_kN)
     khv=_finite('水平地震係數 kh',kh)
     kvv=_finite('垂直地震係數 kv',kv)
+    base_angle=_finite('基底傾角',base_inclination_deg)
+    if abs(base_angle)>1e-9:
+        raise ValueError('目前偽靜力滑動公式僅適用水平基底（αb=0°）；傾斜基底須先依基底方向分解法向力 N 與切向力 T，並處理揚壓及主被動土壓方向，不可直接套用 V、H。')
     if V<=0 or W<=0 or H<0 or not 0<=khv<=1 or not 0<=kvv<=0.5:
         raise ValueError('地震滑動輸入不合理：V、W須正，H不可為負，0≤kh≤1、0≤kv≤0.5')
     Vmin=V-kvv*W
@@ -307,7 +314,8 @@ def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
             cohesion_kpa=cohesion_kpa,adhesion_ratio=adhesion_ratio,
             active_force_kN=active_force_kN,
             passive_force_kN=passive_force_kN,
-            fs_required=fs_required,load_case='seismic')
+            fs_required=fs_required,load_case='seismic',
+            base_inclination_deg=base_angle)
         cases.append({
             **result,'vertical_load_kN':Ve,'horizontal_load_kN':He,
             'seismic_weight_kN':W,

@@ -3079,6 +3079,27 @@ def test_usace_pseudostatic_sliding_rejects_uplift_at_least_minimum_vertical_loa
         )
 
 
+def test_usace_pseudostatic_sliding_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        foundation_sliding_pseudostatic_cases(
+            vertical_load_kN=1000.0, uplift_kN=100.0,
+            horizontal_load_kN=100.0, seismic_weight_kN=1200.0,
+            kh=0.2, kv=0.1, area_m2=6.0,
+            friction_angle_deg=30.0, fs_required=1.1,
+            base_inclination_deg=10.0,
+        )
+
+
+def test_static_sliding_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        foundation_sliding_factor_of_safety(
+            vertical_load_kN=1000.0, uplift_kN=100.0,
+            horizontal_load_kN=100.0, area_m2=6.0,
+            friction_angle_deg=30.0, fs_required=2.0,
+            base_inclination_deg=10.0,
+        )
+
+
 def test_usace_pseudostatic_sliding_enforces_minimum_earthquake_fs():
     with pytest.raises(ValueError, match="不得低於 1.1"):
         foundation_sliding_pseudostatic_cases(

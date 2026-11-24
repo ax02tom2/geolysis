@@ -33,8 +33,8 @@ def _normalize_bishop_weight_column(frame):
 
 
 def _sliding_result_signature(base_signature, *, footing_depth_m, footing_length_m,
-        base_pressure_reference_kN, uplift_pressure_confirmed, uplift_pressure_ready,
-        footing_area_matches_base, footing_units_match,
+        base_inclination_deg, base_pressure_reference_kN, uplift_pressure_confirmed,
+        uplift_pressure_ready, footing_area_matches_base, footing_units_match,
         seismic_earth_pressure_ready):
     """Include all calculation geometry and readiness gates in the sliding signature.
 
@@ -44,6 +44,7 @@ def _sliding_result_signature(base_signature, *, footing_depth_m, footing_length
     return tuple(base_signature) + (
         float(footing_depth_m),
         float(footing_length_m),
+        float(base_inclination_deg),
         float(base_pressure_reference_kN),
         bool(uplift_pressure_confirmed),
         bool(uplift_pressure_ready),
@@ -868,7 +869,10 @@ def render_module_5(expanded=False):
                 slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
-            slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5)
+            slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5
+                and abs(float(base_ang5))<=1e-9)
+            if abs(float(base_ang5))>1e-9:
+                st.error("目前基底滑動公式僅適用水平基底（αb=0°）。已設定傾斜基底，因尚未完成 N/T 力分解及揚壓／土壓方向處理，系統停用滑動 FS，避免輸出不適用的安全係數。")
             slide_sig=_sliding_result_signature(
                 (src5,slide_v5,slide_u5,slide_h5,slide_area5,slide_phi5,slide_c5,
                  slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
@@ -876,6 +880,7 @@ def render_module_5(expanded=False):
                  slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5),
                 footing_depth_m=df5,
                 footing_length_m=(1.0 if slide_is_line5 else L5),
+                base_inclination_deg=base_ang5,
                 base_pressure_reference_kN=base_pressure_U_ref5,
                 uplift_pressure_confirmed=slide_uplift_pressure_confirmed5,
                 uplift_pressure_ready=slide_uplift_pressure_ready5,
@@ -905,14 +910,16 @@ def render_module_5(expanded=False):
                             kh=kh5,kv=kv5,area_m2=slide_area5,
                             friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
-                            passive_force_kN=passive_used,fs_required=slide_req5)
+                            passive_force_kN=passive_used,fs_required=slide_req5,
+                            base_inclination_deg=base_ang5)
                     else:
                         slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
                             uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
                             friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
-                            load_case=slide_load_case5)
+                            load_case=slide_load_case5,
+                            base_inclination_deg=base_ang5)
                     store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, slide_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
