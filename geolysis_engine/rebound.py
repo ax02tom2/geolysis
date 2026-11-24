@@ -44,6 +44,16 @@ def excavation_rebound_recompression_layers(*, layers):
                 f"第 {i} 層孔隙比方向不符：回彈階段應 e_exc ≥ e0，"
                 "再壓縮階段應 e_final ≤ e_exc"
             )
+        stress_tol = 1e-9 * max(1.0, s0, se, sf)
+        void_ratio_tol = 1e-9
+        if abs(s0 - se) <= stress_tol and abs(ee - e0) > void_ratio_tol:
+            raise ValueError(
+                f"第 {i} 層開挖前與開挖後有效應力相同，e_exc 必須等於 e0"
+            )
+        if abs(sf - se) <= stress_tol and abs(ef - ee) > void_ratio_tol:
+            raise ValueError(
+                f"第 {i} 層開挖後與最終有效應力相同，e_final 必須等於 e_exc"
+            )
         if hr == 0 and abs(ee - e0) > 1e-9:
             raise ValueError(f"第 {i} 層回彈厚度為 0 時，e_exc 必須等於 e0")
         if hc == 0 and abs(ef - ee) > 1e-9:
