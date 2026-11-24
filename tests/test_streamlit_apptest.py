@@ -875,6 +875,15 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).value is False
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_ground_angle").set_value(5.0)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).value is False
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).value is True
+    next(widget for widget in app.number_input if widget.key == "m5x_ground_angle").set_value(0.0)
+    app.run()
 
     # Partial shear-zone confirmation is tied to f and both effective unit weights.
     next(widget for widget in app.selectbox if widget.key == "m5x_shear_zone_mode").select("partial")
