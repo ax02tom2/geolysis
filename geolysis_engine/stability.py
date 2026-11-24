@@ -107,10 +107,10 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
             "minimum_contact_pressure_kpa":None,
         }
     cases=list(seismic_eccentricity_cases or [])
-    if not cases:
+    if len(cases) not in (2,4):
         return {
             "ready":False,
-            "reason":"目前地震偏心檢核沒有可用的正反向 kh、kv 組合結果；不可沿用完整基底面積計算黏著抗力。",
+            "reason":"目前地震偏心檢核沒有完整的垂直／水平地震方向組合結果；不可沿用完整基底面積計算黏著抗力.",
             "minimum_contact_pressure_kpa":None,
         }
     qmins=[]
