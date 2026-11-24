@@ -1829,7 +1829,7 @@ def test_menard_rousseau_pmt_rock_condition_uses_usace_table_7_6(
 
 
 def test_menard_rousseau_pmt_rock_requires_explicit_rock_condition():
-    with pytest.raises(ValueError, match="rock_condition"):
+    with pytest.raises(ValueError, match="USACE Table 7-6 岩石 PMT"):
         menard_rousseau_pmt_settlement_2025(
             pmt_moduli=[
                 {"group": "E1", "E0_kpa": 10000.0},
