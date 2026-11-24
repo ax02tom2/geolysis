@@ -303,7 +303,11 @@ def consolidation_time_rate_layers(*, layer_results, layer_time_parameters,
             tv=days*row['Cv_m2_per_day']/(row['Hdr_m']**2)
             degree=_terzaghi_degree_from_time_factor(tv)
             settled+=row['Settlement_mm']*degree/100.0
-        return 100.0*settled/total_primary
+        degree_average=100.0*settled/total_primary
+        # Weighted accumulation can round to exactly 100.0 even though each
+        # finite-time layer response remains below the mathematical asymptote.
+        # Preserve the finite-time invariant for the aggregate result too.
+        return min(math.nextafter(100.0,0.0), max(0.0, degree_average))
 
     if total_primary<=0:
         target_days=0.0
