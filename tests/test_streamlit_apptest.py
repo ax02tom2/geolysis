@@ -849,6 +849,16 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(15.0)
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kh").set_value(0.16)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kv").set_value(0.05)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_residual_base_u_confirm_")).value is False
 
     # Liquefaction and lateral-spreading confirmations are tied to ru / FSliq.
     next(widget for widget in app.number_input if widget.key == "m5x_ru").set_value(0.2)
