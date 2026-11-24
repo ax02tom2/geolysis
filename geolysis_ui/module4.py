@@ -919,15 +919,28 @@ def render_module_4(expanded=False):
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_final_stage4,
                                 secondary_settlement_mm=secondary_stage4)
-                            final_stage_label4=(
-                                "最終主固結＋目前次壓縮＋即時沉陷"
-                                if immediate_for_stage4>0 else
-                                "最終主固結＋目前次壓縮（未納入即時沉陷）")
+                            if multi_time4 is not None:
+                                final_stage_label4=(
+                                    "最終主固結＋目前次壓縮＋即時沉陷"
+                                    if immediate_for_stage4>0 else
+                                    "最終主固結＋目前次壓縮（未納入即時沉陷）")
+                                stage_time_caption4=(
+                                    "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
+                                    "此數值將主固結改採最終值，次壓縮仍採所輸入經過時間。"
+                                )
+                            else:
+                                final_stage_label4=(
+                                    "最終主固結＋即時沉陷（未計次壓縮）"
+                                    if immediate_for_stage4>0 else
+                                    "最終主固結（未計次壓縮與時間效應）")
+                                stage_time_caption4=(
+                                    "尚未提供完整逐層 Cv／排水邊界參數，因此此處只顯示最終主固結；"
+                                    "未計入次壓縮或時間效應。"
+                                )
                             st.metric(final_stage_label4,
                                       f"{final_stage4['total_settlement_mm']:.2f} mm")
                             st.caption(
-                                "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
-                                "第二個數值將主固結改採最終值，次壓縮仍採所輸入經過時間。"
+                                stage_time_caption4
                                 + ("已納入經確認的即時沉陷。" if immediate_for_stage4>0 else "未納入即時沉陷。")
                             )
                         else:
@@ -944,25 +957,29 @@ def render_module_4(expanded=False):
                                 immediate_settlement_mm=immediate_for_stage4,
                                 primary_settlement_mm=primary_total4,
                                 secondary_settlement_mm=secondary_stage4)
-                            final_stage_label4=(
-                                "最終主固結＋次壓縮＋即時沉陷"
-                                if immediate_for_stage4>0 else
-                                "最終主固結＋次壓縮（未納入即時沉陷）")
-                            st.metric(final_stage_label4,
-                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
-                            if immediate_for_stage4>0:
-                                st.caption(
-                                    f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm"
-                                    f"＋最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
-                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm。"
-                                    "次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
+                            if sec4 is not None:
+                                final_stage_label4=(
+                                    "最終主固結＋次壓縮至 t2＋即時沉陷"
+                                    if immediate_for_stage4>0 else
+                                    "最終主固結＋次壓縮至 t2（未納入即時沉陷）")
+                                secondary_caption4=(
+                                    f"次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm，"
+                                    "計算期間為輸入的 t1 至 t2。"
                                 )
                             else:
-                                st.caption(
-                                    f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm"
-                                    f"＋次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm；"
-                                    "即時／彈性沉陷未納入。次壓縮僅在已啟用且具備有效 Cα、ep、t1、t2 時納入。"
-                                )
+                                final_stage_label4=(
+                                    "最終主固結＋即時沉陷（未計次壓縮）"
+                                    if immediate_for_stage4>0 else
+                                    "最終主固結（未計次壓縮）")
+                                secondary_caption4="未啟用或未完成有效次壓縮參數，未計入次壓縮。"
+                            st.metric(final_stage_label4,
+                                      f"{final_stage4['total_settlement_mm']:.2f} mm")
+                            st.caption(
+                                f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm；"
+                                + (f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm；"
+                                   if immediate_for_stage4>0 else "即時／彈性沉陷未納入；")
+                                + secondary_caption4
+                            )
                 except Exception as stage_exc4:
                     st.error(f"施工階段總沉陷組合失敗：{stage_exc4}")
                 st.warning("此方法的主要成果為一維主固結沉陷；黏土即時沉陷通常相對較小，仍應依土層排水狀態與剛度判斷。時間速率、次壓縮及開挖回彈可於上方選填區估算。σ′0、σ′p、Cc、Cr、e0、Cv、Cα 應優先採代表性試驗資料。")
