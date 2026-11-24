@@ -1362,8 +1362,8 @@ def test_module4_pmt_rock_condition_is_forwarded_to_settlement_engine():
         next(widget for widget in app.number_input if widget.key == key).set_value(value)
 
     next(widget for widget in app.text_area if widget.key == "m4_pmt_layers").set_value(
-        "group,E0_kpa\\n"
-        "E1,10000\\nE2,12000\\nE345,15000\\nE678,18000\\nE916,22000"
+        "group,E0_kpa\n"
+        "E1,10000\nE2,12000\nE345,15000\nE678,18000\nE916,22000"
     )
     app.run()
     deep_confirmation = next(
