@@ -1357,6 +1357,7 @@ def test_module4_pmt_rock_condition_is_forwarded_to_settlement_engine():
         ("m4_pmt_sigD", 20.0),
         ("m4_pmt_pne", 300.0),
         ("m4_pmt_py", 150.0),
+        ("m4_pmt_fs", 3.0),
     ):
         next(widget for widget in app.number_input if widget.key == key).set_value(value)
 
