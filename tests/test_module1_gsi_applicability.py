@@ -163,6 +163,8 @@ def test_module1_disturbance_preset_rejects_out_of_range_value():
         ("slope", 15.0, None, None),
         ("tunnel", 15.0, 12.0, "約 10 m"),
         ("tunnel", 50.0, 8.0, None),
+        ("tunnel", 20.0, 8.0, "小於約 3 倍開挖跨度"),
+        ("tunnel", 24.0, 8.0, None),
         ("tunnel", 20.0, None, "尚未提供隧道開挖跨度"),
         ("general", None, None, None),
     ],
@@ -200,3 +202,11 @@ def test_laminated_sheared_rock_flags_specialized_gsi_chart_review():
     assert result["applicable"] is True
     assert "Flysch" in result["warning"]
     assert "構造預剪切" in result["warning"]
+
+def test_gsi_tunnel_scale_rejects_nonpositive_cover_depth():
+    from geolysis_engine import gsi_scale_effect_warning
+
+    with pytest.raises(ValueError, match="隧道覆蓋深度"):
+        gsi_scale_effect_warning(
+            application="tunnel", height_m=0.0, span_m=8.0
+        )
