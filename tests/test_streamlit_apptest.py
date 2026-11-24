@@ -218,7 +218,7 @@ def test_module5_residual_base_pressure_confirmation_gates_seismic_qallow():
 
 def test_module1_has_no_rqd_or_fhwa_quantitative_gsi_controls():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert not any("RQD" in widget.label.upper() for widget in app.text_input)
     method = next(widget for widget in app.selectbox if widget.key == "gsi_surface_class")
     assert method.value is not None
@@ -568,7 +568,7 @@ def test_module2_classification_result_clears_when_confirmation_is_revoked():
 )
 def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle_key, angle_value):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
     app.run()
@@ -579,7 +579,7 @@ def test_module5_does_not_publish_settlement_transfer_for_sloping_geometry(angle
 
     next(widget for widget in app.number_input if widget.key == angle_key).set_value(angle_value)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5_bearing_transfer") is None
 
 
@@ -591,7 +591,7 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
     eccentricity_key, eccentricity_value
 ):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.selectbox if widget.key == "m5_theory").select("Meyerhof")
     app.run()
@@ -607,13 +607,13 @@ def test_module5_does_not_publish_settlement_transfer_for_eccentric_load(
     assert app.session_state.get("m5_bearing_transfer") is None
     next(widget for widget in app.button if widget.key == "m5_run").click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state.get("m5_bearing_transfer") is None
 
 
 def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Create a positive hydrostatic uplift reference, then explicitly confirm U.
     next(widget for widget in app.number_input if widget.key == "m5_dw").set_value(0.0)
@@ -623,13 +623,13 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     )
     confirmation.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     calculate = next(widget for widget in app.button if widget.key == "m5x_slide_run")
     assert not calculate.disabled
     calculate.click()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert any(item.label == "FS 滑動" for item in app.metric)
 
     # Revoking the pressure confirmation must invalidate and hide the prior FS.
@@ -638,13 +638,13 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
     )
     confirmation.uncheck()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert not any(item.label == "FS 滑動" for item in app.metric)
 
 
 def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     load_confirm = next(
         widget for widget in app.checkbox
@@ -660,7 +660,7 @@ def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
     soil_confirm.check()
     load_confirm.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     slope_button = next(widget for widget in app.button if widget.key == "m5x_slope_run")
     assert slope_button.disabled is False
@@ -669,7 +669,7 @@ def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
     # over to a different design load.
     next(widget for widget in app.number_input if widget.key == "m5_v").set_value(1250.0)
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     refreshed_confirm = next(
         widget for widget in app.checkbox
         if widget.label.startswith("已確認 V 為本次設計總垂直力")
@@ -682,7 +682,7 @@ def test_module5_load_confirmation_is_bound_to_load_and_foundation_geometry():
 
 def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Satisfy the seismic pore-pressure applicability inputs first. These
     # confirmations alone must not authorize a design calculation.
@@ -695,7 +695,7 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     next(widget for widget in app.selectbox
          if widget.key == "m5x_shear_zone_mode").select("full")
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     run_button = next(widget for widget in app.button if widget.key == "m5x_seismic_capacity_run")
     assert run_button.disabled, "seismic bearing must remain blocked without primary soil/load provenance"
 
@@ -710,7 +710,7 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     load_confirmation.check()
     soil_confirmation.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     run_button = next(widget for widget in app.button if widget.key == "m5x_seismic_capacity_run")
     assert run_button.disabled is False
 
@@ -719,7 +719,7 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
 
 def test_module3_single_spt_confirmation_resets_when_calculation_inputs_change():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
     confirmation.check()
     app.run()
@@ -735,9 +735,9 @@ def test_module3_single_spt_confirmation_resets_when_calculation_inputs_change()
 
 def test_module3_profile_confirmation_resets_when_csv_content_changes():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
-    profile.set_value("Depth_m,N,Effective_Stress_KPa\\n5,20,100\\n")
+    profile.set_value("Depth_m,N,Effective_Stress_KPa\n5,20,100\n")
     app.run()
     confirmation = next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm")
     confirmation.check()
@@ -745,7 +745,7 @@ def test_module3_profile_confirmation_resets_when_csv_content_changes():
     assert app.session_state.get("m3_profile_result") is not None
 
     profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
-    profile.set_value("Depth_m,N,Effective_Stress_KPa\\n5,21,100\\n")
+    profile.set_value("Depth_m,N,Effective_Stress_KPa\n5,21,100\n")
     app.run()
     confirmation = next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm")
     assert confirmation.value is False
@@ -754,7 +754,7 @@ def test_module3_profile_confirmation_resets_when_csv_content_changes():
 
 def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
     profile.set_value(
@@ -763,23 +763,24 @@ def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
         "2.0,15,150\n"
         "3.0,20,200"
     )
+    app.run()
     next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     assert app.session_state["m3_profile_result"] is not None
 
     module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
     assert module4_link.disabled is False
     module4_link.check()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Revoke the Module 3 profile confirmation while the Module 4 link was
     # previously selected. The disabled widget may retain True in session
     # state, but Module 4 must ignore it and fall back to its own N60 input.
     next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").uncheck()
     app.run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     module4_link = next(widget for widget in app.checkbox if widget.key == "m4_bb_use_m3_spt")
     assert module4_link.disabled is True
     assert any("舊的連結選擇不會被採用" in item.value for item in app.warning)
@@ -876,7 +877,7 @@ def test_module5_advanced_capacity_fs_requires_confirmed_main_unit_weights():
 
 def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
-    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
     # Base residual pore pressure confirmation is tied to its value and base geometry.
     next(widget for widget in app.number_input if widget.key == "m5x_residual_base_u").set_value(12.0)
