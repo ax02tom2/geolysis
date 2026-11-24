@@ -294,7 +294,7 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
             if x0<=x<=x1:
                 return y0+(y1-y0)*(x-x0)/(x1-x0)
         return None
-    best=None; evaluated=0; failure_reasons={}
+    best=None; evaluated=0; failure_reasons={}; truncated_profile_runs=0
     for cx in xs:
         for cy in ys:
             for radius in rs:
@@ -316,52 +316,102 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                         end=i-1 if not ok else i
                         if end>start: runs.append((start,end))
                         start=None
-                # A candidate must intersect the ground within the supplied
-                # profile at least once.  One profile-edge truncation is allowed
-                # as an explicit model-boundary cut; a run truncated at both
-                # ends has no ground intersection and is not a slip surface.
-                complete_runs=[(i0,i1) for i0,i1 in runs
-                    if i0>0 or i1<len(scan)-1]
-                if not complete_runs: continue
-                i0,i1=max(complete_runs,key=lambda z:scan[z[1]]-scan[z[0]])
-                x0,x1=scan[i0],scan[i1]
-                if x1-x0<(profile[-1][0]-profile[0][0])*0.03: continue
-                width=(x1-x0)/int(slice_count)
-                slices=[]
-                for j in range(int(slice_count)):
-                    xl=x0+j*width; xr=xl+width; xm=(xl+xr)/2
-                    yl=cy-math.sqrt(max(0.0,radius**2-(xl-cx)**2))
-                    yr=cy-math.sqrt(max(0.0,radius**2-(xr-cx)**2))
-                    ym=cy-math.sqrt(max(0.0,radius**2-(xm-cx)**2))
-                    gl=ground_y(xl); gr=ground_y(xr); gm=ground_y(xm)
-                    height=max(0.0,gm-ym)
-                    if height<=0: continue
-                    alpha=math.degrees(math.atan2(yr-yl,width))
-                    pore=0.0 if gw_elev is None else gw*max(0.0,gw_elev-ym)
-                    slice_weight=_bishop_slice_total_weight(
-                        width_m=width,ground_elevation_m=gm,base_elevation_m=ym,
-                        groundwater_elevation_m=gw_elev,
-                        gamma_moist_kn_m3=gamma_moist,gamma_sat_kn_m3=gamma_sat)
-                    slices.append({'width_m':width,'weight_kN':slice_weight,
-                        'base_angle_deg':alpha,'cohesion_kpa':c,
-                        'friction_angle_deg':phi,'pore_pressure_kpa':pore})
-                if len(slices)<5: continue
-                try:
-                    result=bishop_simplified_factor_of_safety(slices=slices)
-                except ValueError as exc:
-                    reason=str(exc)
-                    failure_reasons[reason]=failure_reasons.get(reason,0)+1
+                # A Bishop sliding mass must be bounded by two actual
+                # ground/surface intersections. A run that starts or ends at
+                # the supplied profile boundary is truncated: the missing side
+                # boundary force is not represented in this model, so it is not
+                # a valid closed sliding mass and must not be assigned an FS.
+                complete_runs=[]
+                for i0,i1 in runs:
+                    if i0>0 and i1<len(scan)-1:
+                        complete_runs.append((i0,i1))
+                    else:
+                        truncated_profile_runs+=1
+                if not complete_runs:
                     continue
-                evaluated+=1
-                candidate={**result,'center_x_m':cx,'center_elevation_m':cy,
-                    'radius_m':radius,'entry_x_m':x0,'exit_x_m':x1}
-                if best is None or candidate['FS']<best['FS']:
-                    best=candidate
+
+                def surface_gap(x):
+                    ground=ground_y(x)
+                    if ground is None:
+                        return None
+                    base=cy-math.sqrt(max(0.0,radius**2-(x-cx)**2))
+                    return ground-base
+
+                def refine_intersection(xa_local,xb_local):
+                    fa=surface_gap(xa_local)
+                    fb=surface_gap(xb_local)
+                    if fa is None or fb is None:
+                        raise ValueError('圓弧交點超出已提供地表剖面範圍')
+                    if abs(fa)<=1e-9:
+                        return xa_local
+                    if abs(fb)<=1e-9:
+                        return xb_local
+                    if fa*fb>0:
+                        # The scan uses a 1e-6 m elevation tolerance; retain
+                        # the closer sample when that tolerance masks a root.
+                        return xa_local if abs(fa)<=abs(fb) else xb_local
+                    for _ in range(45):
+                        xm_local=(xa_local+xb_local)/2.0
+                        fm=surface_gap(xm_local)
+                        if fm is None:
+                            raise ValueError('圓弧交點超出已提供地表剖面範圍')
+                        if abs(fm)<=1e-10 or xb_local-xa_local<=1e-7:
+                            return xm_local
+                        if (fa>0)==(fm>0):
+                            xa_local,fa=xm_local,fm
+                        else:
+                            xb_local,fb=xm_local,fm
+                    return (xa_local+xb_local)/2.0
+
+                # Evaluate every closed ground-intersecting run. Complex or
+                # terraced profiles can intersect one circle in multiple
+                # separate masses; widest-run-only selection can miss the
+                # controlling factor of safety.
+                for i0,i1 in complete_runs:
+                    x0=refine_intersection(scan[i0-1],scan[i0])
+                    x1=refine_intersection(scan[i1],scan[i1+1])
+                    if x1-x0<(profile[-1][0]-profile[0][0])*0.03:
+                        continue
+                    width=(x1-x0)/int(slice_count)
+                    slices=[]
+                    for j in range(int(slice_count)):
+                        xl=x0+j*width; xr=xl+width; xm=(xl+xr)/2
+                        yl=cy-math.sqrt(max(0.0,radius**2-(xl-cx)**2))
+                        yr=cy-math.sqrt(max(0.0,radius**2-(xr-cx)**2))
+                        ym=cy-math.sqrt(max(0.0,radius**2-(xm-cx)**2))
+                        gm=ground_y(xm)
+                        height=max(0.0,gm-ym)
+                        if height<=0:
+                            continue
+                        alpha=math.degrees(math.atan2(yr-yl,width))
+                        pore=0.0 if gw_elev is None else gw*max(0.0,gw_elev-ym)
+                        slice_weight=_bishop_slice_total_weight(
+                            width_m=width,ground_elevation_m=gm,base_elevation_m=ym,
+                            groundwater_elevation_m=gw_elev,
+                            gamma_moist_kn_m3=gamma_moist,gamma_sat_kn_m3=gamma_sat)
+                        slices.append({'width_m':width,'weight_kN':slice_weight,
+                            'base_angle_deg':alpha,'cohesion_kpa':c,
+                            'friction_angle_deg':phi,'pore_pressure_kpa':pore})
+                    if len(slices)<5:
+                        continue
+                    try:
+                        result=bishop_simplified_factor_of_safety(slices=slices)
+                    except ValueError as exc:
+                        reason=str(exc)
+                        failure_reasons[reason]=failure_reasons.get(reason,0)+1
+                        continue
+                    evaluated+=1
+                    candidate={**result,'center_x_m':cx,'center_elevation_m':cy,
+                        'radius_m':radius,'entry_x_m':x0,'exit_x_m':x1}
+                    if best is None or candidate['FS']<best['FS']:
+                        best=candidate
     if best is None:
         detail='；'.join(f'{reason}（{count} 次）' for reason,count in
                         sorted(failure_reasons.items(),key=lambda x:x[1],reverse=True)[:3])
         suffix=f'；主要失敗原因：{detail}' if detail else '；候選圓弧未形成有效地表交點或切片幾何'
-        raise ValueError('搜尋範圍內未找到有效圓弧滑動面'+suffix+'；請擴大圓心／半徑範圍並檢查地表剖面')
+        if truncated_profile_runs:
+            suffix+=f'；另有 {truncated_profile_runs} 個候選土體被輸入地表剖面邊界截斷，未形成剖面內完整進／出交點'
+        raise ValueError('搜尋範圍內未找到有效圓弧滑動面'+suffix+'；請延伸地表剖面，並擴大或加密圓心／半徑搜尋範圍')
     boundary=[]
     if best['center_x_m'] in (min(xs),max(xs)): boundary.append('圓心 x')
     if best['center_elevation_m'] in (min(ys),max(ys)): boundary.append('圓心高程')
@@ -370,11 +420,15 @@ def bishop_circular_search(*, ground_profile, cohesion_kpa, friction_angle_deg,
                       if boundary else None)
     return {**best,'evaluated_surfaces':evaluated,
         'search_boundary_warning':boundary_warning,
+        'rejected_profile_truncated_runs':truncated_profile_runs,
+        'profile_boundary_warning':(
+            f"搜尋中有 {truncated_profile_runs} 個候選圓弧被輸入地表剖面邊界截斷，已排除未形成完整進／出交點的滑動體；請延伸剖面範圍並重新搜尋。"
+            if truncated_profile_runs else None),
         'unit_weight_moist_kn_m3':gamma_moist,
         'unit_weight_sat_kn_m3':gamma_sat,
         'water_table_weighting':gw_elev is not None,
         'method':'Grid-search circular slip surfaces + Bishop simplified',
-        'limitations':'二維每延米（出平面厚度 1 m）計算，切片重量為 kN/m；假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。搜尋結果受圓心／半徑網格密度影響，正式設計須加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
+        'limitations':'二維每延米（出平面厚度 1 m）計算，切片重量為 kN/m；假設均質土層強度、水平地下水位、圓弧滑動面與簡化 Bishop 法；地下水位以上採 γ_moist、以下採 γ_sat，孔隙水壓依水平水位計算。不含分層土強度、非圓弧滑面、地震、裂縫、地表附加載重與三維效應。只有兩端均在輸入地表剖面內形成實際交點的封閉滑動體才納入 FS；被剖面邊界截斷的候選弧會排除。搜尋結果受剖面範圍及圓心／半徑網格密度影響，正式設計須延伸剖面、加密搜尋並以 Spencer／Morgenstern-Price 或專業軟體交叉驗證。'}
 
 
 def foundation_sliding_pseudostatic_cases(*, vertical_load_kN, uplift_kN,
