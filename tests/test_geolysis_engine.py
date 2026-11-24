@@ -6,7 +6,8 @@ from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure,
-    seismic_bearing_capacity_residual_pore_pressure_cases)
+    seismic_bearing_capacity_residual_pore_pressure_cases,
+    seismic_uplift_stability_cases)
 
 
 def test_uscs_clean_well_graded_gravel():
@@ -1770,3 +1771,61 @@ def test_seismic_residual_pore_pressure_cases_evaluate_four_direction_combinatio
         min(case["qu_seismic_kpa"] for case in result["cases"])
     )
     assert result["uplift_stability_check_complete"] is False
+
+def test_seismic_uplift_stability_applies_vertical_inertia_only_to_structure_weight():
+    result = seismic_uplift_stability_cases(
+        resisting_weight_kN=1000.0,  # Wf + Ws + Wc
+        structure_seismic_weight_kN=800.0,  # Ws
+        uplift_force_kN=400.0,
+        kv=0.1,
+        fs_required=1.5,
+    )
+    assert result["applicable"] is True
+    assert len(result["cases"]) == 2
+    reduced = next(row for row in result["cases"] if "降低結構向下重量" in row["vertical_sign"])
+    increased = next(row for row in result["cases"] if "增加結構向下重量" in row["vertical_sign"])
+    assert reduced["vertical_seismic_adjustment_kN"] == pytest.approx(-80.0)
+    assert increased["vertical_seismic_adjustment_kN"] == pytest.approx(80.0)
+    assert reduced["effective_downward_weight_kN"] == pytest.approx(920.0)
+    assert increased["effective_downward_weight_kN"] == pytest.approx(1080.0)
+    assert reduced["FS_uplift"] == pytest.approx(2.3)
+    assert increased["FS_uplift"] == pytest.approx(2.7)
+    assert result["FS_uplift"] == pytest.approx(2.3)
+    assert result["governing_case"] == reduced
+    assert result["passes"] is True
+
+
+def test_seismic_uplift_with_zero_pressure_is_not_reported_as_passed():
+    result = seismic_uplift_stability_cases(
+        resisting_weight_kN=1000.0,
+        structure_seismic_weight_kN=800.0,
+        uplift_force_kN=0.0,
+        kv=0.1,
+    )
+    assert result["applicable"] is False
+    assert result["FS_uplift"] is None
+    assert result["passes"] is None
+    assert "不能據此宣稱" in result["limitations"]
+
+
+def test_seismic_uplift_rejects_fs_below_usace_minimum_and_inclined_base():
+    args = dict(
+        resisting_weight_kN=1000.0,
+        structure_seismic_weight_kN=800.0,
+        uplift_force_kN=400.0,
+        kv=0.1,
+    )
+    with pytest.raises(ValueError, match="不得低於 1.5"):
+        seismic_uplift_stability_cases(**args, fs_required=1.49)
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        seismic_uplift_stability_cases(**args, base_inclination_deg=5.0)
+
+
+def test_seismic_uplift_rejects_inconsistent_resisting_and_structure_weights():
+    with pytest.raises(ValueError, match="Wf\+Ws\+Wc"):
+        seismic_uplift_stability_cases(
+            resisting_weight_kN=700.0,
+            structure_seismic_weight_kN=800.0,
+            uplift_force_kN=400.0,
+            kv=0.1,
+        )
