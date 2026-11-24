@@ -1303,7 +1303,7 @@ def test_module3_chinese_refusal_marker_does_not_require_effective_stress():
     # The engine treats 「是」 as Refusal=True. The UI pre-validation must
     # use the same marker so a refusal row does not require CN effective stress.
     profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
-    profile.set_value("Depth_m,N,Refusal\\n5,50,是\\n")
+    profile.set_value(chr(10).join(["Depth_m,N,Refusal", "5,50,是", ""]))
     app.run()
     next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
     app.run()
