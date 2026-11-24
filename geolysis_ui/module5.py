@@ -572,7 +572,7 @@ def render_module_5(expanded=False):
                 "基礎底面殘餘超額孔隙水壓 Δu_res,base [kPa]",0.0,100000.0,0.0,1.0,
                 key="m5x_residual_base_u",
                 help="若基礎底面土層亦受地震超額孔壓影響，可依 Δu_res,base=ru×σ′v0(Df) 估算；σ′v0 必須依實際分層土層與水位計算。有場址專屬孔壓分析時，優先輸入基底平均殘餘超額孔壓。")
-            residual_base_confirmation_context5=(float(residual_base_excess_pore_pressure_kpa5),float(df5),float(dw5),float(B5),float(L5))
+            residual_base_confirmation_context5=(float(residual_base_excess_pore_pressure_kpa5),float(df5),float(dw5),float(B5),float(L5),float(kh5),float(kv5),float(base_ang5),float(ground_ang5))
             base_residual_pressure_confirmed5=st.checkbox(
                 "已確認基礎底面殘餘超額孔隙水壓 Δu_res,base；輸入 0 代表確認基礎底面沒有額外殘餘超額孔壓",
                 value=False,key=_context_confirmation_key("m5x_residual_base_u_confirm",*residual_base_confirmation_context5))
@@ -649,8 +649,8 @@ def render_module_5(expanded=False):
                     help="USACE §9-9c 定義 ru=殘餘超額孔隙水壓／初始有效上覆應力；請依 Figure 9-1 或場址專屬孔壓分析取得。")
             fsliq5=st.number_input("剪力區液化安全係數 FS_liq",0.0,10.0,0.0,0.05,key="m5x_fs_liq",
                 help="須由獨立液化評估取得；FS_liq≤1.0 不得使用式 9-3／9-4。")
-            lateral_spreading_confirmation_context5=(str(src5),float(fsliq5),float(ru5),float(B5),float(L5),float(df5),float(dw5))
-            ru_source_confirmation_context5=(str(src5),float(ru5),float(fsliq5),float(B5),float(L5),float(df5),float(dw5))
+            lateral_spreading_confirmation_context5=(str(src5),float(fsliq5),float(ru5),float(kh5),float(kv5),float(B5),float(L5),float(df5),float(dw5),float(base_ang5),float(ground_ang5))
+            ru_source_confirmation_context5=(str(src5),float(ru5),float(fsliq5),float(kh5),float(kv5),float(B5),float(L5),float(df5),float(dw5))
             no_significant_lateral_spreading_confirmed5=st.checkbox("已依場址評估確認不預期顯著側向擴展",value=False,key=_context_confirmation_key("m5x_no_significant_lateral_spreading",*lateral_spreading_confirmation_context5))
             ru_source_confirmed5=st.checkbox("ru 已由 USACE Figure 9-1（依 FS_liq）或場址專屬孔壓分析取得；若 ru=0，代表已確認無殘餘超額孔壓",value=False,key=_context_confirmation_key("m5x_ru_source_confirm",*ru_source_confirmation_context5))
             seismic_pore_pressure_applicability_ready5=(fsliq5>1.0 and no_significant_lateral_spreading_confirmed5 and ru_source_confirmed5)
@@ -822,7 +822,7 @@ def render_module_5(expanded=False):
             st.warning("規範解讀注意：USACE §5-7(b) 指出永久死重僅在風力揚壓評估時納入；§9-10(f) 又指示地震抗浮沿用 §5-7 方法並調整結構慣性力。此處目前依 Eq. 5-36 採 Wf+Ws+Wc，並只對 Ws 套用 ±kv；Wf、Wc 是否可計入地震抗浮，仍須依本案適用規範與結構耐震載重定義確認。")
             slide_uplift_weights_context5=(slide_load_case5,slide_footing5,seismic_footing5,float(slide_uplift_resisting_weight5),float(seismic_weight5),float(kv5),float(B5),float(L5))
             slide_uplift_weights_confirmed5=st.checkbox("已依本案適用規範確認地震抗浮可採 Wf+Ws+Wc，且上方 W 代表結構地震重量 Ws 並包含於此總重量",value=False,key=_context_confirmation_key("m5x_uplift_weights_confirm",*slide_uplift_weights_context5))
-            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),slide_footing5,seismic_footing5)
+            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),float(kv5),slide_footing5,seismic_footing5)
             slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓",value=False,key=_context_confirmation_key("m5x_uplift_pressure_confirm",*slide_uplift_pressure_context5))
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             st.caption(f"目前 {slide_case5} 的揚壓參考值 u_D={slide_base_uD5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 本荷載組合採用殘餘超額孔壓 {slide_residual_u5:.2f}）；對應 U_ref≈{base_pressure_U_ref5:.2f} {slide_force_unit5}。")
@@ -849,7 +849,7 @@ def render_module_5(expanded=False):
             if slide_load_case5=="seismic":
                 auto_earth5=False
                 st.warning("地震滑動模式不提供自動 Rankine Pa/Pp：該功能只計算靜態 developed-strength 土壓，不含地震動態土壓增量。請在上方 Pa／Pp 欄輸入地震作用下正反向控制的不利值；若無回填土或無土壓作用，輸入 0 並勾選確認。")
-                slide_seismic_earth_pressure_context5=(slide_load_case5,float(slide_pa5),float(slide_pp5),float(slide_h5),float(kh5),float(seismic_weight5),slide_footing5,float(slide_area5))
+                slide_seismic_earth_pressure_context5=(slide_load_case5,float(slide_pa5),float(slide_pp5),float(slide_h5),float(kh5),float(kv5),float(seismic_weight5),slide_footing5,float(slide_area5))
                 slide_seismic_earth_pressure_confirmed5=st.checkbox(
                     "已確認 Pa／Pp 為地震作用下的控制值（已納入專案需要的地震土壓增量；若無土壓作用則確認 Pa=Pp=0）",
                     value=False,key=_context_confirmation_key("m5x_slide_seismic_earth_pressure_confirm",*slide_seismic_earth_pressure_context5))
