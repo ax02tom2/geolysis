@@ -3085,6 +3085,19 @@ def test_static_sliding_adhesion_contact_readiness_uses_minimum_pressure():
     assert partial["minimum_contact_pressure_kpa"] <= 0.0
 
 
+def test_sliding_adhesion_contact_readiness_rejects_nonmatching_base_area():
+    result = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=5.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+    )
+    assert result["ready"] is False
+    assert "完整基底幾何面積" in result["reason"]
+
+
 def test_seismic_sliding_adhesion_requires_current_all_direction_contact_cases():
     cases = [
         {"vertical_load_kN": 900.0, "eccentricity_B_m": 0.1, "eccentricity_L_m": 0.1},
