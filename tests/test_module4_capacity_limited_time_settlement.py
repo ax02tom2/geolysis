@@ -196,6 +196,24 @@ def test_multilayer_time_rate_requires_complete_matching_layer_parameters(parame
             layer_time_parameters=parameters, elapsed_days=100.0)
 
 
+
+
+def test_multilayer_time_rate_rejects_blank_nan_layer_identifiers():
+    with pytest.raises(ValueError, match="Layer 編號不可空白或重複"):
+        consolidation_time_rate_layers(
+            layer_results=[{
+                "Layer": float("nan"),
+                "Thickness_m": 2.0,
+                "Settlement_mm": 10.0,
+            }],
+            layer_time_parameters=[{
+                "Layer": float("nan"),
+                "Cv_m2_per_day": 0.01,
+                "Drainage": "double",
+            }],
+            elapsed_days=100.0,
+        )
+
 def test_multilayer_time_rate_rejects_drainage_path_larger_than_layer():
     with pytest.raises(ValueError, match="Hdr"):
         consolidation_time_rate_layers(layer_results=[{"Layer": 1, "Thickness_m": 2.0, "Settlement_mm": 10.0}],
