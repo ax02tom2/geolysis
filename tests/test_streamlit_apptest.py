@@ -353,6 +353,57 @@ def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base(
 
 
 
+
+
+def test_module4_multilayer_cv_confirmation_resets_when_time_or_stress_profile_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    next(widget for widget in app.selectbox if widget.key == "m4_method").set_value("黏土：一維主固結沉陷控制法")
+    app.run()
+
+    layers = (
+        "Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n"
+        "1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n"
+        "2,5.0,4.0,0.9,0.40,0.06,100,150,0.42"
+    )
+    next(widget for widget in app.text_area if widget.key == "m4c_layers").set_value(layers)
+    app.run()
+    time_params = next(widget for widget in app.text_area if widget.key.startswith("m4c_multi_time_params_"))
+    time_params.set_value(
+        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\n"
+        "1,0.005,double,,,,\n"
+        "2,0.003,single,,,,"
+    )
+    app.run()
+
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_multi_cv_confirm_"))
+    assert confirmation.value is False
+    confirmation.check()
+    app.run()
+    first_key = next(widget for widget in app.checkbox if widget.key.startswith("m4c_multi_cv_confirm_")).key
+
+    time_params = next(widget for widget in app.text_area if widget.key.startswith("m4c_multi_time_params_"))
+    time_params.set_value(
+        "Layer,Cv_m2_per_day,Drainage,Hdr_m,C_alpha,e_p,t1_days\n"
+        "1,0.006,double,,,,\n"
+        "2,0.003,single,,,,"
+    )
+    app.run()
+    changed_cv_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_multi_cv_confirm_"))
+    assert changed_cv_confirmation.key != first_key
+    assert changed_cv_confirmation.value is False
+    changed_cv_confirmation.check()
+    app.run()
+    confirmed_time_key = next(widget for widget in app.checkbox if widget.key.startswith("m4c_multi_cv_confirm_")).key
+
+    layers = layers.replace("60,100,0.85", "65,100,0.85")
+    next(widget for widget in app.text_area if widget.key == "m4c_layers").set_value(layers)
+    app.run()
+    changed_stress_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_multi_cv_confirm_"))
+    assert changed_stress_confirmation.key != confirmed_time_key
+    assert changed_stress_confirmation.value is False
+
+
 def test_module4_cv_confirmation_resets_when_cv_or_final_effective_stress_changes():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
