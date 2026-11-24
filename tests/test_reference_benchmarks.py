@@ -4505,18 +4505,13 @@ def test_consolidation_allowable_pressure_layers_preserves_depth_review_metadata
 @pytest.mark.parametrize(
     ("years", "load_type", "r3", "rt"),
     [
-        (0.1, "static", 0.3, 0.2),
-        (1.0, "static", 0.3, 0.2),
-        (2.99, "static", 0.3, 0.2),
         (3.0, "static", 0.3, 0.2),
         (30.0, "static", 0.3, 0.2),
-        (1.0, "fluctuating", 0.7, 0.8),
-        (2.99, "fluctuating", 0.7, 0.8),
         (3.0, "fluctuating", 0.7, 0.8),
         (30.0, "fluctuating", 0.7, 0.8),
     ],
 )
-def test_burland_time_factor_matches_usace_equation_7_34(years, load_type, r3, rt):
+def test_burland_time_factor_matches_usace_equation_7_34_within_applicability(years, load_type, r3, rt):
     result = burland_burbidge_2025_settlement(
         n60_average=20.0, width_m=2.0, length_m=2.0,
         gross_pressure_kpa=100.0, initial_effective_stress_kpa=50.0,

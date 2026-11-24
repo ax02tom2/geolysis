@@ -186,7 +186,13 @@ def render_module_4(expanded=False):
                 qult4=(transfer_qult4 if transfer_qult4 is not None else st.number_input("模組五 gross 極限承載力 qult [kPa]（0＝不套用上限）",0.0,20000.0,0.0,10.0,key='m4_bb_qult'))
                 q4_input=(transfer_qeq4 if transfer_qeq4 is not None else q4)
                 if qult4>0 and fs_bb4<3.0: st.warning("FS 低於 USACE EM 1110-1-1905（2025）表 2-1 靜力承載力最低值 3.0；可供比較計算，但不可標示為符合該手冊靜力承載力安全要求。")
-                years4=st.number_input("載重作用時間 [年]",0.1,100.0,30.0,0.5,key='m4_bb_years')
+                years4=st.number_input(
+                    "載重作用時間 [年]（Burland–Burbidge 時間修正限於 t≥3 年）",
+                    min_value=3.0,max_value=100.0,value=30.0,step=0.5,key='m4_bb_years')
+                st.caption(
+                    "原始 Burland–Burbidge 方法的 C3 時間修正式適用於載重後至少 3 年；"
+                    "未滿 3 年不外插此式，請改用具有短期適用依據的沉陷分析方法。"
+                )
                 loadtype4=st.selectbox("載重型態",["static","fluctuating"],format_func=lambda x:"靜態" if x=="static" else "反覆／波動",key='m4_bb_load')
             profile_text4=st.text_area("選填：逐深度 N60 CSV（深度自基礎底向下；必要欄位 Depth_below_base_m、N60；可加 Burland_Material）",value="",height=90,key='m4_bb_profile',placeholder="Depth_below_base_m,N60,Burland_Material\n0.5,18,fine_sand_silt_saturated\n1.0,20,standard\n1.5,22,gravel_sandy_gravel")
             m3_profile_data4=st.session_state.get('m3_profile_result')
