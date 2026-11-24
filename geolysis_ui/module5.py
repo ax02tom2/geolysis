@@ -890,8 +890,36 @@ def render_module_5(expanded=False):
                 slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
+            slide_adhesion_active5=(float(slide_ar5)*float(slide_c5)>1e-12)
+            slide_adhesion_contact5=sliding_adhesion_contact_readiness(
+                adhesion_active=slide_adhesion_active5,
+                load_case=slide_load_case5,
+                footing_type=slide_footing5,
+                slide_vertical_load_kN=slide_v5,
+                main_vertical_load_kN=V5,
+                slide_horizontal_load_kN=slide_h5,
+                main_horizontal_load_kN=H5,
+                slide_uplift_kN=slide_u5,
+                footing_area_m2=slide_area5,
+                footing_width_m=B5,
+                footing_length_m=L5,
+                eccentricity_B_m=eB5,
+                eccentricity_L_m=eL5,
+                seismic_eccentricity_current=seismic_ecc_current5,
+                seismic_eccentricity_cases=(seismic_ecc5 or {}).get("cases",[]),
+            )
+            slide_adhesion_contact_ready5=bool(slide_adhesion_contact5["ready"])
+            if slide_adhesion_active5 and not slide_adhesion_contact_ready5:
+                st.error(slide_adhesion_contact5["reason"])
+            elif slide_adhesion_active5:
+                st.caption(
+                    f"黏著抗力完整接觸確認通過：最小基底接觸壓力 "
+                    f"q_min={slide_adhesion_contact5['minimum_contact_pressure_kpa']:.2f} kPa；"
+                    "本次才可使用完整基底面積 A 計算 c_a·A。"
+                )
             slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5
-                and slide_interface_confirmed5 and abs(float(base_ang5))<=1e-9)
+                and slide_interface_confirmed5 and slide_adhesion_contact_ready5
+                and abs(float(base_ang5))<=1e-9)
             if abs(float(base_ang5))>1e-9:
                 st.error("目前基底滑動公式僅適用水平基底（αb=0°）。已設定傾斜基底，因尚未完成 N/T 力分解及揚壓／土壓方向處理，系統停用滑動 FS，避免輸出不適用的安全係數。")
             slide_sig=_sliding_result_signature(
@@ -899,7 +927,8 @@ def render_module_5(expanded=False):
                  slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
                  seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
                  slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5,
-                 slide_interface_confirmed5),
+                 slide_interface_confirmed5,slide_adhesion_active5,slide_adhesion_contact_ready5,
+                 V5,H5,eB5,eL5,seismic_moment_B5,seismic_moment_L5),
                 footing_depth_m=df5,
                 footing_length_m=(1.0 if slide_is_line5 else L5),
                 base_inclination_deg=base_ang5,
@@ -934,7 +963,8 @@ def render_module_5(expanded=False):
                             friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
-                            base_inclination_deg=base_ang5)
+                            base_inclination_deg=base_ang5,
+                            contact_area_verified=slide_adhesion_contact_ready5)
                     else:
                         slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
                             uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
@@ -942,7 +972,8 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5,
-                            base_inclination_deg=base_ang5)
+                            base_inclination_deg=base_ang5,
+                            contact_area_verified=slide_adhesion_contact_ready5)
                     store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, slide_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")
