@@ -665,21 +665,39 @@ def render_module_4(expanded=False):
                                     if drainage_missing and (hdr_value is None or pd.isna(hdr_value) or str(hdr_value).strip()==""):
                                         params_ready4=False
                                 if params_ready4:
-                                    multi_time4=consolidation_time_rate_layers(
-                                        layer_results=primary_layers_time4["layer_results"],
-                                        layer_time_parameters=time_params4,
-                                        target_degree_percent=multi_u_target4,
-                                        elapsed_days=multi_elapsed_years4*365.25)
-                                    st.dataframe(pd.DataFrame(multi_time4["layer_results"]),hide_index=True,use_container_width=True)
-                                    mtc1,mtc2,mtc3=st.columns(3)
-                                    with mtc1:
-                                        st.metric("全層加權平均達標時間",f"{multi_time4['time_to_target_years']:.2f} 年")
-                                    with mtc2:
-                                        st.metric("目前全層平均固結度",("趨近 100%（有限時間未達）" if multi_time4["average_degree_at_elapsed_percent"]>=99.95 else f"{multi_time4['average_degree_at_elapsed_percent']:.1f}%"))
-                                    with mtc3:
-                                        st.metric("目前主固結＋次壓縮沉陷",f"{multi_time4['total_settlement_at_elapsed_mm']:.2f} mm")
-                                    st.caption(f"最終主固結沉陷 {multi_time4['ultimate_primary_settlement_mm']:.2f} mm；目前主固結 {multi_time4['primary_settlement_at_elapsed_mm']:.2f} mm；目前次壓縮 {multi_time4['secondary_settlement_at_elapsed_mm']:.2f} mm。")
-                                    st.caption(multi_time4["limitations"])
+                                    multi_cv_context4=(
+                                        layers_text4,float(qa_clay_final),float(qB_calc),float(qL_calc),
+                                        stress_method_clay4,
+                                        tuple((str(row.get("Layer")),float(row["Depth_center_m"]),
+                                            float(row["Thickness_m"]),float(row["Stress_factor"]),
+                                            float(row["Delta_sigma_kPa"]),float(row["Settlement_mm"]))
+                                            for row in primary_layers_time4["layer_results"]),
+                                        tuple((str(row.get("Layer")),str(row.get("Cv_m2_per_day")),
+                                            str(row.get("Drainage")),str(row.get("Hdr_m")))
+                                            for row in time_params4),
+                                    )
+                                    multi_cv_confirmed4=st.checkbox(
+                                        "已確認每層 Cv 依該層最終有效應力選取，且 Drainage／Hdr 符合實際排水邊界",
+                                        value=False,
+                                        key=_context_confirmation_key4("m4c_multi_cv_confirm",*multi_cv_context4))
+                                    if multi_cv_confirmed4:
+                                        multi_time4=consolidation_time_rate_layers(
+                                            layer_results=primary_layers_time4["layer_results"],
+                                            layer_time_parameters=time_params4,
+                                            target_degree_percent=multi_u_target4,
+                                            elapsed_days=multi_elapsed_years4*365.25)
+                                        st.dataframe(pd.DataFrame(multi_time4["layer_results"]),hide_index=True,use_container_width=True)
+                                        mtc1,mtc2,mtc3=st.columns(3)
+                                        with mtc1:
+                                            st.metric("全層加權平均達標時間",f"{multi_time4['time_to_target_years']:.2f} 年")
+                                        with mtc2:
+                                            st.metric("目前全層平均固結度",("趨近 100%（有限時間未達）" if multi_time4["average_degree_at_elapsed_percent"]>=99.95 else f"{multi_time4['average_degree_at_elapsed_percent']:.1f}%"))
+                                        with mtc3:
+                                            st.metric("目前主固結＋次壓縮沉陷",f"{multi_time4['total_settlement_at_elapsed_mm']:.2f} mm")
+                                        st.caption(f"最終主固結沉陷 {multi_time4['ultimate_primary_settlement_mm']:.2f} mm；目前主固結 {multi_time4['primary_settlement_at_elapsed_mm']:.2f} mm；目前次壓縮 {multi_time4['secondary_settlement_at_elapsed_mm']:.2f} mm。")
+                                        st.caption(multi_time4["limitations"])
+                                    else:
+                                        st.info("逐層時間預測尚未計算：請先確認各層 Cv 的最終有效應力依據與實際排水邊界。")
                                 else:
                                     st.info("請為每一層填入 Cv_m2_per_day，並指定 Drainage=single/double 或提供 Hdr_m；C_alpha、e_p、t1_days 僅在需要次壓縮時填寫。")
                         except Exception as multi_time_exc:
