@@ -560,11 +560,10 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    conditions_key = (
-        f"m4_bb_conditions_{transfer_id}_"
-        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_{transfer['Dw_m']:.2f}_{transfer['footing_type']}"
+    conditions = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
     )
-    conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -674,8 +673,10 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     transfer_id = transfer["transfer_id"]
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_{transfer_id}").check()
     app.run()
-    condition_key = f"{prefix}_conditions_{transfer_id}_2.00_3.00_1.50_5.00_isolated"
-    next(widget for widget in app.checkbox if widget.key == condition_key).check()
+    next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"{prefix}_conditions_{transfer_id}_")
+    ).check()
     app.run()
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_qeq_{transfer_id}").check()
 
