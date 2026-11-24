@@ -1314,3 +1314,16 @@ def test_module3_chinese_refusal_marker_does_not_require_effective_stress():
     assert result["N60"].isna().all()
     assert result["N1_60_final"].isna().all()
     assert "拒錘" in result.iloc[0]["Correction_status"]
+
+def test_module1_unconfirmed_ucs_is_incomplete_state_not_calculation_error():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # The initial page has no confirmed laboratory UCS / field-strength input.
+    # This is a normal incomplete state and must not create an exception-style
+    # Hoek-Brown error banner or leave stale parameters available for Module 5.
+    assert not any(
+        "Hoek–Brown 參數計算未完成" in str(item.value)
+        for item in app.error
+    )
+    assert app.session_state.get("geolysis_hb_current") is None
