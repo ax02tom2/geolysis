@@ -690,7 +690,13 @@ def render_module_4(expanded=False):
                         with rt_a:
                             cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
                             drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
-                            cv_confirmed4=st.checkbox("已依最終有效應力及固結／現地試驗確認 Cv",value=False,key="m4c_cv_confirmed")
+                            cv_final_effective_stress4=(float(sig0)+float(qa_clay_final)*float(stress_ratio_clay4))
+                            cv_confirmation_context4=(float(cv4),cv_final_effective_stress4)
+                            cv_confirmed4=st.checkbox(
+                                "已依最終有效應力及固結／現地試驗確認 Cv",
+                                value=False,
+                                key=_context_confirmation_key4("m4c_cv_confirmed",*cv_confirmation_context4))
+                            st.caption(f"Cv 核對所依據的最終有效垂直應力 σ′zf={cv_final_effective_stress4:.2f} kPa；修改 Cv 或 σ′zf 後須重新確認。")
                         with rt_b:
                             u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.4,value=90.0,step=1.0,key="m4c_u")
                             elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
