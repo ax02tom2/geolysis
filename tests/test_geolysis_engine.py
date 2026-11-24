@@ -1267,7 +1267,9 @@ def test_bishop_simplified_rejects_insufficient_slices_and_bad_pore_pressure():
 
 
 def test_bishop_circular_search_finds_a_valid_critical_surface():
-    profile=[(0,10),(5,8),(10,0),(20,0)]
+    # Extend the ground profile beyond the slope so both ends of each accepted
+    # trial arc intersect the ground inside the supplied model domain.
+    profile=[(-20,10),(0,10),(5,8),(10,0),(20,0),(40,0)]
     r=bishop_circular_search(ground_profile=profile,cohesion_kpa=10,
         friction_angle_deg=25,unit_weight_kn_m3=18,
         center_x_values=[3,5],center_y_values=[8,10,12],
@@ -1602,3 +1604,40 @@ def test_module4_finite_consolidation_degree_label_does_not_display_100_percent(
 
     assert _consolidation_degree_label4(99.99999999999999) == "趨近 100%（有限時間未達）"
     assert _consolidation_degree_label4(99.94) == "99.9%"
+
+
+def test_bishop_circular_search_rejects_candidate_truncated_at_one_profile_edge():
+    # The old search accepted the left profile boundary as a side of the
+    # sliding mass even though the circular arc had not intersected the ground.
+    with pytest.raises(ValueError, match="完整進／出交點"):
+        bishop_circular_search(
+            ground_profile=[(0,10),(5,8),(10,0),(20,0)],
+            cohesion_kpa=10, friction_angle_deg=25, unit_weight_kn_m3=18,
+            center_x_values=[3], center_y_values=[10], radius_values=[10],
+            slice_count=20,
+        )
+
+
+def test_bishop_circular_search_evaluates_multiple_closed_runs_for_one_circle():
+    # A terraced/depressed profile intersects one trial circle in two separate
+    # closed sliding masses. Both must be assessed, not just the widest run.
+    profile=[(0,0),(5,12),(10,-1),(15,12),(20,0)]
+    result=bishop_circular_search(
+        ground_profile=profile, cohesion_kpa=10, friction_angle_deg=25,
+        unit_weight_kn_m3=18, center_x_values=[10], center_y_values=[20],
+        radius_values=[20], slice_count=5,
+    )
+    assert result["evaluated_surfaces"] == 2
+    assert result["FS"] > 0
+
+
+def test_bishop_circular_search_warns_when_other_candidates_are_profile_truncated():
+    profile=[(-20,10),(0,10),(5,8),(10,0),(20,0),(40,0)]
+    result=bishop_circular_search(
+        ground_profile=profile, cohesion_kpa=10, friction_angle_deg=25,
+        unit_weight_kn_m3=18, center_x_values=[3], center_y_values=[10],
+        radius_values=[10,30], slice_count=20,
+    )
+    assert result["evaluated_surfaces"] > 0
+    assert result["rejected_profile_truncated_runs"] > 0
+    assert "已排除" in result["profile_boundary_warning"]
