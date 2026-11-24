@@ -59,7 +59,7 @@ def test_module5_hoebrown_source_cannot_bypass_advanced_soil_applicability_guard
         widget = next(item for item in app.button if item.key == key)
         assert widget.disabled, f"{key} must be disabled until HB foundation applicability is confirmed"
 
-    for key in ("m5x_slide_phi_hb", "m5x_slide_backfill_phi_hb",
+    for key in ("m5x_slide_phi_hb_v2", "m5x_slide_backfill_phi_hb",
                 "m5x_auto_c_slope", "m5x_auto_phi_slope"):
         widget = next(item for item in app.number_input if item.key == key)
         assert widget.value == 0.0, f"{key} must not inherit Module 1 HB strength by default"
@@ -326,6 +326,12 @@ def test_module5_seismic_sliding_hides_static_rankine_auto_pressure_and_gates_ru
         widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")
     )
     earth_pressure_confirm.check()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    interface_confirm = next(
+        widget for widget in app.checkbox if widget.key.startswith("m5x_slide_interface_confirm_")
+    )
+    interface_confirm.check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
     slide_button = next(widget for widget in app.button if widget.key == "m5x_slide_run")
@@ -706,6 +712,12 @@ def test_module5_sliding_result_is_hidden_when_uplift_confirmation_is_revoked():
         widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")
     )
     confirmation.check()
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    interface_confirm = next(
+        widget for widget in app.checkbox if widget.key.startswith("m5x_slide_interface_confirm_")
+    )
+    interface_confirm.check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
