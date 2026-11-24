@@ -3186,6 +3186,16 @@ def test_general_seismic_eccentricity_reports_middle_third_separately_from_footp
     assert result["overall_seismic_overturning_passes"] is None
 
 
+def test_general_seismic_eccentricity_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        seismic_foundation_eccentricity_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=100.0,
+            seismic_weight_kN=1000.0, kh=0.1, kv=0.05,
+            footing_type="spread", B=2.0, L=3.0,
+            base_inclination_deg=5.0,
+        )
+
+
 def test_general_seismic_eccentricity_flags_loss_of_positive_contact_dimension():
     result = seismic_foundation_eccentricity_cases(
         vertical_load_kN=1000.0, horizontal_load_kN=0.0,
