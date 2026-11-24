@@ -871,9 +871,11 @@ def render_module_4(expanded=False):
                 # Combine only compatible, non-overlapping construction-stage components.
                 st.markdown("**施工階段總沉陷組合**")
                 immediate_for_stage4=0.0
+                immediate_included_stage4=False
                 if immediate4 is not None and include_immediate_stage4:
                     if abs(float(q_im4)-float(qa_clay_final))<=1e-6:
                         immediate_for_stage4=float(immediate4["immediate_settlement_mm"])
+                        immediate_included_stage4=True
                     else:
                         st.warning("即時沉陷所用 qnet 與本模組控制 qa,net 不同；為避免不同荷載狀態混加，以下施工階段合計不納入即時沉陷。")
                 elif immediate4 is not None:
@@ -911,7 +913,7 @@ def render_module_4(expanded=False):
                                     secondary_settlement_mm=multi_time4["secondary_settlement_at_elapsed_mm"])
                                 current_stage_label4=(
                                     "目前即時＋主固結＋次壓縮總沉陷"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "目前主固結＋次壓縮（未納入即時沉陷）")
                                 st.metric(current_stage_label4,
                                           f"{current_stage4['total_settlement_mm']:.2f} mm")
@@ -922,7 +924,7 @@ def render_module_4(expanded=False):
                             if multi_time4 is not None:
                                 final_stage_label4=(
                                     "最終主固結＋目前次壓縮＋即時沉陷"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "最終主固結＋目前次壓縮（未納入即時沉陷）")
                                 stage_time_caption4=(
                                     "多層模式的目前總沉陷採共同經過時間下各層主固結與次壓縮加總；"
@@ -931,7 +933,7 @@ def render_module_4(expanded=False):
                             else:
                                 final_stage_label4=(
                                     "最終主固結＋即時沉陷（未計次壓縮）"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "最終主固結（未計次壓縮與時間效應）")
                                 stage_time_caption4=(
                                     "尚未提供完整逐層 Cv／排水邊界參數，因此此處只顯示最終主固結；"
@@ -941,7 +943,7 @@ def render_module_4(expanded=False):
                                       f"{final_stage4['total_settlement_mm']:.2f} mm")
                             st.caption(
                                 stage_time_caption4
-                                + ("已納入經確認的即時沉陷。" if immediate_for_stage4>0 else "未納入即時沉陷。")
+                                + ("已納入經確認的即時沉陷。" if immediate_included_stage4 else "未納入即時沉陷。")
                             )
                         else:
                             if primary_total4 is None:
@@ -960,7 +962,7 @@ def render_module_4(expanded=False):
                             if sec4 is not None:
                                 final_stage_label4=(
                                     "最終主固結＋次壓縮至 t2＋即時沉陷"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "最終主固結＋次壓縮至 t2（未納入即時沉陷）")
                                 secondary_caption4=(
                                     f"次壓縮 {final_stage4['secondary_settlement_mm']:.2f} mm，"
@@ -969,7 +971,7 @@ def render_module_4(expanded=False):
                             else:
                                 final_stage_label4=(
                                     "最終主固結＋即時沉陷（未計次壓縮）"
-                                    if immediate_for_stage4>0 else
+                                    if immediate_included_stage4 else
                                     "最終主固結（未計次壓縮）")
                                 secondary_caption4="未啟用或未完成有效次壓縮參數，未計入次壓縮。"
                             st.metric(final_stage_label4,
@@ -977,7 +979,7 @@ def render_module_4(expanded=False):
                             st.caption(
                                 f"最終主固結 {final_stage4['primary_settlement_mm']:.2f} mm；"
                                 + (f"即時／彈性 {final_stage4['immediate_settlement_mm']:.2f} mm；"
-                                   if immediate_for_stage4>0 else "即時／彈性沉陷未納入；")
+                                   if immediate_included_stage4 else "即時／彈性沉陷未納入；")
                                 + secondary_caption4
                             )
                 except Exception as stage_exc4:
