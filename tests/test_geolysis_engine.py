@@ -1229,7 +1229,8 @@ def test_seismic_pseudostatic_rejects_out_of_range_coefficients():
 def test_foundation_sliding_matches_usace_equation_5_28():
     r=foundation_sliding_factor_of_safety(vertical_load_kN=1000,
         uplift_kN=100,horizontal_load_kN=100,area_m2=10,
-        friction_angle_deg=30,cohesion_kpa=5,adhesion_ratio=.5)
+        friction_angle_deg=30,cohesion_kpa=5,adhesion_ratio=.5,
+        contact_area_verified=True)
     expected=(900*math.tan(math.radians(30))+25)/100
     assert r['FS_sliding']==pytest.approx(expected)
     assert r['passes'] is (expected>=2)
