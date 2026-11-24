@@ -27,19 +27,32 @@ def gsi_scale_effect_warning(*, application, height_m=None, span_m=None):
     elif app == "tunnel":
         if span_m is None:
             return (
-                "尚未提供隧道開挖跨度，無法核對 FHWA-NHI-16-072 Figure 9-24 "
-                "約 10 m 的隧道尺度參考；請補入跨度後再判斷 GSI 適用性。"
+                "尚未提供隧道開挖跨度／代表直徑，無法核對 FHWA-NHI-16-072 "
+                "Figure 9-24 約 10 m 的隧道尺度參考；請補入跨度後再判斷 GSI 適用性。"
             )
         span = _finite("隧道開挖跨度", span_m)
         if span <= 0:
             raise ValueError("隧道開挖跨度必須大於 0")
+        warnings = []
         if span > 10.0:
-            return (
+            warnings.append(
                 f"目前隧道跨度 {span:.1f} m 超過 FHWA-NHI-16-072 Figure 9-24 "
                 "約 10 m 的尺度參考；目前 GSI 未自動折減。"
                 "較大跨度應依現地節理組數、塊體互鎖與尺度效應重新評估 GSI，"
                 "並以合理上下限進行敏感度分析。"
             )
+        if height_m is not None:
+            cover = _finite("隧道覆蓋深度", height_m)
+            if cover <= 0:
+                raise ValueError("隧道覆蓋深度必須大於 0")
+            if cover < 3.0 * span:
+                warnings.append(
+                    f"目前覆蓋深度 H={cover:.1f} m 小於約 3 倍開挖跨度／代表直徑 "
+                    f"3D={3.0 * span:.1f} m。Hoek et al. (2002) 指出，淺埋隧道的 "
+                    "σ3,max 關係式須確認破壞區不冒頂延伸至地表；若可能形成冒頂或地表連通破壞，"
+                    "不應僅依本模式自動估算的圍壓上限使用等效 c′、φ′，須另作地表沉陷與破壞範圍評估。"
+                )
+        return " ".join(warnings) or None
     return None
 
 
