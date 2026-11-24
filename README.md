@@ -62,7 +62,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 - **Meyerhof 小摩擦角係數**：0°<φ≤10° 依 USACE EM 1110-1-1905（1992）Table 4-3 在 0° 與 10° 之間線性插值；大於 10° 才使用相應完整式。
 - **承載力深度係數**：一般經典 Meyerhof drained 分支依 USACE EM 1110-1-1905（1992）Table 4-3 使用 D/B，且 0°<φ≤10°形狀與深度係數線性插值；Hansen、Vesic 依 Tables 4-5／4-6 使用 D/B。模組五斜坡／傾斜基底修正則另依 USACE 2025 Table 5-2，以有效尺寸 B′、L′重建 drained 深度係數 Df/B′，並依 Eq. 5-19 重算 Nγ 項地下水折減，不可將舊版 D/B 與舊地下水剪力區插值直接沿用到 2025 修正。Meyerhof undrained 分支依 2025 Table 5-4 使用 Df/B′。
 - **Rankine developed earth pressure**：依 USACE EM 1110-1-1905（2025）Eqs. 5-31 至 5-35。手冊式 5-34／5-35 明確採 ±2c′d 項；本專案依該手冊原式，不替換成其他教材可能使用的 2c′d√K 表達式。
-- **Burland–Burbidge**：依 USACE EM 1110-1-1905（2025）§7-13，q 使用 gross 或 gross-equivalent bearing pressure；ZI=1.43B^0.7（英制單位）、Ic=0.35/N̄60^1.4（tsf⁻¹）。這些常數與 gross 壓力處理已與原文核對。
+- **Burland–Burbidge**：依 USACE EM 1110-1-1905（2025）§7-13，q 使用 gross 或 gross-equivalent bearing pressure；ZI=1.43B^0.7（英制單位）、Ic=0.35/N̄60^1.4（tsf⁻¹）。時間修正 C3 依 Burland & Burbidge（1985）原始方法僅適用載重後 t≥3 年；未滿 3 年不外插式 7-34，UI 與計算引擎均會阻止此範圍的預測。
 - **多層地盤**：依 USACE 2025 §5-5a(1)–(2)，近基礎剪力區弱層與強上層覆蓋弱下層的 punch-through 分開處理；2V:1H 穿刺式僅在手冊指定深度範圍內使用，超出範圍會提示未檢核層位。
 - **SPT 覆土修正 CN**：Liao & Whitman 與 Seed & Idriss 使用相同基本平方根式；Seed & Idriss 液化評估慣例另採 CN≤1.7。Hoek–Brown 變形模數採 Hoek（2002）公式版本，與 Hoek–Diederichs（2006）不同，請勿混稱。
 

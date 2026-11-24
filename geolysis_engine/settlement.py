@@ -583,6 +583,11 @@ def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
     t=_finite('載重作用時間',years)
     if N<=0 or B<=0 or L<B or q<=0 or s0<0 or (overconsolidated and (sp<=0 or sp<s0)) or Hs<=0 or t<=0:
         raise ValueError('B、N60、q、層厚及時間須為正；L≥B；有效應力不可為負')
+    if t < 3.0:
+        raise ValueError(
+            'Burland–Burbidge (1985) 的時間修正僅提供載重後 t≥3 年的 C3 式；'
+            '不足 3 年時不可外插式 7-34。請改用具有短期適用依據的沉陷方法。'
+        )
     if gravel_adjustment and fine_sand_saturated:
         raise ValueError('礫土修正與飽和細砂／粉土膨脹修正不可同時套用，請依土壤粒徑組成選擇')
     if gravel_adjustment: N*=1.25
@@ -601,13 +606,11 @@ def burland_burbidge_2025_settlement(*, n60_average, width_m, length_m,
     if load_type=='static': r3,rt=0.3,0.2
     elif load_type=='fluctuating': r3,rt=0.7,0.8
     else: raise ValueError('載重型態須為 static 或 fluctuating')
-    # USACE EM 1110-1-1905 (2025), Eq. 7-34 applies at all positive
-    # elapsed times: R3 represents the first-three-year component and Rt
-    # represents the slower logarithmic component. Do not switch C3 to 1.0
-    # for t < 3 years; that omits the first-years time correction.
+    # Burland & Burbidge (1985) define this logarithmic time correction for
+    # t >= 3 years. The first-three-year increment R3 is not a supported
+    # short-term interpolation rule; reject t < 3 instead of extrapolating it.
+    # USACE EM 1110-1-1905 (2025), Eq. 7-34 retains the same C3 expression.
     c3=1.0+r3+rt*math.log10(t/3.0)
-    if c3<=0:
-        raise ValueError('Burland–Burbidge 時間係數 C3 不可為零或負值；請檢查載重作用時間與適用範圍')
     # Convert stresses to tsf; USACE equations 7-29 to 7-31 return ft.
     q_tsf=q/95.7605; s0_tsf=s0/95.7605; sp_tsf=(sp if overconsolidated else s0)/95.7605
     total=q_tsf+s0_tsf
