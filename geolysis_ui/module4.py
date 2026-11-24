@@ -690,6 +690,7 @@ def render_module_4(expanded=False):
                         with rt_a:
                             cv4=st.number_input("固結係數 Cv [m²/day]",min_value=0.000001,max_value=10.0,value=0.005,format="%.6f",key="m4c_cv")
                             drainage4=st.selectbox("排水條件",["double","single"],format_func=lambda x:"雙向排水（Hdr=H/2）" if x=="double" else "單向排水（Hdr=H）",key="m4c_drainage")
+                            cv_confirmed4=st.checkbox("已依最終有效應力及固結／現地試驗確認 Cv",value=False,key="m4c_cv_confirmed")
                         with rt_b:
                             u_target4=st.number_input("目標平均固結度 U [%]",min_value=1.0,max_value=99.4,value=90.0,step=1.0,key="m4c_u")
                             elapsed_years4=st.number_input("載重後經過時間 [年]",min_value=0.0,max_value=100.0,value=1.0,step=0.5,key="m4c_elapsed")
@@ -707,38 +708,42 @@ def render_module_4(expanded=False):
                                 stress_increase_kpa=qa_clay_final*stress_ratio_clay4)
                             primary_total4=float(primary_at_final_pressure4["settlement_mm"])
                             st.caption(f"時間速率與次壓縮採用最終控制淨壓力 qa,net={qa_clay_final:.2f} kPa 對應的主固結沉陷 {primary_total4:.2f} mm；若模組五承載力上限控制，已重新計算，不沿用容許沉陷目標值。")
-                            if calc_secondary4:
-                                ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
-                                ep_valid4=True
-                                if ep_source4=="依本次主固結沉陷反算（初估）":
-                                    try:
-                                        ep4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
-                                        st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
-                                    except ValueError as ep_error4:
-                                        st.error(f"{ep_error4}；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
-                                        ep_valid4=False
-                                        ep4=0.0
-                                else:
-                                    ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
-                            time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
-                                layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                                target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
-                                drainage=drainage4)
-                            degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
-                            st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
-                            st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
-                            if calc_secondary4:
-                                t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                            if cv_confirmed4:
+                                if calc_secondary4:
+                                    ep_source4=st.radio("主固結完成時孔隙比 ep 來源",["依本次主固結沉陷反算（初估）","使用固結試驗值"],horizontal=True,key="m4c_ep_source")
+                                    ep_valid4=True
+                                    if ep_source4=="依本次主固結沉陷反算（初估）":
+                                        try:
+                                            ep4=estimate_void_ratio_at_primary_end(initial_void_ratio=e0,layer_thickness_m=representative_H4,primary_settlement_mm=primary_total4)
+                                            st.caption(f"依一維體積關係 ep=e0−(δc/H)(1+e0) 反算，初估 ep={ep4:.4f}；若有固結試驗 t100 時的孔隙比，應改採試驗值。")
+                                        except ValueError as ep_error4:
+                                            st.error(f"{ep_error4}；請改用固結試驗值，或檢查土層厚度與沉陷輸入。")
+                                            ep_valid4=False
+                                            ep4=0.0
+                                    else:
+                                        ep4=st.number_input("固結試驗 t100 時孔隙比 ep",min_value=0.0,max_value=3.0,value=float(e0),step=0.01,key="m4c_ep_lab")
+                                time4=consolidation_time_rate(primary_settlement_mm=primary_total4,
                                     layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
-                                    target_degree_percent=99.4,drainage=drainage4)
-                                st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
-                                t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
-                                t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
-                                if ep_valid4:
-                                    sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
-                                        secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
-                                        time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
-                                    st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+                                    target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
+                                    drainage=drainage4)
+                                degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
+                                st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
+                                st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
+                                if calc_secondary4:
+                                    t100_est4=consolidation_time_rate(primary_settlement_mm=primary_total4,
+                                        layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
+                                        target_degree_percent=99.4,drainage=drainage4)
+                                    st.caption(f"未提供固結試驗 t100 時，先以 USACE 圖 7-16 的 U=99.4%（Tv≈2.0）估算 t1；此值只是近似，正式分析應以試驗判讀 t100 取代。估算 t1≈{t100_est4['time_to_target_years']:.2f} 年。")
+                                    t1_years4=st.number_input("次壓縮起算時間 t1 [年]",min_value=0.001,max_value=100.0,value=min(100.0,max(0.01,t100_est4['time_to_target_years'])),step=0.1,key="m4c_t1")
+                                    t2_years4=st.number_input("次壓縮計算終止時間 t2 [年]",min_value=0.01,max_value=200.0,value=max(50.0,t1_years4+0.01),step=1.0,key="m4c_t2")
+                                    if ep_valid4:
+                                        sec4=secondary_compression_settlement(layer_thickness_m=representative_H4,
+                                            secondary_compression_index=ca4,void_ratio_at_primary_end=ep4,
+                                            time_start_days=t1_years4*365.25,time_end_days=t2_years4*365.25)
+                                        st.write(f"次壓縮沉陷 δs ≈ **{sec4['secondary_settlement_mm']:.2f} mm**；代表層長期總沉陷（最終主固結＋次壓縮）≈ **{primary_total4+sec4['secondary_settlement_mm']:.2f} mm**。")
+    
+                            else:
+                                st.warning("Cv 目前仍是示範預設值 0.005 m²/day，尚未確認其對應最終有效應力與試驗資料；因此不計算固結時間速率或次壓縮。請先確認 Cv 後再啟用預測。")
                         except Exception as time_exc:
                             st.error(f"固結時間／次壓縮估算失敗：{time_exc}")
                 immediate4=None
