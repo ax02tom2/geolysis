@@ -1089,7 +1089,7 @@ def render_module_5(expanded=False):
     
         with st.expander("⑥B 整體穩定：Bishop 圓弧滑動面自動搜尋（均質土）",expanded=False):
             st.warning("本自動搜尋同樣僅計算靜態 Bishop FS，不含 kh／kv、地震孔壓累積、液化後殘餘強度或側向擴展；不可用來宣稱地震整體穩定通過。地震邊坡穩定須另依 EM 1110-2-1902 與適用的場址地震設計程序辦理。")
-            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。採二維每延米（出平面厚度 1 m），γ 用 kN/m³，計算切片重量為 kN/m；座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
+            st.caption("以地表折線、均質土強度及圓心／半徑網格搜尋候選圓弧，回報最低 Bishop FS。地表剖面必須涵蓋每個候選滑動面的兩個進／出交點；若圓弧端點落在輸入剖面邊界而未與地表相交，系統會排除，不會把截斷土體當成完整滑動體。採二維每延米（出平面厚度 1 m），γ 用 kN/m³，計算切片重量為 kN/m；座標 y 為高程（向上為正）；本功能不是分層或非圓弧分析。")
             profile_csv5=st.text_area("地表剖面 CSV：x_m,elevation_m（由左至右）",
                 value="",placeholder="x_m,elevation_m\n0,10\n5,8\n10,0\n20,0\n…請改填本工程實際地表剖面",
                 height=90,key="m5x_profile")
@@ -1147,6 +1147,8 @@ def render_module_5(expanded=False):
                 st.write(f"圓心=({auto_bishop['center_x_m']:.2f}, {auto_bishop['center_elevation_m']:.2f}) m；半徑={auto_bishop['radius_m']:.2f} m；搜尋有效滑動面 {auto_bishop['evaluated_surfaces']} 組。")
                 if auto_bishop.get("search_boundary_warning"):
                     st.warning(auto_bishop["search_boundary_warning"])
+                if auto_bishop.get("profile_boundary_warning"):
+                    st.warning(auto_bishop["profile_boundary_warning"])
                 st.caption(auto_bishop["limitations"])
     
     
