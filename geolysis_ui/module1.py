@@ -1,6 +1,7 @@
 """Streamlit UI for engineering module 1."""
 import streamlit as st
 import logging
+import hashlib
 import math
 import re
 import plotly.graph_objects as go
@@ -520,8 +521,14 @@ def render_module_1(expanded=False):
             if ucs_mode == "已有實驗室 UCS 試驗值":
                 sig_ci = st.number_input("輸入試驗報告的 UCS [MPa]", min_value=0.1, max_value=1000.0,
                     value=25.0, step=1.0, key="hb_ucs_lab_value")
-                lab_value_confirmed = st.checkbox("我已確認上方數值是試驗報告中的完整岩石 UCS", value=False,
-                    key="hb_ucs_lab_confirmed")
+                lab_confirmation_token = hashlib.sha256(
+                    f"{float(sig_ci):.8f}".encode("utf-8")
+                ).hexdigest()[:12]
+                lab_value_confirmed = st.checkbox(
+                    "我已確認上方數值是試驗報告中的完整岩石 UCS",
+                    value=False,
+                    key=f"hb_ucs_lab_confirmed_{lab_confirmation_token}",
+                )
                 ucs_valid = bool(lab_value_confirmed)
                 _ucs_range_low = _ucs_range_high = sig_ci
                 _ucs_range_label = f"{sig_ci:g} MPa（試驗值）"
