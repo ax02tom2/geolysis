@@ -891,6 +891,20 @@ def render_module_5(expanded=False):
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
             slide_adhesion_active5=(float(slide_ar5)*float(slide_c5)>1e-12)
+            slide_earth_pressure_active5=bool(auto_earth5 or float(slide_pa5)>1e-12 or float(slide_pp5)>1e-12)
+            if slide_adhesion_active5 and slide_earth_pressure_active5:
+                slide_contact_moment_context5=(
+                    slide_load_case5,bool(auto_earth5),float(slide_pa5),float(slide_pp5),
+                    float(slide_v5),float(slide_h5),float(V5),float(H5),
+                    float(eB5),float(eL5),float(seismic_moment_B5),float(seismic_moment_L5),
+                    slide_footing5,float(base_ang5))
+                slide_contact_moment_confirmed5=st.checkbox(
+                    "已將 Pa／Pp 及其他水平作用力的作用點／力臂造成的傾覆彎矩，納入靜力 eB／eL 或地震 M_B／M_L",
+                    value=False,
+                    key=_context_confirmation_key("m5x_slide_contact_moment_confirm",*slide_contact_moment_context5),
+                    help="滑動公式不自行計算 Pa／Pp 的力矩。若其作用點造成偏心，必須先納入主分析偏心距或地震基底彎矩；未確認時，不使用完整基底面積計算黏著抗力。")
+            else:
+                slide_contact_moment_confirmed5=True
             slide_adhesion_contact5=sliding_adhesion_contact_readiness(
                 adhesion_active=slide_adhesion_active5,
                 load_case=slide_load_case5,
@@ -907,6 +921,8 @@ def render_module_5(expanded=False):
                 eccentricity_L_m=eL5,
                 seismic_eccentricity_current=seismic_ecc_current5,
                 seismic_eccentricity_cases=(seismic_ecc5 or {}).get("cases",[]),
+                earth_pressure_active=slide_earth_pressure_active5,
+                earth_pressure_moments_confirmed=slide_contact_moment_confirmed5,
             )
             slide_adhesion_contact_ready5=bool(slide_adhesion_contact5["ready"])
             if slide_adhesion_active5 and not slide_adhesion_contact_ready5:
@@ -928,6 +944,7 @@ def render_module_5(expanded=False):
                  seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
                  slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5,
                  slide_interface_confirmed5,slide_adhesion_active5,slide_adhesion_contact_ready5,
+                 slide_contact_moment_confirmed5,
                  V5,H5,eB5,eL5,seismic_moment_B5,seismic_moment_L5),
                 footing_depth_m=df5,
                 footing_length_m=(1.0 if slide_is_line5 else L5),
