@@ -88,6 +88,13 @@ def sliding_adhesion_contact_readiness(*, adhesion_active, load_case,
             "minimum_contact_pressure_kpa": None,
         }
     is_strip=footing_type in ("continuous","strip")
+    expected_area=B if is_strip else B*L
+    if abs(A-expected_area)>max(0.01,0.01*expected_area):
+        return {
+            "ready":False,
+            "reason":f"滑動面積 A={A:.3f} 與完整基底幾何面積 {expected_area:.3f} 不一致；不可將未核對面積視為完整接觸面積。",
+            "minimum_contact_pressure_kpa":None,
+        }
     if load_case=="static":
         Ve=V
         eL_use=0.0 if is_strip else eL
