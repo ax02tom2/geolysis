@@ -715,6 +715,43 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
     assert run_button.disabled is False
 
 
+
+
+def test_module3_single_spt_confirmation_resets_when_calculation_inputs_change():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    confirmation.check()
+    app.run()
+    assert app.session_state.get("m3_current_n60") is not None
+
+    next(widget for widget in app.number_input if widget.key == "m3_n").set_value(19)
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_single_confirm")
+    assert confirmation.value is False
+    assert "m3_current_n60" not in app.session_state
+    assert "m3_current_n160" not in app.session_state
+
+
+def test_module3_profile_confirmation_resets_when_csv_content_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
+    profile.set_value("Depth_m,N,Effective_Stress_KPa\\n5,20,100\\n")
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm")
+    confirmation.check()
+    app.run()
+    assert app.session_state.get("m3_profile_result") is not None
+
+    profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
+    profile.set_value("Depth_m,N,Effective_Stress_KPa\\n5,21,100\\n")
+    app.run()
+    confirmation = next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm")
+    assert confirmation.value is False
+    assert "m3_profile_result" not in app.session_state
+
+
 def test_module4_ignores_stale_module3_spt_selection_after_profile_revocation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
