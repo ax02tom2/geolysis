@@ -1446,3 +1446,23 @@ Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate
 - PR-head validation: full suite 691 passed; Module/Web suite 643 passed; Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation: full suite 691 passed (Actions run 45316993455); Module/Web suite 643 passed (Actions run 45316993657); Python 3.11 active-module compileall passed in both workflows.
 - The engine continues to use the corrected A-7-5 / A-7-6 boundary PI ≤ LL−30 / PI > LL−30. This PR added current-source guidance and a regression point above the boundary; no classification formula changed.
+
+
+## Module 4 — Cv provenance and confirmation freshness — 2026-11-24 Asia/Taipei (UTC+08:00)
+
+### Single-layer Cv (PR #303)
+- The confirmation key now binds to Cv and final effective vertical stress at the compression-layer midpoint. The displayed σ′zf is the same value used to certify the Cv selection.
+- Changes to Cv or σ′zf invalidate the prior confirmation; time-rate and secondary-compression outputs are suppressed until renewed confirmation.
+- AppTest covers Cv and final-stress invalidation. PR #303 merged as 99dc0ff46dd78e271304dae49d33d40d6794f7ab; PR-head tests: 692 full / 644 Module-Web; compileall passed.
+
+### Multi-layer Cv and drainage path (PR #304)
+- Time-rate / secondary-compression prediction now requires explicit confirmation that each Cv is selected at that layer's final effective stress and each Drainage/Hdr reflects actual boundaries.
+- The context includes raw layer data, final net pressure, footing dimensions, stress method, layer Δσ/settlement and the per-layer Cv/Drainage/Hdr values. Changes to the CSV or stress profile reset confirmation and suppress old results.
+- AppTest covers time-parameter CSV and layer-stress edits. This is still the documented independent 1-D layer-summation model, not a coupled multilayer consolidation solver.
+- PR #304 merged as ab35902f575f025250f1f003070a0666cce8ff30; PR-head tests: 693 full / 645 Module-Web; compileall passed.
+
+### Post-merge verification — current main ab35902f575f025250f1f003070a0666cce8ff30
+- Full suite: 693 passed (Actions run 45318144757).
+- Module/Web suite: 645 passed (Actions run 45318144695).
+- Python 3.11 active-module compileall passed in both workflows.
+- Engineering reference: USACE EM 1110-1-1905 (2025), §7-18 / Table 7-11 Step 2; Cv is selected based on final effective vertical stress at the layer midpoint.
