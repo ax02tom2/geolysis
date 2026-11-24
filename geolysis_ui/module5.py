@@ -572,7 +572,7 @@ def render_module_5(expanded=False):
                 "基礎底面殘餘超額孔隙水壓 Δu_res,base [kPa]",0.0,100000.0,0.0,1.0,
                 key="m5x_residual_base_u",
                 help="若基礎底面土層亦受地震超額孔壓影響，可依 Δu_res,base=ru×σ′v0(Df) 估算；σ′v0 必須依實際分層土層與水位計算。有場址專屬孔壓分析時，優先輸入基底平均殘餘超額孔壓。")
-            residual_base_confirmation_context5=(float(residual_base_excess_pore_pressure_kpa5),float(df5),float(dw5),float(B5),float(L5))
+            residual_base_confirmation_context5=(float(residual_base_excess_pore_pressure_kpa5),float(df5),float(dw5),float(B5),float(L5),float(kh5),float(kv5),float(base_ang5),float(ground_ang5))
             base_residual_pressure_confirmed5=st.checkbox(
                 "已確認基礎底面殘餘超額孔隙水壓 Δu_res,base；輸入 0 代表確認基礎底面沒有額外殘餘超額孔壓",
                 value=False,key=_context_confirmation_key("m5x_residual_base_u_confirm",*residual_base_confirmation_context5))
