@@ -139,7 +139,8 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         contact_area_verified=False):
     """USACE EM 1110-1-1905 (2025) Eq. 5-28/5-29 drained interface sliding.
     Active/passive forces must be independently established using developed
-    strengths; passive resistance is capped at the driving force.
+    strengths; passive resistance is capped at the driving force. If c_a*A is
+    active, contact_area_verified must confirm the full base remains in compression.
     """
     V=_finite('垂直力',vertical_load_kN); U=_finite('揚壓力',uplift_kN)
     H=_finite('水平力',horizontal_load_kN); A=_finite('基底面積',area_m2)
@@ -152,10 +153,10 @@ def foundation_sliding_factor_of_safety(*, vertical_load_kN, uplift_kN,
         raise ValueError('滑動荷載組合須為 static 或 seismic')
     if abs(base_angle)>1e-9:
         raise ValueError('目前基底滑動公式僅適用水平基底（αb=0°）；傾斜基底須先依基底方向分解法向力 N 與切向力 T，並處理揚壓及主被動土壓方向，不可直接套用 V、H。')
-    if ar*c>1e-12 and not bool(contact_area_verified):
-        raise ValueError('黏著抗力 c_a·A 使用完整基底面積；須先確認偏心與揚壓後整個基底仍保持壓縮接觸，否則應計算實際接觸面積或停用黏著項。')
     if V<=0 or A<=0 or U<0 or U>=V or H<0 or not 0<=phi<=50 or c<0 or not 0<=ar<=1 or Pa<0 or Pp<0 or req<minimum_fs:
         raise ValueError(f'基底滑動輸入值不合理；{load_case} 荷載組合的 USACE 2025 要求 FS 不得低於 {minimum_fs:.1f}')
+    if ar*c>1e-12 and not bool(contact_area_verified):
+        raise ValueError('黏著抗力 c_a·A 使用完整基底面積；須先確認偏心與揚壓後整個基底仍保持壓縮接觸，否則應計算實際接觸面積或停用黏著項。')
     drive=H+Pa
     passive_used=min(Pp,drive)
     net_drive=drive-passive_used
