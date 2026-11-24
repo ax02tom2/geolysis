@@ -560,11 +560,10 @@ def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
 
-    conditions_key = (
-        f"m4_bb_conditions_{transfer_id}_"
-        f"{transfer['B_m']:.2f}_{transfer['L_m']:.2f}_{1.5:.2f}_{transfer['Dw_m']:.2f}_{transfer['footing_type']}"
+    conditions = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
     )
-    conditions = next(widget for widget in app.checkbox if widget.key == conditions_key)
     conditions.check()
     app.run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
@@ -674,8 +673,10 @@ def test_module4_dmt_cpt_pmt_actual_calculations_use_module5_qeq(
     transfer_id = transfer["transfer_id"]
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_{transfer_id}").check()
     app.run()
-    condition_key = f"{prefix}_conditions_{transfer_id}_2.00_3.00_1.50_5.00_isolated"
-    next(widget for widget in app.checkbox if widget.key == condition_key).check()
+    next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"{prefix}_conditions_{transfer_id}_")
+    ).check()
     app.run()
     next(widget for widget in app.checkbox if widget.key == f"{prefix}_use_m5_qeq_{transfer_id}").check()
 
@@ -1418,3 +1419,106 @@ def test_module1_lab_ucs_confirmation_resets_when_value_changes():
     )
     assert confirmation.value is False
     assert app.session_state["geolysis_hb_current"] is None
+
+def test_module4_transfer_condition_key_changes_when_method_profile_changes():
+    transfer = {
+        "transfer_id": "profilecontext01",
+        "qult_gross_kpa": 1200.0,
+        "qa_gross_kpa": 410.0,
+        "qa_net_kpa": 360.0,
+        "qeq_gross_kpa": 180.0,
+        "B_m": 2.0,
+        "L_m": 3.0,
+        "B_effective_m": 2.0,
+        "L_effective_m": 3.0,
+        "Df_m": 1.5,
+        "Dw_m": 2.0,
+        "footing_type": "isolated",
+        "source": "Meyerhof",
+        "theory": "Meyerhof",
+        "FS_bearing": 3.5,
+        "passes_bearing": True,
+    }
+    session_state = {
+        "m5_bearing_transfer": transfer,
+        "m4_dmt_mode": "MDMT",
+        "m4_dmt_layers": "Layer,depth_center_m,thickness_m,MDMT_kpa\n1,0.5,1.0,10000",
+        "m4_dmt_q": 150.0,
+    }
+
+    with (
+        patch("geolysis_ui.module4.st.session_state", session_state),
+        patch("geolysis_ui.module4.st.checkbox", side_effect=[True, False]) as checkbox,
+        patch("geolysis_ui.module4.st.caption"),
+        patch("geolysis_ui.module4.st.warning"),
+    ):
+        _module5_transfer_value(
+            key_prefix="m4_dmt",
+            label="gross qult",
+            field="qult_gross_kpa",
+            width_m=2.0,
+            length_m=3.0,
+            footing_type="isolated",
+            depth_m=1.5,
+            water_depth_m=2.0,
+        )
+        first_context_key = checkbox.call_args_list[1].kwargs["key"]
+
+        session_state["m4_dmt_layers"] = (
+            "Layer,depth_center_m,thickness_m,MDMT_kpa\n"
+            "1,0.5,1.0,10000\n2,1.5,1.0,5000"
+        )
+        checkbox.reset_mock()
+        checkbox.side_effect = [True, False]
+        _module5_transfer_value(
+            key_prefix="m4_dmt",
+            label="gross qult",
+            field="qult_gross_kpa",
+            width_m=2.0,
+            length_m=3.0,
+            footing_type="isolated",
+            depth_m=1.5,
+            water_depth_m=2.0,
+        )
+        second_context_key = checkbox.call_args_list[1].kwargs["key"]
+
+    assert first_context_key != second_context_key
+
+
+def test_module4_burland_transfer_confirmation_resets_when_profile_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.checkbox if widget.key.startswith("m5_loads_confirmed_")).check()
+    app.run()
+    _confirm_module5_soil_data(app)
+    next(widget for widget in app.button if widget.key == "m5_run").click()
+    app.run()
+    transfer = app.session_state["m5_bearing_transfer"]
+    assert transfer is not None
+    transfer_id = transfer["transfer_id"]
+
+    next(widget for widget in app.checkbox if widget.key == f"m4_bb_use_m5_{transfer_id}").check()
+    app.run()
+    condition = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
+    )
+    condition.check()
+    app.run()
+    reviewed_key = next(
+        widget.key for widget in app.checkbox
+        if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
+    )
+
+    next(widget for widget in app.text_area if widget.key == "m4_bb_profile").set_value(
+        "Depth_below_base_m,N60\n0.5,18\n1.0,22"
+    )
+    app.run()
+    assert not app.exception, "\n".join(str(item.message) for item in app.exception)
+    refreshed = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith(f"m4_bb_conditions_{transfer_id}_")
+    )
+    assert refreshed.key != reviewed_key
+    assert refreshed.value is False
