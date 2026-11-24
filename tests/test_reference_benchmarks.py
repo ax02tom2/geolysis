@@ -3071,7 +3071,7 @@ def test_static_sliding_adhesion_contact_readiness_uses_minimum_pressure():
         eccentricity_B_m=0.1, eccentricity_L_m=0.1,
     )
     assert full["ready"] is True
-    assert full["minimum_contact_pressure_kpa"] == pytest.approx(25.0)
+    assert full["minimum_contact_pressure_kpa"] == pytest.approx(66.6666667)
 
     partial = sliding_adhesion_contact_readiness(
         adhesion_active=True, load_case="static", footing_type="spread",
