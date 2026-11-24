@@ -609,3 +609,11 @@ Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate
 - PR #291 merged to main as b8978bfd5068e24a1f16f06fb4a5407b24240496.
 - PR head validation (2026-11-24 Asia/Taipei UTC+08:00): full suite 683 passed; Module/Web regression suite 638 passed; Python 3.11 active-module compileall passed in both workflows. Post-merge main validation on b8978bfd5068e24a1f16f06fb4a5407b24240496 also passed: full suite 683 (run 45304846840) and Module/Web 638 (run 45304846664), with compileall successful in both. After documentation merge, main 4617d84741ac389be8c4ecf3c8a7dc7aa5b7d3d6 passed again: full suite 683 (run 45305045215) and Module/Web 638 (run 45305045231), with compileall successful in both.
 - References: USACE EM 1110-1-1905 (31 July 2025), Table 7-10 / Eqs. 7-38 and 7-40; §7-18 / Table 7-11 / Eq. 7-42 / Figure 7-16. Layered consolidation coupling limitations are documented in the UI.
+
+
+Build: geolysis Web — Module 5 seismic confirmation-context freshness (PR #294)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+PR #294 merged to main as 71162fa06c7ee0709559f37668ecabad440b2cda.
+Lateral-spreading and ru-source confirmations now bind to kh, kv and their applicable footing/slope context. The base residual-pressure confirmation also binds to kh, kv and slope geometry. Seismic total-uplift-pressure and seismic earth-pressure confirmations bind to kv. Changing a certified demand coefficient or relevant geometry therefore requires a fresh confirmation instead of reusing a previous True state. AppTests cover kh, kv and slope-geometry invalidation. No seismic, pore-pressure, uplift or sliding equations changed.
+PR head 026fcf767243d071e324c6f8eded443223cacaae: full suite 683 passed in 16.47 s; Module/Web suite 638 passed in 16.98 s; Python 3.11 active-module compileall passed in both workflows.
+Post-merge main validation on 71162fa06c7ee0709559f37668ecabad440b2cda: full suite 683 passed in 26.32 s (Actions run 45311536684); Module/Web suite 638 passed in 27.00 s (Actions run 45311536541); Python 3.11 active-module compileall passed in both workflows.
