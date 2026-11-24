@@ -31,12 +31,36 @@ def _normalize_spt_profile_effective_stress(profile):
         normalized[canonical] = None
         return normalized
 
-    # Prefer the canonical spelling, but fill its blank cells from a legacy
-    # spelling if a user supplied both columns in the same CSV.
+    # Prefer the canonical spelling, but only merge legacy aliases when
+    # overlapping values agree. Silent precedence could otherwise hide two
+    # conflicting effective-stress profiles and produce a wrong CN correction.
     aliases.sort(key=lambda column: 0 if column == canonical else 1)
-    stress = pd.to_numeric(normalized[aliases[0]], errors="coerce")
-    for column in aliases[1:]:
-        stress = stress.fillna(pd.to_numeric(normalized[column], errors="coerce"))
+    stress = None
+    for column in aliases:
+        raw = normalized[column]
+        converted = pd.to_numeric(raw, errors="coerce")
+        nonblank = raw.notna() & raw.astype(str).str.strip().ne("")
+        invalid = nonblank & converted.isna()
+        if invalid.any():
+            rows = [str(index + 2) for index in normalized.index[invalid][:5]]
+            raise ValueError(
+                f"SPT CSV 欄位「{column}」含非數字有效覆土應力；"
+                f"請檢查資料列 {', '.join(rows)}。"
+            )
+        if stress is None:
+            stress = converted
+            continue
+        overlap = stress.notna() & converted.notna()
+        scale = pd.concat([stress.abs(), converted.abs()], axis=1).max(axis=1).clip(lower=1.0)
+        conflict = overlap & ((stress - converted).abs() > 1e-9 * scale)
+        if conflict.any():
+            rows = [str(index + 2) for index in normalized.index[conflict][:5]]
+            raise ValueError(
+                "SPT CSV 同時提供多個有效覆土應力欄位，但數值不一致："
+                f"「{canonical}」與「{column}」在資料列 {', '.join(rows)} "
+                "有衝突。請統一欄位數值後再計算。"
+            )
+        stress = stress.fillna(converted)
     normalized[canonical] = stress
     for column in aliases:
         if column != canonical:
