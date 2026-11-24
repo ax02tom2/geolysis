@@ -6,7 +6,7 @@ from .state import clear_result_state, read_result_state, store_result_state
 import math
 import pandas as pd
 from io import StringIO
-from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, layered_bearing_capacity_in_situ_profile, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, seismic_foundation_eccentricity_cases, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases, base_uplift_pressure_readiness, usace_footing_type
+from geolysis_engine import bearing_capacity, bearing_pressure_safety_check, bearing_capacity_in_situ, layered_bearing_capacity_in_situ_profile, bearing_capacity_slope_base_corrections, layered_bearing_capacity_punching, layered_bearing_capacity_profile, seismic_bearing_capacity_pseudostatic, seismic_foundation_eccentricity_cases, foundation_sliding_factor_of_safety, foundation_sliding_pseudostatic_cases, seismic_uplift_stability_cases, developed_rankine_sliding_earth_pressures, bishop_simplified_factor_of_safety, bishop_circular_search, seismic_bearing_capacity_residual_pore_pressure, seismic_bearing_capacity_residual_pore_pressure_cases, base_uplift_pressure_readiness, sliding_adhesion_contact_readiness, usace_footing_type
 
 
 
@@ -841,8 +841,12 @@ def render_module_5(expanded=False):
             st.warning("規範解讀注意：USACE §5-7(b) 指出永久死重僅在風力揚壓評估時納入；§9-10(f) 又指示地震抗浮沿用 §5-7 方法並調整結構慣性力。此處目前依 Eq. 5-36 採 Wf+Ws+Wc，並只對 Ws 套用 ±kv；Wf、Wc 是否可計入地震抗浮，仍須依本案適用規範與結構耐震載重定義確認。")
             slide_uplift_weights_context5=(slide_load_case5,slide_footing5,seismic_footing5,float(slide_uplift_resisting_weight5),float(seismic_weight5),float(kv5),float(B5),float(L5),float(base_ang5))
             slide_uplift_weights_confirmed5=st.checkbox("已依本案適用規範確認地震抗浮可採 Wf+Ws+Wc，且上方 W 代表結構地震重量 Ws 並包含於此總重量",value=False,key=_context_confirmation_key("m5x_uplift_weights_confirm",*slide_uplift_weights_context5))
-            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),float(kv5),slide_footing5,seismic_footing5,float(base_ang5))
-            slide_uplift_pressure_confirmed5=st.checkbox("已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓",value=False,key=_context_confirmation_key("m5x_uplift_pressure_confirm",*slide_uplift_pressure_context5))
+            slide_uplift_pressure_context5=(slide_load_case5,float(slide_u5),float(base_pressure_U_ref5),float(slide_base_uD5),float(slide_residual_u5),float(slide_area5),float(uplift_base_area5),float(df5),float(dw5),float(kv5),slide_footing5,seismic_footing5,float(base_ang5),float(slide_v5),float(slide_h5),float(V5),float(H5),float(eB5),float(eL5),float(seismic_moment_B5),float(seismic_moment_L5))
+            slide_uplift_pressure_confirmed5=st.checkbox(
+                "已確認 U 為整個基礎底面的總揚壓合力，包含靜水壓及適用的殘餘超額孔隙水壓；若分布不均，其作用點／偏心矩已納入 eB／eL 或 M_B／M_L",
+                value=False,
+                key=_context_confirmation_key("m5x_uplift_pressure_confirm",*slide_uplift_pressure_context5),
+                help="本滑動／抗浮簡化檢核將 U 視為作用於基底中心的總揚壓合力。若殘餘孔壓或滲流造成不均勻分布，必須將其合力作用點造成的力矩納入偏心距或地震基底彎矩；否則不能用完整基底面積計算黏著抗力。")
             uplift_units_match5=(slide_is_line5==(seismic_footing5=="strip"))
             st.caption(f"目前 {slide_case5} 的揚壓參考值 u_D={slide_base_uD5:.2f} kPa（靜水壓 {hydrostatic_uD5:.2f} + 本荷載組合採用殘餘超額孔壓 {slide_residual_u5:.2f}）；對應 U_ref≈{base_pressure_U_ref5:.2f} {slide_force_unit5}。")
             if abs(float(slide_area5)-uplift_base_area5)>max(0.01,0.01*uplift_base_area5):
@@ -890,8 +894,52 @@ def render_module_5(expanded=False):
                 slide_backfill_c5=st.number_input("回填土凝聚力 c′ [kPa]",0.0,100000.0,(0.0 if use_hb5 else float(c5)),1.0,key=f"m5x_slide_backfill_c_{'hb' if use_hb5 else 'manual'}")
                 if use_hb5:
                     st.warning("基底界面 δ′、界面 c′／Su 與回填土 φ′、c′ 是獨立材料參數，不應直接沿用 Module 1 岩體等效 c′、φ′；目前已將這些欄位預設為 0，請依界面試驗／粗糙度與回填土資料輸入。")
+            slide_adhesion_active5=(float(slide_ar5)*float(slide_c5)>1e-12)
+            slide_earth_pressure_active5=bool(auto_earth5 or float(slide_pa5)>1e-12 or float(slide_pp5)>1e-12)
+            if slide_adhesion_active5 and slide_earth_pressure_active5:
+                slide_contact_moment_context5=(
+                    slide_load_case5,bool(auto_earth5),float(slide_pa5),float(slide_pp5),
+                    float(slide_v5),float(slide_h5),float(V5),float(H5),
+                    float(eB5),float(eL5),float(seismic_moment_B5),float(seismic_moment_L5),
+                    slide_footing5,float(base_ang5))
+                slide_contact_moment_confirmed5=st.checkbox(
+                    "已將 Pa／Pp 及其他水平作用力的作用點／力臂造成的傾覆彎矩，納入靜力 eB／eL 或地震 M_B／M_L",
+                    value=False,
+                    key=_context_confirmation_key("m5x_slide_contact_moment_confirm",*slide_contact_moment_context5),
+                    help="滑動公式不自行計算 Pa／Pp 的力矩。若其作用點造成偏心，必須先納入主分析偏心距或地震基底彎矩；未確認時，不使用完整基底面積計算黏著抗力。")
+            else:
+                slide_contact_moment_confirmed5=True
+            slide_adhesion_contact5=sliding_adhesion_contact_readiness(
+                adhesion_active=slide_adhesion_active5,
+                load_case=slide_load_case5,
+                footing_type=slide_footing5,
+                slide_vertical_load_kN=slide_v5,
+                main_vertical_load_kN=V5,
+                slide_horizontal_load_kN=slide_h5,
+                main_horizontal_load_kN=H5,
+                slide_uplift_kN=slide_u5,
+                footing_area_m2=slide_area5,
+                footing_width_m=B5,
+                footing_length_m=L5,
+                eccentricity_B_m=eB5,
+                eccentricity_L_m=eL5,
+                seismic_eccentricity_current=seismic_ecc_current5,
+                seismic_eccentricity_cases=(seismic_ecc5 or {}).get("cases",[]),
+                earth_pressure_active=slide_earth_pressure_active5,
+                earth_pressure_moments_confirmed=slide_contact_moment_confirmed5,
+            )
+            slide_adhesion_contact_ready5=bool(slide_adhesion_contact5["ready"])
+            if slide_adhesion_active5 and not slide_adhesion_contact_ready5:
+                st.error(slide_adhesion_contact5["reason"])
+            elif slide_adhesion_active5:
+                st.caption(
+                    f"黏著抗力完整接觸確認通過：最小基底接觸壓力 "
+                    f"q_min={slide_adhesion_contact5['minimum_contact_pressure_kpa']:.2f} kPa；"
+                    "本次才可使用完整基底面積 A 計算 c_a·A。"
+                )
             slide_run_ready5=(slide_uplift_pressure_ready5 and slide_earth_pressure_ready5
-                and slide_interface_confirmed5 and abs(float(base_ang5))<=1e-9)
+                and slide_interface_confirmed5 and slide_adhesion_contact_ready5
+                and abs(float(base_ang5))<=1e-9)
             if abs(float(base_ang5))>1e-9:
                 st.error("目前基底滑動公式僅適用水平基底（αb=0°）。已設定傾斜基底，因尚未完成 N/T 力分解及揚壓／土壓方向處理，系統停用滑動 FS，避免輸出不適用的安全係數。")
             slide_sig=_sliding_result_signature(
@@ -899,7 +947,9 @@ def render_module_5(expanded=False):
                  slide_ar5,slide_pa5,slide_pp5,slide_req5,slide_load_case5,kh5,kv5,
                  seismic_weight5,slide_footing5,auto_earth5,slide_gamma5,
                  slide_backfill_phi5,slide_backfill_c5,slide_seismic_earth_pressure_confirmed5,
-                 slide_interface_confirmed5),
+                 slide_interface_confirmed5,slide_adhesion_active5,slide_adhesion_contact_ready5,
+                 slide_contact_moment_confirmed5,
+                 V5,H5,eB5,eL5,seismic_moment_B5,seismic_moment_L5),
                 footing_depth_m=df5,
                 footing_length_m=(1.0 if slide_is_line5 else L5),
                 base_inclination_deg=base_ang5,
@@ -934,7 +984,8 @@ def render_module_5(expanded=False):
                             friction_angle_deg=slide_phi5,cohesion_kpa=slide_c5,
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
-                            base_inclination_deg=base_ang5)
+                            base_inclination_deg=base_ang5,
+                            contact_area_verified=slide_adhesion_contact_ready5)
                     else:
                         slide=foundation_sliding_factor_of_safety(vertical_load_kN=slide_v5,
                             uplift_kN=slide_u5,horizontal_load_kN=slide_h5,area_m2=slide_area5,
@@ -942,7 +993,8 @@ def render_module_5(expanded=False):
                             adhesion_ratio=slide_ar5,active_force_kN=active_used,
                             passive_force_kN=passive_used,fs_required=slide_req5,
                             load_case=slide_load_case5,
-                            base_inclination_deg=base_ang5)
+                            base_inclination_deg=base_ang5,
+                            contact_area_verified=slide_adhesion_contact_ready5)
                     store_result_state(st.session_state, "m5x_slide_result", "m5x_slide_signature", slide, slide_sig)
                 except Exception as exc:
                     logging.exception("Unhandled application calculation error")

@@ -31,6 +31,7 @@ from geolysis_engine import (
     seismic_foundation_eccentricity_cases,
     foundation_sliding_factor_of_safety,
     foundation_sliding_pseudostatic_cases,
+    sliding_adhesion_contact_readiness,
     developed_rankine_sliding_earth_pressures,
     seismic_uplift_stability_cases,
     bishop_simplified_factor_of_safety,
@@ -255,6 +256,7 @@ def test_drained_sliding_matches_usace_equation_5_29():
         friction_angle_deg=30,
         cohesion_kpa=10,
         adhesion_ratio=0.5,
+        contact_area_verified=True,
         active_force_kN=20,
         passive_force_kN=30,
         fs_required=2.0,
@@ -3039,6 +3041,109 @@ def test_usace_seismic_resistance_middle_third_check_passes_for_centered_load():
     )
     assert result["overturning_check_pass"] is True
     assert all(case["overturning_check_pass"] for case in result["cases"])
+
+
+def test_sliding_adhesion_requires_full_contact_area_verification():
+    with pytest.raises(ValueError, match="黏著抗力 c_a·A"):
+        foundation_sliding_factor_of_safety(
+            vertical_load_kN=1000.0, uplift_kN=100.0,
+            horizontal_load_kN=100.0, area_m2=6.0,
+            friction_angle_deg=30.0, cohesion_kpa=10.0,
+            adhesion_ratio=0.5, fs_required=2.0,
+        )
+    with pytest.raises(ValueError, match="黏著抗力 c_a·A"):
+        foundation_sliding_pseudostatic_cases(
+            vertical_load_kN=1000.0, uplift_kN=100.0,
+            horizontal_load_kN=100.0, seismic_weight_kN=1200.0,
+            kh=0.2, kv=0.1, area_m2=6.0,
+            friction_angle_deg=30.0, cohesion_kpa=10.0,
+            adhesion_ratio=0.5, fs_required=1.1,
+        )
+
+
+def test_sliding_adhesion_requires_earth_pressure_moment_confirmation():
+    base = dict(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+        earth_pressure_active=True,
+    )
+    unconfirmed = sliding_adhesion_contact_readiness(
+        **base, earth_pressure_moments_confirmed=False,
+    )
+    assert unconfirmed["ready"] is False
+    assert "Pa／Pp" in unconfirmed["reason"]
+
+    confirmed = sliding_adhesion_contact_readiness(
+        **base, earth_pressure_moments_confirmed=True,
+    )
+    assert confirmed["ready"] is True
+
+
+def test_static_sliding_adhesion_contact_readiness_uses_minimum_pressure():
+    full = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.1, eccentricity_L_m=0.1,
+    )
+    assert full["ready"] is True
+    assert full["minimum_contact_pressure_kpa"] == pytest.approx(66.6666667)
+
+    partial = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.5, eccentricity_L_m=0.1,
+    )
+    assert partial["ready"] is False
+    assert partial["minimum_contact_pressure_kpa"] <= 0.0
+
+
+def test_sliding_adhesion_contact_readiness_rejects_nonmatching_base_area():
+    result = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="static", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=5.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        eccentricity_B_m=0.0, eccentricity_L_m=0.0,
+    )
+    assert result["ready"] is False
+    assert "完整基底幾何面積" in result["reason"]
+
+
+def test_seismic_sliding_adhesion_requires_current_all_direction_contact_cases():
+    cases = [
+        {"vertical_load_kN": 900.0, "eccentricity_B_m": 0.1, "eccentricity_L_m": 0.1},
+        {"vertical_load_kN": 1100.0, "eccentricity_B_m": -0.1, "eccentricity_L_m": -0.1},
+    ]
+    result = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="seismic", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        seismic_eccentricity_current=True, seismic_eccentricity_cases=cases,
+    )
+    assert result["ready"] is True
+
+    stale = sliding_adhesion_contact_readiness(
+        adhesion_active=True, load_case="seismic", footing_type="spread",
+        slide_vertical_load_kN=1000.0, main_vertical_load_kN=1000.0,
+        slide_horizontal_load_kN=100.0, main_horizontal_load_kN=100.0,
+        slide_uplift_kN=100.0, footing_area_m2=6.0,
+        footing_width_m=2.0, footing_length_m=3.0,
+        seismic_eccentricity_current=False, seismic_eccentricity_cases=cases,
+    )
+    assert stale["ready"] is False
 
 
 def test_usace_pseudostatic_sliding_evaluates_both_vertical_kv_cases():

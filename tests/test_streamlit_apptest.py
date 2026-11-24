@@ -181,6 +181,34 @@ def test_module5_bishop_methods_require_project_specific_inputs_and_confirmation
                for value in static_scope_warnings)
 
 
+def test_module5_sliding_adhesion_is_blocked_when_base_loses_contact():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.selectbox if widget.key == "m5_theory").set_value("Meyerhof")
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5_eB").set_value(0.5)
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_c_manual").set_value(10.0)
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_ar").set_value(0.5)
+    app.run()
+    pressure = next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_"))
+    pressure.check()
+    interface = next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_interface_confirm_"))
+    interface.check()
+    app.run()
+    calculate = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert calculate.disabled is True
+    assert any("不能以完整 A 計算" in item.value for item in app.error)
+
+    next(widget for widget in app.number_input if widget.key == "m5x_slide_ar").set_value(0.0)
+    app.run()
+    interface = next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_interface_confirm_"))
+    interface.check()
+    app.run()
+    calculate = next(widget for widget in app.button if widget.key == "m5x_slide_run")
+    assert calculate.disabled is False
+
+
 def test_module5_seismic_uplift_is_disabled_for_inclined_base():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
