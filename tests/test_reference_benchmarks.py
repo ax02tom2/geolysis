@@ -3088,7 +3088,7 @@ def test_static_sliding_adhesion_contact_readiness_uses_minimum_pressure():
 def test_seismic_sliding_adhesion_requires_current_all_direction_contact_cases():
     cases = [
         {"vertical_load_kN": 900.0, "eccentricity_B_m": 0.1, "eccentricity_L_m": 0.1},
-        {"vertical_load_kN": 1100.0, "eccentricity_B_m": 0.1, "eccentricity_L_m": 0.1},
+        {"vertical_load_kN": 1100.0, "eccentricity_B_m": -0.1, "eccentricity_L_m": -0.1},
     ]
     result = sliding_adhesion_contact_readiness(
         adhesion_active=True, load_case="seismic", footing_type="spread",
