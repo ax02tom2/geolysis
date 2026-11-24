@@ -617,3 +617,39 @@ PR #294 merged to main as 71162fa06c7ee0709559f37668ecabad440b2cda.
 Lateral-spreading and ru-source confirmations now bind to kh, kv and their applicable footing/slope context. The base residual-pressure confirmation also binds to kh, kv and slope geometry. Seismic total-uplift-pressure and seismic earth-pressure confirmations bind to kv. Changing a certified demand coefficient or relevant geometry therefore requires a fresh confirmation instead of reusing a previous True state. AppTests cover kh, kv and slope-geometry invalidation. No seismic, pore-pressure, uplift or sliding equations changed.
 PR head 026fcf767243d071e324c6f8eded443223cacaae: full suite 683 passed in 16.47 s; Module/Web suite 638 passed in 16.98 s; Python 3.11 active-module compileall passed in both workflows.
 Post-merge main validation on 71162fa06c7ee0709559f37668ecabad440b2cda: full suite 683 passed in 26.32 s (Actions run 45311536684); Module/Web suite 638 passed in 27.00 s (Actions run 45311536541); Python 3.11 active-module compileall passed in both workflows.
+
+
+Build: geolysis Web — Module 2/3 input-confirmation and classification-data safeguards
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+
+Module 2 — AASHTO A-8 group-index applicability (PR #298)
+- Highly organic peat remains classified as USCS PT / AASHTO A-8 from visual field identification under AASHTO M 145-91 (2021) Note 3.
+- A-8 is not assigned the ordinary numeric group index. The engine now returns GI=None and Module 2 displays 「不適用」 instead of GI=0; this avoids suggesting that peat has the good-subgrade implication associated with GI=0 for ordinary GI-classified soils.
+- Engine, reference and Streamlit AppTests cover the non-applicable GI result. No other USCS/AASHTO group boundaries or GI equations changed.
+- PR #298 merged to main as 9df3f4dc4db8e0b70a352b13be93254d3f0a1f8a.
+- PR-head validation: full suite 689 passed; Module/Web suite 641 passed; Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation on 9df3f4dc4db8e0b70a352b13be93254d3f0a1f8a: full suite 689 passed (Actions run 45315989164); Module/Web suite 641 passed (run 45315989205); compileall passed in both workflows.
+- Reference: AASHTO M 145-91 (2021), Note 3 and §6; Note 3 defines A-8 visually while §6's ordinary GI formula is not applied to A-8.
+
+Module 2 — Soil-data confirmation freshness (PR #299)
+- The soil-classification confirmation now binds to the complete current input signature (sieve percentages, LL/PL/NP, gradation values, organic-soil evidence and peat selection).
+- Any input edit resets confirmation, clears the old classification and disables calculation until the user confirms the changed data again.
+- Streamlit AppTest verifies confirmation reset, result invalidation and disabled calculate action after an input edit. No classification equations changed.
+- PR #299 merged to main as f90dbb87dfeaef21fb2d34c6dd9eeae2458df02e.
+- PR-head validation: full suite 690 passed; Module/Web suite 642 passed; Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation on f90dbb87dfeaef21fb2d34c6dd9eeae2458df02e: full suite 690 passed (Actions run 45316172041); Module/Web suite 642 passed (run 45316172039); compileall passed in both workflows.
+
+Module 3 — SPT effective-stress CSV consistency (PR #296)
+- Case-insensitive legacy Effective_Stress_KPa aliases remain supported and can fill blank cells, but overlapping values must agree within a tight numerical tolerance.
+- Conflicting duplicate effective-stress values or nonblank nonnumeric entries now raise an actionable validation error rather than silently selecting one column. This prevents a hidden input conflict from propagating into CN and (N1)60.
+- PR #296 merged to main as 1d1205965322cde368fe76e8660453a49f042e77.
+- PR-head validation: full suite 686 passed; Module/Web suite 638 passed; Python 3.11 active-module compileall passed in both workflows.
+- Subsequent main validation including this fix and PR #297 on 32f4aa2566c0d27b285aae1858af6a5f6399beb6 passed: full suite 688 (run 45315576970) and Module/Web suite 640 (run 45315576975), compileall passed.
+
+Module 3 — SPT confirmation freshness (PR #297)
+- Single-point SPT confirmation binds to the N value, energy ratio, borehole/sampler/rod factors, soil behavior, CN method/stress/cap, dilatancy and refusal state.
+- Profile CSV confirmation binds to the exact selected upload/text content using SHA-256. Editing the confirmed CSV resets the confirmation and removes the profile result so Module 4 cannot consume unconfirmed revised data.
+- Streamlit AppTests cover both single-point and profile confirmation invalidation. No SPT correction equations or factors changed.
+- PR #297 merged to main as 32f4aa2566c0d27b285aae1858af6a5f6399beb6.
+- PR-head validation: full suite 688 passed; Module/Web suite 640 passed; Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation including PR #298 on 9df3f4dc4db8e0b70a352b13be93254d3f0a1f8a passed: full suite 689 (run 45315989164) and Module/Web suite 641 (run 45315989205), compileall passed.

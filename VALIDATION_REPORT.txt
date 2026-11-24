@@ -1403,3 +1403,32 @@ Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate
 - PR #294 merged to main as 71162fa06c7ee0709559f37668ecabad440b2cda.
 - PR-head validation on 026fcf767243d071e324c6f8eded443223cacaae: full suite 683 passed in 16.47 s; Module/Web suite 638 passed in 16.98 s; Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation: full suite 683 passed in 26.32 s (Actions run 45311536684); Module/Web suite 638 passed in 27.00 s (Actions run 45311536541); Python 3.11 active-module compileall passed in both workflows.
+
+
+## Module 2/3 review closure — 2026-11-24 Asia/Taipei (UTC+08:00)
+
+### Module 2 — AASHTO A-8 GI applicability (PR #298)
+- AASHTO M 145-91 (2021) Note 3 classifies peat/muck visually as A-8, independent of sieve, LL and PI results. The ordinary §6 GI formula is not assigned to A-8.
+- The engine now returns GI=None for A-8; the UI displays 「不適用」. This avoids representing highly compressible, low-strength peat as GI=0, which §7.3 associates with good subgrade quality for the ordinary GI framework.
+- PR #298 merged as 9df3f4dc4db8e0b70a352b13be93254d3f0a1f8a. PR-head tests: 689 full / 641 Module-Web; post-merge main tests: 689 full (run 45315989164) / 641 Module-Web (run 45315989205). Python 3.11 compileall passed in both workflows.
+
+### Module 2 — classification input confirmation (PR #299)
+- Confirmation is now bound to the complete soil-classification input signature. Any sieve, Atterberg, gradation, organic-soil or peat-selection change invalidates the previous confirmation, clears the cached classification result and disables calculation until re-confirmed.
+- PR #299 merged as f90dbb87dfeaef21fb2d34c6dd9eeae2458df02e. PR-head tests: 690 full / 642 Module-Web; post-merge main tests: 690 full (run 45316172041) / 642 Module-Web (run 45316172039). Python 3.11 compileall passed in both workflows.
+
+### Module 3 — SPT effective-stress alias integrity (PR #296)
+- Legacy case-insensitive effective-stress column names remain supported. When multiple aliases overlap, values must agree within tolerance; conflicting values and nonblank nonnumeric values are rejected with row/column guidance.
+- This prevents a hidden source-data conflict from silently changing CN and normalized SPT resistance. No SPT equation changed.
+- PR #296 merged as 1d1205965322cde368fe76e8660453a49f042e77. PR-head tests: 686 full / 638 Module-Web. Main validation including PR #296 and #297: 688 full (run 45315576970) / 640 Module-Web (run 45315576975). Compileall passed.
+
+### Module 3 — SPT source confirmation integrity (PR #297)
+- Single-point confirmation binds to every calculation input and refusal state. Profile confirmation binds to the exact uploaded/text CSV bytes via SHA-256.
+- A change to confirmed inputs resets confirmation and clears current N60/(N1)60 or profile output. Module 4 therefore cannot consume a profile that was edited after its measured-data confirmation.
+- PR #297 merged as 32f4aa2566c0d27b285aae1858af6a5f6399beb6. PR-head tests: 688 full / 640 Module-Web. Main validation including PR #298: 689 full (run 45315989164) / 641 Module-Web (run 45315989205). Compileall passed.
+
+### Consolidated post-merge validation — current main f90dbb87dfeaef21fb2d34c6dd9eeae2458df02e
+- Full test suite: 690 passed in 28.92 s (GitHub Actions run 45316172041).
+- Module/Web regression suite: 642 passed in 28.54 s (GitHub Actions run 45316172039).
+- Python 3.11 active-module compileall passed in both workflows.
+- All PRs #296–#299 are merged; no open PRs remained at the time of this report.
+- CI verifies repository tests and compilation; it does not by itself verify a live Streamlit Community Cloud deployment or certify any project-specific engineering design.
