@@ -351,6 +351,39 @@ def test_module4_single_consolidation_layer_cannot_extend_above_foundation_base(
 
 
 
+
+
+def test_module4_cv_confirmation_resets_when_cv_or_final_effective_stress_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    next(widget for widget in app.selectbox if widget.key == "m4_method").set_value("黏土：一維主固結沉陷控制法")
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m4c_cv").set_value(0.01)
+    app.run()
+
+    confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_cv_confirmed_"))
+    assert confirmation.value is False
+    confirmation.check()
+    app.run()
+    first_key = next(widget for widget in app.checkbox if widget.key.startswith("m4c_cv_confirmed_")).key
+    assert app.session_state[first_key] is True
+
+    next(widget for widget in app.number_input if widget.key == "m4c_cv").set_value(0.02)
+    app.run()
+    changed_cv_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_cv_confirmed_"))
+    assert changed_cv_confirmation.key != first_key
+    assert changed_cv_confirmation.value is False
+    changed_cv_confirmation.check()
+    app.run()
+    confirmed_cv_key = next(widget for widget in app.checkbox if widget.key.startswith("m4c_cv_confirmed_")).key
+
+    next(widget for widget in app.number_input if widget.key == "m4c_target").set_value(20.0)
+    app.run()
+    changed_stress_confirmation = next(widget for widget in app.checkbox if widget.key.startswith("m4c_cv_confirmed_"))
+    assert changed_stress_confirmation.key != confirmed_cv_key
+    assert changed_stress_confirmation.value is False
+
+
 def test_module4_burland_settlement_uses_transferred_qeq_in_actual_calculation():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
