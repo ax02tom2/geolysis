@@ -586,7 +586,8 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
         eccentricity_B=0.0, eccentricity_L=0.0,
         seismic_moment_B_kNm=0.0, seismic_moment_L_kNm=0.0,
         static_moment_B_sign=1, static_moment_L_sign=1,
-        allowable_bearing_pressure_kpa=None, base_uplift_pressure_kpa=0.0):
+        allowable_bearing_pressure_kpa=None, base_uplift_pressure_kpa=0.0,
+        base_inclination_deg=0.0):
     """Evaluate seismic resultant location, effective area and optional q_allow check.
 
     Static eccentricities are converted to signed moments V·e. Seismic
@@ -617,8 +618,11 @@ def seismic_foundation_eccentricity_cases(*, vertical_load_kN, horizontal_load_k
     if qallow is not None and qallow<=0:
         raise ValueError('地震設計容許承載壓力 q_allow 必須大於 0')
     base_uplift=_finite('基礎底面靜水揚壓 u_D',base_uplift_pressure_kpa)
+    base_angle=_finite('基底傾角',base_inclination_deg)
     if base_uplift<0:
         raise ValueError('基礎底面靜水揚壓 u_D 不可為負值')
+    if abs(base_angle)>1e-9:
+        raise ValueError('目前地震傾覆幾何與有效接觸壓力 qeq 僅適用水平基底（αb=0°）；傾斜基底須先將 V、H、彎矩及揚壓分解至基底法向／切向座標，不可直接套用水平基底的 V/A′。')
     if footing_type not in ('spread','strip'):
         raise ValueError('基礎型式須為 spread 或 strip')
     if V<=0 or W<=0 or H<0 or Bv<=0 or Lv<=0 or eB0<0 or eL0<0:
