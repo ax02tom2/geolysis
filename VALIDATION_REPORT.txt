@@ -1439,3 +1439,10 @@ Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate
 - Code inspection confirmed the classification engine already uses A-7-5 when PI ≤ LL − 30 and A-7-6 when PI > LL − 30. The classification formula was not changed.
 - Module 2 explanatory text now identifies the 2026 erratum and links directly to the official document. A regression test checks PI just above the corrected boundary at LL=60 (PI=31 -> A-7-6); the existing exact-boundary test checks PI=LL−30 -> A-7-5.
 - Official reference: AASHTO, September 2026 Errata for M 145, Figure 2, page M 145-8: https://store.transportation.org/Common/DownloadContentFiles?id=2754.
+
+
+## Post-merge verification — AASHTO M 145 September 2026 errata alignment (PR #301)
+- PR #301 merged to main as c0da20131880f7d0950bd431beef9b1070efc327.
+- PR-head validation: full suite 691 passed; Module/Web suite 643 passed; Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation: full suite 691 passed (Actions run 45316993455); Module/Web suite 643 passed (Actions run 45316993657); Python 3.11 active-module compileall passed in both workflows.
+- The engine continues to use the corrected A-7-5 / A-7-6 boundary PI ≤ LL−30 / PI > LL−30. This PR added current-source guidance and a regression point above the boundary; no classification formula changed.
