@@ -70,7 +70,7 @@ def classify_uscs_aashto(*, p4=None, p10=None, p40=None, p200=None, ll=None, pl=
     """
     if peat:
         return {
-            'USCS':'PT','AASHTO':'A-8','GI':0,'PI':None,'Cu':None,'Cc':None,
+            'USCS':'PT','AASHTO':'A-8','GI':None,'PI':None,'Cu':None,'Cc':None,
             'USCS_description':_uscs_description('PT'),
             'AASHTO_description':_aashto_description('A-8'),
             'gravel_pct':None,'sand_pct':None,'fines_pct':None,

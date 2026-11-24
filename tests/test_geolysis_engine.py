@@ -405,11 +405,11 @@ def test_uscs_equal_gravel_and_sand_is_sand_dominant():
     assert r['USCS'].startswith('SP-') or r['USCS'].startswith('SW-')
 
 
-def test_aashto_peat_is_a8_and_gi_zero():
+def test_aashto_peat_is_a8_and_group_index_is_not_applicable():
     r=classify_uscs_aashto(p4=100,p10=100,p40=100,p200=90,ll=100,pl=50,peat=True)
     assert r['USCS']=='PT'
     assert r['AASHTO']=='A-8'
-    assert r['GI']==0
+    assert r['GI'] is None
 
 
 def test_spt_rod_factor_at_ten_meter_boundary_enters_one_point_zero_range():
@@ -702,11 +702,11 @@ def test_uscs_rejects_nonpositive_or_nonmonotonic_particle_diameters():
             classify_uscs_aashto(**base,**curve)
 
 
-def test_peat_returns_pt_a8_without_lab_values():
+def test_peat_returns_pt_a8_without_lab_values_and_no_group_index():
     r=classify_uscs_aashto(peat=True)
     assert r["USCS"]=="PT"
     assert r["AASHTO"]=="A-8"
-    assert r["GI"]==0
+    assert r["GI"] is None
     assert r["PI"] is None
     assert r["gravel_pct"] is None
 

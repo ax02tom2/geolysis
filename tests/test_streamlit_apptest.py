@@ -717,6 +717,23 @@ def test_module5_seismic_bearing_requires_project_soil_and_load_confirmation():
 
 
 
+
+
+def test_module2_a8_peat_displays_group_index_as_not_applicable():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    next(widget for widget in app.checkbox if widget.key == "m2_peat").check()
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").check()
+    app.run()
+    next(widget for widget in app.button if widget.key == "m2_run").click()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert app.session_state["m2_result"]["AASHTO"] == "A-8"
+    assert app.session_state["m2_result"]["GI"] is None
+    assert any(item.label == "群指數 GI" and item.value == "不適用" for item in app.metric)
+
+
 def test_module3_single_spt_confirmation_resets_when_calculation_inputs_change():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     assert not app.exception, "\n".join(str(item.message) for item in app.exception)
