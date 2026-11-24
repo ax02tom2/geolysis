@@ -2,6 +2,10 @@
 
 本專案為 Streamlit 網頁版，包含五個大地工程分析模組。模組一提供 Hoek–Brown 岩體參數分析與 GSI 判讀；不設 RQD 輸入、岩心柱狀圖上傳、影像辨識或 RQD 自動初估。
 
+## 模組一 GSI／Hoek–Brown 方法說明
+
+目前模組一只提供 GSI 定性圖表初判與 Hoek–Brown 參數分析；計算方式、圍壓範圍及適用限制見 [`docs/gsi_methodology.md`](docs/gsi_methodology.md)。
+
 ## 五個分析模組
 
 1. **岩體參數分析**：Hoek–Brown 的 GSI、mi、完整岩石 UCS、擾動係數 D 與應用尺度；不包含 RQD 輸入或 RQD 推估。Hoek–Brown 輸出受圍壓範圍與適用模式限制。
