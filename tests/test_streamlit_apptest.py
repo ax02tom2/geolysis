@@ -186,6 +186,7 @@ def test_module5_sliding_adhesion_is_blocked_when_base_loses_contact():
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
 
     next(widget for widget in app.selectbox if widget.key == "m5_theory").set_value("Meyerhof")
+    app.run()
     next(widget for widget in app.number_input if widget.key == "m5_eB").set_value(0.5)
     next(widget for widget in app.number_input if widget.key == "m5x_slide_c_manual").set_value(10.0)
     next(widget for widget in app.number_input if widget.key == "m5x_slide_ar").set_value(0.5)
