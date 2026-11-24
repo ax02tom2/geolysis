@@ -1432,3 +1432,10 @@ Module 4 — e-log-p validation, drainage boundaries, stress datum and time-rate
 - Python 3.11 active-module compileall passed in both workflows.
 - All PRs #296–#299 are merged; no open PRs remained at the time of this report.
 - CI verifies repository tests and compilation; it does not by itself verify a live Streamlit Community Cloud deployment or certify any project-specific engineering design.
+
+
+## Module 2 — AASHTO M 145 September 2026 errata alignment — 2026-11-24 Asia/Taipei (UTC+08:00)
+- Official AASHTO September 2026 errata corrects M 145 Figure 2's A-7-5 / A-7-6 boundary from PI = LL − 40 to PI = LL − 30.
+- Code inspection confirmed the classification engine already uses A-7-5 when PI ≤ LL − 30 and A-7-6 when PI > LL − 30. The classification formula was not changed.
+- Module 2 explanatory text now identifies the 2026 erratum and links directly to the official document. A regression test checks PI just above the corrected boundary at LL=60 (PI=31 -> A-7-6); the existing exact-boundary test checks PI=LL−30 -> A-7-5.
+- Official reference: AASHTO, September 2026 Errata for M 145, Figure 2, page M 145-8: https://store.transportation.org/Common/DownloadContentFiles?id=2754.
