@@ -6,7 +6,8 @@ from geolysis_engine import (classify_uscs_aashto, spt_correct, spt_profile,
     seismic_bearing_capacity_pseudostatic, foundation_sliding_factor_of_safety, developed_rankine_sliding_earth_pressures,
     bishop_simplified_factor_of_safety, bishop_circular_search, layered_bearing_capacity_profile,
     seismic_bearing_capacity_residual_pore_pressure,
-    seismic_bearing_capacity_residual_pore_pressure_cases)
+    seismic_bearing_capacity_residual_pore_pressure_cases,
+    menard_rousseau_pmt_settlement_2025)
 
 
 def test_uscs_clean_well_graded_gravel():
@@ -1788,4 +1789,63 @@ def test_burland_burbidge_rejects_time_factor_extrapolation_before_three_years(y
             granular_layer_thickness_m=10.0,
             years=years,
             load_type=load_type,
+        )
+
+@pytest.mark.parametrize(
+    ("rock_condition", "expected_alpha"),
+    [
+        ("extremely_fractured", 1.0 / 3.0),
+        ("other", 0.5),
+        ("slightly_fractured_or_extremely_weathered", 2.0 / 3.0),
+    ],
+)
+def test_menard_rousseau_pmt_rock_condition_uses_usace_table_7_6(
+    rock_condition, expected_alpha
+):
+    result = menard_rousseau_pmt_settlement_2025(
+        pmt_moduli=[
+            {"group": "E1", "E0_kpa": 10000.0},
+            {"group": "E2", "E0_kpa": 12000.0},
+            {"group": "E345", "E0_kpa": 15000.0},
+            {"group": "E678", "E0_kpa": 18000.0},
+            {"group": "E916", "E0_kpa": 22000.0},
+        ],
+        footing_width_m=2.0,
+        footing_length_m=2.0,
+        gross_pressure_kpa=100.0,
+        base_effective_stress_kpa=20.0,
+        equivalent_net_limit_pressure_kpa=300.0,
+        yield_pressure_kpa=150.0,
+        soil_type="rock",
+        consolidation_state="auto",
+        rock_condition=rock_condition,
+        round_footing=True,
+        deep_uniform_deposit_confirmed=True,
+    )
+
+    assert result["alpha_d"] == pytest.approx(expected_alpha)
+    assert result["alpha_c"] == pytest.approx(expected_alpha)
+    assert result["settlement_mm"] > 0.0
+
+
+def test_menard_rousseau_pmt_rock_requires_explicit_rock_condition():
+    with pytest.raises(ValueError, match="rock_condition"):
+        menard_rousseau_pmt_settlement_2025(
+            pmt_moduli=[
+                {"group": "E1", "E0_kpa": 10000.0},
+                {"group": "E2", "E0_kpa": 12000.0},
+                {"group": "E345", "E0_kpa": 15000.0},
+                {"group": "E678", "E0_kpa": 18000.0},
+                {"group": "E916", "E0_kpa": 22000.0},
+            ],
+            footing_width_m=2.0,
+            footing_length_m=2.0,
+            gross_pressure_kpa=100.0,
+            base_effective_stress_kpa=20.0,
+            equivalent_net_limit_pressure_kpa=300.0,
+            yield_pressure_kpa=150.0,
+            soil_type="rock",
+            consolidation_state="auto",
+            round_footing=True,
+            deep_uniform_deposit_confirmed=True,
         )
