@@ -629,7 +629,7 @@ def render_module_1(expanded=False):
             tunnel_span = None
             if "隧道" in app_type:
                 tunnel_span = st.number_input(
-                    "隧道開挖跨度 [m]（GSI 尺度適用性檢查）",
+                    "隧道開挖跨度／代表直徑 D [m]（GSI 尺度與淺埋隧道適用性檢查）",
                     min_value=1.0, max_value=100.0, value=10.0, step=0.5,
                     key="hb_tunnel_span_m",
                 )
