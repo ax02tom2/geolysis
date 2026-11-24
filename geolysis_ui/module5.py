@@ -811,7 +811,7 @@ def render_module_5(expanded=False):
                 slide_area5=st.number_input(f"基底接觸面積 A [{slide_area_unit5}]",0.1,5000.0,float(slide_area_default5),0.1,key=slide_area_key5)
                 slide_phi5=st.number_input(
                     "基底界面摩擦角 δ′ [°]",0.0,50.0,0.0,1.0,
-                    key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}",
+                    key=f"m5x_slide_phi_{'hb' if use_hb5 else 'manual'}_v2",
                     help="請依基礎底面與接觸土層的界面試驗、表面粗糙度或適用設計依據選取；δ′ 是界面摩擦角，不應未經判斷直接等同土壤內摩擦角 φ′。")
                 slide_c5=st.number_input("基底土層 c′／Su [kPa]",0.0,100000.0,0.0,1.0,key=f"m5x_slide_c_{'hb' if use_hb5 else 'manual'}")
             with sc:
