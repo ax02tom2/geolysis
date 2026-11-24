@@ -1293,3 +1293,22 @@ def test_module3_cs_distinguishes_sampler_without_liner_design_from_omitted_line
     confirmation.check()
     app.run()
     assert app.session_state["m3_current_n60"] == pytest.approx(18.81)
+
+def test_module3_chinese_refusal_marker_does_not_require_effective_stress():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    # The engine treats 「是」 as Refusal=True. The UI pre-validation must
+    # use the same marker so a refusal row does not require CN effective stress.
+    profile = next(widget for widget in app.text_area if widget.key == "m3_profile")
+    profile.set_value("Depth_m,N,Refusal\\n5,50,是\\n")
+    app.run()
+    next(widget for widget in app.checkbox if widget.key == "m3_profile_confirm").check()
+    app.run()
+
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    result = app.session_state.get("m3_profile_result")
+    assert result is not None
+    assert result["N60"].isna().all()
+    assert result["N1_60_final"].isna().all()
+    assert "拒錘" in result.iloc[0]["Correction_status"]
