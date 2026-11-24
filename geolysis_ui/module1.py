@@ -650,27 +650,31 @@ def render_module_1(expanded=False):
         hb_application = "slope" if "邊坡" in app_type else ("tunnel" if "隧道" in app_type else "general")
         hb_current=None
         hb_error=None
-        try:
-            if not ucs_valid:
-                raise ValueError("缺少 UCS 試驗值或有效的 ISRM 現場強度分級，請先補足資料。")
-            if not gsi_selection_valid:
-                raise ValueError("目前選取的岩體結構與不連續面品質組合不適用基本 GSI 圖，請重新選擇。")
-            _hb_applicability = hoek_brown_structure_applicability(gsi=gsi, structure_code=_struct_code)
-            if _hb_applicability["warning"]:
-                st.warning(_hb_applicability["warning"])
-            if not _hb_applicability["applicable"]:
-                raise ValueError(_hb_applicability["warning"] or "目前 GSI 代表值超出 Hoek–Brown 適用範圍。")
-            if gsi_lower > gsi_upper:
-                raise ValueError("GSI 初判下限不可大於上限，請修正區間。")
-            if _struct_code == "A" and gsi_upper > 75.0:
-                st.warning("完整／巨塊狀岩體的 GSI>75 需另作脆性剝落評估；本次代表值若不超過 75，仍可進行 Hoek–Brown 初估，但敏感度分析會排除大於 75 的端點。")
-            hb_current = hoek_brown_parameters(gsi=gsi,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
-                application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,
-                sigma3_custom_mpa=sigma3_general)
-        except Exception as exc:
-            logging.exception("Unhandled application calculation error")
-            hb_error=str(exc)
-            st.error(f"Hoek–Brown 參數計算未完成：{hb_error}。請檢查 GSI、UCS、擾動因子與 σ3,max 適用範圍。")
+        hb_prerequisite_message=None
+        # Missing/unconfirmed field data is a normal initial UI state, not a
+        # calculation exception. Keep it out of error logs and red error banners.
+        if not ucs_valid:
+            hb_prerequisite_message="尚未確認完整岩石 UCS 試驗值或有效的 ISRM 現場強度分級。"
+        elif not gsi_selection_valid:
+            hb_prerequisite_message="尚未選定適用的岩體結構與不連續面品質組合。"
+        else:
+            try:
+                _hb_applicability = hoek_brown_structure_applicability(gsi=gsi, structure_code=_struct_code)
+                if _hb_applicability["warning"]:
+                    st.warning(_hb_applicability["warning"])
+                if not _hb_applicability["applicable"]:
+                    raise ValueError(_hb_applicability["warning"] or "目前 GSI 代表值超出 Hoek–Brown 適用範圍。")
+                if gsi_lower > gsi_upper:
+                    raise ValueError("GSI 初判下限不可大於上限，請修正區間。")
+                if _struct_code == "A" and gsi_upper > 75.0:
+                    st.warning("完整／巨塊狀岩體的 GSI>75 需另作脆性剝落評估；本次代表值若不超過 75，仍可進行 Hoek–Brown 初估，但敏感度分析會排除大於 75 的端點。")
+                hb_current = hoek_brown_parameters(gsi=gsi,mi=mi,sigma_ci_mpa=sig_ci,disturbance=d_factor,
+                    application=hb_application,gamma_rock_kn_m3=gamma_rock,height_m=h_slope,
+                    sigma3_custom_mpa=sigma3_general)
+            except Exception as exc:
+                logging.exception("Unhandled application calculation error")
+                hb_error=str(exc)
+                st.error(f"Hoek–Brown 參數計算未完成：{hb_error}。請檢查 GSI、UCS、擾動因子與 σ3,max 適用範圍。")
         if hb_current is not None:
             mb=hb_current['mb']; s_hb=hb_current['s']; a_hb=hb_current['a']
             sig_cm=hb_current['sigma_cm_mpa']; sig_c_mass=hb_current['sigma_c_mass_mpa']; sig_t_mass=hb_current['sigma_t_mass_mpa']
@@ -696,7 +700,10 @@ def render_module_1(expanded=False):
         with hb_col3:
             st.markdown("##### 3. 等效莫耳－庫倫與岩體參數成果")
             if hb_current is None:
-                st.warning("目前輸入條件超出 Hoek–Brown 參數計算範圍，因此不提供 c′、ϕ′、Em 或破壞包絡線；請先修正輸入。")
+                if hb_prerequisite_message:
+                    st.caption(f"Hoek–Brown 尚未計算：{hb_prerequisite_message}完成資料確認後才會產生 c′、ϕ′、Em 與破壞包絡線。")
+                else:
+                    st.warning("目前輸入條件超出 Hoek–Brown 參數計算範圍，因此不提供 c′、ϕ′、Em 或破壞包絡線；請先修正輸入。")
             else:
                 st.success(rf"""#### 等效凝聚力 $c'$：`{c_hb_kpa:.1f} kPa` ({c_hb_mpa:.3f} MPa)
     #### 等效內摩擦角 $\phi'$：`{phi_hb_deg:.2f}°`""")
