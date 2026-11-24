@@ -725,6 +725,7 @@ def test_module2_a8_peat_displays_group_index_as_not_applicable():
     next(widget for widget in app.checkbox if widget.key == "m2_peat").check()
     app.run()
     next(widget for widget in app.checkbox if widget.key == "m2_data_confirm").check()
+    app.run()
     next(widget for widget in app.button if widget.key == "m2_run").click()
     app.run()
     assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
