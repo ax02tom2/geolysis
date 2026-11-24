@@ -571,6 +571,7 @@ def render_module_4(expanded=False):
                 if clay_transfer_qa is not None and (abs(qB_calc-qB)>1e-6 or abs(qL_calc-qL)>1e-6):
                     st.info(f"一維固結沉陷採 Module 5 有效尺寸 B′×L′={qB_calc:.3f}×{qL_calc:.3f} m（USACE 2025 §5-2a）。")
                 qcap_clay4=(clay_transfer_qa if clay_transfer_qa is not None else st.number_input("模組五 qa,net 承載力上限 [kPa]（0＝不套用）",0.0,20000.0,0.0,10.0,key='m4c_qcap'))
+            st.caption("多層固結 CSV 的 Depth_center_m 是各層中心距「基礎底面」向下的深度，供 Boussinesq／2:1 基礎荷載應力影響係數使用；不可直接填自地表的絕對深度，若資料自地表量測，須先扣除基礎埋深。")
             layers_text4=st.text_area("選填：多層固結 CSV（填入後取代上方單一壓縮層參數；可選填 Stress_factor）",value="",height=110,key='m4c_layers',placeholder="Layer,Depth_center_m,Thickness_m,e0,Cc,Cr,Sigma0_kPa,SigmaP_kPa,Stress_factor\n1,1.5,3.0,0.8,0.30,0.05,60,100,0.85\n2,5.0,4.0,0.9,0.40,0.06,100,150,0.42")
             try:
                 max_clay_q=min(5000.0,qcap_clay4) if qcap_clay4>0 else 5000.0
