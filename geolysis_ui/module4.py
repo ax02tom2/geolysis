@@ -15,6 +15,14 @@ def _context_confirmation_key4(prefix, *context):
     return f"{prefix}_{token}"
 
 
+def _consolidation_degree_label4(degree_percent):
+    """Format finite-time consolidation without rounding the asymptote to 100%."""
+    value=float(degree_percent)
+    if value>=99.95:
+        return "趨近 100%（有限時間未達）"
+    return f"{value:.1f}%"
+
+
 def _module5_transfer_value(*, key_prefix, label, field, width_m, length_m,
         footing_type=None, depth_m=None, water_depth_m=None, include_qeq=True,
         eccentricity_B_m=0.0, eccentricity_L_m=0.0):
@@ -686,7 +694,15 @@ def render_module_4(expanded=False):
                                             layer_time_parameters=time_params4,
                                             target_degree_percent=multi_u_target4,
                                             elapsed_days=multi_elapsed_years4*365.25)
-                                        st.dataframe(pd.DataFrame(multi_time4["layer_results"]),hide_index=True,use_container_width=True)
+                                        layer_time_display4=pd.DataFrame(multi_time4["layer_results"]).copy()
+                                        if "degree_at_elapsed_percent" in layer_time_display4.columns:
+                                            layer_time_display4["degree_at_elapsed_percent"]=layer_time_display4[
+                                                "degree_at_elapsed_percent"
+                                            ].map(_consolidation_degree_label4)
+                                            layer_time_display4=layer_time_display4.rename(
+                                                columns={"degree_at_elapsed_percent":"目前固結度 U"}
+                                            )
+                                        st.dataframe(layer_time_display4,hide_index=True,use_container_width=True)
                                         mtc1,mtc2,mtc3=st.columns(3)
                                         with mtc1:
                                             st.metric("全層加權平均達標時間",f"{multi_time4['time_to_target_years']:.2f} 年")
@@ -750,7 +766,7 @@ def render_module_4(expanded=False):
                                     layer_thickness_m=representative_H4,cv_m2_per_day=cv4,
                                     target_degree_percent=u_target4,elapsed_days=elapsed_years4*365.25,
                                     drainage=drainage4)
-                                degree_label4=("趨近 100%（有限時間未達）" if time4["degree_at_elapsed_percent"]>=99.95 else f"{time4['degree_at_elapsed_percent']:.1f}%")
+                                degree_label4=_consolidation_degree_label4(time4["degree_at_elapsed_percent"])
                                 st.write(f"達到 U={u_target4:.1f}% 預估需時 **{time4['time_to_target_years']:.2f} 年**；目前 {elapsed_years4:.2f} 年時 U≈{degree_label4}，主固結沉陷≈{time4['primary_settlement_at_elapsed_mm']:.2f} mm。")
                                 st.caption(f"排水距離 Hdr={time4['drainage_path_m']:.3f} m；Tv={time4['time_factor_target']:.4f}。")
                                 if calc_secondary4:
