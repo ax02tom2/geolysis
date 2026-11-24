@@ -701,3 +701,23 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 - PR #306 merged to main as f11cc4dfa64c32972d1a04fcf249d64854f06f6e.
 - PR-head validation on 3e58f732c5304126c4665ee8a57c0d6d51cd993e: full suite 696 passed (Actions run 45334619047); Module/Web suite 647 passed (run 45334618985); Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation on f11cc4dfa64c32972d1a04fcf249d64854f06f6e: full suite 696 passed (Actions run 45334801861); Module/Web suite 647 passed (run 45334801758); Python 3.11 active-module compileall passed in both workflows.
+
+
+Module 5 — Foundation-interface strength confirmation (PR #307)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+- The interface friction angle δ′ no longer silently defaults to the soil internal friction angle φ′. The initial value is 0° and a versioned Streamlit widget key prevents pre-existing session state from retaining the old inherited value.
+- Static and pseudo-static sliding calculations require explicit confirmation of δ′, shear-zone soil c′/Su, and interface adhesion ratio ca/c′ (or ca/Su). The confirmation key is bound to the actual values, footing type, load case, and base inclination; changing δ′ or other context requires renewed confirmation and invalidates the prior sliding result.
+- AppTest covers the initial gate, confirmation, and re-confirmation after δ′ changes; the result-signature regression also covers confirmation revocation.
+- PR #307 merged to main as 1126926327de1b1742d9e55e720f3e697278c0e4.
+- PR-head validation on 43ea18c364d2ccfd7d9f90f87876647fa898cc23: full suite 698 passed (Actions run 45335078682); Module/Web suite 648 passed (run 45335078680); Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation on 1126926327de1b1742d9e55e720f3e697278c0e4: full suite 698 passed (Actions run 45335219389); Module/Web suite 648 passed (run 45335219491); Python 3.11 active-module compileall passed in both workflows.
+
+
+Module 5 — Seismic qeq and uplift horizontal-base applicability guard (PR #308)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+- The general seismic overturning/effective-contact-pressure routine computes qeq using vertical V/A′ and M/V eccentricity. It now rejects non-zero base inclination until V, H, moments, and uplift are resolved in base-normal/tangential coordinates.
+- Module 5 disables the seismic qeq/contact action for non-zero base inclination and includes base angle in the result signature so prior results cannot remain current after geometry changes.
+- The seismic uplift FS routine also assumed a horizontal base while comparing vertical W/U. It now rejects non-zero base inclination; the UI disables the action, includes base angle in the weight/pressure confirmation contexts and result signature, and explains the required normal-force resolution.
+- Regression coverage includes direct engine rejection and AppTest button-gating checks for both seismic qeq and uplift.
+- PR-head validation on a9038fabfa65a60319b5e98872dc69cf9bbef6f7: full suite 702 passed (Actions run 45335585659); Module/Web suite 652 passed (run 45335585724); Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation: pending independent Actions confirmation.

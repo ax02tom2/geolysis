@@ -3079,6 +3079,16 @@ def test_usace_pseudostatic_sliding_rejects_uplift_at_least_minimum_vertical_loa
         )
 
 
+def test_seismic_uplift_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        seismic_uplift_stability_cases(
+            resisting_weight_kN=1500.0,
+            structure_seismic_weight_kN=1000.0,
+            uplift_force_kN=500.0, kv=0.1,
+            base_inclination_deg=5.0,
+        )
+
+
 def test_usace_pseudostatic_sliding_rejects_inclined_base():
     with pytest.raises(ValueError, match="僅適用水平基底"):
         foundation_sliding_pseudostatic_cases(
@@ -3184,6 +3194,16 @@ def test_general_seismic_eccentricity_reports_middle_third_separately_from_footp
     assert result["cases"][0]["middle_third_B_pass"] is False
     assert result["bearing_pressure_check_complete"] is False
     assert result["overall_seismic_overturning_passes"] is None
+
+
+def test_general_seismic_eccentricity_rejects_inclined_base():
+    with pytest.raises(ValueError, match="僅適用水平基底"):
+        seismic_foundation_eccentricity_cases(
+            vertical_load_kN=1000.0, horizontal_load_kN=100.0,
+            seismic_weight_kN=1000.0, kh=0.1, kv=0.05,
+            footing_type="spread", B=2.0, L=3.0,
+            base_inclination_deg=5.0,
+        )
 
 
 def test_general_seismic_eccentricity_flags_loss_of_positive_contact_dimension():
