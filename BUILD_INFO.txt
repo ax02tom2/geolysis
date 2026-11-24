@@ -662,3 +662,10 @@ Date: 2026-11-24 Asia/Taipei (UTC+08:00)
 - Module 2 now explicitly states the corrected boundary and links the official AASHTO errata. Added a regression benchmark for a point just above the corrected boundary.
 - Official source: https://store.transportation.org/Common/DownloadContentFiles?id=2754 (September 2026 Errata, page M 145-8 / Figure 2).
 - Base main before this documentation/coverage PR: d3b7cafacc3c82451983310609f13190a3788b34.
+
+
+Post-merge validation — Module 2 AASHTO M 145 September 2026 errata alignment (PR #301)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+PR #301 merged to main as c0da20131880f7d0950bd431beef9b1070efc327.
+PR-head validation on 7dc54c877625e557a314cf4811dc4db653c058db: full suite 691 passed; Module/Web suite 643 passed; Python 3.11 active-module compileall passed in both workflows.
+Post-merge main validation on c0da20131880f7d0950bd431beef9b1070efc327: full suite 691 passed (Actions run 45316993455); Module/Web suite 643 passed (Actions run 45316993657); Python 3.11 active-module compileall passed in both workflows.
