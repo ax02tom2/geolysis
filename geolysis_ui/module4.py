@@ -621,7 +621,7 @@ def render_module_4(expanded=False):
                 sec4=None
                 with st.expander("主固結時間速率與次壓縮（選填）",expanded=False):
                     if layers_text4.strip():
-                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。")
+                        st.caption("多層模式會先以最終控制淨壓力 qa,net 重新計算各層主固結沉陷，再逐層套用各自 Cv 與排水路徑，並在同一經過時間下加總。這是各層獨立一維固結的工程估算，不是完整層間耦合分析。Drainage=double 僅能用於該層頂、底兩面均有實際有效排水邊界的情況；相鄰黏土層界面不可自動視為排水面。連續黏土層且無砂層排水界面時，本模式不能完整描述層間孔隙水壓與流量連續，結果只可作初步估算。")
                         try:
                             layer_rows_time4=pd.read_csv(StringIO(layers_text4)).to_dict("records")
                             primary_layers_time4=consolidation_settlement_layers(
