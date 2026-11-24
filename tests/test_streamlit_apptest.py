@@ -1338,3 +1338,35 @@ def test_module4_burland_time_input_enforces_original_three_year_applicability()
     # that attempts below 3 years are rejected at the calculation boundary.
     assert "t≥3 年" in years.label
     assert years.value >= 3.0
+
+def test_module1_lab_ucs_confirmation_resets_when_value_changes():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+
+    next(widget for widget in app.radio if widget.key == "hb_ucs_source_mode").set_value(
+        "已有實驗室 UCS 試驗值"
+    )
+    app.run()
+    ucs = next(widget for widget in app.number_input if widget.key == "hb_ucs_lab_value")
+    ucs.set_value(25.0)
+    app.run()
+
+    confirmation = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith("hb_ucs_lab_confirmed_")
+    )
+    assert confirmation.value is False
+    confirmation.check()
+    app.run()
+    assert not app.exception, "\\n".join(str(item.message) for item in app.exception)
+    assert app.session_state["geolysis_hb_current"] is not None
+
+    ucs = next(widget for widget in app.number_input if widget.key == "hb_ucs_lab_value")
+    ucs.set_value(40.0)
+    app.run()
+    confirmation = next(
+        widget for widget in app.checkbox
+        if widget.key.startswith("hb_ucs_lab_confirmed_")
+    )
+    assert confirmation.value is False
+    assert app.session_state["geolysis_hb_current"] is None
