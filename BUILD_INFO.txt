@@ -690,3 +690,14 @@ Module 4 — Multi-layer Cv and drainage-boundary confirmation (PR #304)
 - PR-head validation: full suite 693 passed; Module/Web suite 645 passed; Python 3.11 active-module compileall passed in both workflows.
 - Post-merge main validation on ab35902f575f025250f1f003070a0666cce8ff30: full suite 693 passed (Actions run 45318144757); Module/Web suite 645 passed (run 45318144695); Python 3.11 active-module compileall passed in both workflows.
 - Engineering basis: USACE EM 1110-1-1905 (2025), §7-18 / Table 7-11 Step 2 (select Cv based on final vertical effective stress at the layer midpoint); drainage length must reflect actual drainage boundaries.
+
+
+Module 5 — Inclined-base sliding applicability guard (PR #306)
+Date: 2026-11-24 Asia/Taipei (UTC+08:00)
+- USACE EM 1110-1-1905 (2025) Eq. 5-28 defines drained sliding resistance using the resultant normal component N and tangential component T at the footing interface. The previous V/H implementation was valid only for a horizontal base.
+- Static and pseudo-static sliding engine functions now reject non-zero base inclination until N/T resolution, uplift direction, and active/passive earth-pressure directions are implemented consistently.
+- Module 5 disables the sliding calculation action and displays the applicability limit for non-zero base inclination. The sliding result signature includes base inclination so geometry changes invalidate old results.
+- Regression tests cover static rejection, pseudo-static rejection, and result-signature invalidation.
+- PR #306 merged to main as f11cc4dfa64c32972d1a04fcf249d64854f06f6e.
+- PR-head validation on 3e58f732c5304126c4665ee8a57c0d6d51cd993e: full suite 696 passed (Actions run 45334619047); Module/Web suite 647 passed (run 45334618985); Python 3.11 active-module compileall passed in both workflows.
+- Post-merge main validation on f11cc4dfa64c32972d1a04fcf249d64854f06f6e: full suite 696 passed (Actions run 45334801861); Module/Web suite 647 passed (run 45334801758); Python 3.11 active-module compileall passed in both workflows.

@@ -22,7 +22,7 @@
 - **斜坡地表與傾斜基底**：依 USACE EM 1110-1-1905（2025）Table 5-2 至 5-4 與 Eq. 5-19，先以有效尺寸 B′、L′重建排水形狀／深度係數，並以 2025 地下水修正式計算排水 Nγ 項，再套用 Meyerhof-based 地表與基底傾斜係數；鄰接坡體必須先完成獨立整體穩定檢核且 FS > 1.3，否則系統停止地表坡角修正。
 - **多層承載力穿刺**：可輸入多層水平土層強度與厚度，依 USACE 2025 Eqs. 5-17／5-18 對影響深度內的較弱下層採 2V:1H 擴散，取控制承載力。
 - **地震承載力**：提供 kh／kv 偽靜力基礎作用包絡；另依 USACE 2025 Eqs. 9-3／9-4，計算殘餘超額孔隙水壓比 ru 對砂狀土 Nγ 項的折減。此功能不代表可將可液化或顯著強度損失地盤視為可接受淺基礎地盤。
-- **基底滑動**：依 USACE 2025 Eqs. 5-28／5-30 計算界面摩擦、黏著與揚壓力；可手動輸入主動／已折減被動土壓，或依 Eqs. 5-31 至 5-35 自動估算 Rankine developed earth pressure。荷載組合明確區分常時／靜力 FS ≥ 2.0 與含地震荷載 FS ≥ 1.1；選擇地震組合只切換最低 FS，地震慣性力仍須由使用者納入 H、V 與土壓輸入。
+- **基底滑動**：依 USACE 2025 Eqs. 5-28／5-30 計算界面摩擦、黏著與揚壓力；δ′、界面 c′／Su 與黏著比需依基底—土層界面資料確認，不直接把土壤 φ′ 當作 δ′。可手動輸入主動／已折減被動土壓，或依 Eqs. 5-31 至 5-35 自動估算 Rankine developed earth pressure。靜力 FS 最低 2.0；偽靜力地震分析最低 1.1，程式會以 H+khW 與 V±kvW 分別計算兩種垂直地震方向，輸入 H 不含 khW，W 應為相符的結構地震重量。**目前滑動計算僅適用水平基底（αb=0°）；傾斜基底會停用滑動 FS，避免將 V、H 誤當基底法向力 N 與切向力 T。**
 - **整體穩定**：Bishop 簡化法手動切片計算，以及均質土強度、水平地下水位、圓弧滑動面的網格搜尋；自動搜尋的切片重量在地下水位以上採濕單位重 γ_moist，以下採飽和單位重 γ_sat，孔隙水壓另依水位計算。
 - 原有靜力承載力與上述新增檢核彼此獨立；不得把單一承載力 FS 當成滑動或整體穩定 FS。
 
@@ -32,7 +32,7 @@
 - 多層承載力目前實作強上層覆蓋弱下層的 2V:1H 穿刺簡化法；不等同任意多層、任意破壞面之數值分析。
 - 地震功能包括偽靜力作用包絡及 ru 對 Nγ 項折減；尚未整合完整地震時程、土體慣性極限分析、液化後殘餘強度剖面、側向擴展與震陷。
 - Bishop 自動搜尋限均質 c′／φ′ 強度、圓弧滑面及水平地下水位；切片重量可區分 γ_moist 與 γ_sat，但不含分層強度、非圓弧滑面、地表附加荷載、地震及三維效應。正式設計應加密搜尋並以 Spencer／Morgenstern–Price 等方法交叉驗證。
-- 基底滑動的主動／被動土壓力需由使用者以 developed strength 另行計算後輸入；常時與地震荷載組合分別採不同最低 FS，不能把地震例外值套用到常時分析。
+- 基底滑動的界面摩擦角 δ′、界面黏著強度與回填土強度為不同參數，必須依界面試驗、粗糙度及場址資料確認；改動參數後須重新確認。滑動 FS 目前只支援水平基底；傾斜基底的 N/T 分解、揚壓方向及主被動土壓方向尚未完成，因此不輸出滑動安全係數。主動／被動土壓力仍須以 developed strength 另行計算或採用已確認的 Rankine developed earth pressure。
 
 ## 本機啟動
 
@@ -65,7 +65,7 @@ Streamlit Community Cloud 部署時，GitHub 專案根目錄選擇 `app.py`。�
 
 CI 使用 Python 3.11，並固定 Streamlit 1.67.0、Pandas 3.1.1、Plotly 7.1.0，以避免 AppTest 與 widget 行為因依賴版本漂移。
 
-GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-13 PR #204 最終測試提交 `dc007738d69d0acc4686ca8108909339490dc3df`：完整測試 **684 passed、1 skipped**；指定模組與 Web 回歸測試 **573 passed**；Python 3.11 編譯檢查通過。PR 已合併至 main（`2832ac9500650577b41a1f56fc83d7d5346ca7d7`）。合併及文件同步後的 main 提交 `12740134c03133867f06fd68fc5b2083d5ee2e37` 亦已通過完整測試 **684 passed、1 skipped**（Actions run `43339736147`）、指定模組與 Web 回歸測試 **573 passed**（run `43339736107`）及 Python 3.11 編譯。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
+GitHub Actions 使用 Python 3.11，包含指定回歸測試與完整測試目錄自動探索（`python -m pytest -q tests`），並執行編譯、USACE 2025 獨立基準案例、元件 key 檢查、Web 範圍檢查及 Streamlit AppTest。2026-11-13 PR #204 最終測試提交 `dc007738d69d0acc4686ca8108909339490dc3df`：完整測試 **684 passed、1 skipped**；指定模組與 Web 回歸測試 **573 passed**；Python 3.11 編譯檢查通過。PR 已合併至 main（`2832ac9500650577b41a1f56fc83d7d5346ca7d7`）。合併及文件同步後的 main 提交 `12740134c03133867f06fd68fc5b2083d5ee2e37` 亦已通過完整測試 **684 passed、1 skipped**（Actions run `43339736147`）、指定模組與 Web 回歸測試 **573 passed**（run `43339736107`）及 Python 3.11 編譯。2026-11-24 PR #306（傾斜基底滑動適用性防護）PR-head：完整測試 **696 passed**；指定 Module/Web 測試 **647 passed**；Python 3.11 編譯檢查通過。PR #306 已合併至 main（f11cc4dfa64c32972d1a04fcf249d64854f06f6e）；合併後 main 提交 f11cc4dfa64c32972d1a04fcf249d64854f06f6e 亦已通過完整測試 **696 passed**（Actions run 45334801861）、指定 Module/Web 測試 **647 passed**（run 45334801758）及 Python 3.11 active-module compileall。CI 通過不等同於 Streamlit Cloud 線上驗收或工址設計認證。
 
 ## 工程使用限制
 
