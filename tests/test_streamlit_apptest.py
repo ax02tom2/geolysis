@@ -861,6 +861,20 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).value is False
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kh").set_value(0.15)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).value is False
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).check()
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kv").set_value(0.1)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_no_significant_lateral_spreading_")).value is False
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_ru_source_confirm_")).value is False
 
     # Partial shear-zone confirmation is tied to f and both effective unit weights.
     next(widget for widget in app.selectbox if widget.key == "m5x_shear_zone_mode").select("partial")
@@ -893,6 +907,11 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     uplift.set_value(2.0)
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kv").set_value(0.2)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_uplift_pressure_confirm_")).value is False
 
     # Earth-pressure confirmation must be renewed when Pa / Pp changes.
     next(widget for widget in app.number_input if widget.key == "m5x_slide_pa").set_value(100.0)
@@ -900,6 +919,11 @@ def test_module5_seismic_confirmations_reset_when_certified_inputs_change():
     next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).check()
     app.run()
     next(widget for widget in app.number_input if widget.key == "m5x_slide_pa").set_value(120.0)
+    app.run()
+    assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).value is False
+    next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).check()
+    app.run()
+    next(widget for widget in app.number_input if widget.key == "m5x_kv").set_value(0.25)
     app.run()
     assert next(widget for widget in app.checkbox if widget.key.startswith("m5x_slide_seismic_earth_pressure_confirm_")).value is False
 
